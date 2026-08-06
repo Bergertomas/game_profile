@@ -1,5 +1,6 @@
 import type { TagView } from "@/lib/profile/build";
-import type { BlockType, Evaluation } from "@/lib/profile/types";
+import type { BlockType, Evaluation, EvidenceStatus } from "@/lib/profile/types";
+import { BLOCK_ORDER, blockHeadings } from "@/lib/profile/vocabulary";
 import { TAG_CATEGORY_LABELS, type TagCategory } from "@/lib/rubric/tags";
 
 /**
@@ -37,42 +38,26 @@ function Card({
   );
 }
 
-const BLOCK_META: Record<
-  BlockType,
-  { title: string; note: string }
-> = {
-  great_fit: {
-    title: "Great fit if…",
-    note: "Preferences this game rewards",
-  },
-  know_before: {
-    title: "Know before buying…",
-    note: "True either way — a plus for some, friction for others",
-  },
-  probably_not: {
-    title: "Probably not for you if…",
-    note: "Strong mismatch conditions",
-  },
-};
-
-const BLOCK_ORDER: readonly BlockType[] = [
-  "great_fit",
-  "know_before",
-  "probably_not",
-];
-
+/**
+ * Headings shift before release: a pre-release profile describes observed
+ * evidence, never a final purchase verdict (SOP §10.8).
+ */
 export function RecommendationBlocks({
   blocks,
+  evidenceStatus,
 }: {
   blocks: Readonly<Record<BlockType, readonly string[]>>;
+  evidenceStatus: EvidenceStatus;
 }) {
+  const headings = blockHeadings(evidenceStatus);
+
   return (
     <div className="grid gap-px overflow-hidden border border-line bg-line lg:grid-cols-3">
       {BLOCK_ORDER.map((type) => (
         <section key={type} className="bg-ink-900 p-4 sm:p-5">
-          <h3 className="display text-lg text-bone">{BLOCK_META[type].title}</h3>
+          <h3 className="display text-lg text-bone">{headings[type].title}</h3>
           <p className="label-micro mt-1 text-bone-faint">
-            {BLOCK_META[type].note}
+            {headings[type].note}
           </p>
           <ul className="mt-4 space-y-2.5">
             {blocks[type].map((item) => (

@@ -1,9 +1,82 @@
 {
-  "id": "27c16ea0-2030-47b5-a5c6-d5b0ef4c97b7",
+  "id": "a50aa533-7b9f-4726-be93-cfbd988c56aa",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
+    "public.dimension_assessments": {
+      "name": "dimension_assessments",
+      "schema": "",
+      "columns": {
+        "evaluation_id": {
+          "name": "evaluation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dimension_id": {
+          "name": "dimension_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "confidence": {
+          "name": "confidence",
+          "type": "confidence",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "dimension_assessments_evaluation_id_evaluations_id_fk": {
+          "name": "dimension_assessments_evaluation_id_evaluations_id_fk",
+          "tableFrom": "dimension_assessments",
+          "tableTo": "evaluations",
+          "columnsFrom": [
+            "evaluation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "dimension_assessments_dimension_id_dimensions_id_fk": {
+          "name": "dimension_assessments_dimension_id_dimensions_id_fk",
+          "tableFrom": "dimension_assessments",
+          "tableTo": "dimensions",
+          "columnsFrom": [
+            "dimension_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "dimension_assessments_evaluation_id_dimension_id_pk": {
+          "name": "dimension_assessments_evaluation_id_dimension_id_pk",
+          "columns": [
+            "evaluation_id",
+            "dimension_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.dimensions": {
       "name": "dimensions",
       "schema": "",
@@ -73,6 +146,13 @@
       "name": "evaluation_evidence_links",
       "schema": "",
       "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
         "evaluation_id": {
           "name": "evaluation_id",
           "type": "uuid",
@@ -97,6 +177,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "platform_scope": {
+          "name": "platform_scope",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
         "note": {
           "name": "note",
           "type": "text",
@@ -111,7 +197,29 @@
           "default": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "evaluation_evidence_links_eval_idx": {
+          "name": "evaluation_evidence_links_eval_idx",
+          "columns": [
+            {
+              "expression": "evaluation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "dimension_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "evaluation_evidence_links_evaluation_id_evaluations_id_fk": {
           "name": "evaluation_evidence_links_evaluation_id_evaluations_id_fk",
@@ -166,15 +274,7 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {
-        "evaluation_evidence_links_evaluation_id_evidence_source_id_pk": {
-          "name": "evaluation_evidence_links_evaluation_id_evidence_source_id_pk",
-          "columns": [
-            "evaluation_id",
-            "evidence_source_id"
-          ]
-        }
-      },
+      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
@@ -386,6 +486,13 @@
           "primaryKey": false,
           "notNull": true
         },
+        "evidence_maturity": {
+          "name": "evidence_maturity",
+          "type": "evidence_maturity",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
         "confidence": {
           "name": "confidence",
           "type": "confidence",
@@ -584,6 +691,13 @@
         "evidence_tier": {
           "name": "evidence_tier",
           "type": "evidence_tier",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_category": {
+          "name": "source_category",
+          "type": "source_category",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
@@ -795,6 +909,102 @@
           "columns": [
             "game_id",
             "platform_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.game_time_estimates": {
+      "name": "game_time_estimates",
+      "schema": "",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "provider": {
+          "name": "provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "external_game_id": {
+          "name": "external_game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "main_or_hasty_seconds": {
+          "name": "main_or_hasty_seconds",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "normal_or_main_plus_seconds": {
+          "name": "normal_or_main_plus_seconds",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "completionist_seconds": {
+          "name": "completionist_seconds",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "submission_count": {
+          "name": "submission_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "provider_updated_at": {
+          "name": "provider_updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fetched_at": {
+          "name": "fetched_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "attribution_text": {
+          "name": "attribution_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "game_time_estimates_game_id_games_id_fk": {
+          "name": "game_time_estimates_game_id_games_id_fk",
+          "tableFrom": "game_time_estimates",
+          "tableTo": "games",
+          "columnsFrom": [
+            "game_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "game_time_estimates_game_id_provider_pk": {
+          "name": "game_time_estimates_game_id_provider_pk",
+          "columns": [
+            "game_id",
+            "provider"
           ]
         }
       },
@@ -1284,6 +1494,16 @@
         "superseded"
       ]
     },
+    "public.evidence_maturity": {
+      "name": "evidence_maturity",
+      "schema": "public",
+      "values": [
+        "announced",
+        "showcased",
+        "hands_on",
+        "review_code"
+      ]
+    },
     "public.evidence_status": {
       "name": "evidence_status",
       "schema": "public",
@@ -1319,6 +1539,18 @@
         "calibration_round_1",
         "calibration_round_2",
         "derived_pending_round_1_reconciliation"
+      ]
+    },
+    "public.source_category": {
+      "name": "source_category",
+      "schema": "public",
+      "values": [
+        "direct_play",
+        "critic",
+        "technical",
+        "specialist_creator",
+        "player_signal",
+        "first_party"
       ]
     },
     "public.tag_intensity": {

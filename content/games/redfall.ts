@@ -46,9 +46,25 @@ export const redfall: GameWithEvaluation = {
     status: "published",
     evidenceStatus: "provisional",
     confidence: "medium",
+    // The per-dimension pattern maps the Update 4 evidence gap precisely.
+    // Atmosphere was unchanged by the update and is well documented, so it is
+    // High. Structure and Pacing are Low because Update 4 revised exactly those
+    // systems — Nests, Neighborhoods, offline play, pausing — and almost no
+    // full review covers the build that resulted.
+    dimensionConfidence: {
+      story: "medium",
+      execution: "low",
+      structure: "low",
+      agency: "medium",
+      pacing: "low",
+      atmosphere: "high",
+      thematic: "medium",
+      craft: "medium",
+    },
     evidenceCutoffAt: "2026-08-06",
     releaseContext: "Post-release, final build",
     scoreProvenance: "calibration_round_2",
+    evidenceLedger: "pending",
     publishedAt: "2026-08-06",
     oneLineExperience:
       "An open-world vampire shooter whose town and toolkit are more interesting than anything it asks you to do in them.",
@@ -321,20 +337,31 @@ export const redfall: GameWithEvaluation = {
         id: "src_redfall_launch_reviews",
         title: "Multiple reputable reviews of the May 2023 launch build",
         tier: "B",
-        note: "Extensive, but assess a build that no longer exists. This mismatch is the reason confidence is held at Medium rather than High.",
+        category: "critic",
+        supports: [
+          "story",
+          "agency",
+          "atmosphere",
+          "thematic",
+          "craft",
+        ],
+        note: "Extensive, but assess a build that no longer exists. Linked only to the dimensions Update 4 did not materially change; this mismatch is why overall confidence is held at Medium rather than High.",
       },
       {
         id: "src_redfall_update_4",
         title:
           "Game Update 4 patch notes and developer communication on the final build",
         tier: "C",
-        note: "Establishes the scope of the current build: offline play, pausing, Community Standing, revised Nest and Neighborhood systems.",
+        category: "first_party",
+        note: "Establishes the scope of the current build: offline play, pausing, Community Standing, revised Nest and Neighborhood systems. Used for facts about what changed, not for judging how well it works.",
       },
       {
         id: "src_redfall_final_build_reports",
         title: "Post-Update-4 player and press reports on the final build",
         tier: "B",
-        note: "Thinner coverage than the launch window. Basis for the current-state Execution and Structure assessment.",
+        category: "player_signal",
+        supports: ["execution", "structure", "pacing"],
+        note: "Thinner coverage than the launch window, and the sole current-state basis for the three dimensions Update 4 revised — which is why those three carry Low confidence.",
       },
     ],
   },

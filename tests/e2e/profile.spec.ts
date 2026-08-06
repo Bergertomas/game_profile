@@ -78,8 +78,46 @@ for (const slug of SLUGS) {
 
     test("states its evidence status and evaluation scope", async ({ page }) => {
       await page.goto(`/games/${slug}`);
-      await expect(page.getByText("Evidence checked")).toBeVisible();
+      await expect(page.getByText("Evidence checked").first()).toBeVisible();
       await expect(page.getByText("What was assessed")).toBeVisible();
+    });
+
+    test("carries a trust line above the numbers", async ({ page }) => {
+      await page.goto(`/games/${slug}`);
+      const trustLine = page
+        .locator("section", { has: page.locator("#profile-heading") })
+        .locator("p", { hasText: "Rubric v1.0" });
+      await expect(trustLine).toContainText(/confidence/i);
+      await expect(trustLine).toContainText("Rubric v1.0");
+      await expect(trustLine).toContainText("Evidence checked");
+      // Sources are evidence, not votes (SOP §6).
+      const body = await page.locator("body").innerText();
+      expect(body).not.toMatch(/calculated from \d+/i);
+    });
+
+    test("exposes Why this score? with per-dimension confidence", async ({
+      page,
+    }) => {
+      await page.goto(`/games/${slug}`);
+      const first = page.locator("details").first();
+      await first.locator("summary").click();
+      // Two matches by design: a screen-reader label naming the affordance on
+      // the summary, and the visible heading on the panel it opens.
+      await expect(first.getByText("Why this score?")).toHaveCount(2);
+      await expect(first.getByText("Why this score?").last()).toBeVisible();
+      await expect(first.getByText(/(Low|Medium|High) confidence/)).toBeVisible();
+      // The published total must be reproducible from the five values shown.
+      await expect(first.getByText(/derived, not entered/)).toBeVisible();
+    });
+
+    test("reports source categories rather than a single opaque count", async ({
+      page,
+    }) => {
+      await page.goto(`/games/${slug}`);
+      const evidence = page.locator("section", {
+        has: page.locator("#evidence-heading"),
+      });
+      await expect(evidence.getByText("Direct play")).toBeVisible();
     });
   });
 }
@@ -114,6 +152,20 @@ test("the development radar harness is not exposed in production", async ({
 }) => {
   const response = await page.goto("/dev/radar-states");
   expect(response?.status()).toBe(404);
+});
+
+test("released profiles use verdict wording, not pre-release wording", async ({
+  page,
+}) => {
+  // The three seeded games are all released, so none may show the pre-release
+  // headings or the pre-release notice (SOP §10.8).
+  for (const slug of SLUGS) {
+    await page.goto(`/games/${slug}`);
+    await expect(page.getByText("Great fit if…")).toBeVisible();
+    await expect(page.getByText("Looks promising if…")).toHaveCount(0);
+    await expect(page.getByText("Biggest unknowns…")).toHaveCount(0);
+    await expect(page.getByText("not the finished release")).toHaveCount(0);
+  }
 });
 
 test("methodology states the no-overall-score rule", async ({ page }) => {

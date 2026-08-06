@@ -1,13 +1,17 @@
 import type { GameWithEvaluation } from "@/lib/profile/types";
 
 /**
- * Profile A — narrative / atmosphere / craft dominant (Round 2 report §13).
+ * Profile A — narrative / atmosphere / medium-craft apex, with merely good
+ * rather than elite mechanical agency (Round 1 report §4.1).
  *
- * SCORE PROVENANCE: the Calibration Round 1 report is not present in this
- * repository, so these subcriterion scores were derived directly from Rubric
- * v1.0 rather than transcribed from an approved calibration matrix. They are
- * marked `derived_pending_round_1_reconciliation` so they can be diffed against
- * Round 1 when it is supplied.
+ * SCORE PROVENANCE: the eight dimension totals are published in the Calibration
+ * Round 1 report and are authoritative:
+ *   Story 9.5 · Execution 9.0 · Structure 8.5 · Agency 7.5
+ *   Pacing 8.0 · Atmosphere 10.0 · Theme 9.5 · Craft 10.0
+ * The subcriterion decomposition below is engineering work constrained to
+ * reproduce those totals exactly; `tests/calibration.test.ts` enforces it.
+ * Primary pull, primary risk and the three interpretation blocks are
+ * transcribed from Round 1 §4.1 rather than rewritten.
  */
 export const alanWake2: GameWithEvaluation = {
   game: {
@@ -41,18 +45,30 @@ export const alanWake2: GameWithEvaluation = {
     status: "published",
     evidenceStatus: "verified",
     confidence: "high",
+    // Execution sits a step lower than the rest: PC and console technical
+    // behaviour diverge materially, which Round 1 R6 says should reduce
+    // confidence in a platform-agnostic Execution figure.
+    dimensionConfidence: {
+      story: "high",
+      execution: "medium",
+      structure: "high",
+      agency: "high",
+      pacing: "high",
+      atmosphere: "high",
+      thematic: "high",
+      craft: "high",
+    },
     evidenceCutoffAt: "2026-08-06",
     releaseContext: "Post-release",
-    scoreProvenance: "derived_pending_round_1_reconciliation",
-    provenanceNote:
-      "Scores derived from Rubric v1.0 pending reconciliation with the Calibration Round 1 report.",
+    scoreProvenance: "calibration_round_1",
+    evidenceLedger: "pending",
     publishedAt: "2026-08-06",
     oneLineExperience:
       "A deliberately slow horror mystery told from two sides at once, where assembling the story is the main act of play and combat is a rationed interruption.",
     primaryPull:
-      "A horror narrative that uses the medium as its instrument — a case you physically assemble, a manuscript you rewrite, and live action folded into the game rather than bolted onto it.",
+      "A uniquely authored survival-horror experience where audiovisual design, narrative structure and interactivity continually reinforce one another.",
     primaryRisk:
-      "Combat is scarce, stiff and deliberately unglamorous; the long investigative stretches between fights ask for patience rather than reflexes.",
+      "Slow investigative movement, backtracking and comparatively modest combat depth can feel heavy to players wanting constant mechanical momentum.",
     platformWarning:
       "PC performance varies sharply with ray-tracing and path-tracing settings. The console versions are the stable reference experience.",
     dimensions: {
@@ -95,11 +111,11 @@ export const alanWake2: GameWithEvaluation = {
             "Shooting is readable and weighty but intentionally sluggish; enemy tracking and the dodge can feel imprecise in crowded encounters. Implementation is competent, not a strength.",
         },
         technical_stability: {
-          value: 1.5,
+          value: 2,
           rationale:
-            "Console builds are stable and well-optimised. PC is demanding and highly settings-sensitive at ray-traced presets, which is why the platform warning exists.",
+            "It shipped in an unusually clean state for its ambition: no significant bug or crash reporting, and stable performance on console. PC is demanding at ray-traced presets, but hardware cost is not the same thing as instability, and the subcriterion measures the latter.",
           platformNote:
-            "PS5 / Xbox Series X|S: stable. PC: heavy GPU demand at RT/path-traced settings.",
+            "PS5 / Xbox Series X|S: stable. PC: heavy GPU demand at RT/path-traced settings, so the experience varies by hardware.",
         },
         production_cohesion: {
           value: 2,
@@ -242,9 +258,9 @@ export const alanWake2: GameWithEvaluation = {
             "It reaches for the horror of authorship and actually gives it substance — the loop, the doubles and the rewriting all argue the same idea.",
         },
         lasting_impact: {
-          value: 1.5,
+          value: 2,
           rationale:
-            "The formal invention persists strongly in memory; the emotional residue is thinner than the intellectual one.",
+            "It became a reference point almost immediately — the game other developers and players cite when arguing about what the medium can do with narrative form. That is durable impact, even where the emotional residue is thinner than the intellectual one.",
         },
       },
       craft: {
@@ -269,29 +285,28 @@ export const alanWake2: GameWithEvaluation = {
             "Converted to film, the central device collapses — the horror depends on the player being the one holding the pen and choosing the order.",
         },
         meaningful_agency: {
-          value: 1.5,
+          value: 2,
           rationale:
-            "Player choice shapes sequence and interpretation rather than outcome; the plot itself is fixed, so agency is expressive rather than consequential.",
+            "The plot is fixed, but the player is made complicit in shaping it: choosing which campaign to advance, which scene to write, which connection to draw. Meaning is produced by the player's ordering of the material rather than by branching outcomes — which is the more interesting use of the medium, not a lesser one.",
         },
       },
     },
+    // Transcribed from Calibration Round 1 §4.1.
     blocks: {
       great_fit: [
-        "You want a horror story that takes its own structure seriously and expects you to assemble it.",
-        "Place and atmosphere matter more to you than the volume of combat.",
-        "You enjoy investigation, environmental detail, and rereading a scene for what you missed.",
-        "You are comfortable with a deliberately slow, controlled tempo.",
+        "You want ambitious, authored narrative games.",
+        "Atmosphere and presentation matter as much as combat.",
+        "You enjoy investigation, environmental storytelling and deliberate pacing.",
       ],
       know_before: [
-        "Combat is infrequent, resource-limited and intentionally clumsy under pressure.",
-        "You choose the order of the two campaigns, and that choice changes how the mystery unfolds for you.",
-        "It is dense with text — manuscript pages, case files and case-board material you are expected to read.",
-        "PC ray-traced settings are demanding; the console versions are the stable reference experience.",
+        "Exploration and case-board work consume meaningful time.",
+        "Combat is effective but not the main reason the game is exceptional.",
+        "The narrative expects attention.",
       ],
       probably_not: [
-        "You want frequent, mechanically deep combat encounters.",
-        "You dislike ambiguity and want a plot that closes cleanly.",
-        "Long stretches of walking, reading and looking drain your interest.",
+        "You need fast traversal and constant combat.",
+        "Slow-burn mystery feels like friction rather than tension.",
+        "Dense metanarrative structures annoy you.",
       ],
     },
     tags: [
@@ -314,9 +329,19 @@ export const alanWake2: GameWithEvaluation = {
     sources: [
       {
         id: "src_aw2_critical_consensus",
-        title:
-          "Multiple reputable post-release reviews, October 2023 onward",
+        title: "Multiple reputable post-release reviews, October 2023 onward",
         tier: "B",
+        category: "critic",
+        supports: [
+          "story",
+          "execution",
+          "structure",
+          "agency",
+          "pacing",
+          "atmosphere",
+          "thematic",
+          "craft",
+        ],
         note: "Treated as evidence about execution, structure and pacing rather than as a vote. Individual source records to be populated in the editorial evidence manager.",
       },
       {
@@ -324,12 +349,16 @@ export const alanWake2: GameWithEvaluation = {
         title:
           "Independent technical and performance analyses across PS5, Xbox Series X|S and PC",
         tier: "B",
+        category: "technical",
+        supports: ["execution"],
+        platformScope: ["PlayStation 5", "Xbox Series X|S", "PC"],
         note: "Basis for the Technical Stability subcriterion and the platform performance warning.",
       },
       {
         id: "src_aw2_update_history",
         title: "Developer post-launch update and patch history",
         tier: "C",
+        category: "first_party",
         note: "Establishes the current-state build scope. Not used to judge quality.",
       },
     ],

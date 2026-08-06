@@ -1,11 +1,20 @@
 import type { GameWithEvaluation } from "@/lib/profile/types";
 
 /**
- * Profile B — agency / execution / craft dominant with repetition and time risk
- * (Round 2 report §13).
+ * Profile B — elite agency / execution / craft, with intentional repetition
+ * creating a lower time-respect profile (Round 1 report §4.4).
  *
- * SCORE PROVENANCE: derived from Rubric v1.0; the Calibration Round 1 report is
- * not present in this repository. Marked for reconciliation.
+ * SCORE PROVENANCE: the eight dimension totals are published in the Calibration
+ * Round 1 report and are authoritative:
+ *   Story 7.5 · Execution 9.5 · Structure 8.5 · Agency 10.0
+ *   Pacing 7.5 · Atmosphere 9.5 · Theme 8.5 · Craft 10.0
+ *
+ * Round 1's calibration lesson governs this profile: "a trait can reduce
+ * Pacing/Time Respect without being a design failure", and "repeating areas is
+ * the structure, not filler accidentally left in". Structure and Pacing are
+ * therefore scored as an intentional, well-executed form that asks a lot of the
+ * player's time — not as a game leaking filler. The experience tags and the
+ * primary risk carry the warning instead.
  */
 export const returnal: GameWithEvaluation = {
   game: {
@@ -39,18 +48,31 @@ export const returnal: GameWithEvaluation = {
     status: "published",
     evidenceStatus: "verified",
     confidence: "high",
+    // Story and Theme are Medium: the narrative is deliberately ambiguous and
+    // credible sources reach genuinely different readings of it. That is
+    // evidential disagreement, not a defect, and the profile says so rather
+    // than averaging it away.
+    dimensionConfidence: {
+      story: "medium",
+      execution: "high",
+      structure: "high",
+      agency: "high",
+      pacing: "high",
+      atmosphere: "high",
+      thematic: "medium",
+      craft: "high",
+    },
     evidenceCutoffAt: "2026-08-06",
     releaseContext: "Post-release",
-    scoreProvenance: "derived_pending_round_1_reconciliation",
-    provenanceNote:
-      "Scores derived from Rubric v1.0 pending reconciliation with the Calibration Round 1 report.",
+    scoreProvenance: "calibration_round_1",
+    evidenceLedger: "pending",
     publishedAt: "2026-08-06",
     oneLineExperience:
       "A bullet-hell shooter of extraordinary feel bound to a run structure that can take everything back, wrapped in a cryptic story about a woman who cannot stop arriving.",
     primaryPull:
-      "Combat and movement of near-reference quality — a speed, clarity and physical precision very few action games reach.",
+      "One of the clearest examples of mechanical mastery, audiovisual feedback and death-loop structure reinforcing one another.",
     primaryRisk:
-      "A single run can last hours and end with almost all of it gone. The structure asks for a kind of uninterrupted time many players cannot give it.",
+      "Run failure, repetition and high execution demands are foundational rather than optional.",
     dimensions: {
       story: {
         story_hook: {
@@ -59,9 +81,9 @@ export const returnal: GameWithEvaluation = {
             "The premise lands instantly and is genuinely unsettling, but the game withholds so much so early that the hook is mood rather than stakes.",
         },
         character_investment: {
-          value: 1.5,
+          value: 2,
           rationale:
-            "Selene is a strong, well-performed presence and the house sequences give her real interiority, though she remains deliberately opaque for most of the runtime.",
+            "Selene carries the entire game essentially alone, and Jane Perry's performance sustains a character who is deliberately withholding without ever becoming inert. The house sequences give her a private interior life that recontextualises everything around it.",
         },
         narrative_coherence: {
           value: 1,
@@ -69,9 +91,9 @@ export const returnal: GameWithEvaluation = {
             "The fiction sustains multiple mutually exclusive readings by design. Coherent as a psychological text, but the literal world rules are never settled.",
         },
         narrative_momentum: {
-          value: 1,
+          value: 1.5,
           rationale:
-            "Story arrives in fragments gated behind run progress, so long stretches deliver nothing new, and the payoff is contested rather than proportionate to the setup.",
+            "Story is gated behind run progress, so it advances unevenly — but it does develop, each act reframes the last, and the two endings pay off the setup for a player who reaches them. The payoff is contested, not absent.",
         },
         world_lore_integration: {
           value: 1.5,
@@ -101,9 +123,9 @@ export const returnal: GameWithEvaluation = {
             "Audio, haptics, particle work and biome art operate as one system. The feedback loop between what you see, hear and feel in the controller is unusually tight.",
         },
         consistency: {
-          value: 1.5,
+          value: 2,
           rationale:
-            "Quality holds across all six biomes, though the later biomes reuse encounter grammar more heavily than the early ones.",
+            "There is no weak stretch. Combat feel, audio design and encounter construction hold to the same standard across all six biomes and every boss, which is rare in a game built largely from procedural assembly.",
         },
       },
       structure: {
@@ -118,19 +140,19 @@ export const returnal: GameWithEvaluation = {
             "Room-to-room readability is excellent and the map is clear, but recognising which procedural layout you are in takes practice.",
         },
         repetition_control: {
-          value: 1,
+          value: 1.5,
           rationale:
-            "Early biomes are re-traversed many times, and after a failed late run the mandatory return through familiar rooms is the game's most-cited friction.",
+            "Reuse is the design, and it is handled intelligently: procedural room assembly, escalating enemy sets and permanent unlocks mean a repeated biome is rarely the same run twice. What holds this below exceptional is the mandatory re-traversal of early biomes after a late failure.",
         },
         ux_friction: {
           value: 1.5,
           rationale:
-            "The interface is clean and information-dense. The suspend-cycle feature added later helps, but it is a single slot consumed on load rather than a save.",
+            "The interface is clean and information-dense, and the map communicates a procedural space well. The suspend-cycle feature added later helps but is a single slot consumed on load rather than a save.",
         },
         content_focus: {
-          value: 1,
+          value: 2,
           rationale:
-            "Very little is padding by intent, yet the structure requires replaying cleared content as a matter of course, which produces the effect of padding regardless.",
+            "Nothing here is padding. Every biome, weapon, parasite and artefact exists to feed the same loop, and the game contains no side content added to inflate its length.",
         },
       },
       agency: {
@@ -150,9 +172,9 @@ export const returnal: GameWithEvaluation = {
             "Weapon proficiency, artefacts and the adrenaline chain deliver reward on several timescales at once, from the individual room to the whole run.",
         },
         failure_fairness: {
-          value: 1.5,
+          value: 2,
           rationale:
-            "Damage is nearly always readable and avoidable — deaths feel earned. What is not proportionate is the cost: a fair death can still cost three hours.",
+            "Resistance is exemplary here: bullet patterns are readable, damage is nearly always avoidable, and a death is almost always traceable to a specific mistake. The time a death costs is real, but that is a question of time respect, and it is scored there rather than twice.",
         },
         capability_balance: {
           value: 2,
@@ -167,19 +189,19 @@ export const returnal: GameWithEvaluation = {
             "The loop and tone establish quickly, though the first two hours give the player very few tools and read as harder than the game later is.",
         },
         momentum_maintenance: {
-          value: 1,
-          rationale:
-            "Momentum is repeatedly reset by design. Progress is real across runs, but a lost run returns the player to material already mastered.",
-        },
-        runtime_justification: {
           value: 1.5,
           rationale:
-            "The content justifies a long engagement for a player who bonds with the loop; the same content does not justify the hours spent re-clearing it for a player who does not.",
+            "Momentum is carried by mastery rather than by position: permanent unlocks, new biomes and rising skill mean the experience keeps developing even when a run resets. It stalls when a strong build is lost and the next run opens weak.",
+        },
+        runtime_justification: {
+          value: 2,
+          rationale:
+            "Roughly 25–30 hours to the credits, and the length is structurally necessary — the loop's argument only lands through accumulated attempts. There is no version of this game at half the size.",
         },
         session_rhythm: {
-          value: 0.5,
+          value: 1,
           rationale:
-            "The game's weakest point. A meaningful run can exceed three hours with no save, and the later suspend feature is one slot, deleted on load. The unit of progress does not fit most people's lives.",
+            "The run is a legible and appropriate unit of progress for this design, and short-session convenience is not a virtue the rubric rewards by default. What holds this to ordinary is that the unit is unusually long — a meaningful run can exceed three hours, and the suspend feature is one slot deleted on load.",
         },
         content_density: {
           value: 1.5,
@@ -209,9 +231,9 @@ export const returnal: GameWithEvaluation = {
             "The xeno-archaeology implies a real culture and history, but the deliberate ambiguity stops the world's rules from ever fully settling.",
         },
         memory_residue: {
-          value: 1.5,
+          value: 2,
           rationale:
-            "The house sequences and the sound of the Severed are highly distinctive; the procedural rooms themselves blur together in memory.",
+            "The house sequences, the sound of the Severed and the shriek of a biome shifting are among the most distinctive sensory signatures of their console generation, and the haptics give them a physical memory most games cannot leave.",
         },
       },
       thematic: {
@@ -226,9 +248,9 @@ export const returnal: GameWithEvaluation = {
             "The house sequences are genuinely affecting and land harder for being rationed. The material around them is more atmospheric than emotional.",
         },
         theme_character_integration: {
-          value: 1.5,
+          value: 2,
           rationale:
-            "Selene's inability to stop returning is both the mechanic and the psychology, though the connective tissue between them is left to the player to build.",
+            "Selene's inability to stop returning is not stated about her — it is the thing the player does, hour after hour. Character, mechanic and theme are the same fact, which is as tight an integration as the medium offers.",
         },
         philosophical_weight: {
           value: 1.5,
@@ -236,9 +258,9 @@ export const returnal: GameWithEvaluation = {
             "It reaches seriously for guilt, denial and the myth of Sisyphus and gives them real substance, without arriving anywhere conclusive.",
         },
         lasting_impact: {
-          value: 1.5,
+          value: 2,
           rationale:
-            "The ending has sustained years of argument, which is itself evidence of residue, though many players remember the feel of playing it over what it meant.",
+            "Years later the ending is still actively argued over, and the game is routinely cited when people discuss what roguelike structure can mean rather than merely how it plays.",
         },
       },
       craft: {
@@ -248,14 +270,14 @@ export const returnal: GameWithEvaluation = {
             "The death loop is not a metaphor bolted to a roguelike; the compulsion to run again is the game's argument about its protagonist, enacted by the player.",
         },
         player_recontextualization: {
-          value: 1.5,
+          value: 2,
           rationale:
-            "Act 3 and the second ending materially change what the earlier runs meant, though the reframing is optional and easily missed.",
+            "Act 3 and the second ending do not merely add information — they retroactively change what every previous run was, turning a survival story into something considerably worse and sadder.",
         },
         interactive_revelation: {
-          value: 1.5,
+          value: 2,
           rationale:
-            "Understanding Atropos is a function of exploring it, and mastery is learned only by doing, though most explicit lore still arrives as text to read.",
+            "Atropos can only be understood by being survived. Mastery, the map of the biomes and the meaning of the xeno-glyphs all arrive through doing, and none of it would transmit by being told.",
         },
         medium_irreplaceability: {
           value: 2,
@@ -263,29 +285,28 @@ export const returnal: GameWithEvaluation = {
             "Told passively, the central experience disappears entirely — the point is that you, personally, lost the progress and chose to start again.",
         },
         meaningful_agency: {
-          value: 1.5,
+          value: 2,
           rationale:
-            "Build and route choices carry genuine consequence within a run, but they do not alter the story, so the meaning is felt rather than authored.",
+            "The consequential choice is not in the build — it is the decision to start again. The player's own compulsion to re-enter the loop is what the story is about, so continuing to play is itself the act that carries the meaning.",
         },
       },
     },
+    // Transcribed from Calibration Round 1 §4.4.
     blocks: {
       great_fit: [
-        "You want combat that rewards practice, and you will keep playing to get better at it.",
-        "You can give the game long uninterrupted sessions.",
-        "You enjoy building around whatever weapons and traits a run happens to give you.",
-        "You are comfortable with a story that stays deliberately unresolved.",
+        "Learning through repeated failure is satisfying.",
+        "Fast, precise combat is a major purchase driver.",
+        "You enjoy opaque narrative discovery.",
       ],
       know_before: [
-        "A full run can exceed three hours, and the suspend feature is a single slot that is consumed when you resume.",
-        "Dying returns you to the start with your permanent upgrades but not your build.",
-        "The early biomes are re-traversed many times over the course of the game.",
-        "Story is delivered in fragments gated behind progress, not in a continuous thread.",
+        "Repeating areas is the structure, not filler accidentally left in.",
+        "Narrative is deliberately fragmented.",
+        "Difficulty remains central.",
       ],
       probably_not: [
-        "You dislike repeated run failure and replaying sections you have already cleared.",
-        "You mostly play in short sessions and need to stop whenever you like.",
-        "You want a narrative that explains itself.",
+        "Lost run progress feels like wasted time.",
+        "Repeating spaces or enemies rapidly drains motivation.",
+        "You want story momentum independent of mastery.",
       ],
     },
     tags: [
@@ -310,6 +331,17 @@ export const returnal: GameWithEvaluation = {
         id: "src_returnal_critical_consensus",
         title: "Multiple reputable post-release reviews, April 2021 onward",
         tier: "B",
+        category: "critic",
+        supports: [
+          "story",
+          "execution",
+          "structure",
+          "agency",
+          "pacing",
+          "atmosphere",
+          "thematic",
+          "craft",
+        ],
         note: "Treated as evidence about execution, structure and pacing rather than as a vote. Individual source records to be populated in the editorial evidence manager.",
       },
       {
@@ -317,13 +349,25 @@ export const returnal: GameWithEvaluation = {
         title:
           "Documented post-launch player consensus on run length and the absence of mid-run saving",
         tier: "B",
-        note: "Primary basis for the Session / Progress Rhythm subcriterion and the Pacing profile.",
+        category: "player_signal",
+        supports: ["pacing", "structure"],
+        note: "Basis for the Session / Progress Rhythm subcriterion. Treated as a signal about how the run length lands in practice, not as a vote on quality.",
+      },
+      {
+        id: "src_returnal_ending_readings",
+        title:
+          "Specialist and creator analyses of the Act 3 ending and its competing readings",
+        tier: "B",
+        category: "specialist_creator",
+        supports: ["story", "thematic", "craft"],
+        note: "Sources disagree substantively about what the ending means. That disagreement is why Story and Theme carry Medium confidence rather than High.",
       },
       {
         id: "src_returnal_update_history",
         title:
           "Developer update history, including the suspend-cycle and Ascension updates",
         tier: "C",
+        category: "first_party",
         note: "Establishes the current-state build scope. Not used to judge quality.",
       },
     ],

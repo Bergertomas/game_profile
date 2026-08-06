@@ -1,5 +1,11 @@
 import { formatDate } from "@/lib/format";
-import type { Confidence, EvaluationStatus, Evaluation, EvidenceStatus } from "@/lib/profile/types";
+import type { EvaluationStatus, Evaluation, EvidenceStatus } from "@/lib/profile/types";
+import {
+  CONFIDENCE_LABEL,
+  EVIDENCE_MATURITY_LABEL,
+  EVIDENCE_MATURITY_MEANING,
+  EVIDENCE_STATUS_LABEL,
+} from "@/lib/profile/vocabulary";
 
 /**
  * Evidence and scope plate (Plan §6.5, Rubric §1 "Required evaluation scope").
@@ -12,24 +18,12 @@ import type { Confidence, EvaluationStatus, Evaluation, EvidenceStatus } from "@
  *     edition, mode, platform and build is not a valid score.
  */
 
-const EVIDENCE_LABEL: Record<EvidenceStatus, string> = {
-  verified: "Verified",
-  provisional: "Provisional",
-  pre_release: "Pre-release",
-};
-
 const EVIDENCE_MEANING: Record<EvidenceStatus, string> = {
   verified: "Substantial post-release evidence. This profile is stable.",
   provisional:
     "Released, but the evidence is incomplete or the product is still changing.",
   pre_release:
     "Based on preview, demo or first-party evidence. Scores are estimates and will be reassessed after launch.",
-};
-
-const CONFIDENCE_LABEL: Record<Confidence, string> = {
-  low: "Low",
-  medium: "Medium",
-  high: "High",
 };
 
 export function EvidenceBadge({
@@ -50,7 +44,7 @@ export function EvidenceBadge({
     <span
       className={`label-micro inline-flex items-center border px-2 py-1 ${border} ${className}`}
     >
-      {EVIDENCE_LABEL[status]}
+      {EVIDENCE_STATUS_LABEL[status]}
     </span>
   );
 }
@@ -121,6 +115,14 @@ export function EvidenceStrip({ evaluation }: { evaluation: Evaluation }) {
         <p className="text-[0.8125rem] leading-relaxed text-bone-dim">
           {EVIDENCE_MEANING[evaluation.evidenceStatus]}
         </p>
+        {evaluation.evidenceMaturity && (
+          <p className="mt-2 text-[0.8125rem] leading-relaxed text-bone-dim">
+            <span className="text-bone">
+              {EVIDENCE_MATURITY_LABEL[evaluation.evidenceMaturity]}.
+            </span>{" "}
+            {EVIDENCE_MATURITY_MEANING[evaluation.evidenceMaturity]}
+          </p>
+        )}
       </div>
 
       <div className="border-t border-line px-3 py-3 sm:px-4">

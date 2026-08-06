@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { ProfileView } from "@/lib/profile/build";
+import { CONFIDENCE_LABEL } from "@/lib/profile/vocabulary";
 import { ProfileRadar } from "./ProfileRadar";
 import { ScoreRows } from "./ScoreRows";
 
@@ -46,7 +47,10 @@ export function ProfilePanel({ profile }: { profile: ProfileView }) {
                 </span>
               </div>
               <p className="mt-1.5 text-[0.8125rem] leading-snug text-bone-dim">
-                {active.dimension.coreQuestion}
+                {active.dimension.coreQuestion}{" "}
+                <span className="text-bone-faint">
+                  {CONFIDENCE_LABEL[active.confidence]} confidence.
+                </span>
               </p>
             </>
           ) : (
@@ -65,6 +69,7 @@ export function ProfilePanel({ profile }: { profile: ProfileView }) {
           dimensions={profile.dimensions}
           activeKey={activeKey}
           onActiveChange={setActiveKey}
+          showSourceCounts={profile.evaluation.evidenceLedger === "populated"}
         />
       </div>
     </div>

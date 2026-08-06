@@ -1,6 +1,7 @@
 "use client";
 
 import type { DimensionView } from "@/lib/profile/build";
+import { CONFIDENCE_LABEL } from "@/lib/profile/vocabulary";
 import { formatScore } from "@/lib/scoring/derive";
 
 /**
@@ -18,14 +19,27 @@ interface Props {
   readonly dimensions: readonly DimensionView[];
   readonly activeKey: string | null;
   readonly onActiveChange: (key: string | null) => void;
+  /**
+   * Whether linked-source counts may be shown. False while the evidence ledger
+   * holds evidence classes rather than individual records — see TrustLine.
+   */
+  readonly showSourceCounts: boolean;
 }
 
-export function ScoreRows({ dimensions, activeKey, onActiveChange }: Props) {
+export function ScoreRows({
+  dimensions,
+  activeKey,
+  onActiveChange,
+  showSourceCounts,
+}: Props) {
   return (
     <div className="divide-y divide-line border-y border-line">
+      {/* The affordance is named once here rather than eight times down the
+          column. Each row still carries it for assistive technology. */}
       <p className="px-3 py-2.5 text-xs leading-relaxed text-bone-faint sm:px-4">
-        Open any row for the five subcriteria behind its score, and why each one
-        landed where it did.
+        Open any row for{" "}
+        <span className="text-bone-dim">Why this score?</span> — the five
+        subcriteria behind it, their exact values, and how confident we are.
       </p>
       {dimensions.map((dimension) => (
         <ScoreRow
@@ -33,6 +47,7 @@ export function ScoreRows({ dimensions, activeKey, onActiveChange }: Props) {
           view={dimension}
           isActive={activeKey === dimension.dimension.key}
           onActiveChange={onActiveChange}
+          showSourceCounts={showSourceCounts}
         />
       ))}
     </div>
@@ -43,12 +58,15 @@ function ScoreRow({
   view,
   isActive,
   onActiveChange,
+  showSourceCounts,
 }: {
   view: DimensionView;
   isActive: boolean;
   onActiveChange: (key: string | null) => void;
+  showSourceCounts: boolean;
 }) {
-  const { dimension, score, display, subcriteria } = view;
+  const { dimension, score, display, subcriteria, confidence, linkedSources } =
+    view;
   const key = dimension.key;
 
   return (
@@ -89,6 +107,7 @@ function ScoreRow({
             <p className="text-[0.8125rem] leading-snug text-bone-dim">
               {dimension.summary}
             </p>
+            <span className="sr-only">Why this score?</span>
             <svg
               viewBox="0 0 12 12"
               aria-hidden="true"
@@ -107,6 +126,27 @@ function ScoreRow({
 
       <div className="px-3 pb-5 sm:px-4">
         <div className="rounded-sm border border-line bg-ink-900 p-3 sm:p-4">
+          <div className="mb-3 flex flex-wrap items-baseline gap-x-2 gap-y-1 border-b border-line pb-3">
+            <span className="label-micro text-bone-faint">Why this score?</span>
+            <span aria-hidden="true" className="text-bone-faint">
+              ·
+            </span>
+            <span className="text-xs text-bone-dim">
+              {CONFIDENCE_LABEL[confidence]} confidence
+            </span>
+            {showSourceCounts && linkedSources.length > 0 && (
+              <>
+                <span aria-hidden="true" className="text-bone-faint">
+                  ·
+                </span>
+                <span className="text-xs text-bone-dim">
+                  Supported by {linkedSources.length} linked source
+                  {linkedSources.length === 1 ? "" : "s"}
+                </span>
+              </>
+            )}
+          </div>
+
           <p className="text-[0.8125rem] leading-relaxed text-bone-dim">
             <span className="text-bone">{dimension.coreQuestion}</span>{" "}
             {dimension.boundary}

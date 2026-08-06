@@ -45,7 +45,14 @@ export const evaluationSchema = z.object({
   scope: evaluationScopeSchema,
   status: z.enum(["draft", "review", "published", "superseded"]),
   evidenceStatus: z.enum(["verified", "provisional", "pre_release"]),
+  evidenceMaturity: z
+    .enum(["announced", "showcased", "hands_on", "review_code"])
+    .optional(),
   confidence: z.enum(["low", "medium", "high"]),
+  dimensionConfidence: z.record(
+    z.string(),
+    z.enum(["low", "medium", "high"]),
+  ),
   evidenceCutoffAt: isoDate,
   releaseContext: z.string().min(1),
   oneLineExperience: z.string().min(1),
@@ -73,6 +80,16 @@ export const evaluationSchema = z.object({
       author: z.string().optional(),
       publishedAt: isoDate.optional(),
       tier: z.enum(["A", "B", "C", "D"]),
+      category: z.enum([
+        "direct_play",
+        "critic",
+        "technical",
+        "specialist_creator",
+        "player_signal",
+        "first_party",
+      ]),
+      supports: z.array(z.string()).optional(),
+      platformScope: z.array(z.string()).optional(),
       note: z.string().optional(),
     }),
   ),
@@ -113,8 +130,17 @@ export function validateEvaluation(evaluation: Evaluation): ValidationIssue[] {
   }
 
   let anyProvisionalDimension = false;
+  let scoredDimensionCount = 0;
 
   for (const dimension of rubric.dimensions) {
+    // SOP §5 / Plan §13.1 — dimension confidence is a required editorial input.
+    if (!evaluation.dimensionConfidence[dimension.key as DimensionKey]) {
+      issues.push({
+        code: "missing_dimension_confidence",
+        message: `Dimension "${dimension.name}" has no confidence rating.`,
+      });
+    }
+
     const entries = evaluation.dimensions[dimension.key as DimensionKey];
     if (!entries) {
       issues.push({
@@ -130,6 +156,7 @@ export function validateEvaluation(evaluation: Evaluation): ValidationIssue[] {
       );
       const score = deriveDimensionScore(dimension, values);
       if (score.unknownCount > 1) anyProvisionalDimension = true;
+      if (score.kind === "exact") scoredDimensionCount += 1;
     } catch (error) {
       issues.push({
         code: "dimension_shape",
@@ -194,13 +221,61 @@ export function validateEvaluation(evaluation: Evaluation): ValidationIssue[] {
     }
   }
 
-  // Rubric §14 — pre-release profiles must not present false certainty.
+  // Rubric §14, SOP §10 — pre-release profiles must not present false certainty.
   if (evaluation.evidenceStatus === "pre_release") {
     if (evaluation.confidence === "high") {
       issues.push({
         code: "pre_release_confidence",
-        message: "A pre-release profile cannot claim High confidence.",
+        message:
+          "Overall confidence cannot be High for a pre-release profile. Individual dimensions still may.",
       });
+    }
+    if (!evaluation.evidenceMaturity) {
+      issues.push({
+        code: "missing_evidence_maturity",
+        message:
+          'A pre-release profile must declare its evidence maturity: announced, showcased, hands_on or review_code. "Pre-release" alone does not say whether anyone has played it.',
+      });
+    }
+    // SOP §10.3 — first-party-only evidence does not justify a complete
+    // eight-dimension numerical profile, however confident it looks.
+    if (
+      evaluation.evidenceMaturity === "announced" &&
+      scoredDimensionCount === rubric.dimensions.length
+    ) {
+      issues.push({
+        code: "announced_full_profile",
+        message:
+          "An Announced profile rests on first-party material only and cannot publish a precise score for all eight dimensions. Use ranges or unknown.",
+      });
+    }
+    const independent = evaluation.sources.filter(
+      (s) => s.category !== "first_party" && (s.tier === "A" || s.tier === "B"),
+    );
+    if (evaluation.confidence === "medium" && independent.length < 3) {
+      issues.push({
+        code: "pre_release_evidence_thin",
+        message: `A Medium-confidence pre-release profile targets at least 3 substantive independent sources (found ${independent.length}).`,
+      });
+    }
+  } else if (evaluation.evidenceMaturity) {
+    issues.push({
+      code: "unexpected_evidence_maturity",
+      message:
+        "Evidence maturity describes pre-release evidence and must not be set on a released profile.",
+    });
+  }
+
+  // Rubric §10 / Plan §13.1 — evidence links must point at real dimensions.
+  const dimensionKeys = new Set<string>(rubric.dimensions.map((d) => d.key));
+  for (const source of evaluation.sources) {
+    for (const key of source.supports ?? []) {
+      if (!dimensionKeys.has(key)) {
+        issues.push({
+          code: "unknown_supported_dimension",
+          message: `Source "${source.title}" claims to support unknown dimension "${key}".`,
+        });
+      }
     }
   }
 

@@ -1,7 +1,8 @@
 # ADR 0005 — Score provenance, and the missing Calibration Round 1 report
 
-**Status:** Accepted · 2026-08-06 · **Needs editorial reconciliation**
-**Context:** Project Context §11 step 4; Round 2 report §13; Master Plan §10.3
+**Status:** Accepted · 2026-08-06 · **Reconciled against Round 1, 2026-08-06**
+**Context:** Project Context §11 step 4; Round 1 report §3–§4; Round 2 report §13;
+Master Plan §10.3
 
 ## Problem
 
@@ -49,14 +50,43 @@ history" (Tier C) — with no fabricated URLs, article titles or bylines. They a
 honest about what they are and are structurally correct, but they are not a
 populated evidence ledger. That is Phase 2 work in the evidence manager.
 
-## What is needed from Tomas/ChatGPT
+## Reconciliation — 2026-08-06
 
-1. The **Calibration Round 1 report**, so the Alan Wake 2 and Returnal totals can
-   be reconciled. Where they disagree, Round 1 wins and the fixtures change.
-2. A decision on whether subcriterion-level breakdowns should be **published**
-   from Round 1 as well, or whether decomposition stays an engineering artefact
-   reviewed by an editor.
+The Calibration Round 1 report arrived. Its matrix (§3) is now authoritative for
+Alan Wake 2 and Returnal, and both fixtures were reconciled to it. Round 1
+publishes dimension totals only, so the subcriterion decompositions remain
+engineering work constrained to reproduce them — the same arrangement Redfall
+has always had. `tests/calibration.test.ts` now locks all 24 totals.
 
-Until then the two derived profiles are engineering-grade: internally consistent,
-rubric-faithful and testable, but not editorially signed off — and the product
-says so on the page rather than only in this file.
+| | Round 1 | Previously derived |
+|---|---|---|
+| Alan Wake 2 | 9.5 · 9.0 · 8.5 · 7.5 · 8.0 · 10.0 · 9.5 · 10.0 | 3 of 8 were 0.5 low |
+| Returnal | 7.5 · 9.5 · 8.5 · 10.0 · 7.5 · 9.5 · 8.5 · 10.0 | all 8 were low |
+
+The Returnal gap is the instructive one, and it was a rubric error rather than
+taste. Two subcriteria had crossed from *describing* a trait into *penalising*
+it:
+
+- **Session / Progress Rhythm** had been scored 0.5 because a run can exceed
+  three hours with no save. Rubric §6.4 says explicitly "do not reward
+  short-session convenience by default"; the run is a legible progress unit for
+  this design, and its length belongs in the primary risk and the experience
+  tags, not in a low score.
+- **Repetition Control** and **Content Focus** had treated re-traversal as
+  filler. Round 1 §4.4 is explicit that "repeating areas is the structure, not
+  filler accidentally left in".
+
+Round 1's calibration lesson for Returnal — "a trait can reduce Pacing/Time
+Respect without being a design failure" — is now quoted at the top of the
+fixture so the next editor sees it before touching those numbers.
+
+Primary pull, primary risk and all three interpretation blocks for both games
+were replaced with Round 1's approved wording, matching how Redfall already
+uses Round 2's. The previously written alternates remain in git history.
+
+## Still open
+
+Whether subcriterion-level breakdowns should be **published editorially** in
+future calibration rounds, or whether decomposition stays an engineering
+artefact reviewed against the published totals. The current arrangement works
+and is fully tested; this is a process question, not a blocker.

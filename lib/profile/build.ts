@@ -12,11 +12,15 @@ import {
   type DimensionScore,
 } from "@/lib/scoring/derive";
 import type {
+  Confidence,
   Evaluation,
+  EvidenceSource,
   Game,
   GameWithEvaluation,
+  SourceCategory,
   SubcriterionEntry,
 } from "./types";
+import { SOURCE_CATEGORY_ORDER } from "./vocabulary";
 
 export interface SubcriterionView {
   readonly key: string;
@@ -31,6 +35,10 @@ export interface DimensionView {
   /** Pre-formatted public string, e.g. "9.5", "7.0–9.0" or "Not scored". */
   readonly display: string;
   readonly subcriteria: readonly SubcriterionView[];
+  /** Editorial confidence in this dimension specifically (SOP §5). */
+  readonly confidence: Confidence;
+  /** Sources linked to this dimension. Evidence, never votes (SOP §6). */
+  readonly linkedSources: readonly EvidenceSource[];
 }
 
 export interface RadarPoint {
@@ -51,6 +59,25 @@ export interface TagView {
   readonly note?: string;
 }
 
+export interface SourceCategoryCount {
+  readonly category: SourceCategory;
+  readonly count: number;
+}
+
+/**
+ * Everything the compact public trust line needs (Plan §6.6, SOP §6).
+ *
+ * `substantiveSources` counts Tier A and B evidence only. Tier C first-party
+ * material and Tier D anecdote are recorded but are not what "supported by N
+ * sources" is claiming.
+ */
+export interface EvidenceSummary {
+  readonly substantiveSources: number;
+  readonly totalSources: number;
+  readonly categoryCounts: readonly SourceCategoryCount[];
+  readonly hasDirectPlay: boolean;
+}
+
 export interface ProfileView {
   readonly game: Game;
   readonly evaluation: Evaluation;
@@ -58,6 +85,7 @@ export interface ProfileView {
   readonly dimensions: readonly DimensionView[];
   readonly radar: readonly RadarPoint[];
   readonly tags: readonly TagView[];
+  readonly evidence: EvidenceSummary;
   /**
    * Text equivalent of the polygon for assistive technology. Deliberately
    * describes distribution, never an overall rating.
@@ -90,10 +118,21 @@ export function buildProfileView({
     );
     const score = deriveDimensionScore(dimension, values);
 
+    const confidence = evaluation.dimensionConfidence[dimension.key];
+    if (!confidence) {
+      throw new Error(
+        `Evaluation ${evaluation.id} has no confidence for dimension "${dimension.key}".`,
+      );
+    }
+
     return {
       dimension,
       score,
       display: formatDimensionScore(score),
+      confidence,
+      linkedSources: evaluation.sources.filter((source) =>
+        source.supports?.includes(dimension.key),
+      ),
       subcriteria: dimension.subcriteria.map((subcriterion) => {
         const entry = entries[subcriterion.key];
         if (!entry) {
@@ -131,7 +170,30 @@ export function buildProfileView({
       intensity: tag.intensity,
       note: tag.note,
     })),
+    evidence: summariseEvidence(evaluation.sources),
     shapeDescription: describeShape(dimensions),
+  };
+}
+
+export function summariseEvidence(
+  sources: readonly EvidenceSource[],
+): EvidenceSummary {
+  const counts = new Map<SourceCategory, number>();
+  for (const source of sources) {
+    counts.set(source.category, (counts.get(source.category) ?? 0) + 1);
+  }
+
+  return {
+    // Tier A/B only. First-party material and anecdote are stored but are not
+    // what a "supported by N sources" claim rests on (Plan §10.1).
+    substantiveSources: sources.filter((s) => s.tier === "A" || s.tier === "B")
+      .length,
+    totalSources: sources.length,
+    categoryCounts: SOURCE_CATEGORY_ORDER.flatMap((category) => {
+      const count = counts.get(category);
+      return count ? [{ category, count }] : [];
+    }),
+    hasDirectPlay: sources.some((s) => s.category === "direct_play"),
   };
 }
 

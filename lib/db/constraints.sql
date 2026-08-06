@@ -39,10 +39,33 @@ ALTER TABLE evaluations
     )
   );
 
--- A pre-release profile may not claim High confidence (Rubric §14).
+-- A pre-release profile may not claim High confidence (Rubric §14, SOP §10.1).
+-- Individual dimensions still may — see dimension_assessments.
 ALTER TABLE evaluations
   ADD CONSTRAINT pre_release_confidence_ceiling
   CHECK (NOT (evidence_status = 'pre_release' AND confidence = 'high'));
+
+-- Evidence maturity is required for a pre-release profile and meaningless
+-- otherwise (SOP §10.1). "Pre-release" alone does not say whether anyone has
+-- actually played the thing.
+ALTER TABLE evaluations
+  ADD CONSTRAINT pre_release_declares_maturity
+  CHECK (
+    (evidence_status = 'pre_release' AND evidence_maturity IS NOT NULL)
+    OR (evidence_status <> 'pre_release' AND evidence_maturity IS NULL)
+  );
+
+-- ---------------------------------------------------------------------------
+-- One evidence link per (evaluation, source, dimension, subcriterion). A source
+-- may legitimately appear many times against different dimensions, but not
+-- twice against the same one. NULLS NOT DISTINCT so that two profile-level
+-- links for the same source also collide.
+-- ---------------------------------------------------------------------------
+CREATE UNIQUE INDEX evaluation_evidence_links_unique
+  ON evaluation_evidence_links (
+    evaluation_id, evidence_source_id, dimension_id, subcriterion_id
+  )
+  NULLS NOT DISTINCT;
 
 -- ---------------------------------------------------------------------------
 -- Dimension totals are DERIVED, never stored (Plan §13.1).
@@ -56,18 +79,36 @@ ALTER TABLE evaluations
 -- Note the deliberate absence of any cross-dimension aggregate. There is no
 -- overall score in this product (Plan §9.1) and none may be added here.
 -- ---------------------------------------------------------------------------
+-- `confidence` is joined from dimension_assessments rather than computed:
+-- it is an editorial input. `linked_evidence_count` is derived, and is a count
+-- of supporting sources — never a divisor, never a weight (SOP §6).
 CREATE VIEW dimension_scores AS
+WITH totals AS (
+  SELECT
+    ss.evaluation_id,
+    s.dimension_id,
+    COUNT(*) FILTER (WHERE ss.score IS NULL) AS unknown_count,
+    COALESCE(SUM(ss.score), 0)               AS known_sum
+  FROM subcriterion_scores ss
+  JOIN subcriteria s ON s.id = ss.subcriterion_id
+  GROUP BY ss.evaluation_id, s.dimension_id
+)
 SELECT
-  ss.evaluation_id,
-  s.dimension_id,
-  COUNT(*) FILTER (WHERE ss.score IS NULL)               AS unknown_count,
-  COALESCE(SUM(ss.score), 0)                             AS known_sum,
-  CASE WHEN COUNT(*) FILTER (WHERE ss.score IS NULL) = 0
-       THEN SUM(ss.score) END                            AS score,
-  CASE WHEN COUNT(*) FILTER (WHERE ss.score IS NULL) = 1
-       THEN COALESCE(SUM(ss.score), 0) END               AS low_estimate,
-  CASE WHEN COUNT(*) FILTER (WHERE ss.score IS NULL) = 1
-       THEN COALESCE(SUM(ss.score), 0) + 2 END           AS high_estimate
-FROM subcriterion_scores ss
-JOIN subcriteria s ON s.id = ss.subcriterion_id
-GROUP BY ss.evaluation_id, s.dimension_id;
+  t.evaluation_id,
+  t.dimension_id,
+  t.unknown_count,
+  t.known_sum,
+  CASE WHEN t.unknown_count = 0 THEN t.known_sum END     AS score,
+  CASE WHEN t.unknown_count = 1 THEN t.known_sum END     AS low_estimate,
+  CASE WHEN t.unknown_count = 1 THEN t.known_sum + 2 END AS high_estimate,
+  da.confidence                                          AS confidence,
+  (
+    SELECT COUNT(*)
+    FROM evaluation_evidence_links l
+    WHERE l.evaluation_id = t.evaluation_id
+      AND l.dimension_id = t.dimension_id
+  )                                                      AS linked_evidence_count
+FROM totals t
+LEFT JOIN dimension_assessments da
+  ON da.evaluation_id = t.evaluation_id
+ AND da.dimension_id = t.dimension_id;

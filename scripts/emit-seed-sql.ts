@@ -111,7 +111,7 @@ for (const record of SEED_PROFILES) {
   }
 
   out.push(
-    `INSERT INTO evaluations (game_id, rubric_version, version_number, edition_scope, mode_scope, platform_scope, build_or_patch_scope, current_state_cutoff_at, status, evidence_status, confidence, evidence_cutoff_at, release_context, one_line_experience, primary_pull, primary_risk, platform_warning, score_provenance, provenance_note, published_at, change_summary) SELECT id, ${q(
+    `INSERT INTO evaluations (game_id, rubric_version, version_number, edition_scope, mode_scope, platform_scope, build_or_patch_scope, current_state_cutoff_at, status, evidence_status, evidence_maturity, confidence, evidence_cutoff_at, release_context, one_line_experience, primary_pull, primary_risk, platform_warning, score_provenance, provenance_note, published_at, change_summary) SELECT id, ${q(
       evaluation.rubricVersion,
     )}, ${evaluation.versionNumber}, ${q(evaluation.scope.edition)}, ${q(
       evaluation.scope.mode,
@@ -119,20 +119,37 @@ for (const record of SEED_PROFILES) {
       evaluation.scope.buildOrPatch,
     )}, ${q(evaluation.scope.currentStateCutoff)}, ${q(evaluation.status)}, ${q(
       evaluation.evidenceStatus,
-    )}, ${q(evaluation.confidence)}, ${q(evaluation.evidenceCutoffAt)}, ${q(
-      evaluation.releaseContext,
-    )}, ${q(evaluation.oneLineExperience)}, ${q(evaluation.primaryPull)}, ${q(
-      evaluation.primaryRisk,
-    )}, ${q(evaluation.platformWarning)}, ${q(evaluation.scoreProvenance)}, ${q(
-      evaluation.provenanceNote,
-    )}, ${evaluation.publishedAt ? `${q(evaluation.publishedAt)}::timestamptz` : "NULL"}, ${q(
-      evaluation.changeSummary,
-    )} FROM games WHERE slug = ${q(game.slug)};`,
+    )}, ${q(evaluation.evidenceMaturity)}, ${q(evaluation.confidence)}, ${q(
+      evaluation.evidenceCutoffAt,
+    )}, ${q(evaluation.releaseContext)}, ${q(
+      evaluation.oneLineExperience,
+    )}, ${q(evaluation.primaryPull)}, ${q(evaluation.primaryRisk)}, ${q(
+      evaluation.platformWarning,
+    )}, ${q(evaluation.scoreProvenance)}, ${q(evaluation.provenanceNote)}, ${
+      evaluation.publishedAt ? `${q(evaluation.publishedAt)}::timestamptz` : "NULL"
+    }, ${q(evaluation.changeSummary)} FROM games WHERE slug = ${q(game.slug)};`,
   );
 
   const evalRef = `(SELECT e.id FROM evaluations e JOIN games g ON g.id = e.game_id WHERE g.slug = ${q(
     game.slug,
   )} AND e.version_number = ${evaluation.versionNumber})`;
+
+  const dimensionRef = (key: string) =>
+    `(SELECT id FROM dimensions WHERE rubric_version = ${q(
+      evaluation.rubricVersion,
+    )} AND key = ${q(key)})`;
+
+  // Per-dimension confidence: an editorial input, so it is stored rather than
+  // derived (SOP §5).
+  for (const [dimensionKey, confidence] of Object.entries(
+    evaluation.dimensionConfidence,
+  )) {
+    out.push(
+      `INSERT INTO dimension_assessments (evaluation_id, dimension_id, confidence) VALUES (${evalRef}, ${dimensionRef(
+        dimensionKey,
+      )}, ${q(confidence)});`,
+    );
+  }
 
   for (const [dimensionKey, entries] of Object.entries(evaluation.dimensions)) {
     for (const [subKey, entry] of Object.entries(entries)) {
@@ -168,17 +185,32 @@ for (const record of SEED_PROFILES) {
 
   for (const source of evaluation.sources) {
     out.push(
-      `INSERT INTO evidence_sources (title, url, publisher, author, published_at, evidence_tier) VALUES (${q(
+      `INSERT INTO evidence_sources (title, url, publisher, author, published_at, evidence_tier, source_category) VALUES (${q(
         source.title,
       )}, ${q(source.url)}, ${q(source.publisher)}, ${q(source.author)}, ${q(
         source.publishedAt,
-      )}, ${q(source.tier)});`,
+      )}, ${q(source.tier)}, ${q(source.category)});`,
     );
-    out.push(
-      `INSERT INTO evaluation_evidence_links (evaluation_id, evidence_source_id, note) SELECT ${evalRef}, id, ${q(
-        source.note,
-      )} FROM evidence_sources WHERE title = ${q(source.title)};`,
-    );
+
+    const sourceRef = `(SELECT id FROM evidence_sources WHERE title = ${q(
+      source.title,
+    )})`;
+    const platformScope = source.platformScope
+      ? arr(source.platformScope)
+      : "NULL";
+
+    // One link per dimension the source bears on; a single profile-level link
+    // (dimension_id NULL) when it supports no particular score.
+    const targets = source.supports?.length
+      ? source.supports.map(dimensionRef)
+      : ["NULL"];
+    for (const target of targets) {
+      out.push(
+        `INSERT INTO evaluation_evidence_links (evaluation_id, evidence_source_id, dimension_id, platform_scope, note) VALUES (${evalRef}, ${sourceRef}, ${target}, ${platformScope}, ${q(
+          source.note,
+        )});`,
+      );
+    }
   }
   out.push("");
 }

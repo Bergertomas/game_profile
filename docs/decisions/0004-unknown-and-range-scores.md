@@ -1,7 +1,8 @@
 # ADR 0004 — How unknown subcriteria become (or do not become) a published score
 
-**Status:** Accepted · 2026-08-06 · **Needs product sign-off**
-**Context:** Master Plan §9.2, §25.18–19; Rubric v1.0 §1, §14, §22; Round 2 §12
+**Status:** Accepted · 2026-08-06 · **Confirmed by SOP v0.2 §10.6**
+**Context:** Master Plan §9.2, §25.18–19; Rubric v1.0 §1, §14, §22; Round 2 §12;
+Editorial Evidence & Data Sourcing SOP v0.2 §10.6
 
 ## Problem
 
@@ -50,7 +51,15 @@ lack evidence, is more honest and more useful.
   `dimension_scores` view — must change together.
 - `/dev/radar-states` renders all three states for visual review. It is
   development-only, and an e2e test asserts it 404s in production.
-- **For Tomas/ChatGPT:** this fills a genuine gap in the Master Plan rather than
-  reinterpreting an existing rule, but it is a product-visible semantic. If you
-  would rather publish a point estimate with an uncertainty marker at one unknown,
-  say so — it is a small change here and a large change to what the numbers mean.
+## Resolution — 2026-08-06
+
+The Editorial Evidence & Data Sourcing SOP v0.2 confirms this rule without
+change. §10.6 defines the same three representations — confirmed-enough
+estimate, range, Unknown — and states:
+
+> A dimension with more than one unknown subcriterion should normally not
+> display a single precise /10 value.
+
+That is the ≥2-unknown branch above. §10.6 also frames the range case as "when
+evidence supports a bounded estimate but not a precise value", which is exactly
+what one unknown produces. No product sign-off is outstanding.

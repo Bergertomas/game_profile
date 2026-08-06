@@ -50,6 +50,27 @@ export const confidenceEnum = pgEnum("confidence", ["low", "medium", "high"]);
 
 export const evidenceTierEnum = pgEnum("evidence_tier", ["A", "B", "C", "D"]);
 
+/**
+ * Editorial maturity of a pre-release profile (SOP §10.1).
+ * Required when evidence_status = 'pre_release'.
+ */
+export const evidenceMaturityEnum = pgEnum("evidence_maturity", [
+  "announced",
+  "showcased",
+  "hands_on",
+  "review_code",
+]);
+
+/** Plan §13.1. Drives the public source-category counts, never an average. */
+export const sourceCategoryEnum = pgEnum("source_category", [
+  "direct_play",
+  "critic",
+  "technical",
+  "specialist_creator",
+  "player_signal",
+  "first_party",
+]);
+
 export const blockTypeEnum = pgEnum("block_type", [
   "great_fit",
   "know_before",
@@ -201,6 +222,8 @@ export const evaluations = pgTable(
 
     status: evaluationStatusEnum("status").notNull().default("draft"),
     evidenceStatus: evidenceStatusEnum("evidence_status").notNull(),
+    /** Required when evidence_status = 'pre_release'. See constraints.sql. */
+    evidenceMaturity: evidenceMaturityEnum("evidence_maturity"),
     confidence: confidenceEnum("confidence").notNull(),
     evidenceCutoffAt: date("evidence_cutoff_at").notNull(),
     releaseContext: text("release_context"),
@@ -258,6 +281,29 @@ export const subcriterionScores = pgTable(
   ],
 );
 
+/**
+ * Per-dimension editorial assessment (SOP §5, Plan §13.1).
+ *
+ * Confidence is an editorial *input*, not something derivable from the scores,
+ * so it cannot live in the `dimension_scores` view. A dimension may sit at
+ * Medium inside an otherwise High-confidence profile — that is the point of
+ * recording it separately.
+ */
+export const dimensionAssessments = pgTable(
+  "dimension_assessments",
+  {
+    evaluationId: uuid("evaluation_id")
+      .notNull()
+      .references(() => evaluations.id, { onDelete: "cascade" }),
+    dimensionId: uuid("dimension_id")
+      .notNull()
+      .references(() => dimensions.id, { onDelete: "restrict" }),
+    confidence: confidenceEnum("confidence").notNull(),
+    note: text("note"),
+  },
+  (table) => [primaryKey({ columns: [table.evaluationId, table.dimensionId] })],
+);
+
 export const profileBlocks = pgTable(
   "profile_blocks",
   {
@@ -308,12 +354,25 @@ export const evidenceSources = pgTable("evidence_sources", {
   publishedAt: date("published_at"),
   accessedAt: date("accessed_at"),
   evidenceTier: evidenceTierEnum("evidence_tier").notNull(),
+  sourceCategory: sourceCategoryEnum("source_category").notNull(),
+  /** Free-text refinement beneath the enum, e.g. "video essay". */
   sourceType: text("source_type"),
 });
 
+/**
+ * Evidence attached to an evaluation, optionally narrowed to a dimension or a
+ * single subcriterion (Plan §13.1).
+ *
+ * A surrogate key rather than a composite one: a single source routinely bears
+ * on several dimensions, so one row per (source, dimension) pair is the point.
+ * A NULL dimension means profile-level evidence — scope or factual context that
+ * does not support any particular score. The uniqueness rule lives in
+ * constraints.sql because it needs NULLS NOT DISTINCT.
+ */
 export const evaluationEvidenceLinks = pgTable(
   "evaluation_evidence_links",
   {
+    id: uuid("id").primaryKey().defaultRandom(),
     evaluationId: uuid("evaluation_id")
       .notNull()
       .references(() => evaluations.id, { onDelete: "cascade" }),
@@ -322,12 +381,50 @@ export const evaluationEvidenceLinks = pgTable(
       .references(() => evidenceSources.id, { onDelete: "restrict" }),
     dimensionId: uuid("dimension_id").references(() => dimensions.id),
     subcriterionId: uuid("subcriterion_id").references(() => subcriteria.id),
+    /** Platforms this source speaks to, where that matters (Plan §13.1). */
+    platformScope: text("platform_scope").array(),
     note: text("note"),
     spoilerSensitive: boolean("spoiler_sensitive").notNull().default(false),
   },
   (table) => [
-    primaryKey({ columns: [table.evaluationId, table.evidenceSourceId] }),
+    index("evaluation_evidence_links_eval_idx").on(
+      table.evaluationId,
+      table.dimensionId,
+    ),
   ],
+);
+
+/**
+ * Provider-backed runtime data (Plan §13.1 `game_time_estimates`, SOP §7).
+ *
+ * Deliberately hangs off `games`, not `evaluations`: runtime is factual
+ * metadata, and it must NEVER feed the eight dimension scores. Pacing & Time
+ * Respect judges whether time is *earned*, which is an editorial judgement that
+ * a completion-time average cannot make.
+ *
+ * IGDB `game_time_to_beats` is the preferred first source. Do not build on an
+ * unofficial HowLongToBeat scraper (SOP §8).
+ */
+export const gameTimeEstimates = pgTable(
+  "game_time_estimates",
+  {
+    gameId: uuid("game_id")
+      .notNull()
+      .references(() => games.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull(),
+    externalGameId: text("external_game_id"),
+    mainOrHastySeconds: integer("main_or_hasty_seconds"),
+    normalOrMainPlusSeconds: integer("normal_or_main_plus_seconds"),
+    completionistSeconds: integer("completionist_seconds"),
+    submissionCount: integer("submission_count"),
+    providerUpdatedAt: timestamp("provider_updated_at", { withTimezone: true }),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    /** Attribution text some providers require us to display. */
+    attributionText: text("attribution_text"),
+  },
+  (table) => [primaryKey({ columns: [table.gameId, table.provider] })],
 );
 
 export const evaluationRevisions = pgTable("evaluation_revisions", {

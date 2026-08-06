@@ -5,6 +5,34 @@ import type { TagIntensity } from "@/lib/rubric/tags";
 export type EvidenceStatus = "verified" | "provisional" | "pre_release";
 export type Confidence = "low" | "medium" | "high";
 
+/**
+ * Editorial maturity of a pre-release profile (SOP §10.1, Plan §9.3).
+ *
+ * Required whenever `evidenceStatus` is `pre_release`, and meaningless
+ * otherwise. It governs how much of the profile may carry numbers at all:
+ * `announced` is first-party material only and cannot support a complete
+ * eight-dimension numerical profile (SOP §10.3).
+ */
+export type EvidenceMaturity =
+  | "announced"
+  | "showcased"
+  | "hands_on"
+  | "review_code";
+
+/**
+ * Source category (Plan §13.1 `evidence_sources.source_category`).
+ *
+ * Drives the public source-category counts. These are counts of *evidence*,
+ * never votes to be averaged — see SOP §6.
+ */
+export type SourceCategory =
+  | "direct_play"
+  | "critic"
+  | "technical"
+  | "specialist_creator"
+  | "player_signal"
+  | "first_party";
+
 export type ReleaseStatus = "released" | "upcoming" | "early_access";
 export type EvaluationStatus = "draft" | "review" | "published" | "superseded";
 
@@ -78,6 +106,15 @@ export interface EvidenceSource {
   readonly author?: string;
   readonly publishedAt?: string;
   readonly tier: EvidenceTier;
+  readonly category: SourceCategory;
+  /**
+   * Dimensions this source bears on. Empty means profile-level evidence not
+   * attached to any single dimension. Drives the per-dimension "supported by N
+   * linked sources" count in `Why this score?` (Plan §6.6).
+   */
+  readonly supports?: readonly DimensionKey[];
+  /** Platforms this source speaks to, where that matters (Plan §13.1). */
+  readonly platformScope?: readonly string[];
   readonly note?: string;
 }
 
@@ -93,6 +130,18 @@ export type ScoreProvenance =
   | "calibration_round_2"
   | "derived_pending_round_1_reconciliation";
 
+/**
+ * Whether the evidence ledger holds individual source records yet.
+ *
+ * The calibration profiles were scored against broad critical consensus, which
+ * is recorded here as a handful of truthful evidence *classes* rather than the
+ * 8–15 individual sources SOP §3 targets. Publishing "supported by 3 sources"
+ * off the back of that would understate the real basis, so the trust line omits
+ * the count while this is `pending`. It becomes `populated` when the Phase 2
+ * evidence manager holds the real records.
+ */
+export type EvidenceLedgerState = "populated" | "pending";
+
 export interface Evaluation {
   readonly id: string;
   readonly gameId: string;
@@ -101,7 +150,16 @@ export interface Evaluation {
   readonly scope: EvaluationScope;
   readonly status: EvaluationStatus;
   readonly evidenceStatus: EvidenceStatus;
+  /** Overall profile confidence. Cannot be High for a pre-release profile. */
   readonly confidence: Confidence;
+  /**
+   * Per-dimension confidence (SOP §5, Plan §13.1). May legitimately differ from
+   * the overall figure — a profile can be broadly well-evidenced while one
+   * dimension rests on thin ground. Every dimension must be present.
+   */
+  readonly dimensionConfidence: Readonly<Record<DimensionKey, Confidence>>;
+  /** Required when evidenceStatus is pre_release; omitted otherwise. */
+  readonly evidenceMaturity?: EvidenceMaturity;
   readonly evidenceCutoffAt: string;
   /** e.g. "Post-release", "Launch", "Legacy retrospective". */
   readonly releaseContext: string;
@@ -115,6 +173,7 @@ export interface Evaluation {
   readonly blocks: Readonly<Record<BlockType, readonly string[]>>;
   readonly tags: readonly EvaluationTag[];
   readonly sources: readonly EvidenceSource[];
+  readonly evidenceLedger: EvidenceLedgerState;
   readonly scoreProvenance: ScoreProvenance;
   /** Note shown in-product when provenance is not editorially final. */
   readonly provenanceNote?: string;

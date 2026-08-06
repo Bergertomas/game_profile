@@ -1,45 +1,105 @@
 import { describe, expect, it } from "vitest";
 import { SEED_PROFILES } from "@/content";
+import { alanWake2 } from "@/content/games/alan-wake-2";
 import { redfall } from "@/content/games/redfall";
+import { returnal } from "@/content/games/returnal";
 import { buildProfileView } from "@/lib/profile/build";
+import type { GameWithEvaluation, ScoreProvenance } from "@/lib/profile/types";
 import type { DimensionKey } from "@/lib/rubric";
 import { assertValidEvaluation, validateEvaluation } from "@/lib/validation/evaluation";
 
 /**
- * Calibration Round 2 report §3 publishes Redfall's eight dimension totals.
- * Those numbers are editorially approved and authoritative.
+ * The calibration reports publish each game's eight dimension totals. Those
+ * numbers are editorially approved and authoritative.
  *
- * The subcriterion decomposition in content/games/redfall.ts is engineering
- * work, so it must reproduce the published totals exactly. If a future edit to
- * a rationale changes a subcriterion value, this test fails rather than
- * silently republishing a different profile than the one Round 2 approved.
+ * The subcriterion decompositions in content/games/*.ts are engineering work,
+ * so they must reproduce the published totals exactly. If a future edit to a
+ * rationale moves a subcriterion value, these tests fail rather than silently
+ * republishing a profile the calibration rounds did not approve.
  */
-const REDFALL_ROUND_2: Record<DimensionKey, number> = {
-  story: 4.5,
-  execution: 5.5,
-  structure: 4.5,
-  agency: 5.5,
-  pacing: 4.5,
-  atmosphere: 5.5,
-  thematic: 4.0,
-  craft: 4.5,
-};
+type Matrix = Record<DimensionKey, number>;
 
-describe("Redfall matches the Calibration Round 2 matrix", () => {
-  const profile = buildProfileView(redfall);
+const CANONICAL: readonly {
+  record: GameWithEvaluation;
+  source: string;
+  provenance: ScoreProvenance;
+  matrix: Matrix;
+}[] = [
+  {
+    record: alanWake2,
+    source: "Calibration Round 1 §3",
+    provenance: "calibration_round_1",
+    matrix: {
+      story: 9.5,
+      execution: 9.0,
+      structure: 8.5,
+      agency: 7.5,
+      pacing: 8.0,
+      atmosphere: 10.0,
+      thematic: 9.5,
+      craft: 10.0,
+    },
+  },
+  {
+    record: returnal,
+    source: "Calibration Round 1 §3",
+    provenance: "calibration_round_1",
+    matrix: {
+      story: 7.5,
+      execution: 9.5,
+      structure: 8.5,
+      agency: 10.0,
+      pacing: 7.5,
+      atmosphere: 9.5,
+      thematic: 8.5,
+      craft: 10.0,
+    },
+  },
+  {
+    record: redfall,
+    source: "Calibration Round 2 §3",
+    provenance: "calibration_round_2",
+    matrix: {
+      story: 4.5,
+      execution: 5.5,
+      structure: 4.5,
+      agency: 5.5,
+      pacing: 4.5,
+      atmosphere: 5.5,
+      thematic: 4.0,
+      craft: 4.5,
+    },
+  },
+];
 
-  for (const [key, expected] of Object.entries(REDFALL_ROUND_2)) {
-    it(`${key} totals ${expected}`, () => {
-      const view = profile.dimensions.find((d) => d.dimension.key === key);
-      expect(view, `dimension ${key} missing`).toBeDefined();
-      expect(view!.score.kind).toBe("exact");
-      if (view!.score.kind !== "exact") return;
-      expect(view!.score.score).toBe(expected);
+for (const { record, source, provenance, matrix } of CANONICAL) {
+  describe(`${record.game.canonicalTitle} matches ${source}`, () => {
+    const profile = buildProfileView(record);
+
+    for (const [key, expected] of Object.entries(matrix)) {
+      it(`${key} totals ${expected.toFixed(1)}`, () => {
+        const view = profile.dimensions.find((d) => d.dimension.key === key);
+        expect(view, `dimension ${key} missing`).toBeDefined();
+        expect(view!.score.kind).toBe("exact");
+        if (view!.score.kind !== "exact") return;
+        expect(view!.score.score).toBe(expected);
+      });
+    }
+
+    it("records where its numbers came from", () => {
+      expect(record.evaluation.scoreProvenance).toBe(provenance);
     });
-  }
+  });
+}
 
-  it("is recorded as sourced from Round 2, not derived", () => {
-    expect(redfall.evaluation.scoreProvenance).toBe("calibration_round_2");
+describe("No seed profile still carries unreconciled derived scores", () => {
+  it("all three are traceable to a calibration report", () => {
+    for (const record of SEED_PROFILES) {
+      expect(
+        record.evaluation.scoreProvenance,
+        record.game.canonicalTitle,
+      ).not.toBe("derived_pending_round_1_reconciliation");
+    }
   });
 });
 
@@ -129,9 +189,23 @@ describe("The three seeded profiles are meaningfully different shapes", () => {
     expect(aw2.story).toBeGreaterThan(aw2.agency + 1.5);
   });
 
-  it("Returnal inverts that: agency and execution lead, narrative trails", () => {
-    expect(returnal.agency).toBeGreaterThan(returnal.story + 2);
-    expect(returnal.execution).toBeGreaterThan(returnal.pacing + 2);
+  it("Returnal inverts that: agency peaks where story and pacing dip", () => {
+    expect(returnal.agency).toBeGreaterThanOrEqual(returnal.story + 2.5);
+    expect(returnal.agency).toBeGreaterThanOrEqual(returnal.pacing + 2.5);
+  });
+
+  /**
+   * Under the Round 1 matrix these two are much closer in overall level than a
+   * naive reading would suggest — Round 1 §8 warns the corpus is "intentionally
+   * full of distinctive, generally good games". The product claim is therefore
+   * carried by where each profile notches, not by how big it is: Alan Wake 2
+   * dips at Agency, Returnal dips at Story and Pacing, and they cross over.
+   */
+  it("Alan Wake 2 and Returnal notch in opposite places", () => {
+    expect(aw2.story).toBeGreaterThan(returnal.story);
+    expect(returnal.agency).toBeGreaterThan(aw2.agency);
+    expect(aw2.agency).toBeLessThan(aw2.story);
+    expect(returnal.story).toBeLessThan(returnal.agency);
   });
 
   it("Redfall sits materially below both across every dimension", () => {

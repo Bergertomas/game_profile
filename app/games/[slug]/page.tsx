@@ -8,8 +8,13 @@ import {
   RecommendationBlocks,
 } from "@/components/ProfileBlocks";
 import { ProfilePanel } from "@/components/ProfilePanel";
+import { TrustLine } from "@/components/TrustLine";
 import { getGameProfile, listGameSlugs } from "@/lib/data/games";
 import { formatDate } from "@/lib/format";
+import {
+  PRE_RELEASE_NOTICE,
+  SOURCE_CATEGORY_LABEL,
+} from "@/lib/profile/vocabulary";
 
 /**
  * The canonical game profile page (GP-005).
@@ -110,19 +115,32 @@ export default async function GameProfilePage({
         aria-labelledby="profile-heading"
         className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-14"
       >
-        <div className="mb-8 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-b border-line pb-4">
-          <h2 id="profile-heading" className="display text-2xl text-bone">
-            The profile
-          </h2>
-          <p className="text-[0.8125rem] text-bone-dim">
-            Eight dimensions · scored 0–10 each ·{" "}
-            <Link
-              href="/methodology"
-              className="text-bone underline decoration-line underline-offset-4 transition-colors hover:decoration-brass"
-            >
-              how these are scored
-            </Link>
-          </p>
+        <div className="mb-6 border-b border-line pb-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+            <h2 id="profile-heading" className="display text-2xl text-bone">
+              The profile
+            </h2>
+            <p className="text-[0.8125rem] text-bone-dim">
+              Eight dimensions · scored 0–10 each ·{" "}
+              <Link
+                href="/methodology"
+                className="text-bone underline decoration-line underline-offset-4 transition-colors hover:decoration-brass"
+              >
+                how these are scored
+              </Link>
+            </p>
+          </div>
+        </div>
+
+        {/* Trust line sits immediately above the numbers, where a reader is
+            about to decide how much weight to give them (Plan §6.6). */}
+        <div className="mb-8">
+          <TrustLine evaluation={evaluation} evidence={profile.evidence} />
+          {evaluation.evidenceStatus === "pre_release" && (
+            <p className="mt-3 border-l-2 border-brass py-1 pl-3 text-[0.8125rem] leading-relaxed text-bone">
+              {PRE_RELEASE_NOTICE}
+            </p>
+          )}
         </div>
 
         <ProfilePanel profile={profile} />
@@ -141,7 +159,10 @@ export default async function GameProfilePage({
             Phrased around preferences and tolerances, not player types.
           </p>
         </div>
-        <RecommendationBlocks blocks={evaluation.blocks} />
+        <RecommendationBlocks
+          blocks={evaluation.blocks}
+          evidenceStatus={evaluation.evidenceStatus}
+        />
       </section>
 
       {/* --------------------------------------------------------------- Tags */}
@@ -175,12 +196,45 @@ export default async function GameProfilePage({
           </p>
         </div>
 
-        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)] lg:gap-10">
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)] lg:items-start lg:gap-10">
           <EvidenceStrip evaluation={evaluation} />
 
           <div className="mt-6 lg:mt-0">
             <h3 className="label-micro text-bone-faint">Basis</h3>
-            <ul className="mt-3 space-y-3">
+
+            {/* Source-category counts (Plan §6.6, SOP §6). Counts of evidence,
+                never votes: the wording is "supported by", never "calculated
+                from". */}
+            <dl className="mt-3 space-y-1.5 border-t border-line pt-3">
+              {profile.evidence.categoryCounts.map(({ category, count }) => (
+                <div
+                  key={category}
+                  className="flex items-baseline justify-between gap-4"
+                >
+                  <dt className="text-[0.8125rem] text-bone-dim">
+                    {SOURCE_CATEGORY_LABEL[category]}
+                  </dt>
+                  <dd className="tabular text-[0.8125rem] text-bone">{count}</dd>
+                </div>
+              ))}
+              <div className="flex items-baseline justify-between gap-4">
+                <dt className="text-[0.8125rem] text-bone-dim">Direct play</dt>
+                <dd className="text-[0.8125rem] text-bone">
+                  {profile.evidence.hasDirectPlay ? "Yes" : "Not yet"}
+                </dd>
+              </div>
+            </dl>
+
+            {evaluation.evidenceLedger === "pending" && (
+              <p className="mt-3 text-xs leading-relaxed text-bone-faint">
+                These are evidence classes, not individual source records. The
+                profile was scored against broad critical consensus; the
+                per-source ledger is populated in the editorial evidence
+                manager.
+              </p>
+            )}
+
+            <ul className="mt-5 space-y-3">
               {evaluation.sources.map((source) => (
                 <li key={source.id} className="border-t border-line pt-3">
                   <div className="flex items-baseline gap-2">
@@ -191,6 +245,16 @@ export default async function GameProfilePage({
                       {source.title}
                     </span>
                   </div>
+                  <p className="mt-1 text-xs text-bone-faint">
+                    {SOURCE_CATEGORY_LABEL[source.category]}
+                    {source.supports && source.supports.length > 0 && (
+                      <>
+                        {" · supports "}
+                        {source.supports.length} dimension
+                        {source.supports.length === 1 ? "" : "s"}
+                      </>
+                    )}
+                  </p>
                   {source.note && (
                     <p className="mt-1.5 text-xs leading-relaxed text-bone-faint">
                       {source.note}

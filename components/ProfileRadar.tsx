@@ -2,6 +2,7 @@
 
 import type { RadarPoint } from "@/lib/profile/build";
 import {
+  axisAngleRad,
   axisLabelPlacement,
   buildPolygon,
   pointAt,
@@ -152,21 +153,27 @@ function RadarSvg({
         })}
       </g>
 
-      {/* Scale ticks, printed once on the twelve o'clock spoke only. Omitted at
-          phone size, where they are too small to read and only add noise inside
-          the polygon; the axis values and the score rows carry the scale there. */}
+      {/* Scale ticks, printed once along the bisector between the first two
+          axes. No vertex can ever fall there, so the labels never collide with
+          the polygon whatever the scores are. Omitted at phone size, where they
+          are too small to read and only add noise inside the shape; the axis
+          values and the score rows carry the scale there. */}
       {layout.mode === "full" && (
-        <g className="fill-bone-faint" fontSize={9}>
-          {LABELLED_LEVELS.map((level) => (
-            <text
-              key={level}
-              x={center.x + 4}
-              y={center.y - scoreRadius(level, radius) + 3}
-              className="tabular"
-            >
-              {level}
-            </text>
-          ))}
+        <g className="fill-bone-faint" fontSize={9} textAnchor="middle">
+          {LABELLED_LEVELS.map((level) => {
+            const bisector = axisAngleRad(0, count) + Math.PI / count;
+            const r = scoreRadius(level, radius);
+            return (
+              <text
+                key={level}
+                x={center.x + r * Math.cos(bisector)}
+                y={center.y + r * Math.sin(bisector) + 3}
+                className="tabular"
+              >
+                {level}
+              </text>
+            );
+          })}
         </g>
       )}
 
