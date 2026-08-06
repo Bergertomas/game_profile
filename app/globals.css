@@ -1,0 +1,139 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Self-hosted variable fonts. Both are SIL Open Font License.
+   Hermetic build: no network fetch at build or runtime.
+   --------------------------------------------------------------------------- */
+@font-face {
+  font-family: "Fraunces";
+  font-style: normal;
+  font-weight: 300 900;
+  font-display: swap;
+  src: url("/fonts/fraunces-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/inter-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* ---------------------------------------------------------------------------
+   Design tokens.
+
+   Premium editorial, analytical, a little cinematic (Plan §15.1). Warm ink and
+   bone rather than blue-grey SaaS; a single brass accent rather than a rainbow
+   dashboard. Critically: there is no good/bad colour scale anywhere in this
+   product. A low score is neutral information (Rubric §1).
+   --------------------------------------------------------------------------- */
+@theme {
+  --color-ink-950: #08090b;
+  --color-ink-900: #0c0e11;
+  --color-ink-850: #111418;
+  --color-ink-800: #161a1f;
+  --color-ink-700: #1d2228;
+
+  --color-line: #242a32;
+  --color-line-strong: #333a44;
+
+  --color-bone: #ece7dd;
+  --color-bone-dim: #a5a299;
+  --color-bone-faint: #6d6b64;
+
+  --color-brass: #d6a244;
+  --color-brass-bright: #e8bc6b;
+  --color-brass-deep: #8a6a2c;
+
+  --font-display: "Fraunces", ui-serif, Georgia, "Times New Roman", serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    sans-serif;
+
+  --text-micro: 0.6875rem;
+  --text-micro--line-height: 1rem;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-ink-950);
+    color: var(--color-bone);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv05" 1, "ss01" 1;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Every number in this product is a measurement. Align them. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brass-bright);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  ::selection {
+    background: var(--color-brass-deep);
+    color: var(--color-bone);
+  }
+}
+
+@layer components {
+  /* Small-caps analytical label used for axis names, eyebrows and field keys. */
+  .label-micro {
+    font-size: var(--text-micro);
+    line-height: 1rem;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+
+  .display {
+    font-family: var(--font-display);
+    font-variation-settings: "SOFT" 0, "WONK" 0;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+  }
+
+  /* Paper-grain wash behind the hero. Stands in for key art, which we do not
+     license yet, and keeps the page from reading as an empty admin screen. */
+  .hero-wash {
+    background:
+      radial-gradient(
+        120% 90% at 15% 0%,
+        color-mix(in oklab, var(--color-brass) 9%, transparent) 0%,
+        transparent 60%
+      ),
+      radial-gradient(
+        100% 80% at 90% 10%,
+        color-mix(in oklab, #4a6fa5 7%, transparent) 0%,
+        transparent 55%
+      );
+  }
+}
+
+/* Plan §22.2 — reduced-motion support. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
