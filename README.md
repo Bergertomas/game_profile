@@ -76,7 +76,9 @@ These are product semantics, not preferences. Most are covered by a test.
 | Every evaluation declares edition, mode, platform and build | NOT NULL columns, shown on the page |
 | Every dimension carries its own confidence | `dimension_assessments`, publish trigger, `tests/lineage.test.ts` |
 | A missing subcriterion row can never become a precise score | `dimension_scores` derives against the full expected set |
-| A published evaluation has no gaps | deferrable constraint triggers in `constraints.sql` |
+| A published evaluation has no gaps | deferrable constraint triggers, on delete *and* retargeting update |
+| Evidence counts count distinct sources, not links | `COUNT(DISTINCT evidence_source_id)` in `dimension_scores` |
+| Every edge of a supersession chain is validated and seeded as declared | `validateGameRecord`, `tests/lineage.test.ts` |
 | Evidence sources are identified by key, never by title | `evidence_sources.source_key`, `tests/seed-sql.test.ts` |
 | Superseded evaluations are preserved and linked, never overwritten | self-referencing FK + lineage validation, `tests/lineage.test.ts` |
 | Source counts stay hidden until the ledger is genuinely populated | `evaluations.evidence_ledger`, `tests/lineage.test.ts` |
@@ -93,22 +95,30 @@ The schema is real and has been applied to Postgres 16 — migration, constraint
 and the derived view all run, and the seed loads. The site does not yet read from
 it; see [ADR 0002](docs/decisions/0002-data-access.md).
 
+One command takes an empty database to a fully constrained, seeded schema:
+
 ```bash
-npm run db:generate                    # regenerate the migration from the schema
+DATABASE_URL=postgres://…/game_profile npm run db:setup
+```
+
+That is `db:migrate` followed by `db:seed`, and it is the canonical path — there
+is no second step to remember. `0000_schema.sql` creates the tables and
+`0001_contract.sql` installs the checks, indexes, triggers and the
+`dimension_scores` view; Drizzle applies all pending migrations inside a single
+transaction, so the schema is never left half-built.
+
+```bash
+npm run db:migrate                     # schema only
+npm run db:seed                        # data only; safe to run repeatedly
+npm run db:generate                    # regenerate migrations from the schema
 npm run db:seed-sql > lib/db/seed.sql  # regenerate the seed from the fixtures
 
-psql -d game_profile -f lib/db/migrations/0000_remarkable_sebastian_shaw.sql
-psql -d game_profile -f lib/db/constraints.sql   # checks, triggers, dimension_scores view
-psql -d game_profile -f lib/db/seed.sql          # safe to run repeatedly
+DATABASE_URL=… tests/db/regression.sh  # 33 Postgres invariant checks
 ```
 
 `lib/db/seed.sql` is generated output — edit `content/games/*.ts` and regenerate.
 A test asserts the committed file is byte-identical to the generator, and every
 statement in it is idempotent.
-
-`constraints.sql` is not optional. It carries the `dimension_scores` view and
-the publish-completeness triggers; without it the schema will accept an
-incomplete published evaluation.
 
 ## Decisions
 

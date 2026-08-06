@@ -418,34 +418,72 @@ export function validateGameRecord(
     }
   }
 
-  // The chain must actually link up: history is preserved, not orphaned.
-  const link = record.evaluation.supersedesEvaluationId;
-  if (history.length > 0) {
-    const latest = [...history].sort(
-      (a, b) => b.versionNumber - a.versionNumber,
-    )[0]!;
+  // ---------------------------------------------------------------------
+  // Every edge of the chain, not just the newest one.
+  //
+  // Checking only the current evaluation's link leaves a three-version chain
+  // free to have a broken, skipped or reversed link in its middle — and the
+  // seed generator would then have to guess what was meant. Ordered by version,
+  // the oldest evaluation supersedes nothing and every later one supersedes
+  // exactly its immediate predecessor.
+  // ---------------------------------------------------------------------
+  const ordered = [...chain].sort((a, b) => a.versionNumber - b.versionNumber);
+  const byId = new Map(chain.map((e) => [e.id, e]));
+
+  ordered.forEach((evaluation, index) => {
+    const link = evaluation.supersedesEvaluationId;
+    const predecessor = index === 0 ? null : ordered[index - 1]!;
+
+    if (!predecessor) {
+      if (link) {
+        issues.push({
+          code: "oldest_evaluation_supersedes",
+          message: `Evaluation "${evaluation.id}" is the oldest in the chain but claims to supersede "${link}".`,
+        });
+      }
+      return;
+    }
+
     if (!link) {
       issues.push({
         code: "missing_supersession_link",
-        message: `${record.game.slug} has historical evaluations but the current one does not record what it supersedes.`,
+        message: `Evaluation "${evaluation.id}" (version ${evaluation.versionNumber}) does not record what it supersedes; it should supersede "${predecessor.id}".`,
       });
-    } else if (!ids.has(link)) {
+      return;
+    }
+
+    const target = byId.get(link);
+    if (!target) {
       issues.push({
         code: "dangling_supersession_link",
-        message: `Current evaluation supersedes "${link}", which is not in this game's history.`,
+        message: `Evaluation "${evaluation.id}" supersedes "${link}", which is not part of this game's chain.`,
       });
-    } else if (link !== latest.id) {
+      return;
+    }
+
+    if (target.gameId !== evaluation.gameId) {
+      issues.push({
+        code: "cross_game_supersession",
+        message: `Evaluation "${evaluation.id}" supersedes "${link}", which belongs to a different game.`,
+      });
+      return;
+    }
+
+    if (target.versionNumber >= evaluation.versionNumber) {
+      issues.push({
+        code: "supersession_not_forward",
+        message: `Evaluation "${evaluation.id}" (version ${evaluation.versionNumber}) supersedes version ${target.versionNumber}, which is not earlier.`,
+      });
+      return;
+    }
+
+    if (target.id !== predecessor.id) {
       issues.push({
         code: "supersession_skips_history",
-        message: `Current evaluation supersedes "${link}" rather than the most recent historical evaluation "${latest.id}".`,
+        message: `Evaluation "${evaluation.id}" supersedes "${link}" (version ${target.versionNumber}) rather than its immediate predecessor "${predecessor.id}" (version ${predecessor.versionNumber}).`,
       });
     }
-  } else if (link) {
-    issues.push({
-      code: "dangling_supersession_link",
-      message: `Current evaluation supersedes "${link}", but no history is recorded.`,
-    });
-  }
+  });
 
   for (const evaluation of chain) {
     issues.push(...validateEvaluation(evaluation));

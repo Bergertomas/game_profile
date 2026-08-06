@@ -20,8 +20,10 @@ Build all three layers now, with a single seam between them.
 
 1. **`lib/db/schema.ts`** — the real Drizzle Postgres schema, with versioning,
    supersession, NOT NULL scope columns and platform-specific score overrides.
-   Committed with a generated migration and a companion `constraints.sql` holding
-   the check constraints and the derived `dimension_scores` view.
+   Committed with a generated migration plus the check constraints and derived
+   `dimension_scores` view. (Those began as a companion `constraints.sql` applied
+   by hand; ADR 0007 folded them into `0001_contract.sql` so a migration-only
+   deploy produces the complete schema.)
 2. **`content/games/*.ts`** — typed fixtures, validated by the same publish gate
    an editor will hit in the admin UI (`lib/validation/evaluation.ts`).
 3. **`lib/data/games.ts`** — the only module the site uses to read data. Three

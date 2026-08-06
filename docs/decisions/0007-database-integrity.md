@@ -7,6 +7,25 @@ storage/derivation"); SOP v0.2 §10.9
 Recorded because these are exactly the class of decision Plan §23.3 says to
 write down: how scores are derived and stored, and what the database will refuse.
 
+## 0. The contract ships inside the migrations
+
+`npm run db:migrate` is the canonical database setup path, and the only one.
+`0000_schema.sql` creates the tables; `0001_contract.sql` installs the checks,
+partial indexes, constraint triggers and the `dimension_scores` view. Drizzle
+applies all pending migrations inside a single transaction, so the schema is
+never left half-built.
+
+The contract previously lived in a standalone `lib/db/constraints.sql` applied
+by a second, documented-but-manual command. A normal migration-only deployment
+therefore produced a schema that silently accepted incomplete published
+evaluations and reported false precision from partially-scored dimensions —
+every invariant below existed only for whoever remembered step two. That file is
+gone; its content is the migration.
+
+`npm run db:seed` loads the (idempotent) generated data afterwards, and
+`npm run db:setup` runs both. Structure and data stay separate commands because
+they have different lifecycles, but neither is optional folklore.
+
 ## 1. The derived view aggregates the expected set, not the present set
 
 The `dimension_scores` view previously grouped over whatever `subcriterion_scores`
@@ -33,9 +52,17 @@ row for any expected subcriterion, or a confidence record for any dimension.
 `DEFERRABLE INITIALLY DEFERRED` so a seed or an editor can write the evaluation,
 then its children, then commit; the check runs once at COMMIT.
 
-Triggers also fire on DELETE against `subcriterion_scores` and
+Triggers also fire on **DELETE or UPDATE** against `subcriterion_scores` and
 `dimension_assessments`, so rows cannot be stripped out from under an
-already-published profile.
+already-published profile — nor quietly retargeted away from it. An UPDATE that
+changes `evaluation_id`, `subcriterion_id` or `dimension_id` leaves the original
+evaluation short of a required record just as a DELETE does; the trigger checks
+`OLD.evaluation_id`, the evaluation that lost the row. The row's new owner can
+only have gained one, and its primary key already prevents duplicates there.
+
+Deferral is what makes this usable: an editor may legitimately delete and
+reinsert a score, or move a row out and back, inside one transaction. The check
+runs at COMMIT, so multi-step editorial work completes before it is judged.
 
 If an editor genuinely has no evidence for a subcriterion, the answer is to
 record an explicit `unknown`, not to omit the row. Absence of evidence is a
@@ -63,25 +90,58 @@ supersede a version equal to or later than its own.
 
 The typed model gained `GameWithEvaluation.history`, and the seed generator
 emits a chain oldest-first so each predecessor exists before its successor
-references it. Validation covers the application-side rules — history must be
-marked `superseded`, only one evaluation may be published, and the current
-evaluation must link to the most recent historical one.
+references it.
+
+Validation covers **every edge of the chain**, not only the newest one. Ordered
+by version: the oldest evaluation supersedes nothing, and each later one
+supersedes exactly its immediate predecessor, in the same game, at a strictly
+earlier version. Checking only the final link left a three-version chain free to
+carry a broken, skipped or reversed link in its middle.
+
+The generator emits the **declared** link resolved from the typed chain, never
+one inferred from sort order. Inferring would let it silently repair malformed
+data into plausible-looking SQL that disagreed with its source; instead
+validation rejects the chain and generation fails. Evaluation references are
+qualified by `(game slug, rubric_version, version_number)` to match the
+database's uniqueness contract — version 1 may legitimately exist twice for one
+game under two rubric versions.
 
 No historical evaluation is seeded for the three calibration games, because none
 exists: inventing one would be fabricated editorial history. The capability is
 covered by tests over synthetic corpora and was verified end-to-end against
 Postgres.
 
-## 5. Evidence-ledger state is persisted
+## 5. Evidence counts are counts of sources
+
+`dimension_scores.linked_evidence_count` counts `DISTINCT evidence_source_id`,
+not link rows. One source may reasonably be linked to a dimension twice — once at
+dimension level, once narrowed to a subcriterion — and it is still one source
+supporting that dimension. `COUNT(*)` overstated support in exactly the place
+the public page says "supported by N linked sources".
+
+It remains a count of evidence and nothing more: never a divisor, a weight, or
+an input to any score (SOP §6).
+
+## 6. Evidence-ledger state is persisted
 
 `evaluations.evidence_ledger` (`populated` / `pending`, defaulting to `pending`)
 now lives in the database rather than only in the fixtures, so a
 database-backed reader reaches the same conclusion the fixture-backed one does
 and never prints a source count that understates the real basis for a score.
 
+## Verification
+
+`tests/db/regression.sh` exercises all of the above against a real Postgres
+instance: it drops and recreates the database, builds it with `npm run db:setup`,
+and asserts 33 scenarios — schema completeness after a migration-only deploy,
+seed idempotence, each of the four UPDATE bypass routes, deferral surviving
+legitimate multi-step edits, distinct source counting, false-precision
+protection, and every lineage rule.
+
 ## Migration note
 
-The project has never been deployed, so the schema is still a single initial
-migration and it was regenerated in place rather than accumulating an ALTER
-migration for pre-release changes. The first deployment establishes the baseline;
-after that, changes here become ordinary incremental migrations.
+The project has never been deployed, so migrations were regenerated in place
+rather than accumulating ALTERs for pre-release changes: `0000_schema.sql` and
+`0001_contract.sql` are the baseline. The first deployment fixes that baseline;
+after it, changes here become ordinary incremental migrations and
+`0001_contract.sql` must not be edited retroactively.

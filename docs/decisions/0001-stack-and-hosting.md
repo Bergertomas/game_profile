@@ -35,7 +35,8 @@ to engineering.
 ## Consequences
 
 - The scoring rule now exists twice: `lib/scoring/derive.ts` and the
-  `dimension_scores` view in `lib/db/constraints.sql`. That duplication is
+  `dimension_scores` view (since ADR 0007, in `lib/db/migrations/0001_contract.sql`;
+  originally a standalone `lib/db/constraints.sql`). That duplication is
   deliberate — it is a cross-check, and both are exercised — but the two must be
   changed together. Both files carry a comment saying so.
 - Tailwind v4 requires no `tailwind.config`; tokens live in `app/globals.css`

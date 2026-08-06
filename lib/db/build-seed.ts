@@ -34,9 +34,23 @@ function dimensionRef(rubricVersion: string, key: string): string {
   )} AND key = ${sqlString(key)})`;
 }
 
-function evaluationRef(slug: string, versionNumber: number): string {
+/**
+ * Resolve an evaluation by (game, rubric version, version number).
+ *
+ * The database's uniqueness contract is `(game_id, rubric_version,
+ * version_number)`, so version 1 can legitimately exist twice for one game
+ * under two different rubric versions. Omitting rubric_version would make this
+ * subquery ambiguous the moment a rubric v2 lands.
+ */
+function evaluationRef(
+  slug: string,
+  rubricVersion: string,
+  versionNumber: number,
+): string {
   return `(SELECT e.id FROM evaluations e JOIN games g ON g.id = e.game_id WHERE g.slug = ${sqlString(
     slug,
+  )} AND e.rubric_version = ${sqlString(
+    rubricVersion,
   )} AND e.version_number = ${versionNumber})`;
 }
 
@@ -50,10 +64,19 @@ function emitEvaluation(
   out: string[],
   slug: string,
   evaluation: Evaluation,
-  supersedesVersion: number | null,
+  /**
+   * The evaluation this one declares it supersedes, already resolved from the
+   * typed chain. Inferring it from sorted version numbers instead would let the
+   * generator silently repair a malformed chain — writing SQL that disagrees
+   * with the data it came from. Validation rejects malformed chains; the
+   * generator emits exactly what it was given.
+   */
+  supersedes: Evaluation | null,
 ): void {
-  const supersedes =
-    supersedesVersion === null ? "NULL" : evaluationRef(slug, supersedesVersion);
+  const supersedesRef =
+    supersedes === null
+      ? "NULL"
+      : evaluationRef(slug, supersedes.rubricVersion, supersedes.versionNumber);
 
   out.push(
     `INSERT INTO evaluations (game_id, rubric_version, version_number, edition_scope, mode_scope, platform_scope, build_or_patch_scope, current_state_cutoff_at, status, evidence_status, evidence_maturity, confidence, evidence_cutoff_at, release_context, one_line_experience, primary_pull, primary_risk, platform_warning, score_provenance, provenance_note, evidence_ledger, published_at, supersedes_evaluation_id, change_summary) SELECT g.id, ${sqlString(
@@ -80,14 +103,18 @@ function emitEvaluation(
       evaluation.publishedAt
         ? `${sqlString(evaluation.publishedAt)}::timestamptz`
         : "NULL"
-    }, ${supersedes}, ${sqlString(
+    }, ${supersedesRef}, ${sqlString(
       evaluation.changeSummary,
     )} FROM games g WHERE g.slug = ${sqlString(
       slug,
     )} ON CONFLICT (game_id, rubric_version, version_number) DO NOTHING;`,
   );
 
-  const evalRef = evaluationRef(slug, evaluation.versionNumber);
+  const evalRef = evaluationRef(
+    slug,
+    evaluation.rubricVersion,
+    evaluation.versionNumber,
+  );
 
   // Per-dimension confidence: an editorial input, stored not derived (SOP §5).
   for (const [dimensionKey, confidence] of Object.entries(
@@ -288,13 +315,27 @@ export function buildSeedSql(
     }
 
     // Oldest first, so each evaluation's predecessor already exists when the
-    // supersedes_evaluation_id subquery resolves.
-    let previousVersion: number | null = null;
-    for (const superseded of history) {
-      emitEvaluation(out, game.slug, superseded, previousVersion);
-      previousVersion = superseded.versionNumber;
+    // supersedes_evaluation_id subquery resolves. The link itself comes from
+    // the declared data, not from position in this list — validation has
+    // already proved the two agree.
+    const chain = [...history, evaluation].sort(
+      (a, b) => a.versionNumber - b.versionNumber,
+    );
+    const byId = new Map(chain.map((e) => [e.id, e]));
+
+    for (const link of chain) {
+      const supersedes = link.supersedesEvaluationId
+        ? (byId.get(link.supersedesEvaluationId) ?? null)
+        : null;
+      if (link.supersedesEvaluationId && !supersedes) {
+        // Unreachable: assertValidGameRecord rejects a dangling link above.
+        // Throwing rather than emitting NULL keeps a silent repair impossible.
+        throw new Error(
+          `${game.slug}: evaluation "${link.id}" supersedes unknown "${link.supersedesEvaluationId}".`,
+        );
+      }
+      emitEvaluation(out, game.slug, link, supersedes);
     }
-    emitEvaluation(out, game.slug, evaluation, previousVersion);
 
     out.push("");
   }

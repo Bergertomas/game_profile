@@ -1,6 +1,6 @@
 {
-  "id": "0d733581-d9ed-423d-a50e-51338b2873d6",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "a3358dd7-2503-481e-b062-26e6cd55152e",
+  "prevId": "0d733581-d9ed-423d-a50e-51338b2873d6",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -39,28 +39,28 @@
         "dimension_assessments_evaluation_id_evaluations_id_fk": {
           "name": "dimension_assessments_evaluation_id_evaluations_id_fk",
           "tableFrom": "dimension_assessments",
-          "tableTo": "evaluations",
           "columnsFrom": [
             "evaluation_id"
           ],
+          "tableTo": "evaluations",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "dimension_assessments_dimension_id_dimensions_id_fk": {
           "name": "dimension_assessments_dimension_id_dimensions_id_fk",
           "tableFrom": "dimension_assessments",
-          "tableTo": "dimensions",
           "columnsFrom": [
             "dimension_id"
           ],
+          "tableTo": "dimensions",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "restrict"
         }
       },
       "compositePrimaryKeys": {
@@ -131,11 +131,11 @@
       "uniqueConstraints": {
         "dimensions_version_key": {
           "name": "dimensions_version_key",
-          "nullsNotDistinct": false,
           "columns": [
             "rubric_version",
             "key"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -215,63 +215,63 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "evaluation_evidence_links_evaluation_id_evaluations_id_fk": {
           "name": "evaluation_evidence_links_evaluation_id_evaluations_id_fk",
           "tableFrom": "evaluation_evidence_links",
-          "tableTo": "evaluations",
           "columnsFrom": [
             "evaluation_id"
           ],
+          "tableTo": "evaluations",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "evaluation_evidence_links_evidence_source_id_evidence_sources_id_fk": {
           "name": "evaluation_evidence_links_evidence_source_id_evidence_sources_id_fk",
           "tableFrom": "evaluation_evidence_links",
-          "tableTo": "evidence_sources",
           "columnsFrom": [
             "evidence_source_id"
           ],
+          "tableTo": "evidence_sources",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "restrict"
         },
         "evaluation_evidence_links_dimension_id_dimensions_id_fk": {
           "name": "evaluation_evidence_links_dimension_id_dimensions_id_fk",
           "tableFrom": "evaluation_evidence_links",
-          "tableTo": "dimensions",
           "columnsFrom": [
             "dimension_id"
           ],
+          "tableTo": "dimensions",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "evaluation_evidence_links_subcriterion_id_subcriteria_id_fk": {
           "name": "evaluation_evidence_links_subcriterion_id_subcriteria_id_fk",
           "tableFrom": "evaluation_evidence_links",
-          "tableTo": "subcriteria",
           "columnsFrom": [
             "subcriterion_id"
           ],
+          "tableTo": "subcriteria",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -322,15 +322,15 @@
         "evaluation_revisions_evaluation_id_evaluations_id_fk": {
           "name": "evaluation_revisions_evaluation_id_evaluations_id_fk",
           "tableFrom": "evaluation_revisions",
-          "tableTo": "evaluations",
           "columnsFrom": [
             "evaluation_id"
           ],
+          "tableTo": "evaluations",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -374,28 +374,28 @@
         "evaluation_tags_evaluation_id_evaluations_id_fk": {
           "name": "evaluation_tags_evaluation_id_evaluations_id_fk",
           "tableFrom": "evaluation_tags",
-          "tableTo": "evaluations",
           "columnsFrom": [
             "evaluation_id"
           ],
+          "tableTo": "evaluations",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "evaluation_tags_tag_id_tags_id_fk": {
           "name": "evaluation_tags_tag_id_tags_id_fk",
           "tableFrom": "evaluation_tags",
-          "tableTo": "tags",
           "columnsFrom": [
             "tag_id"
           ],
+          "tableTo": "tags",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "restrict"
         }
       },
       "compositePrimaryKeys": {
@@ -613,49 +613,49 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "evaluations_game_id_games_id_fk": {
           "name": "evaluations_game_id_games_id_fk",
           "tableFrom": "evaluations",
-          "tableTo": "games",
           "columnsFrom": [
             "game_id"
           ],
+          "tableTo": "games",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "evaluations_supersedes_evaluation_id_evaluations_id_fk": {
           "name": "evaluations_supersedes_evaluation_id_evaluations_id_fk",
           "tableFrom": "evaluations",
-          "tableTo": "evaluations",
           "columnsFrom": [
             "supersedes_evaluation_id"
           ],
+          "tableTo": "evaluations",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "restrict"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "evaluations_game_version": {
           "name": "evaluations_game_version",
-          "nullsNotDistinct": false,
           "columns": [
             "game_id",
             "rubric_version",
             "version_number"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -742,10 +742,10 @@
       "uniqueConstraints": {
         "evidence_sources_source_key_unique": {
           "name": "evidence_sources_source_key_unique",
-          "nullsNotDistinct": false,
           "columns": [
             "source_key"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -787,24 +787,24 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "game_aliases_game_id_games_id_fk": {
           "name": "game_aliases_game_id_games_id_fk",
           "tableFrom": "game_aliases",
-          "tableTo": "games",
           "columnsFrom": [
             "game_id"
           ],
+          "tableTo": "games",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -855,15 +855,15 @@
         "game_external_ids_game_id_games_id_fk": {
           "name": "game_external_ids_game_id_games_id_fk",
           "tableFrom": "game_external_ids",
-          "tableTo": "games",
           "columnsFrom": [
             "game_id"
           ],
+          "tableTo": "games",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -914,28 +914,28 @@
         "game_platforms_game_id_games_id_fk": {
           "name": "game_platforms_game_id_games_id_fk",
           "tableFrom": "game_platforms",
-          "tableTo": "games",
           "columnsFrom": [
             "game_id"
           ],
+          "tableTo": "games",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "game_platforms_platform_id_platforms_id_fk": {
           "name": "game_platforms_platform_id_platforms_id_fk",
           "tableFrom": "game_platforms",
-          "tableTo": "platforms",
           "columnsFrom": [
             "platform_id"
           ],
+          "tableTo": "platforms",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -1023,15 +1023,15 @@
         "game_time_estimates_game_id_games_id_fk": {
           "name": "game_time_estimates_game_id_games_id_fk",
           "tableFrom": "game_time_estimates",
-          "tableTo": "games",
           "columnsFrom": [
             "game_id"
           ],
+          "tableTo": "games",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -1141,9 +1141,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -1151,10 +1151,10 @@
       "uniqueConstraints": {
         "games_slug_unique": {
           "name": "games_slug_unique",
-          "nullsNotDistinct": false,
           "columns": [
             "slug"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -1191,10 +1191,10 @@
       "uniqueConstraints": {
         "platforms_slug_unique": {
           "name": "platforms_slug_unique",
-          "nullsNotDistinct": false,
           "columns": [
             "slug"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -1236,15 +1236,15 @@
         "profile_blocks_evaluation_id_evaluations_id_fk": {
           "name": "profile_blocks_evaluation_id_evaluations_id_fk",
           "tableFrom": "profile_blocks",
-          "tableTo": "evaluations",
           "columnsFrom": [
             "evaluation_id"
           ],
+          "tableTo": "evaluations",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -1309,26 +1309,26 @@
         "subcriteria_dimension_id_dimensions_id_fk": {
           "name": "subcriteria_dimension_id_dimensions_id_fk",
           "tableFrom": "subcriteria",
-          "tableTo": "dimensions",
           "columnsFrom": [
             "dimension_id"
           ],
+          "tableTo": "dimensions",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "subcriteria_dimension_key": {
           "name": "subcriteria_dimension_key",
-          "nullsNotDistinct": false,
           "columns": [
             "dimension_id",
             "key"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -1388,41 +1388,41 @@
         "subcriterion_scores_evaluation_id_evaluations_id_fk": {
           "name": "subcriterion_scores_evaluation_id_evaluations_id_fk",
           "tableFrom": "subcriterion_scores",
-          "tableTo": "evaluations",
           "columnsFrom": [
             "evaluation_id"
           ],
+          "tableTo": "evaluations",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "subcriterion_scores_subcriterion_id_subcriteria_id_fk": {
           "name": "subcriterion_scores_subcriterion_id_subcriteria_id_fk",
           "tableFrom": "subcriterion_scores",
-          "tableTo": "subcriteria",
           "columnsFrom": [
             "subcriterion_id"
           ],
+          "tableTo": "subcriteria",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "restrict"
         },
         "subcriterion_scores_platform_id_platforms_id_fk": {
           "name": "subcriterion_scores_platform_id_platforms_id_fk",
           "tableFrom": "subcriterion_scores",
-          "tableTo": "platforms",
           "columnsFrom": [
             "platform_id"
           ],
+          "tableTo": "platforms",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -1489,10 +1489,10 @@
       "uniqueConstraints": {
         "tags_key_unique": {
           "name": "tags_key_unique",
-          "nullsNotDistinct": false,
           "columns": [
             "key"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -1615,10 +1615,10 @@
     }
   },
   "schemas": {},
+  "views": {},
   "sequences": {},
   "roles": {},
   "policies": {},
-  "views": {},
   "_meta": {
     "columns": {},
     "schemas": {},

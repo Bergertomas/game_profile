@@ -1,8 +1,14 @@
--- Constraints and derived views that the Drizzle schema cannot express.
--- Apply after the generated migration.
+-- Database contract: constraints, indexes, triggers and derived views that the
+-- Drizzle schema cannot express.
 --
--- These encode Master Plan §13.2 "Important constraints" and §22.3 "Data QA"
--- as database invariants rather than application-layer hopes.
+-- This is an ordinary migration, applied by `npm run db:migrate` in the same
+-- transaction as the table definitions. It is NOT an optional follow-up step:
+-- without it the schema accepts an incomplete published evaluation and reports
+-- false precision from a partially-scored dimension.
+--
+-- Encodes Master Plan §13.2 "Important constraints" and §22.3 "Data QA", plus
+-- the SOP §10.9 lineage rules, as database invariants rather than
+-- application-layer hopes.
 
 -- ---------------------------------------------------------------------------
 -- Scores are 0-2 in 0.5 increments, or NULL for an explicit editorial unknown.
@@ -11,11 +17,11 @@
 ALTER TABLE subcriterion_scores
   ADD CONSTRAINT subcriterion_score_range
   CHECK (score IS NULL OR (score >= 0 AND score <= 2));
-
+--> statement-breakpoint
 ALTER TABLE subcriterion_scores
   ADD CONSTRAINT subcriterion_score_half_steps
   CHECK (score IS NULL OR (score * 2) = floor(score * 2));
-
+--> statement-breakpoint
 -- ---------------------------------------------------------------------------
 -- Exactly one published evaluation per game per rubric version (Plan §13.2).
 -- Superseded and draft rows are retained; only the live one is unique.
@@ -23,7 +29,7 @@ ALTER TABLE subcriterion_scores
 CREATE UNIQUE INDEX evaluations_one_published_per_game
   ON evaluations (game_id, rubric_version)
   WHERE status = 'published';
-
+--> statement-breakpoint
 -- ---------------------------------------------------------------------------
 -- A published evaluation must carry its purchase-decision fields (Plan §13.2).
 -- ---------------------------------------------------------------------------
@@ -38,13 +44,13 @@ ALTER TABLE evaluations
       AND published_at IS NOT NULL
     )
   );
-
+--> statement-breakpoint
 -- A pre-release profile may not claim High confidence (Rubric §14, SOP §10.1).
 -- Individual dimensions still may — see dimension_assessments.
 ALTER TABLE evaluations
   ADD CONSTRAINT pre_release_confidence_ceiling
   CHECK (NOT (evidence_status = 'pre_release' AND confidence = 'high'));
-
+--> statement-breakpoint
 -- Evidence maturity is required for a pre-release profile and meaningless
 -- otherwise (SOP §10.1). "Pre-release" alone does not say whether anyone has
 -- actually played the thing.
@@ -54,7 +60,7 @@ ALTER TABLE evaluations
     (evidence_status = 'pre_release' AND evidence_maturity IS NOT NULL)
     OR (evidence_status <> 'pre_release' AND evidence_maturity IS NULL)
   );
-
+--> statement-breakpoint
 -- ---------------------------------------------------------------------------
 -- One evidence link per (evaluation, source, dimension, subcriterion). A source
 -- may legitimately appear many times against different dimensions, but not
@@ -66,7 +72,7 @@ CREATE UNIQUE INDEX evaluation_evidence_links_unique
     evaluation_id, evidence_source_id, dimension_id, subcriterion_id
   )
   NULLS NOT DISTINCT;
-
+--> statement-breakpoint
 -- ---------------------------------------------------------------------------
 -- Dimension totals are DERIVED, never stored (Plan §13.1).
 --
@@ -129,7 +135,11 @@ SELECT
   CASE WHEN t.unknown_count = 1 THEN t.known_sum + 2 END AS high_estimate,
   da.confidence                                          AS confidence,
   (
-    SELECT COUNT(*)
+    -- DISTINCT: one source may be linked to a dimension more than once (a
+    -- dimension-level link plus a subcriterion-level one), and it is still one
+    -- source supporting that dimension. A count of evidence, never a divisor,
+    -- a weight, or a scoring input (SOP §6).
+    SELECT COUNT(DISTINCT l.evidence_source_id)
     FROM evaluation_evidence_links l
     WHERE l.evaluation_id = t.evaluation_id
       AND l.dimension_id = t.dimension_id
@@ -138,7 +148,7 @@ FROM totals t
 LEFT JOIN dimension_assessments da
   ON da.evaluation_id = t.evaluation_id
  AND da.dimension_id = t.dimension_id;
-
+--> statement-breakpoint
 -- ---------------------------------------------------------------------------
 -- Publish-time completeness.
 --
@@ -193,37 +203,43 @@ BEGIN
   END IF;
 END;
 $$ LANGUAGE plpgsql;
-
+--> statement-breakpoint
 CREATE FUNCTION trg_evaluation_publish_complete() RETURNS trigger AS $$
 BEGIN
   PERFORM assert_published_evaluation_complete(NEW.id);
   RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
-
+--> statement-breakpoint
 CREATE FUNCTION trg_child_publish_complete() RETURNS trigger AS $$
 BEGIN
   PERFORM assert_published_evaluation_complete(OLD.evaluation_id);
   RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
-
+--> statement-breakpoint
 CREATE CONSTRAINT TRIGGER evaluations_publish_complete
   AFTER INSERT OR UPDATE ON evaluations
   DEFERRABLE INITIALLY DEFERRED
   FOR EACH ROW EXECUTE FUNCTION trg_evaluation_publish_complete();
-
--- Rows may not be stripped out from under an already-published evaluation.
+--> statement-breakpoint
+-- Rows may not be stripped out from under an already-published evaluation, by
+-- deletion OR by retargeting. An UPDATE that moves a row to another evaluation,
+-- or repoints it at a different subcriterion or dimension, leaves the original
+-- evaluation short of a required record just as surely as a DELETE does. The
+-- trigger therefore checks OLD.evaluation_id, the evaluation that lost the
+-- record. The row's new owner can only have gained one, and its primary key
+-- already prevents duplicates there.
 CREATE CONSTRAINT TRIGGER subcriterion_scores_publish_complete
-  AFTER DELETE ON subcriterion_scores
+  AFTER DELETE OR UPDATE ON subcriterion_scores
   DEFERRABLE INITIALLY DEFERRED
   FOR EACH ROW EXECUTE FUNCTION trg_child_publish_complete();
-
+--> statement-breakpoint
 CREATE CONSTRAINT TRIGGER dimension_assessments_publish_complete
-  AFTER DELETE ON dimension_assessments
+  AFTER DELETE OR UPDATE ON dimension_assessments
   DEFERRABLE INITIALLY DEFERRED
   FOR EACH ROW EXECUTE FUNCTION trg_child_publish_complete();
-
+--> statement-breakpoint
 -- ---------------------------------------------------------------------------
 -- Supersession lineage (SOP §10.9). The FK itself is in the Drizzle schema;
 -- these are the rules it cannot express.
@@ -231,7 +247,7 @@ CREATE CONSTRAINT TRIGGER dimension_assessments_publish_complete
 ALTER TABLE evaluations
   ADD CONSTRAINT evaluation_does_not_supersede_itself
   CHECK (supersedes_evaluation_id IS NULL OR supersedes_evaluation_id <> id);
-
+--> statement-breakpoint
 CREATE FUNCTION trg_supersession_is_coherent() RETURNS trigger AS $$
 DECLARE
   prev_game    uuid;
@@ -260,7 +276,7 @@ BEGIN
   RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
-
+--> statement-breakpoint
 CREATE CONSTRAINT TRIGGER evaluations_supersession_coherent
   AFTER INSERT OR UPDATE ON evaluations
   DEFERRABLE INITIALLY DEFERRED

@@ -131,6 +131,48 @@ describe("Supersession seeding", () => {
     };
     expect(() => buildSeedSql([broken])).toThrow(/dangling_supersession_link/);
   });
+
+  it("qualifies every evaluation reference by game, rubric version and version", () => {
+    // (game_id, rubric_version, version_number) is the database's uniqueness
+    // contract, so version 1 may exist twice for one game under two rubric
+    // versions. A reference omitting rubric_version becomes ambiguous then.
+    const sql = buildSeedSql([record]);
+    const refs = sql.match(/SELECT e\.id FROM evaluations e[^)]*/g) ?? [];
+    expect(refs.length).toBeGreaterThan(0);
+    for (const ref of refs) {
+      expect(ref).toContain("g.slug =");
+      expect(ref).toContain("e.rubric_version =");
+      expect(ref).toContain("e.version_number =");
+    }
+  });
+
+  it("emits the declared link, not one inferred from sort order", () => {
+    // A three-version chain whose middle link is deliberately absent must fail
+    // validation rather than be quietly repaired into 1 -> 2 -> 3.
+    const v1: Evaluation = {
+      ...previous,
+      id: "evl_a",
+      versionNumber: 1,
+      supersedesEvaluationId: undefined,
+    };
+    const v2: Evaluation = {
+      ...previous,
+      id: "evl_b",
+      versionNumber: 2,
+      supersedesEvaluationId: undefined,
+    };
+    const v3: Evaluation = {
+      ...current,
+      id: "evl_c",
+      versionNumber: 3,
+      supersedesEvaluationId: "evl_b",
+    };
+    expect(() =>
+      buildSeedSql([
+        { game: alanWake2.game, evaluation: v3, history: [v1, v2] },
+      ]),
+    ).toThrow(/missing_supersession_link/);
+  });
 });
 
 function withSources(

@@ -76,9 +76,11 @@ describe("Invalid supersession", () => {
   });
 
   it("rejects a supersession link when no history is recorded", () => {
+    // A lone evaluation is the oldest in its own chain, so claiming to
+    // supersede anything is the more precise diagnosis than "dangling".
     expect(
       codes({ game: alanWake2.game, evaluation: postRelease }),
-    ).toContain("dangling_supersession_link");
+    ).toContain("oldest_evaluation_supersedes");
   });
 
   it("rejects history that is not linked to", () => {
@@ -140,6 +142,99 @@ describe("Invalid supersession", () => {
         evaluation: { ...postRelease, gameId: "gme_something_else" },
       }),
     ).toContain("evaluation_game_mismatch");
+  });
+});
+
+/**
+ * A three-version chain is where single-edge validation used to fall down: it
+ * only checked the newest link, leaving the middle free to be broken, skipped
+ * or reversed while the generator silently repaired it from sort order.
+ */
+describe("Multi-version chains", () => {
+  const v1: Evaluation = {
+    ...alanWake2.evaluation,
+    id: "evl_v1",
+    versionNumber: 1,
+    status: "superseded",
+    evidenceStatus: "pre_release",
+    evidenceMaturity: "hands_on",
+    confidence: "low",
+    publishedAt: undefined,
+    supersedesEvaluationId: undefined,
+  };
+  const v2: Evaluation = {
+    ...alanWake2.evaluation,
+    id: "evl_v2",
+    versionNumber: 2,
+    status: "superseded",
+    evidenceStatus: "provisional",
+    confidence: "medium",
+    publishedAt: undefined,
+    supersedesEvaluationId: "evl_v1",
+  };
+  const v3: Evaluation = {
+    ...alanWake2.evaluation,
+    id: "evl_v3",
+    versionNumber: 3,
+    supersedesEvaluationId: "evl_v2",
+  };
+
+  const chain = (
+    history: Evaluation[],
+    current: Evaluation,
+  ): GameWithEvaluation => ({ game: alanWake2.game, evaluation: current, history });
+
+  it("accepts a valid three-version chain", () => {
+    expect(validateGameRecord(chain([v1, v2], v3))).toEqual([]);
+  });
+
+  it("requires the oldest evaluation to supersede nothing", () => {
+    expect(
+      codes(chain([{ ...v1, supersedesEvaluationId: "evl_v2" }, v2], v3)),
+    ).toContain("oldest_evaluation_supersedes");
+  });
+
+  it("rejects a missing intermediate link", () => {
+    expect(
+      codes(chain([v1, { ...v2, supersedesEvaluationId: undefined }], v3)),
+    ).toContain("missing_supersession_link");
+  });
+
+  it("rejects an intermediate link that skips its predecessor", () => {
+    // v3 jumps straight back to v1, orphaning v2.
+    expect(
+      codes(chain([v1, v2], { ...v3, supersedesEvaluationId: "evl_v1" })),
+    ).toContain("supersession_skips_history");
+  });
+
+  it("rejects a reversed link", () => {
+    // v2 claims to supersede v3, which is later than it.
+    expect(
+      codes(chain([v1, { ...v2, supersedesEvaluationId: "evl_v3" }], v3)),
+    ).toContain("supersession_not_forward");
+  });
+
+  it("rejects a link to another game's evaluation", () => {
+    expect(
+      codes(
+        chain(
+          [v1, { ...v2, gameId: "gme_other_game" }],
+          { ...v3, supersedesEvaluationId: "evl_v2" },
+        ),
+      ),
+    ).toContain("cross_game_supersession");
+  });
+
+  it("rejects a dangling intermediate link", () => {
+    expect(
+      codes(chain([v1, { ...v2, supersedesEvaluationId: "evl_ghost" }], v3)),
+    ).toContain("dangling_supersession_link");
+  });
+
+  it("keeps every historical evaluation retrievable", () => {
+    const record = chain([v1, v2], v3);
+    expect(record.history?.map((e) => e.id)).toEqual(["evl_v1", "evl_v2"]);
+    expect(record.history?.every((e) => e.status === "superseded")).toBe(true);
   });
 });
 
