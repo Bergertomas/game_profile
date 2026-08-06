@@ -16,10 +16,14 @@ This repository is at **Phase 1**: the public profile vertical slice.
 
 ```bash
 npm install
+npx playwright install chromium   # once, for the e2e suite
 npm run dev          # http://localhost:3000
-npm run verify       # typecheck + unit tests
+npm run verify       # typecheck + lint + unit tests + production build
 npm run test:e2e     # builds, serves, runs Playwright
 ```
+
+If your environment ships a prebuilt Chromium instead, point the suite at it:
+`PLAYWRIGHT_CHROMIUM_PATH=/path/to/chrome npm run test:e2e`.
 
 Seeded profiles: [`/games/alan-wake-2`](http://localhost:3000/games/alan-wake-2),
 [`/games/returnal`](http://localhost:3000/games/returnal),
@@ -70,7 +74,12 @@ These are product semantics, not preferences. Most are covered by a test.
 | Radar axis order is globally fixed | `lib/rubric/v1.ts`, `tests/rubric.test.ts` |
 | No good/bad colour semantics | one accent, used neutrally, at one opacity |
 | Every evaluation declares edition, mode, platform and build | NOT NULL columns, shown on the page |
-| Every dimension carries its own confidence | `dimension_assessments`, `tests/evidence.test.ts` |
+| Every dimension carries its own confidence | `dimension_assessments`, publish trigger, `tests/lineage.test.ts` |
+| A missing subcriterion row can never become a precise score | `dimension_scores` derives against the full expected set |
+| A published evaluation has no gaps | deferrable constraint triggers in `constraints.sql` |
+| Evidence sources are identified by key, never by title | `evidence_sources.source_key`, `tests/seed-sql.test.ts` |
+| Superseded evaluations are preserved and linked, never overwritten | self-referencing FK + lineage validation, `tests/lineage.test.ts` |
+| Source counts stay hidden until the ledger is genuinely populated | `evaluations.evidence_ledger`, `tests/lineage.test.ts` |
 | Every scored subcriterion has a rationale | publish gate, `tests/calibration.test.ts` |
 | Pre-release profiles declare evidence maturity and cannot claim High confidence | check constraints, `tests/evidence.test.ts` |
 | Pre-release recommendation blocks avoid verdict language | `lib/profile/vocabulary.ts`, `tests/evidence.test.ts` |
@@ -88,12 +97,18 @@ it; see [ADR 0002](docs/decisions/0002-data-access.md).
 npm run db:generate                    # regenerate the migration from the schema
 npm run db:seed-sql > lib/db/seed.sql  # regenerate the seed from the fixtures
 
-psql -d game_profile -f lib/db/migrations/0000_furry_marauders.sql
-psql -d game_profile -f lib/db/constraints.sql   # checks + dimension_scores view
-psql -d game_profile -f lib/db/seed.sql
+psql -d game_profile -f lib/db/migrations/0000_remarkable_sebastian_shaw.sql
+psql -d game_profile -f lib/db/constraints.sql   # checks, triggers, dimension_scores view
+psql -d game_profile -f lib/db/seed.sql          # safe to run repeatedly
 ```
 
-`lib/db/seed.sql` is generated output. Edit `content/games/*.ts` and regenerate.
+`lib/db/seed.sql` is generated output — edit `content/games/*.ts` and regenerate.
+A test asserts the committed file is byte-identical to the generator, and every
+statement in it is idempotent.
+
+`constraints.sql` is not optional. It carries the `dimension_scores` view and
+the publish-completeness triggers; without it the schema will accept an
+incomplete published evaluation.
 
 ## Decisions
 
@@ -103,6 +118,7 @@ psql -d game_profile -f lib/db/seed.sql
 - [0004 — Unknown and range scores](docs/decisions/0004-unknown-and-range-scores.md) *(confirmed by SOP v0.2 §10.6)*
 - [0005 — Score provenance](docs/decisions/0005-score-provenance.md) *(reconciled against Calibration Round 1)*
 - [0006 — Evidence provenance, per-dimension confidence and pre-release maturity](docs/decisions/0006-evidence-provenance-and-confidence.md)
+- [0007 — Database integrity: derivation completeness, source identity, lineage](docs/decisions/0007-database-integrity.md)
 
 ## Not built, deliberately
 

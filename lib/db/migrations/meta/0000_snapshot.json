@@ -1,5 +1,5 @@
 {
-  "id": "a50aa533-7b9f-4726-be93-cfbd988c56aa",
+  "id": "06c6fc05-bb20-429e-90d7-9076de700c94",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -549,6 +549,14 @@
           "primaryKey": false,
           "notNull": false
         },
+        "evidence_ledger": {
+          "name": "evidence_ledger",
+          "type": "evidence_ledger_state",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
         "created_by": {
           "name": "created_by",
           "type": "text",
@@ -623,6 +631,19 @@
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
+        },
+        "evaluations_supersedes_evaluation_id_evaluations_id_fk": {
+          "name": "evaluations_supersedes_evaluation_id_evaluations_id_fk",
+          "tableFrom": "evaluations",
+          "tableTo": "evaluations",
+          "columnsFrom": [
+            "supersedes_evaluation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -651,6 +672,12 @@
           "primaryKey": true,
           "notNull": true,
           "default": "gen_random_uuid()"
+        },
+        "source_key": {
+          "name": "source_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
         },
         "title": {
           "name": "title",
@@ -712,7 +739,15 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "evidence_sources_source_key_unique": {
+          "name": "evidence_sources_source_key_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "source_key"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -1492,6 +1527,14 @@
         "review",
         "published",
         "superseded"
+      ]
+    },
+    "public.evidence_ledger_state": {
+      "name": "evidence_ledger_state",
+      "schema": "public",
+      "values": [
+        "populated",
+        "pending"
       ]
     },
     "public.evidence_maturity": {

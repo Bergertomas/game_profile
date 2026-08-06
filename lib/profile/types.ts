@@ -99,6 +99,11 @@ export interface EvaluationTag {
 }
 
 export interface EvidenceSource {
+  /**
+   * Stable, globally unique key for this source — the identity the database
+   * uses. Titles are NOT unique ("Digital Foundry performance analysis" fits a
+   * hundred games), so nothing may resolve a source by title.
+   */
   readonly id: string;
   readonly title: string;
   readonly url?: string;
@@ -186,5 +191,15 @@ export interface Evaluation {
 
 export interface GameWithEvaluation {
   readonly game: Game;
+  /** The current published evaluation. This is what the public page renders. */
   readonly evaluation: Evaluation;
+  /**
+   * Earlier evaluations this game has carried, oldest first.
+   *
+   * History is preserved, never overwritten (SOP §10.9): a pre-release profile
+   * survives launch as a superseded row, and `evaluation.supersedesEvaluationId`
+   * points back at the most recent of these. Seeded and validated, but not
+   * rendered — revision history is a later ticket (Plan §6.7).
+   */
+  readonly history?: readonly Evaluation[];
 }

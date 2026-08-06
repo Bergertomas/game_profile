@@ -82,20 +82,46 @@ CREATE UNIQUE INDEX evaluation_evidence_links_unique
 -- `confidence` is joined from dimension_assessments rather than computed:
 -- it is an editorial input. `linked_evidence_count` is derived, and is a count
 -- of supporting sources — never a divisor, never a weight (SOP §6).
+--
+-- CRITICAL: the totals are computed against the COMPLETE expected subcriterion
+-- set for the evaluation's rubric version, not against whatever score rows
+-- happen to exist. Aggregating only existing rows would let a dimension missing
+-- two of its five rows report a confident, precise total from the other three —
+-- exactly the false precision the product forbids (Plan §25.18).
+--
+-- A missing row is therefore indistinguishable from an explicit unknown here,
+-- which is the honest reading: we have no value for it either way. The
+-- application layer (lib/scoring/derive.ts) is stricter and throws on a missing
+-- key, because there it means an authoring bug rather than absent evidence.
 CREATE VIEW dimension_scores AS
-WITH totals AS (
+WITH expected AS (
   SELECT
-    ss.evaluation_id,
-    s.dimension_id,
-    COUNT(*) FILTER (WHERE ss.score IS NULL) AS unknown_count,
-    COALESCE(SUM(ss.score), 0)               AS known_sum
-  FROM subcriterion_scores ss
-  JOIN subcriteria s ON s.id = ss.subcriterion_id
-  GROUP BY ss.evaluation_id, s.dimension_id
+    e.id AS evaluation_id,
+    d.id AS dimension_id,
+    s.id AS subcriterion_id
+  FROM evaluations e
+  JOIN dimensions d  ON d.rubric_version = e.rubric_version
+  JOIN subcriteria s ON s.dimension_id = d.id
+),
+totals AS (
+  SELECT
+    x.evaluation_id,
+    x.dimension_id,
+    COUNT(*)                                          AS expected_count,
+    COUNT(ss.subcriterion_id)                         AS present_count,
+    COUNT(*) FILTER (WHERE ss.score IS NULL)          AS unknown_count,
+    COALESCE(SUM(ss.score), 0)                        AS known_sum
+  FROM expected x
+  LEFT JOIN subcriterion_scores ss
+    ON  ss.evaluation_id  = x.evaluation_id
+    AND ss.subcriterion_id = x.subcriterion_id
+  GROUP BY x.evaluation_id, x.dimension_id
 )
 SELECT
   t.evaluation_id,
   t.dimension_id,
+  t.expected_count,
+  t.present_count,
   t.unknown_count,
   t.known_sum,
   CASE WHEN t.unknown_count = 0 THEN t.known_sum END     AS score,
@@ -112,3 +138,130 @@ FROM totals t
 LEFT JOIN dimension_assessments da
   ON da.evaluation_id = t.evaluation_id
  AND da.dimension_id = t.dimension_id;
+
+-- ---------------------------------------------------------------------------
+-- Publish-time completeness.
+--
+-- The view above guarantees a missing row can never become a precise score.
+-- These triggers go further and stop a published evaluation from having gaps at
+-- all: every expected subcriterion needs a row (explicitly `unknown` if that is
+-- the truth), and every dimension needs an explicit confidence record.
+--
+-- DEFERRABLE INITIALLY DEFERRED so a seed or an editor can insert the
+-- evaluation, then its scores, then commit. The check runs once at COMMIT.
+-- ---------------------------------------------------------------------------
+CREATE FUNCTION assert_published_evaluation_complete(target uuid)
+RETURNS void AS $$
+DECLARE
+  published    boolean;
+  missing_rows bigint;
+  missing_conf bigint;
+BEGIN
+  SELECT status = 'published' INTO published FROM evaluations WHERE id = target;
+  -- Row gone (cascade delete) or not published yet: nothing to enforce.
+  IF published IS NOT TRUE THEN
+    RETURN;
+  END IF;
+
+  SELECT COUNT(*) INTO missing_rows
+  FROM evaluations e
+  JOIN dimensions d  ON d.rubric_version = e.rubric_version
+  JOIN subcriteria s ON s.dimension_id = d.id
+  LEFT JOIN subcriterion_scores ss
+    ON ss.evaluation_id = e.id AND ss.subcriterion_id = s.id
+  WHERE e.id = target AND ss.evaluation_id IS NULL;
+
+  IF missing_rows > 0 THEN
+    RAISE EXCEPTION
+      'published evaluation % is missing % subcriterion score row(s); record an explicit unknown instead of omitting the row',
+      target, missing_rows
+      USING ERRCODE = 'check_violation';
+  END IF;
+
+  SELECT COUNT(*) INTO missing_conf
+  FROM evaluations e
+  JOIN dimensions d ON d.rubric_version = e.rubric_version
+  LEFT JOIN dimension_assessments da
+    ON da.evaluation_id = e.id AND da.dimension_id = d.id
+  WHERE e.id = target AND da.evaluation_id IS NULL;
+
+  IF missing_conf > 0 THEN
+    RAISE EXCEPTION
+      'published evaluation % is missing % per-dimension confidence record(s)',
+      target, missing_conf
+      USING ERRCODE = 'check_violation';
+  END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE FUNCTION trg_evaluation_publish_complete() RETURNS trigger AS $$
+BEGIN
+  PERFORM assert_published_evaluation_complete(NEW.id);
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE FUNCTION trg_child_publish_complete() RETURNS trigger AS $$
+BEGIN
+  PERFORM assert_published_evaluation_complete(OLD.evaluation_id);
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE CONSTRAINT TRIGGER evaluations_publish_complete
+  AFTER INSERT OR UPDATE ON evaluations
+  DEFERRABLE INITIALLY DEFERRED
+  FOR EACH ROW EXECUTE FUNCTION trg_evaluation_publish_complete();
+
+-- Rows may not be stripped out from under an already-published evaluation.
+CREATE CONSTRAINT TRIGGER subcriterion_scores_publish_complete
+  AFTER DELETE ON subcriterion_scores
+  DEFERRABLE INITIALLY DEFERRED
+  FOR EACH ROW EXECUTE FUNCTION trg_child_publish_complete();
+
+CREATE CONSTRAINT TRIGGER dimension_assessments_publish_complete
+  AFTER DELETE ON dimension_assessments
+  DEFERRABLE INITIALLY DEFERRED
+  FOR EACH ROW EXECUTE FUNCTION trg_child_publish_complete();
+
+-- ---------------------------------------------------------------------------
+-- Supersession lineage (SOP §10.9). The FK itself is in the Drizzle schema;
+-- these are the rules it cannot express.
+-- ---------------------------------------------------------------------------
+ALTER TABLE evaluations
+  ADD CONSTRAINT evaluation_does_not_supersede_itself
+  CHECK (supersedes_evaluation_id IS NULL OR supersedes_evaluation_id <> id);
+
+CREATE FUNCTION trg_supersession_is_coherent() RETURNS trigger AS $$
+DECLARE
+  prev_game    uuid;
+  prev_version integer;
+BEGIN
+  IF NEW.supersedes_evaluation_id IS NULL THEN
+    RETURN NULL;
+  END IF;
+
+  SELECT game_id, version_number INTO prev_game, prev_version
+  FROM evaluations WHERE id = NEW.supersedes_evaluation_id;
+
+  IF prev_game <> NEW.game_id THEN
+    RAISE EXCEPTION
+      'evaluation % supersedes an evaluation of a different game', NEW.id
+      USING ERRCODE = 'check_violation';
+  END IF;
+
+  IF prev_version >= NEW.version_number THEN
+    RAISE EXCEPTION
+      'evaluation % (version %) supersedes version %, which is not earlier',
+      NEW.id, NEW.version_number, prev_version
+      USING ERRCODE = 'check_violation';
+  END IF;
+
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE CONSTRAINT TRIGGER evaluations_supersession_coherent
+  AFTER INSERT OR UPDATE ON evaluations
+  DEFERRABLE INITIALLY DEFERRED
+  FOR EACH ROW EXECUTE FUNCTION trg_supersession_is_coherent();

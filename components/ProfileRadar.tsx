@@ -100,8 +100,7 @@ function RadarSvg({
   activeKey,
   onActiveChange,
 }: Props & { layout: Layout }) {
-  const { center, radius, labelRadius, width, height, nameSize, valueSize } =
-    layout;
+  const { center, radius, labelRadius, width, height, nameSize } = layout;
   const count = points.length;
   const polygon = buildPolygon(
     center,

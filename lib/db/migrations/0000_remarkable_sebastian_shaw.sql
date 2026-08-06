@@ -1,6 +1,7 @@
 CREATE TYPE "public"."block_type" AS ENUM('great_fit', 'know_before', 'probably_not');--> statement-breakpoint
 CREATE TYPE "public"."confidence" AS ENUM('low', 'medium', 'high');--> statement-breakpoint
 CREATE TYPE "public"."evaluation_status" AS ENUM('draft', 'review', 'published', 'superseded');--> statement-breakpoint
+CREATE TYPE "public"."evidence_ledger_state" AS ENUM('populated', 'pending');--> statement-breakpoint
 CREATE TYPE "public"."evidence_maturity" AS ENUM('announced', 'showcased', 'hands_on', 'review_code');--> statement-breakpoint
 CREATE TYPE "public"."evidence_status" AS ENUM('verified', 'provisional', 'pre_release');--> statement-breakpoint
 CREATE TYPE "public"."evidence_tier" AS ENUM('A', 'B', 'C', 'D');--> statement-breakpoint
@@ -77,6 +78,7 @@ CREATE TABLE "evaluations" (
 	"platform_warning" text,
 	"score_provenance" "score_provenance" NOT NULL,
 	"provenance_note" text,
+	"evidence_ledger" "evidence_ledger_state" DEFAULT 'pending' NOT NULL,
 	"created_by" text,
 	"reviewed_by" text,
 	"published_at" timestamp with time zone,
@@ -88,6 +90,7 @@ CREATE TABLE "evaluations" (
 --> statement-breakpoint
 CREATE TABLE "evidence_sources" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"source_key" text NOT NULL,
 	"title" text NOT NULL,
 	"url" text,
 	"publisher" text,
@@ -96,7 +99,8 @@ CREATE TABLE "evidence_sources" (
 	"accessed_at" date,
 	"evidence_tier" "evidence_tier" NOT NULL,
 	"source_category" "source_category" NOT NULL,
-	"source_type" text
+	"source_type" text,
+	CONSTRAINT "evidence_sources_source_key_unique" UNIQUE("source_key")
 );
 --> statement-breakpoint
 CREATE TABLE "game_aliases" (
@@ -208,6 +212,7 @@ ALTER TABLE "evaluation_revisions" ADD CONSTRAINT "evaluation_revisions_evaluati
 ALTER TABLE "evaluation_tags" ADD CONSTRAINT "evaluation_tags_evaluation_id_evaluations_id_fk" FOREIGN KEY ("evaluation_id") REFERENCES "public"."evaluations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "evaluation_tags" ADD CONSTRAINT "evaluation_tags_tag_id_tags_id_fk" FOREIGN KEY ("tag_id") REFERENCES "public"."tags"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "evaluations" ADD CONSTRAINT "evaluations_game_id_games_id_fk" FOREIGN KEY ("game_id") REFERENCES "public"."games"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "evaluations" ADD CONSTRAINT "evaluations_supersedes_evaluation_id_evaluations_id_fk" FOREIGN KEY ("supersedes_evaluation_id") REFERENCES "public"."evaluations"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "game_aliases" ADD CONSTRAINT "game_aliases_game_id_games_id_fk" FOREIGN KEY ("game_id") REFERENCES "public"."games"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "game_external_ids" ADD CONSTRAINT "game_external_ids_game_id_games_id_fk" FOREIGN KEY ("game_id") REFERENCES "public"."games"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "game_platforms" ADD CONSTRAINT "game_platforms_game_id_games_id_fk" FOREIGN KEY ("game_id") REFERENCES "public"."games"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint

@@ -29,9 +29,12 @@ const PAGES = [
 
 mkdirSync(OUT, { recursive: true });
 
-const browser = await chromium.launch({
-  executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome",
-});
+// Same optional override as playwright.config.ts: unset on a normal machine,
+// set in environments that ship a prebuilt browser at a fixed path.
+const executablePath = process.env.PLAYWRIGHT_CHROMIUM_PATH;
+const browser = await chromium.launch(
+  executablePath ? { executablePath } : {},
+);
 
 for (const viewport of VIEWPORTS) {
   const context = await browser.newContext({

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { getRubric, UNKNOWN, type DimensionKey } from "@/lib/rubric";
 import { isTagKey } from "@/lib/rubric/tags";
 import { deriveDimensionScore } from "@/lib/scoring/derive";
-import type { Evaluation } from "@/lib/profile/types";
+import type { Evaluation, GameWithEvaluation } from "@/lib/profile/types";
 
 /**
  * Publish-gate validation (Plan §13.2 constraints, §14.3 validation checks,
@@ -93,6 +93,7 @@ export const evaluationSchema = z.object({
       note: z.string().optional(),
     }),
   ),
+  evidenceLedger: z.enum(["populated", "pending"]),
   scoreProvenance: z.enum([
     "calibration_round_1",
     "calibration_round_2",
@@ -279,6 +280,38 @@ export function validateEvaluation(evaluation: Evaluation): ValidationIssue[] {
     }
   }
 
+  // Source identity is the key, never the title. Two sources may share a title;
+  // they may not share a key, or seeding silently merges them.
+  const seenKeys = new Set<string>();
+  for (const source of evaluation.sources) {
+    if (seenKeys.has(source.id)) {
+      issues.push({
+        code: "duplicate_source_key",
+        message: `Evidence source key "${source.id}" is used more than once.`,
+      });
+    }
+    seenKeys.add(source.id);
+  }
+
+  // A populated ledger is a claim that individual source records exist. If it
+  // has none, the trust line would print a count of zero as though it meant
+  // something.
+  if (evaluation.evidenceLedger === "populated" && evaluation.sources.length === 0) {
+    issues.push({
+      code: "empty_populated_ledger",
+      message:
+        'Evidence ledger is marked "populated" but no sources are recorded.',
+    });
+  }
+
+  // Supersession must point somewhere real and forward (SOP §10.9).
+  if (evaluation.supersedesEvaluationId === evaluation.id) {
+    issues.push({
+      code: "self_supersession",
+      message: "An evaluation cannot supersede itself.",
+    });
+  }
+
   if (evaluation.status === "published" && !evaluation.publishedAt) {
     issues.push({
       code: "missing_published_at",
@@ -322,6 +355,117 @@ const BANNED_PHRASES: readonly { pattern: RegExp; reason: string }[] = [
     reason: "Avoid universal superlatives",
   },
 ];
+
+/**
+ * Lineage checks that need the whole game record rather than one evaluation
+ * (SOP §10.9: preserve the old profile, create a new one, link them).
+ */
+export function validateGameRecord(
+  record: GameWithEvaluation,
+): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const history = record.history ?? [];
+  const chain = [...history, record.evaluation];
+
+  const ids = new Set<string>();
+  const versions = new Set<number>();
+  for (const evaluation of chain) {
+    if (ids.has(evaluation.id)) {
+      issues.push({
+        code: "duplicate_evaluation_id",
+        message: `Evaluation id "${evaluation.id}" appears more than once.`,
+      });
+    }
+    ids.add(evaluation.id);
+
+    if (versions.has(evaluation.versionNumber)) {
+      issues.push({
+        code: "duplicate_version_number",
+        message: `Version ${evaluation.versionNumber} appears more than once for ${record.game.slug}.`,
+      });
+    }
+    versions.add(evaluation.versionNumber);
+
+    if (evaluation.gameId !== record.game.id) {
+      issues.push({
+        code: "evaluation_game_mismatch",
+        message: `Evaluation "${evaluation.id}" belongs to game "${evaluation.gameId}", not "${record.game.id}".`,
+      });
+    }
+  }
+
+  // Exactly one live evaluation (Plan §13.2).
+  const published = chain.filter((e) => e.status === "published");
+  if (published.length > 1) {
+    issues.push({
+      code: "multiple_published_evaluations",
+      message: `${record.game.slug} has ${published.length} published evaluations; only one may be live.`,
+    });
+  }
+
+  for (const superseded of history) {
+    if (superseded.status !== "superseded") {
+      issues.push({
+        code: "history_not_superseded",
+        message: `Historical evaluation "${superseded.id}" has status "${superseded.status}"; it must be "superseded".`,
+      });
+    }
+    if (superseded.versionNumber >= record.evaluation.versionNumber) {
+      issues.push({
+        code: "history_version_not_earlier",
+        message: `Historical evaluation "${superseded.id}" (version ${superseded.versionNumber}) is not earlier than the current version ${record.evaluation.versionNumber}.`,
+      });
+    }
+  }
+
+  // The chain must actually link up: history is preserved, not orphaned.
+  const link = record.evaluation.supersedesEvaluationId;
+  if (history.length > 0) {
+    const latest = [...history].sort(
+      (a, b) => b.versionNumber - a.versionNumber,
+    )[0]!;
+    if (!link) {
+      issues.push({
+        code: "missing_supersession_link",
+        message: `${record.game.slug} has historical evaluations but the current one does not record what it supersedes.`,
+      });
+    } else if (!ids.has(link)) {
+      issues.push({
+        code: "dangling_supersession_link",
+        message: `Current evaluation supersedes "${link}", which is not in this game's history.`,
+      });
+    } else if (link !== latest.id) {
+      issues.push({
+        code: "supersession_skips_history",
+        message: `Current evaluation supersedes "${link}" rather than the most recent historical evaluation "${latest.id}".`,
+      });
+    }
+  } else if (link) {
+    issues.push({
+      code: "dangling_supersession_link",
+      message: `Current evaluation supersedes "${link}", but no history is recorded.`,
+    });
+  }
+
+  for (const evaluation of chain) {
+    issues.push(...validateEvaluation(evaluation));
+  }
+
+  return issues;
+}
+
+export function assertValidGameRecord(record: GameWithEvaluation): void {
+  for (const evaluation of [...(record.history ?? []), record.evaluation]) {
+    evaluationSchema.parse(evaluation);
+  }
+  const issues = validateGameRecord(record);
+  if (issues.length > 0) {
+    throw new Error(
+      `Game record ${record.game.slug} failed validation:\n` +
+        issues.map((i) => `  [${i.code}] ${i.message}`).join("\n"),
+    );
+  }
+}
 
 export function assertValidEvaluation(evaluation: Evaluation): void {
   evaluationSchema.parse(evaluation);

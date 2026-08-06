@@ -11,6 +11,7 @@ import {
   timestamp,
   unique,
   uuid,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 
 /**
@@ -92,6 +93,19 @@ export const scoreProvenanceEnum = pgEnum("score_provenance", [
   "calibration_round_1",
   "calibration_round_2",
   "derived_pending_round_1_reconciliation",
+]);
+
+/**
+ * Whether the evidence ledger holds individual source records or only the broad
+ * evidence *classes* the calibration profiles were scored against.
+ *
+ * Persisted rather than inferred: a database-backed reader must be able to tell
+ * the two apart, so it never presents a source count that understates the real
+ * basis for a score. Defaults to `pending` — a profile has to earn `populated`.
+ */
+export const evidenceLedgerStateEnum = pgEnum("evidence_ledger_state", [
+  "populated",
+  "pending",
 ]);
 
 export const games = pgTable(
@@ -235,11 +249,23 @@ export const evaluations = pgTable(
 
     scoreProvenance: scoreProvenanceEnum("score_provenance").notNull(),
     provenanceNote: text("provenance_note"),
+    evidenceLedger: evidenceLedgerStateEnum("evidence_ledger")
+      .notNull()
+      .default("pending"),
 
     createdBy: text("created_by"),
     reviewedBy: text("reviewed_by"),
     publishedAt: timestamp("published_at", { withTimezone: true }),
-    supersedesEvaluationId: uuid("supersedes_evaluation_id"),
+    /**
+     * The evaluation this one replaces. Self-referencing so the lineage is a
+     * real, enforced chain rather than a loose uuid: you cannot point at an
+     * evaluation that does not exist, and ON DELETE RESTRICT means history
+     * cannot be deleted out from under its successor (Plan §25.12).
+     */
+    supersedesEvaluationId: uuid("supersedes_evaluation_id").references(
+      (): AnyPgColumn => evaluations.id,
+      { onDelete: "restrict" },
+    ),
     changeSummary: text("change_summary"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -347,6 +373,15 @@ export const evaluationTags = pgTable(
 
 export const evidenceSources = pgTable("evidence_sources", {
   id: uuid("id").primaryKey().defaultRandom(),
+  /**
+   * Stable editorial key, e.g. "src_aw2_technical_analysis".
+   *
+   * This is how seeds and imports identify a source. Titles are not unique —
+   * "Digital Foundry performance analysis" describes a hundred different
+   * articles — so resolving by title silently merges distinct sources and makes
+   * re-seeding non-idempotent.
+   */
+  sourceKey: text("source_key").notNull().unique(),
   title: text("title").notNull(),
   url: text("url"),
   publisher: text("publisher"),
