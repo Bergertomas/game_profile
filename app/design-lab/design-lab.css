@@ -1,0 +1,468 @@
+/*
+ * D0 design-lab styles — DISPOSABLE EXPLORATION INFRASTRUCTURE.
+ *
+ * Imported only by app/design-lab/layout.tsx, so nothing here reaches the
+ * production pages. Production tokens live in app/globals.css and are not
+ * touched: every value below is a plain CSS custom property scoped to a
+ * direction class, never a Tailwind @theme token.
+ *
+ * All five faces are SIL Open Font License and vendored under
+ * /public/fonts/design-lab. Two fundamentally different typography systems are
+ * under test, per brief §6:
+ *   System A — condensed grotesque display + editorial serif prose  (Direction A)
+ *   System B — characterful grotesque + technical mono              (Direction B)
+ *   Direction C tests a third: high-contrast serif display + grotesque support.
+ */
+
+@font-face {
+  font-family: "Archivo";
+  font-style: normal;
+  font-weight: 300 800;
+  font-stretch: 62% 125%;
+  font-display: swap;
+  src: url("/fonts/design-lab/archivo.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Newsreader";
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url("/fonts/design-lab/newsreader.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Space Grotesk";
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url("/fonts/design-lab/space-grotesk.woff2") format("woff2");
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 200 700;
+  font-display: swap;
+  src: url("/fonts/design-lab/jetbrains-mono.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Instrument Serif";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/design-lab/instrument-serif.woff2") format("woff2");
+}
+
+/* ==========================================================================
+   Lab shell — deliberately plain. The shell must not flatter the directions.
+   ========================================================================== */
+
+.dl-shell {
+  font-family: "Archivo", system-ui, sans-serif;
+  background: #0a0b0d;
+  color: #ece7dd;
+}
+
+/* Each direction owns the whole page, so the production site chrome is hidden
+   while a design-lab route is mounted. Scoped by :has() from this stylesheet,
+   which only loads under /design-lab — no production component is modified. */
+body:has(.dl-shell) > header,
+body:has(.dl-shell) > footer {
+  display: none;
+}
+
+/* Keep the dev-server indicator out of comparison screenshots. */
+body:has(.dl-shell) nextjs-portal {
+  display: none;
+}
+
+.dl-shell a {
+  color: inherit;
+}
+
+.dl-switch {
+  border-bottom: 1px solid #242a32;
+  background: #0a0b0d;
+}
+
+.dl-switch__link {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #9a978f;
+  border-bottom: 2px solid transparent;
+  text-decoration: none;
+}
+.dl-switch__link[aria-current="page"] {
+  color: #ece7dd;
+  border-bottom-color: #b4321e;
+}
+.dl-switch__link:hover {
+  color: #ece7dd;
+}
+
+/* Shared: every direction gets the same focus treatment so keyboard use is
+   comparable across them. */
+.dl-a :focus-visible,
+.dl-b :focus-visible,
+.dl-c :focus-visible {
+  outline: 2px solid var(--dl-accent);
+  outline-offset: 3px;
+}
+
+/* Visually hidden but available to assistive technology. */
+.dl-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ==========================================================================
+   DIRECTION A — Editorial Dossier
+   Warm paper. Condensed grotesque display against Newsreader prose.
+   Composition: asymmetric spread with a true outer margin for marginalia.
+   ========================================================================== */
+
+.dl-a {
+  --dl-paper: #f2eee5;
+  --dl-paper-deep: #e8e2d5;
+  --dl-ink: #17140f;
+  --dl-ink-soft: #5d564a;
+  --dl-ink-faint: #8b8375;
+  --dl-rule: #cec6b4;
+  --dl-rule-strong: #17140f;
+  --dl-accent: #b4321e;
+
+  background: var(--dl-paper);
+  color: var(--dl-ink);
+  font-family: "Newsreader", Georgia, serif;
+  font-size: 1.0625rem;
+  line-height: 1.55;
+}
+
+.dl-a__display {
+  font-family: "Archivo", sans-serif;
+  font-stretch: 68%;
+  font-weight: 700;
+  line-height: 0.86;
+  letter-spacing: -0.012em;
+  text-transform: uppercase;
+}
+
+.dl-a__label {
+  font-family: "Archivo", sans-serif;
+  font-stretch: 78%;
+  font-weight: 600;
+  font-size: 0.6875rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--dl-ink-faint);
+}
+
+.dl-a__num {
+  font-family: "Archivo", sans-serif;
+  font-stretch: 75%;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* Leader-dot rhythm (brief §11): the row reads as a line of set type, not a
+   progress bar. The dots are a repeating background so they reflow with width. */
+.dl-a__leader {
+  flex: 1 1 auto;
+  min-width: 1.5rem;
+  align-self: baseline;
+  height: 0.9em;
+  background-image: radial-gradient(
+    circle,
+    var(--dl-rule) 1.1px,
+    transparent 1.4px
+  );
+  background-size: 0.4rem 0.4rem;
+  background-repeat: repeat-x;
+  background-position: left bottom 0.16em;
+}
+
+.dl-a__rule {
+  border: 0;
+  border-top: 1px solid var(--dl-rule);
+  margin: 0;
+}
+.dl-a__rule--strong {
+  border-top: 1.5px solid var(--dl-rule-strong);
+}
+
+/* Marginalia: superscript citation markers set in the prose. */
+.dl-a__cite {
+  font-family: "Archivo", sans-serif;
+  font-stretch: 80%;
+  font-weight: 700;
+  font-size: 0.625em;
+  vertical-align: super;
+  line-height: 0;
+  color: var(--dl-accent);
+  letter-spacing: 0.04em;
+}
+
+.dl-a__figure {
+  border: 1px solid var(--dl-rule-strong);
+  background: linear-gradient(180deg, #f7f4ee 0%, var(--dl-paper-deep) 100%);
+}
+
+.dl-a__row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 0;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-top: 1px solid var(--dl-rule);
+  cursor: pointer;
+  color: inherit;
+}
+.dl-a__row:first-child {
+  border-top: 0;
+}
+.dl-a__row[data-active="true"] {
+  background: #eae4d6;
+}
+
+/* ==========================================================================
+   DIRECTION B — Scouting Sheet
+   Cool paper. Space Grotesk + JetBrains Mono. A ruled measuring instrument:
+   strict modular grid, hard boxes, everything tabular.
+   ========================================================================== */
+
+.dl-b {
+  --dl-field: #e6e8ea;
+  --dl-sheet: #fbfbfc;
+  --dl-ink: #0e1216;
+  --dl-ink-soft: #4a545e;
+  --dl-ink-faint: #7d8894;
+  --dl-rule: #c4cad0;
+  --dl-rule-strong: #0e1216;
+  --dl-accent: #b4321e;
+
+  background: var(--dl-field);
+  color: var(--dl-ink);
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+
+.dl-b__sheet {
+  background: var(--dl-sheet);
+  border: 1.5px solid var(--dl-rule-strong);
+}
+
+.dl-b__display {
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 700;
+  line-height: 0.95;
+  letter-spacing: -0.028em;
+}
+
+.dl-b__mono {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.dl-b__label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dl-ink-faint);
+}
+
+/* Source markers read as instrument legend entries, not chips. */
+.dl-b__src {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--dl-accent);
+  border: 1px solid currentColor;
+  padding: 0 0.2rem;
+}
+
+.dl-b__grid-line {
+  border-top: 1px solid var(--dl-rule);
+}
+
+.dl-b__row {
+  display: grid;
+  /* The measurement column is dropped below 640px, where a 10rem ruler would
+     crowd the name out; the numeral carries the value there. */
+  grid-template-columns: 1.75rem minmax(0, 1fr) auto;
+  gap: 0 0.75rem;
+  align-items: baseline;
+  width: 100%;
+  padding: 0.4rem 0.75rem;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-top: 1px solid var(--dl-rule);
+  cursor: pointer;
+  color: inherit;
+}
+@media (min-width: 640px) {
+  .dl-b__row {
+    grid-template-columns: 1.75rem minmax(0, 1fr) 10rem auto;
+  }
+}
+
+.dl-b__row[data-active="true"] {
+  background: #eef1f3;
+  box-shadow: inset 3px 0 0 var(--dl-accent);
+}
+
+/* The measurement track: a hairline scale with a solid measured segment. It is
+   a ruler, not a rounded progress pill. */
+.dl-b__track {
+  position: relative;
+  height: 9px;
+  border-left: 1px solid var(--dl-rule-strong);
+  border-right: 1px solid var(--dl-rule);
+}
+.dl-b__track::before {
+  content: "";
+  position: absolute;
+  inset: 4px 0 4px 0;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--dl-rule) 0 1px,
+    transparent 1px 10%
+  );
+}
+.dl-b__track-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  border-top: 3px solid var(--dl-ink);
+}
+.dl-b__track-tick {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--dl-accent);
+}
+
+/* ==========================================================================
+   DIRECTION C — Cinematic Archive
+   Warm ink. Instrument Serif display over Archivo support, JetBrains Mono for
+   archival marks. Open dark fields; analysis set as annotation.
+   ========================================================================== */
+
+.dl-c {
+  --dl-ink: #0a0908;
+  --dl-field: #121010;
+  --dl-bone: #e9e3d7;
+  --dl-bone-soft: #a49c8d;
+  --dl-bone-faint: #6d665b;
+  --dl-rule: #2a2622;
+  --dl-accent: #d08a2c;
+  --dl-accent-deep: #b4451e;
+
+  background: var(--dl-ink);
+  color: var(--dl-bone);
+  font-family: "Archivo", system-ui, sans-serif;
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.dl-c__display {
+  font-family: "Instrument Serif", Georgia, serif;
+  font-weight: 400;
+  line-height: 0.9;
+  letter-spacing: -0.005em;
+}
+
+.dl-c__mark {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.625rem;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--dl-bone-faint);
+}
+
+.dl-c__num {
+  font-family: "Instrument Serif", Georgia, serif;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.dl-c__rule {
+  border: 0;
+  border-top: 1px solid var(--dl-rule);
+  margin: 0;
+}
+
+.dl-c__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: baseline;
+  width: 100%;
+  padding: 0.9rem 0;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-top: 1px solid var(--dl-rule);
+  cursor: pointer;
+  color: inherit;
+}
+.dl-c__row[data-active="true"] {
+  background: linear-gradient(90deg, rgba(208, 138, 44, 0.09), transparent 70%);
+}
+
+/* Authored plate. Not a blurred key-art hero: a composed tonal field carrying
+   the game's own profile geometry, cropped hard by the frame. */
+.dl-c__plate {
+  position: relative;
+  overflow: hidden;
+  background: #0d0b0a;
+}
+.dl-c__plate-grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.5;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   Motion — communicative only, and never mandatory (brief §18).
+   ========================================================================== */
+
+@media (prefers-reduced-motion: no-preference) {
+  .dl-reveal {
+    animation: dl-reveal 620ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  }
+}
+
+@keyframes dl-reveal {
+  from {
+    opacity: 0;
+    stroke-dashoffset: var(--dl-dash, 1200);
+  }
+  to {
+    opacity: 1;
+    stroke-dashoffset: 0;
+  }
+}

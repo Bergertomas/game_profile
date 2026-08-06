@@ -154,6 +154,29 @@ test("the development radar harness is not exposed in production", async ({
   expect(response?.status()).toBe(404);
 });
 
+test("the design lab is not exposed in production", async ({ page }) => {
+  // D0 exploration must never reach a visitor. Every route under the segment
+  // 404s, not just the index.
+  for (const route of [
+    "/design-lab",
+    "/design-lab/a",
+    "/design-lab/b",
+    "/design-lab/c",
+  ]) {
+    const response = await page.goto(route);
+    expect(response?.status(), route).toBe(404);
+  }
+});
+
+test("production profile pages are untouched by the design lab", async ({
+  page,
+}) => {
+  // The lab hides the site chrome via its own stylesheet; that must not leak.
+  await page.goto("/games/alan-wake-2");
+  await expect(page.locator("body > header")).toBeVisible();
+  await expect(page.locator("body > footer")).toBeVisible();
+});
+
 test("released profiles use verdict wording, not pre-release wording", async ({
   page,
 }) => {
