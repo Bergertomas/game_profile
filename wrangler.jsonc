@@ -6,8 +6,7 @@
   // account. Cloudflare's framework auto-detection falls back to the
   // package.json name when it cannot find a name here, which is how a stale
   // `game-profile` self-reference got created — package.json is now named to
-  // match for that reason. Change one and you must change all three:
-  // this field, `services[].service` below, and package.json `name`.
+  // match for that reason. Change one and you must change both.
   "name": "should-i-play",
 
   "main": ".open-next/worker.js",
@@ -20,23 +19,25 @@
     "binding": "ASSETS"
   },
 
-  // The self-reference @opennextjs/cloudflare expects. It is what the adapter
-  // calls for on-demand revalidation and for the cache queue; nothing in the
-  // app uses either yet, since every route is prerendered.
+  // NO `services` BINDING, DELIBERATELY.
   //
-  // It is declared anyway, and declared here rather than left to inference, for
-  // one reason: an uploaded configuration replaces the Worker's bindings. Naming
-  // it explicitly is what overwrites the stale dashboard-side binding that
-  // pointed at a Worker called `game-profile` and failed the first deploy with
-  // "Service binding 'WORKER_SELF_REFERENCE' references Worker 'game-profile'
-  // which was not found". Leaving it undeclared would rely on nothing ever
-  // re-injecting it.
-  "services": [
-    {
-      "binding": "WORKER_SELF_REFERENCE",
-      "service": "should-i-play"
-    }
-  ],
+  // @opennextjs/cloudflare uses a `WORKER_SELF_REFERENCE` service binding for
+  // on-demand revalidation and its cache queue. Nothing here uses either —
+  // every route is prerendered — so the binding is dead weight, and it is what
+  // failed the first deploy:
+  //
+  //   Service binding 'WORKER_SELF_REFERENCE' references Worker 'game-profile'
+  //   which was not found.
+  //
+  // A service binding must name a Worker that already has a script uploaded, so
+  // a *self*-reference cannot resolve on a Worker's first successful deploy.
+  // Declaring one here would have swapped a wrong name for a chicken-and-egg.
+  // An uploaded configuration replaces the Worker's bindings, so simply not
+  // declaring it is what clears the stale one.
+  //
+  // Add it back — pointing at "should-i-play" — only when a route actually
+  // starts using ISR or on-demand revalidation, by which time the Worker will
+  // long since have deployed.
 
   // Version preview URLs are how every non-production branch and pull request
   // becomes reviewable in a browser. Workers Builds uploads a version (rather

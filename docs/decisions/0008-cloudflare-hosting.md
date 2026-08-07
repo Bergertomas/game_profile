@@ -115,18 +115,32 @@ such Worker exists, and none should be created; the only Cloudflare application
 for this repository is **`should-i-play`**.
 
 The fix makes the repository authoritative rather than leaving anything to
-inference. The name now appears in exactly three places and they must agree:
+inference. The name now appears in exactly two places and they must agree:
 
 | Where | Why it matters |
 |---|---|
 | `wrangler.jsonc` → `name` | the Worker actually deployed to |
-| `wrangler.jsonc` → `services[].service` | what the self-reference resolves to |
-| `package.json` → `name` | the fallback auto-detection reads when the others are missing |
+| `package.json` → `name` | the fallback auto-detection reads when it finds no config |
 
-The binding is declared explicitly rather than simply deleted, because an
-uploaded configuration *replaces* a Worker's bindings: naming it correctly is
-what overwrites the stale dashboard-side one. Deleting it from config would rely
-on nothing ever re-injecting it, which is exactly the assumption that failed.
+**The binding itself is not declared, deliberately.** The obvious fix — keep the
+binding and point it at `should-i-play` — trades a wrong name for a
+chicken-and-egg: a service binding must name a Worker that already has a script
+uploaded, so a *self*-reference cannot resolve on a Worker's first successful
+deploy. Nothing in this app uses the binding anyway (no ISR, no on-demand
+revalidation, every route prerendered), and an uploaded configuration replaces
+the Worker's bindings — so not declaring it is what clears the stale one.
+
+Add it back, pointing at `should-i-play`, when a route first needs ISR. By then
+the Worker will have deployed and the reference will resolve.
+
+A complete `wrangler.jsonc` is also the thing that stops Cloudflare
+auto-generating a configuration of its own: a local `wrangler deploy --dry-run`
+with this file present reports only the `ASSETS` binding and leaves the file
+untouched.
+
+`.node-version` pins Node 22 for the build container. Next.js 16 needs Node ≥ 20,
+and a default that drifts below that fails in a way that looks nothing like a
+version problem.
 
 ## Repository-side configuration
 
