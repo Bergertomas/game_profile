@@ -140,10 +140,15 @@ Builds. Production deploys from `main`; every other branch gets a preview versio
 with its own URL. See [ADR 0008](docs/decisions/0008-cloudflare-hosting.md).
 
 ```bash
-npm run cf:build      # next build + OpenNext bundle -> .open-next/worker.js
-npm run cf:preview    # the above, then run the real Worker locally under workerd
-npm run cf:deploy     # production deploy (Workers Builds runs this on main)
+npm run cf:build          # next build + OpenNext bundle -> .open-next/worker.js
+npm run cf:preview        # the above, then run the real Worker locally under workerd
+npm run cf:deploy         # build, then deploy to production (main only)
+npm run cf:deploy-preview # build, then upload a branch-aliased preview version
 ```
+
+Both deploy scripts build the Worker they ship rather than inheriting whatever a
+previous step left in `.open-next/`, so they behave the same on a laptop as in
+Workers Builds regardless of how the CI build command is configured.
 
 `npm run cf:preview` is the honest pre-deploy check — it exercises the Worker
 runtime, not just the Next.js build.

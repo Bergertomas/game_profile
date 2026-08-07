@@ -1,5 +1,5 @@
 {
-  "name": "game-profile",
+  "name": "should-i-play",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -19,7 +19,7 @@
     "verify": "npm run typecheck && npm run lint && npm run test && npm run build",
     "cf:build": "opennextjs-cloudflare build",
     "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "cf:deploy": "opennextjs-cloudflare deploy",
+    "cf:deploy": "node scripts/cf-deploy.mjs",
     "cf:deploy-preview": "node scripts/cf-preview-deploy.mjs",
     "cf:typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
   },

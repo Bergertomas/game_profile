@@ -99,20 +99,85 @@ is attached. Turn it off once the custom domain is live: a production build
 answering on `<worker>.workers.dev` is a second host serving canonical content,
 and there is no reason to leave it addressable.
 
+## Worker identity is `should-i-play`, in three places
+
+The first Git-integration deploy failed with:
+
+> Service binding `WORKER_SELF_REFERENCE` references Worker `game-profile` which
+> was not found.
+
+`WORKER_SELF_REFERENCE` is the self-reference `@opennextjs/cloudflare` uses for
+on-demand revalidation and its cache queue. Nothing in the app needs it yet —
+every route is prerendered — but Cloudflare's framework auto-detection adds it
+when connecting a repository, and with no `name` it could agree with, it took the
+one thing it could find: the `package.json` name, which was `game-profile`. No
+such Worker exists, and none should be created; the only Cloudflare application
+for this repository is **`should-i-play`**.
+
+The fix makes the repository authoritative rather than leaving anything to
+inference. The name now appears in exactly two places and they must agree:
+
+| Where | Why it matters |
+|---|---|
+| `wrangler.jsonc` → `name` | the Worker actually deployed to |
+| `package.json` → `name` | the fallback auto-detection reads when it finds no config |
+
+**The binding itself is not declared, deliberately.** The obvious fix — keep the
+binding and point it at `should-i-play` — trades a wrong name for a
+chicken-and-egg: a service binding must name a Worker that already has a script
+uploaded, so a *self*-reference cannot resolve on a Worker's first successful
+deploy. Nothing in this app uses the binding anyway (no ISR, no on-demand
+revalidation, every route prerendered), and an uploaded configuration replaces
+the Worker's bindings — so not declaring it is what clears the stale one.
+
+Add it back, pointing at `should-i-play`, when a route first needs ISR. By then
+the Worker will have deployed and the reference will resolve.
+
+A complete `wrangler.jsonc` is also the thing that stops Cloudflare
+auto-generating a configuration of its own: a local `wrangler deploy --dry-run`
+with this file present reports only the `ASSETS` binding and leaves the file
+untouched.
+
+`.node-version` pins Node 22 for the build container. Next.js 16 needs Node ≥ 20,
+and a default that drifts below that fails in a way that looks nothing like a
+version problem.
+
 ## Repository-side configuration
 
 | File | Role |
 |---|---|
-| `wrangler.jsonc` | Worker name, `nodejs_compat`, assets binding, preview settings |
+| `wrangler.jsonc` | Worker name, `nodejs_compat`, assets and self-reference bindings, preview settings |
 | `open-next.config.ts` | Adapter config (bare; see above) |
-| `scripts/cf-preview-deploy.mjs` | Branch-aliased preview upload for Workers Builds |
+| `scripts/cf-common.mjs` | Shared build/run helpers for the two entry points |
+| `scripts/cf-deploy.mjs` | Guard → build → production deploy |
+| `scripts/cf-preview-deploy.mjs` | Build → version upload → branch preview alias |
 | `package.json` → `cf:*` | `cf:build`, `cf:preview`, `cf:deploy`, `cf:deploy-preview` |
+
+**Both deploy scripts build the Worker they ship.** They do not inherit whatever
+a preceding CI step left in `.open-next/`. This is not belt-and-braces; it is the
+difference between working and not. `opennextjs-cloudflare deploy` and `upload`
+both read a *compiled OpenNext config* from `.open-next/`, which a plain
+`next build` never writes — so a deploy-only script fails with
+"Could not find compiled Open Next config" the moment the surrounding build
+command is anything other than the OpenNext one. That is exactly what happened
+on the second deploy attempt, whose build command was `npm run build`.
+
+The consequence is that the dashboard's build command no longer affects
+correctness: the scripts produce exactly the artifact they upload, and the
+workflow behaves identically on a laptop and in Workers Builds. Setting it to
+`npm run cf:build` only avoids building twice.
+
+The branch check in `cf:deploy` duplicates the dashboard's production-branch
+setting on purpose. Promoting an experiment to `shouldiplay.gg` is one
+mis-set dropdown away and the failure is public, so the rule is also written
+somewhere it gets code-reviewed. It runs before the build, so a wrong branch
+fails in a second rather than after a full compile.
 
 Workers Builds settings (dashboard, one-time):
 
 | Setting | Value |
 |---|---|
-| Build command | `npm run cf:build` |
+| Build command | `npm run cf:build` (any value works — see below) |
 | Deploy command | `npm run cf:deploy` |
 | Non-production branch deploy command | `npm run cf:deploy-preview` |
 | Production branch | `main` |
