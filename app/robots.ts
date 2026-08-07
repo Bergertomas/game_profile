@@ -5,8 +5,9 @@ import { absoluteUrl, IS_INDEXABLE } from "@/lib/site";
  * Public pages are all crawlable; there is nothing private in the app yet, so
  * this deliberately invents no rules beyond the two that are real:
  *
- * - `/dev/*` is a development-only harness that 404s in production. Excluding
- *   it costs nothing and stops a crawler wasting requests on it.
+ * - `/dev/*` and `/design-lab/*` are development-only surfaces that 404 in a
+ *   production build. Excluding them costs nothing and stops a crawler wasting
+ *   requests on them. Any future segment guarded the same way belongs here too.
  * - a non-production build (any Cloudflare preview, or a local build) refuses
  *   crawling outright, so a preview hostname can never enter the index.
  *
@@ -20,7 +21,7 @@ export default function robots(): MetadataRoute.Robots {
   }
 
   return {
-    rules: { userAgent: "*", allow: "/", disallow: "/dev/" },
+    rules: { userAgent: "*", allow: "/", disallow: ["/dev/", "/design-lab/"] },
     sitemap: absoluteUrl("/sitemap.xml"),
   };
 }

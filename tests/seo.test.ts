@@ -49,8 +49,10 @@ describe("robots.txt", () => {
 
     expect(result.sitemap).toBe(`${SITE_URL}/sitemap.xml`);
     expect(result.rules).toMatchObject({ userAgent: "*", allow: "/" });
-    // The development-only harness is the one route worth keeping crawlers off.
-    expect(result.rules).toMatchObject({ disallow: "/dev/" });
+    // Every segment that 404s in a production build is kept off the crawl path.
+    expect(result.rules).toMatchObject({
+      disallow: ["/dev/", "/design-lab/"],
+    });
   });
 
   it("closes a preview deployment to crawlers entirely", async () => {
@@ -89,6 +91,7 @@ describe("sitemap.xml", () => {
     const sitemap = (await import("@/app/sitemap")).default;
     const urls = (await sitemap()).map((entry) => entry.url);
     expect(urls.some((url) => url.includes("/dev/"))).toBe(false);
+    expect(urls.some((url) => url.includes("/design-lab"))).toBe(false);
   });
 
   it("dates entries from the evaluation, not from the build", async () => {

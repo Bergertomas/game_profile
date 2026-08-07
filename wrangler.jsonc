@@ -1,6 +1,15 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "shouldiplay",
+
+  // The canonical Worker identity. This is the ONLY Cloudflare application for
+  // this repository, and it must match the Worker that already exists in the
+  // account. Cloudflare's framework auto-detection falls back to the
+  // package.json name when it cannot find a name here, which is how a stale
+  // `game-profile` self-reference got created — package.json is now named to
+  // match for that reason. Change one and you must change all three:
+  // this field, `services[].service` below, and package.json `name`.
+  "name": "should-i-play",
+
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-08-07",
   // Required by @opennextjs/cloudflare: the Next.js server needs Node built-ins.
@@ -10,6 +19,24 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+
+  // The self-reference @opennextjs/cloudflare expects. It is what the adapter
+  // calls for on-demand revalidation and for the cache queue; nothing in the
+  // app uses either yet, since every route is prerendered.
+  //
+  // It is declared anyway, and declared here rather than left to inference, for
+  // one reason: an uploaded configuration replaces the Worker's bindings. Naming
+  // it explicitly is what overwrites the stale dashboard-side binding that
+  // pointed at a Worker called `game-profile` and failed the first deploy with
+  // "Service binding 'WORKER_SELF_REFERENCE' references Worker 'game-profile'
+  // which was not found". Leaving it undeclared would rely on nothing ever
+  // re-injecting it.
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "should-i-play"
+    }
+  ],
 
   // Version preview URLs are how every non-production branch and pull request
   // becomes reviewable in a browser. Workers Builds uploads a version (rather

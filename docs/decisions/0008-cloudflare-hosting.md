@@ -99,14 +99,49 @@ is attached. Turn it off once the custom domain is live: a production build
 answering on `<worker>.workers.dev` is a second host serving canonical content,
 and there is no reason to leave it addressable.
 
+## Worker identity is `should-i-play`, in three places
+
+The first Git-integration deploy failed with:
+
+> Service binding `WORKER_SELF_REFERENCE` references Worker `game-profile` which
+> was not found.
+
+`WORKER_SELF_REFERENCE` is the self-reference `@opennextjs/cloudflare` uses for
+on-demand revalidation and its cache queue. Nothing in the app needs it yet —
+every route is prerendered — but Cloudflare's framework auto-detection adds it
+when connecting a repository, and with no `name` it could agree with, it took the
+one thing it could find: the `package.json` name, which was `game-profile`. No
+such Worker exists, and none should be created; the only Cloudflare application
+for this repository is **`should-i-play`**.
+
+The fix makes the repository authoritative rather than leaving anything to
+inference. The name now appears in exactly three places and they must agree:
+
+| Where | Why it matters |
+|---|---|
+| `wrangler.jsonc` → `name` | the Worker actually deployed to |
+| `wrangler.jsonc` → `services[].service` | what the self-reference resolves to |
+| `package.json` → `name` | the fallback auto-detection reads when the others are missing |
+
+The binding is declared explicitly rather than simply deleted, because an
+uploaded configuration *replaces* a Worker's bindings: naming it correctly is
+what overwrites the stale dashboard-side one. Deleting it from config would rely
+on nothing ever re-injecting it, which is exactly the assumption that failed.
+
 ## Repository-side configuration
 
 | File | Role |
 |---|---|
-| `wrangler.jsonc` | Worker name, `nodejs_compat`, assets binding, preview settings |
+| `wrangler.jsonc` | Worker name, `nodejs_compat`, assets and self-reference bindings, preview settings |
 | `open-next.config.ts` | Adapter config (bare; see above) |
+| `scripts/cf-deploy.mjs` | Production deploy, refusing any branch but `main` |
 | `scripts/cf-preview-deploy.mjs` | Branch-aliased preview upload for Workers Builds |
 | `package.json` → `cf:*` | `cf:build`, `cf:preview`, `cf:deploy`, `cf:deploy-preview` |
+
+The branch check in `cf:deploy` duplicates the dashboard's production-branch
+setting on purpose. Promoting an experiment to `shouldiplay.gg` is one
+mis-set dropdown away and the failure is public, so the rule is also written
+somewhere it gets code-reviewed.
 
 Workers Builds settings (dashboard, one-time):
 
