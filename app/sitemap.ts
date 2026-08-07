@@ -1,29 +1,46 @@
 import type { MetadataRoute } from "next";
-import { listGameSlugs } from "@/lib/data/games";
+import { listGameProfiles } from "@/lib/data/games";
+import { RUBRIC_V1 } from "@/lib/rubric";
+import { absoluteUrl, gameUrl } from "@/lib/site";
 
-const BASE_URL = "https://shouldiplay.gg";
-
+/**
+ * Generated from the same data access boundary the pages read, so it scales to
+ * the whole catalogue without anyone editing a file. `listGameProfiles` already
+ * filters to `status === "published"`, which is what keeps drafts, in-review and
+ * superseded evaluations out of the index.
+ *
+ * `lastModified` is the date the evaluation was published, not the date of the
+ * build. A sitemap that claims every page changed at deploy time teaches a
+ * crawler to ignore the field.
+ */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const slugs = await listGameSlugs();
-  const now = new Date();
+  const profiles = await listGameProfiles();
+
+  const publishDates = profiles.flatMap((profile) =>
+    profile.evaluation.publishedAt ? [profile.evaluation.publishedAt] : [],
+  );
+  const catalogueChangedAt =
+    publishDates.length > 0 ? publishDates.sort().at(-1)! : RUBRIC_V1.lockedAt;
 
   return [
     {
-      url: BASE_URL,
-      lastModified: now,
+      url: absoluteUrl("/"),
+      // The home page is the catalogue: it changes when a profile publishes.
+      lastModified: catalogueChangedAt,
       changeFrequency: "weekly",
       priority: 1,
     },
     {
-      url: `${BASE_URL}/methodology`,
-      lastModified: now,
-      changeFrequency: "monthly",
-      priority: 0.6,
+      url: absoluteUrl("/methodology"),
+      // Rendered from the typed rubric, so it changes when the rubric is relocked.
+      lastModified: RUBRIC_V1.lockedAt,
+      changeFrequency: "yearly",
+      priority: 0.7,
     },
-    ...slugs.map((slug) => ({
-      url: `${BASE_URL}/games/${slug}`,
-      lastModified: now,
-      changeFrequency: "weekly" as const,
+    ...profiles.map((profile) => ({
+      url: gameUrl(profile.game.slug),
+      lastModified: profile.evaluation.publishedAt ?? catalogueChangedAt,
+      changeFrequency: "monthly" as const,
       priority: 0.9,
     })),
   ];
