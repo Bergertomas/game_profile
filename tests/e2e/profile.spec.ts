@@ -169,6 +169,10 @@ test("the design lab is not exposed in production", async ({ page }) => {
     "/design-lab/d/states",
     // A slug the lab does not know must 404 for the ordinary reason too.
     "/design-lab/d/not-a-game",
+    // D3 references third-party key art by URL. If these ever stopped 404ing,
+    // uncleared artwork would be embedded in a public page.
+    "/design-lab/d3",
+    ...SLUGS.map((slug) => `/design-lab/d3/${slug}`),
   ]) {
     const response = await page.goto(route);
     expect(response?.status(), route).toBe(404);

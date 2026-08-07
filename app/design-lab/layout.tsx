@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { DIRECTION_D, DIRECTIONS } from "@/lib/design-lab/profile";
+import { D3, DIRECTION_D, DIRECTIONS } from "@/lib/design-lab/profile";
 import "./design-lab.css";
 
 /**
@@ -27,14 +27,14 @@ export default function DesignLabLayout({
         <Link href="/design-lab" className="dl-switch__link">
           D0 Index
         </Link>
-        {[...DIRECTIONS, DIRECTION_D].map((direction) => (
+        {[...DIRECTIONS, DIRECTION_D, D3].map((direction) => (
           <Link
             key={direction.slug}
             href={`/design-lab/${direction.slug}`}
             className="dl-switch__link"
           >
             <span>{direction.letter}</span>
-            <span className="hidden sm:inline">{direction.name}</span>
+            <span className="hidden lg:inline">{direction.name}</span>
           </Link>
         ))}
       </nav>
