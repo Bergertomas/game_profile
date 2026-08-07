@@ -148,20 +148,36 @@ version problem.
 |---|---|
 | `wrangler.jsonc` | Worker name, `nodejs_compat`, assets and self-reference bindings, preview settings |
 | `open-next.config.ts` | Adapter config (bare; see above) |
-| `scripts/cf-deploy.mjs` | Production deploy, refusing any branch but `main` |
-| `scripts/cf-preview-deploy.mjs` | Branch-aliased preview upload for Workers Builds |
+| `scripts/cf-common.mjs` | Shared build/run helpers for the two entry points |
+| `scripts/cf-deploy.mjs` | Guard → build → production deploy |
+| `scripts/cf-preview-deploy.mjs` | Build → version upload → branch preview alias |
 | `package.json` → `cf:*` | `cf:build`, `cf:preview`, `cf:deploy`, `cf:deploy-preview` |
+
+**Both deploy scripts build the Worker they ship.** They do not inherit whatever
+a preceding CI step left in `.open-next/`. This is not belt-and-braces; it is the
+difference between working and not. `opennextjs-cloudflare deploy` and `upload`
+both read a *compiled OpenNext config* from `.open-next/`, which a plain
+`next build` never writes — so a deploy-only script fails with
+"Could not find compiled Open Next config" the moment the surrounding build
+command is anything other than the OpenNext one. That is exactly what happened
+on the second deploy attempt, whose build command was `npm run build`.
+
+The consequence is that the dashboard's build command no longer affects
+correctness: the scripts produce exactly the artifact they upload, and the
+workflow behaves identically on a laptop and in Workers Builds. Setting it to
+`npm run cf:build` only avoids building twice.
 
 The branch check in `cf:deploy` duplicates the dashboard's production-branch
 setting on purpose. Promoting an experiment to `shouldiplay.gg` is one
 mis-set dropdown away and the failure is public, so the rule is also written
-somewhere it gets code-reviewed.
+somewhere it gets code-reviewed. It runs before the build, so a wrong branch
+fails in a second rather than after a full compile.
 
 Workers Builds settings (dashboard, one-time):
 
 | Setting | Value |
 |---|---|
-| Build command | `npm run cf:build` |
+| Build command | `npm run cf:build` (any value works — see below) |
 | Deploy command | `npm run cf:deploy` |
 | Non-production branch deploy command | `npm run cf:deploy-preview` |
 | Production branch | `main` |

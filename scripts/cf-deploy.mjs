@@ -1,16 +1,20 @@
 #!/usr/bin/env node
 /**
- * Production deploy command for Cloudflare Workers Builds.
+ * Production deploy: guard, build, deploy.
  *
- * Promoting a branch to production is a one-line dashboard misconfiguration
- * away, and the symptom — an experiment answering on shouldiplay.gg — is the
- * thing we most need not to happen. So the branch check lives here too, in the
- * repository, rather than only in a dashboard setting nobody re-reads.
+ * Self-contained by design — it builds the Worker it is about to ship rather
+ * than trusting whatever a previous CI step left in `.open-next/`. See
+ * scripts/cf-common.mjs.
  *
- * Locally (no WORKERS_CI_BRANCH) this does not get in the way: a deliberate
+ * The branch guard duplicates the Workers Builds production-branch setting on
+ * purpose. Promoting an experiment to shouldiplay.gg is one mis-set dashboard
+ * dropdown away and the failure is public, so the rule also lives somewhere it
+ * gets code-reviewed.
+ *
+ * Locally (no WORKERS_CI_BRANCH) the guard stays out of the way: a deliberate
  * `npm run cf:deploy` from a laptop still deploys.
  */
-import { spawnSync } from "node:child_process";
+import { buildForCloudflare, run } from "./cf-common.mjs";
 
 const PRODUCTION_BRANCH = "main";
 const branch = process.env.WORKERS_CI_BRANCH;
@@ -25,7 +29,9 @@ if (branch && branch !== PRODUCTION_BRANCH) {
   process.exit(1);
 }
 
-const result = spawnSync("npx", ["opennextjs-cloudflare", "deploy"], {
-  stdio: "inherit",
-});
-process.exit(result.status ?? 1);
+console.log(
+  `Building for Cloudflare, then deploying to production${branch ? ` from "${branch}"` : ""}.`,
+);
+
+buildForCloudflare();
+run("npx", ["opennextjs-cloudflare", "deploy"]);
