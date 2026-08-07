@@ -153,6 +153,7 @@ export function D3Study({ profile }: { profile: ProfileView }) {
                   key={view.dimension.key}
                   view={view}
                   accent="var(--dl-accent-lift)"
+                  ledger={evaluation.evidenceLedger}
                   isActive={active === view.dimension.key}
                   isOpen={open === view.dimension.key}
                   onHover={setHovered}

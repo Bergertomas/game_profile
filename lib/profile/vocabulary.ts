@@ -1,6 +1,7 @@
 import type {
   BlockType,
   Confidence,
+  EvidenceLedgerState,
   EvidenceMaturity,
   EvidenceStatus,
   SourceCategory,
@@ -121,6 +122,33 @@ export const BLOCK_ORDER: readonly BlockType[] = [
   "know_before",
   "probably_not",
 ];
+
+/**
+ * How a single dimension's evidence backing may be described.
+ *
+ * A count is a claim about reconciled individual source records. While the
+ * ledger is `pending` it holds evidence *classes* — "multiple reputable
+ * post-release reviews" is one row, not one source — so counting those rows and
+ * publishing the total would understate the real basis and overstate its
+ * precision at the same time. SOP §6: sources are evidence, not votes, and a
+ * number implies a ledger we do not yet have.
+ *
+ * This is the same rule the public trust line already follows by omitting the
+ * count while pending; it lives here so every surface phrases it identically
+ * and cannot drift into contradicting the evidence section.
+ */
+export function linkedEvidenceSummary(
+  ledger: EvidenceLedgerState,
+  linkedSourceCount: number,
+): string {
+  if (ledger === "pending") {
+    return linkedSourceCount > 0
+      ? "Evidence coverage recorded; source records pending"
+      : "No evidence coverage recorded yet";
+  }
+  if (linkedSourceCount === 0) return "No source linked yet";
+  return `${linkedSourceCount} linked source${linkedSourceCount === 1 ? "" : "s"}`;
+}
 
 /**
  * Mandatory notice on every pre-release profile (SOP §10.7). Shown prominently,

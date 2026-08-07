@@ -173,6 +173,7 @@ test("the design lab is not exposed in production", async ({ page }) => {
     // uncleared artwork would be embedded in a public page.
     "/design-lab/d3",
     ...SLUGS.map((slug) => `/design-lab/d3/${slug}`),
+    "/design-lab/d3/states",
   ]) {
     const response = await page.goto(route);
     expect(response?.status(), route).toBe(404);

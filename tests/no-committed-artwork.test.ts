@@ -65,6 +65,29 @@ describe("evaluation artwork", () => {
     }
   });
 
+  it("is fully covered by the build-artifact containment check", async () => {
+    // The checker reads the art module as text rather than importing it, so
+    // that a derived export cannot keep the URL table alive through
+    // tree-shaking. That decoupling is only safe if the parse stays in step
+    // with the module — which is what this asserts.
+    const { artNeedles } = await import("@/scripts/art-needles");
+    const { evaluationArtFor } = await import(
+      "@/lib/design-lab/evaluation-art"
+    );
+
+    const needles = new Set(artNeedles());
+    expect(needles.size).toBeGreaterThan(0);
+
+    for (const slug of ["alan-wake-2", "returnal", "redfall"]) {
+      const art = evaluationArtFor(slug)!;
+      expect(needles.has(art.url), `${slug} url`).toBe(true);
+      expect(
+        needles.has(new URL(art.url).hostname),
+        `${slug} hostname`,
+      ).toBe(true);
+    }
+  });
+
   it("is referenced only by URL, never by a repository path", async () => {
     const { evaluationArtFor } = await import(
       "@/lib/design-lab/evaluation-art"
