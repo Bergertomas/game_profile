@@ -44,6 +44,29 @@ rather than being a routine bump. That is the price of this path and it is a
 small one. Verified working end to end at Next 16.3.0 / adapter 1.20.2: the
 built Worker was run under `workerd` locally and served every route correctly.
 
+## This requires the Workers Paid plan
+
+Measured, not assumed. The bundled Worker was uploaded to Cloudflare and
+rejected:
+
+> Your Worker exceeded the size limit of 1 MiB. Please upgrade to a paid plan to
+> deploy Workers up to 10 MiB. `[code: 10027]`
+
+The Next.js server bundle alone is **~917 KB gzipped** before anything of ours is
+added, so the free plan's 1 MiB ceiling is not reachable by trimming. Removing
+the Open Graph image routes (which pull in `@vercel/og`'s resvg/yoga WASM,
+~180 KB gzipped) was tried and still exceeded the limit. Workers Paid is $5/month
+and lifts the ceiling to 10 MiB, which this bundle sits comfortably inside.
+
+**The free alternative, and why not:** every page prerenders, so the site could
+ship today as a pure static export on Workers Static Assets, free and with no
+Worker at all. That is rejected because Phase 2 onwards reads from Postgres and
+needs a server — taking the static route now buys a few dollars a month and pays
+for it with a migration back at exactly the point the project gets busy.
+
+$5/month is inside "free/very-low-cost at our current scale". Should that change,
+static export is the fallback and it is a config change rather than a rewrite.
+
 ## Environment separation
 
 Every page is prerendered, so the environment must be resolved at **build** time,

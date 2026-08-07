@@ -181,6 +181,11 @@ Summary: production deploys from `main` only; every other branch and PR gets a
 Cloudflare preview version with a stable per-branch preview URL; the production
 custom domain is `shouldiplay.gg` with `www` redirecting to the apex.
 
+One thing to know before starting: the Worker exceeds Cloudflare's 1 MiB
+free-plan size limit — measured against the real API, not estimated — so the
+**Workers Paid plan ($5/month)** is required. ADR 0008 has the numbers and the
+free static-export alternative that was considered and rejected.
+
 ---
 
 ## 6. Analytics
