@@ -144,3 +144,33 @@ export const DIRECTION_D = {
   field: "Light neutral, one game accent",
   type: "Condensed Archivo display + Newsreader prose + Archivo tabular numerals",
 } as const;
+
+/**
+ * D2 — identity studies.
+ *
+ * Direction D was rejected on identity, not on structure: it read as an
+ * institutional report, its method dominated its public face, and the game had
+ * no visual presence beyond its title. These two studies keep D's grid,
+ * measurement system, uncertainty states and accessibility work and change only
+ * what the page looks like it is about. Alan Wake 2 only, by design.
+ */
+export const D2_STUDIES = [
+  {
+    slug: "d2/a",
+    letter: "D2-A",
+    name: "Game-Led Editorial",
+    thesis:
+      "A shallow full-width stage of real key art carries the title and the essential facts, and a full-width graphite band answers it with the shape and the eight exact values.",
+    field: "Key art, then graphite",
+    type: "Archivo throughout; Newsreader for the experience summary and expanded rationale only",
+  },
+  {
+    slug: "d2/b",
+    letter: "D2-B",
+    name: "Profile As Game Object",
+    thesis:
+      "The artwork is held back to a hard-cropped field bleeding off the page edge, and the profile becomes the dominant object: a solid silhouette in the game's own colour rather than a chart.",
+    field: "Mixed neutral surfaces",
+    type: "Archivo for measurement; Newsreader reserved for editorial interpretation",
+  },
+] as const;
