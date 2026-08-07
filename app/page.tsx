@@ -20,9 +20,9 @@ export default async function HomePage() {
     <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
       <section className="max-w-2xl">
         <h1 className="display text-[2rem] leading-[1.1] text-bone sm:text-[2.75rem]">
-          Not just whether a game is good.
+          Should I play it?
           <br />
-          <span className="text-brass">What kind of good is it?</span>
+          <span className="text-brass">Know what kind of game it is first.</span>
         </h1>
         <p className="mt-5 text-base leading-relaxed text-bone-dim">
           Every game here is described across the same eight dimensions, scored
@@ -36,7 +36,7 @@ export default async function HomePage() {
       <section aria-labelledby="catalog-heading" className="mt-14">
         <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-b border-line pb-4">
           <h2 id="catalog-heading" className="display text-xl text-bone">
-            Three shapes
+            Game profiles
           </h2>
           <p className="max-w-md text-[0.8125rem] leading-snug text-bone-dim sm:text-right">
             Same eight axes in the same order on every profile. Compare the{" "}
@@ -129,7 +129,7 @@ function ProfileCard({ profile }: { profile: ProfileView }) {
       </p>
 
       <span className="label-micro mt-auto inline-block pt-5 text-bone-faint transition-colors group-hover:text-brass">
-        Full profile →
+        Should I play it? →
       </span>
     </Link>
   );

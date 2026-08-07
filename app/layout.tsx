@@ -4,12 +4,26 @@ import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
 
 export const metadata: Metadata = {
   title: {
-    default: "Game Profile — what kind of good is it?",
-    template: "%s — Game Profile",
+    default: "Should I Play? — know the game before you play it",
+    template: "%s | Should I Play?",
   },
   description:
-    "Game Profile describes games across eight fixed dimensions so you can tell what kind of experience one is before you buy it. No overall score.",
-  metadataBase: new URL("https://gameprofile.example"),
+    "Should I Play? breaks games down across eight fixed dimensions so you can tell what kind of experience one is before you buy it. No overall score.",
+  metadataBase: new URL("https://shouldiplay.gg"),
+  openGraph: {
+    siteName: "Should I Play?",
+    type: "website",
+    title: "Should I Play? — know the game before you play it",
+    description:
+      "See what a game does well, where it compromises, and whether that experience matches what you want — without reducing it to one overall score.",
+    url: "https://shouldiplay.gg",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Should I Play? — know the game before you play it",
+    description:
+      "See what a game does well, where it compromises, and whether that experience matches what you want.",
+  },
 };
 
 export const viewport: Viewport = {
