@@ -1,13 +1,15 @@
 # ADR 0001 — Stack and hosting
 
-**Status:** Accepted · 2026-08-06
+**Status:** Accepted · 2026-08-06 — hosting superseded by
+[ADR 0008](0008-cloudflare-hosting.md) on 2026-08-07 (Cloudflare Workers via
+OpenNext, not Vercel). Every other decision here stands.
 **Context:** Master Plan §12, §25
 
 ## Decision
 
 Single Next.js 16 application (App Router, TypeScript, React 19), Tailwind CSS v4,
-Drizzle ORM against managed Postgres, deployed to Vercel. Supabase remains the
-intended Postgres/Auth provider per Master Plan §12.2.
+Drizzle ORM against managed Postgres, ~~deployed to Vercel~~ (see ADR 0008).
+Supabase remains the intended Postgres/Auth provider per Master Plan §12.2.
 
 No component library. Tailwind plus a small set of local components, because
 "do not let default shadcn styling define the product" (§12.2) is easier to

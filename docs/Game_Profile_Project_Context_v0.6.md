@@ -4,6 +4,39 @@
 
 ---
 
+# 0. Amendment — brand, domain and hosting (2026-08-07)
+
+This document predates the brand decision. Read this section first; where it
+conflicts with anything below, this section wins.
+
+- **Public product/site brand: “Should I Play?”** This is what the header, the
+  metadata, the social cards and any external description of the product say.
+- **Canonical production domain: `https://shouldiplay.gg`.** Registered at
+  Porkbun; Cloudflare is authoritative DNS, CDN and the application host.
+- **“Game Profile” is no longer the site name.** It remains the name of the
+  eight-dimension evaluation this site publishes, and of the methodology
+  (“Game Profile Scoring Rubric v1.0”). Internal type names, database objects
+  and file names keep `GameProfile`/`game_profile` — that is correct, not a
+  leftover. The rename is public-facing only.
+- **Organic search is a primary acquisition channel**, so indexability is an
+  architectural requirement rather than a launch chore. Every published game
+  must be a server-rendered, indexable page at the permanent URL
+  `https://shouldiplay.gg/games/<slug>`.
+- **There is still no aggregate score — including in machine-readable form.**
+  No `aggregateRating`, no `reviewRating`, no averaged dimension figure in
+  JSON-LD, share cards or metadata. `tests/seo.test.ts` enforces this.
+- Everything about the brand, the discoverability architecture, the hosting
+  topology, analytics and the post-launch search-engine runbook lives in
+  **`docs/Should_I_Play_Brand_and_SEO_Foundation_v0.2.md`** and
+  **`docs/decisions/0008-cloudflare-hosting.md`**. Those are the source of
+  truth for those topics; do not restate them in new strategy documents.
+
+Unchanged by the rename: the eight dimensions, the rubric, the evidence model,
+the calibration corpus (Alan Wake 2 / Returnal / Redfall) and the build order in
+§11.
+
+---
+
 # 1. What we are building
 
 A public website that profiles video games across a standardized set of experience/quality dimensions so a player can decide whether a game suits what they want.

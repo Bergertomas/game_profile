@@ -8,6 +8,10 @@ dist/
 *.tsbuildinfo
 next-env.d.ts
 .vercel
+# Cloudflare / OpenNext build output and local state
+.open-next/
+.wrangler/
+.dev.vars
 coverage/
 test-results/
 playwright-report/

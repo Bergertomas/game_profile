@@ -1,0 +1,35 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "shouldiplay",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-08-07",
+  // Required by @opennextjs/cloudflare: the Next.js server needs Node built-ins.
+  "compatibility_flags": ["nodejs_compat"],
+
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+
+  // Version preview URLs are how every non-production branch and pull request
+  // becomes reviewable in a browser. Workers Builds uploads a version (rather
+  // than deploying) for any branch that is not the production branch, so a
+  // preview can never take over production traffic.
+  "preview_urls": true,
+
+  // Kept on so there is a working URL before shouldiplay.gg is attached to this
+  // Worker. Once the custom domain is live, set this to false: a production
+  // build answering on <worker>.workers.dev is a second host serving canonical
+  // content, and there is no reason to leave it addressable.
+  "workers_dev": true,
+
+  "observability": {
+    "enabled": true
+  }
+
+  // The production custom domain is attached in the Cloudflare dashboard
+  // (Workers > shouldiplay > Settings > Domains & Routes), not here, because the
+  // zone must already exist in the account for a `routes` entry to validate.
+  // Target state: shouldiplay.gg as a custom domain, www.shouldiplay.gg as a
+  // redirect rule to the apex. See docs/decisions/0008-cloudflare-hosting.md.
+}

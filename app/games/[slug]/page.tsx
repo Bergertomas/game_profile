@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { EvidenceStrip, EvidenceSummary } from "@/components/EvidenceStrip";
+import { JsonLd } from "@/components/JsonLd";
 import {
   ExperienceTags,
   PullRisk,
@@ -15,6 +16,8 @@ import {
   PRE_RELEASE_NOTICE,
   SOURCE_CATEGORY_LABEL,
 } from "@/lib/profile/vocabulary";
+import { gameProfileGraph } from "@/lib/seo/structured-data";
+import { gameTitle, gameUrl } from "@/lib/site";
 
 /**
  * The canonical game profile page (GP-005).
@@ -30,6 +33,12 @@ export async function generateStaticParams() {
   return slugs.map((slug) => ({ slug }));
 }
 
+/**
+ * Search intent is explicit: the title is the question a person types, and the
+ * description is the profile's own one-line answer to it, followed by what the
+ * page actually contains. No keyword padding — the page has to earn the click
+ * on the strength of the evaluation, which is the whole product thesis.
+ */
 export async function generateMetadata({
   params,
 }: {
@@ -37,16 +46,31 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const profile = await getGameProfile(slug);
-  if (!profile) return { title: "Not found" };
+  if (!profile) return { title: "Not found", robots: { index: false } };
+
+  const { game, evaluation } = profile;
+  const title = gameTitle(game.canonicalTitle);
+  const description = `${evaluation.oneLineExperience} Profiled across eight dimensions — what it does well, what it asks of you, and who it is not for.`;
 
   return {
-    title: `${profile.game.canonicalTitle} — profile`,
-    description: profile.evaluation.oneLineExperience,
+    // Absolute: the template would otherwise append the brand a second time.
+    title: { absolute: title },
+    description,
+    // Alternate titles are published as JSON-LD `alternateName`, which search
+    // engines actually read. `<meta name="keywords">` is ignored and is left off.
     alternates: { canonical: `/games/${slug}` },
     openGraph: {
-      title: `${profile.game.canonicalTitle} — Game Profile`,
-      description: profile.evaluation.oneLineExperience,
       type: "article",
+      url: gameUrl(slug),
+      title,
+      description: evaluation.oneLineExperience,
+      publishedTime: evaluation.publishedAt,
+      modifiedTime: evaluation.publishedAt,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description: evaluation.oneLineExperience,
     },
   };
 }
@@ -64,6 +88,8 @@ export default async function GameProfilePage({
 
   return (
     <article>
+      <JsonLd data={gameProfileGraph(profile)} />
+
       {/* ---------------------------------------------------------------- Hero */}
       <div className="hero-wash border-b border-line">
         <div className="mx-auto max-w-6xl px-4 pb-10 pt-8 sm:px-6 sm:pb-11 sm:pt-10">

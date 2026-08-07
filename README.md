@@ -1,12 +1,18 @@
-# Game Profile
+# Should I Play?
 
 > Not just whether a game is good. What kind of good is it?
 
-Game Profile describes games across eight fixed dimensions, each scored 0–10
-against a published rubric, so a player can tell what kind of experience a game is
-before buying it. **There is no overall score** — an 87 can describe a beautifully
-written but mechanically clumsy RPG or a nearly storyless, mechanically perfect
-action game, and those are entirely different purchases.
+**Should I Play?** ([shouldiplay.gg](https://shouldiplay.gg)) gives every game a
+**Game Profile**: eight fixed dimensions, each scored 0–10 against a published
+rubric, so a player can tell what kind of experience a game is before buying it.
+**There is no overall score** — an 87 can describe a beautifully written but
+mechanically clumsy RPG or a nearly storyless, mechanically perfect action game,
+and those are entirely different purchases.
+
+*Should I Play?* is the site. *Game Profile* is the evaluation it publishes, and
+the name of the methodology. Internal identifiers (`GameProfile`, `game_profile`,
+this repository) keep the original name deliberately — the rename is public-facing
+only. See [Brand, Discoverability & Hosting](docs/Should_I_Play_Brand_and_SEO_Foundation_v0.2.md).
 
 This repository is at **Phase 1**: the public profile vertical slice.
 
@@ -40,7 +46,9 @@ node scripts/screenshots.mjs screenshots http://localhost:3000
 app/
   page.tsx                     three contrasting silhouettes side by side
   games/[slug]/page.tsx        the canonical profile page
+  games/[slug]/opengraph-image  prerendered share card, silhouette and all
   methodology/page.tsx         renders itself from the typed rubric
+  robots.ts / sitemap.ts       generated from the same data the pages read
   dev/radar-states/            unknown/range harness, dev only
 components/
   ProfilePanel.tsx             radar + score rows as one linked unit
@@ -54,6 +62,8 @@ lib/
   validation/evaluation.ts     the publish gate
   db/                          Drizzle schema, migration, constraints, seed
   data/games.ts                the only data-access boundary
+  site.ts                      canonical origin, brand strings, build environment
+  seo/                         JSON-LD graphs and share-card geometry
 content/games/                 seeded evaluations
 docs/decisions/                ADRs
 tests/                         unit (vitest) and e2e (playwright)
@@ -66,6 +76,9 @@ These are product semantics, not preferences. Most are covered by a test.
 | Rule | Where |
 |---|---|
 | No aggregate score is computed, stored or displayed | no summing code exists; asserted in `tests/e2e` and `tests/radar-geometry.test.ts` |
+| No aggregate score is published in JSON-LD or on a share card either | no `Review`/`AggregateRating` schema, asserted in `tests/seo.test.ts` |
+| A preview deployment can never be indexed or become canonical | `lib/site.ts` fails closed; asserted in `tests/seo.test.ts` |
+| The sitemap lists exactly the published profiles, dated by publication | `app/sitemap.ts`, `tests/seo.test.ts` |
 | Sources are evidence, never votes averaged into a score | no source value reaches a number; wording is "supported by", never "calculated from" |
 | Dimension totals are derived from subcriteria, never entered | `lib/scoring/derive.ts`, `dimension_scores` view |
 | Scores are 0–2 in 0.5 increments | schema check constraints, `tests/scoring.test.ts` |
@@ -120,6 +133,26 @@ DATABASE_URL=… tests/db/regression.sh  # 33 Postgres invariant checks
 A test asserts the committed file is byte-identical to the generator, and every
 statement in it is idempotent.
 
+## Deployment
+
+Cloudflare Workers via `@opennextjs/cloudflare`, built from GitHub by Workers
+Builds. Production deploys from `main`; every other branch gets a preview version
+with its own URL. See [ADR 0008](docs/decisions/0008-cloudflare-hosting.md).
+
+```bash
+npm run cf:build      # next build + OpenNext bundle -> .open-next/worker.js
+npm run cf:preview    # the above, then run the real Worker locally under workerd
+npm run cf:deploy     # production deploy (Workers Builds runs this on main)
+```
+
+`npm run cf:preview` is the honest pre-deploy check — it exercises the Worker
+runtime, not just the Next.js build.
+
+Every public route prerenders to a static asset, so the Worker mostly routes.
+A local build is a **preview** build and is served `noindex`; set
+`NEXT_PUBLIC_SITE_ENV=production` to reproduce the production artefact. That
+default is deliberate — see `lib/site.ts`.
+
 ## Decisions
 
 - [0001 — Stack and hosting](docs/decisions/0001-stack-and-hosting.md)
@@ -129,6 +162,7 @@ statement in it is idempotent.
 - [0005 — Score provenance](docs/decisions/0005-score-provenance.md) *(reconciled against Calibration Round 1)*
 - [0006 — Evidence provenance, per-dimension confidence and pre-release maturity](docs/decisions/0006-evidence-provenance-and-confidence.md)
 - [0007 — Database integrity: derivation completeness, source identity, lineage](docs/decisions/0007-database-integrity.md)
+- [0008 — Hosting on Cloudflare Workers via OpenNext](docs/decisions/0008-cloudflare-hosting.md) *(supersedes the hosting half of 0001)*
 
 ## Not built, deliberately
 
