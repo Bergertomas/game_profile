@@ -155,13 +155,20 @@ test("the development radar harness is not exposed in production", async ({
 });
 
 test("the design lab is not exposed in production", async ({ page }) => {
-  // D0 exploration must never reach a visitor. Every route under the segment
-  // 404s, not just the index.
+  // Design exploration must never reach a visitor. Every route under the
+  // segment 404s, not just the index — including each Direction D render and
+  // the score-state proof, which are prerendered per game and so are separate
+  // routes rather than one dynamic page.
   for (const route of [
     "/design-lab",
     "/design-lab/a",
     "/design-lab/b",
     "/design-lab/c",
+    "/design-lab/d",
+    ...SLUGS.map((slug) => `/design-lab/d/${slug}`),
+    "/design-lab/d/states",
+    // A slug the lab does not know must 404 for the ordinary reason too.
+    "/design-lab/d/not-a-game",
   ]) {
     const response = await page.goto(route);
     expect(response?.status(), route).toBe(404);

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { DIRECTIONS } from "@/lib/design-lab/profile";
+import { DIRECTION_D, DIRECTIONS } from "@/lib/design-lab/profile";
 import "./design-lab.css";
 
 /**
@@ -27,7 +27,7 @@ export default function DesignLabLayout({
         <Link href="/design-lab" className="dl-switch__link">
           D0 Index
         </Link>
-        {DIRECTIONS.map((direction) => (
+        {[...DIRECTIONS, DIRECTION_D].map((direction) => (
           <Link
             key={direction.slug}
             href={`/design-lab/${direction.slug}`}
@@ -37,9 +37,6 @@ export default function DesignLabLayout({
             <span className="hidden sm:inline">{direction.name}</span>
           </Link>
         ))}
-        <span className="dl-switch__link ml-auto opacity-60">
-          Alan Wake 2 · same data in all three
-        </span>
       </nav>
       {children}
     </div>

@@ -7,11 +7,15 @@
  * direction class, never a Tailwind @theme token.
  *
  * All five faces are SIL Open Font License and vendored under
- * /public/fonts/design-lab. Two fundamentally different typography systems are
- * under test, per brief §6:
+ * /public/fonts/design-lab. Their copyright lines, upstream sources, versions
+ * and the full OFL 1.1 text are in /public/fonts/design-lab/LICENSES.md — that
+ * file must travel with these binaries. Two fundamentally different typography
+ * systems are under test, per brief §6:
  *   System A — condensed grotesque display + editorial serif prose  (Direction A)
  *   System B — characterful grotesque + technical mono              (Direction B)
  *   Direction C tests a third: high-contrast serif display + grotesque support.
+ *   Direction D consolidates: condensed Archivo display + Newsreader prose +
+ *   Archivo tabular numerals, with mono reserved for source identifiers.
  */
 
 @font-face {
@@ -107,7 +111,8 @@ body:has(.dl-shell) nextjs-portal {
    comparable across them. */
 .dl-a :focus-visible,
 .dl-b :focus-visible,
-.dl-c :focus-visible {
+.dl-c :focus-visible,
+.dl-d :focus-visible {
   outline: 2px solid var(--dl-accent);
   outline-offset: 3px;
 }
@@ -444,6 +449,302 @@ body:has(.dl-shell) nextjs-portal {
   opacity: 0.5;
   mix-blend-mode: overlay;
   pointer-events: none;
+}
+
+/* ==========================================================================
+   DIRECTION D — Editorial Instrument (consolidated)
+   A premium editorial document that behaves like a precise measurement tool.
+
+   Field: light neutral, not sepia. Typography and data dominate; exactly one
+   game-specific accent, set per profile as an inline --dl-accent, and it never
+   means good or bad.
+
+   Contrast: every text ramp below is measured against every ground it is used
+   on. The quietest pairing is --dl-ink-quiet on --dl-raised at 5.92:1; the
+   weakest accent pairing is Alan Wake 2's on --dl-raised at 5.54:1. Both clear
+   WCAG AA for normal text with margin. (A/B/C's faint ramps were 3.24, 3.49 and
+   3.51:1 and are not reused here.)
+   ========================================================================== */
+
+.dl-d {
+  --dl-field: #f4f4f2; /* paper */
+  --dl-surface: #ffffff;
+  --dl-raised: #ebebe8; /* active row + open panel ground */
+  --dl-ink: #16181c; /* 16.14:1 on field */
+  --dl-ink-soft: #41454b; /*  8.76:1 on field */
+  --dl-ink-quiet: #54595f; /*  6.42:1 on field, 5.92:1 on raised — the floor */
+  --dl-rule: #d5d6d3;
+  --dl-rule-soft: #e2e3e0;
+  --dl-rule-strong: #16181c;
+  /* Neutral fallback; every seeded profile sets its own inline. */
+  --dl-accent: #3f4a57;
+
+  background: var(--dl-field);
+  color: var(--dl-ink);
+  font-family: "Newsreader", Georgia, serif;
+  font-size: 1.0625rem;
+  line-height: 1.55;
+}
+
+/* Direction D sets no tracking anywhere — no negative, and none of the loose
+   uppercase tracking A and B relied on. Enforced as a descendant rule so no
+   local style or SVG attribute can reintroduce it. Legibility at label sizes is
+   bought with size (12px floor), weight and contrast instead. */
+.dl-d,
+.dl-d * {
+  letter-spacing: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Top region. One grid holds identity, the scope register and the instrument,
+   so the two viewports can order them differently without duplicating any of
+   them in the DOM.
+
+   Desktop reads identity + scope, then the instrument beneath the full width.
+   Phone reads identity, then the instrument, then scope — because a phone must
+   not make you scroll past a build string to reach the silhouette.
+   -------------------------------------------------------------------------- */
+
+.dl-d__top {
+  display: grid;
+  grid-template-areas:
+    "identity"
+    "instrument"
+    "register";
+}
+
+@media (min-width: 1024px) {
+  .dl-d__top {
+    grid-template-columns: minmax(0, 1fr) 16rem;
+    grid-template-areas:
+      "identity register"
+      "instrument instrument";
+    column-gap: 3rem;
+  }
+}
+
+.dl-d__identity {
+  grid-area: identity;
+  min-width: 0;
+}
+.dl-d__register {
+  grid-area: register;
+}
+.dl-d__instrument {
+  grid-area: instrument;
+  min-width: 0;
+}
+
+.dl-d__display {
+  font-family: "Archivo", system-ui, sans-serif;
+  font-stretch: 72%;
+  font-weight: 700;
+  line-height: 0.88;
+  text-transform: uppercase;
+}
+
+/* The only small type in the direction. 12px is a hard floor. */
+.dl-d__label {
+  font-family: "Archivo", system-ui, sans-serif;
+  font-stretch: 100%;
+  font-weight: 600;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  text-transform: uppercase;
+  color: var(--dl-ink-quiet);
+}
+.dl-d__label--ink {
+  color: var(--dl-ink);
+}
+.dl-d__label--accent {
+  color: var(--dl-accent);
+}
+
+.dl-d__num {
+  font-family: "Archivo", system-ui, sans-serif;
+  font-stretch: 100%;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* Mono is reserved for source identifiers and scale graduations — things that
+   are references, not language. */
+.dl-d__mark {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--dl-ink-quiet);
+}
+
+.dl-d__rule {
+  border: 0;
+  border-top: 1px solid var(--dl-rule);
+  margin: 0;
+}
+.dl-d__rule--strong {
+  border-top: 1.5px solid var(--dl-rule-strong);
+}
+
+/* A's index rhythm: the row reads as a line of set type carrying the eye to a
+   number, not as a bar carrying a fill. */
+.dl-d__leader {
+  flex: 1 1 auto;
+  min-width: 0.75rem;
+  align-self: baseline;
+  height: 0.9em;
+  background-image: radial-gradient(
+    circle,
+    var(--dl-rule) 1.1px,
+    transparent 1.4px
+  );
+  background-size: 0.4rem 0.4rem;
+  background-repeat: repeat-x;
+  background-position: left bottom 0.2em;
+}
+
+/* --------------------------------------------------------------------------
+   The measurement row. One device fusing A's index line with B's shared scale.
+   Below 640px the scale drops to a second line at full row width so the name
+   stays legible — the scale is still identical on every row, which is the whole
+   point of it. -------------------------------------------------------------- */
+
+.dl-d__row {
+  display: grid;
+  grid-template-columns: 1.75rem minmax(0, 1fr) auto;
+  grid-template-areas:
+    "index name value"
+    "scale scale scale";
+  gap: 0.45rem 0.75rem;
+  align-items: baseline;
+  width: 100%;
+  min-height: 2.875rem; /* ≥44px touch target */
+  padding: 0.6rem 0.5rem;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-top: 1px solid var(--dl-rule);
+  cursor: pointer;
+  color: inherit;
+}
+
+@media (min-width: 640px) {
+  .dl-d__row {
+    /* The value column is wide enough for the widest published figure —
+       "7.0–9.0" and "Not scored" — so nothing reflows between states. */
+    grid-template-columns: 1.75rem minmax(0, 1fr) 7rem 5.5rem 3.75rem;
+    grid-template-areas: "index name scale value confidence";
+    gap: 0 0.75rem;
+  }
+}
+
+.dl-d__row[data-active="true"] {
+  background: var(--dl-raised);
+  /* A margin keyline, not a shadow: no blur, no offset, no elevation. */
+  box-shadow: inset 2px 0 0 var(--dl-accent);
+}
+
+.dl-d__row-index {
+  grid-area: index;
+}
+.dl-d__row-name {
+  grid-area: name;
+}
+.dl-d__row-scale {
+  grid-area: scale;
+  /* The one cell that is not type: it centres in the row the others baseline
+     against, so the reading sits on the row's optical centre line. */
+  align-self: center;
+}
+.dl-d__row-value {
+  grid-area: value;
+}
+.dl-d__row-confidence {
+  grid-area: confidence;
+}
+
+/* --------------------------------------------------------------------------
+   The shared scale. Graduations are declared once in the column head, exactly
+   as a printed table declares its units; each row then carries only a hairline
+   baseline, a measured rule and a reading tick. Square ends, no track fill, no
+   radius — a ruler, not a progress bar. -------------------------------------- */
+
+.dl-d__scale {
+  position: relative;
+  height: 0.8rem;
+  align-self: center;
+}
+.dl-d__scale::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 1px solid var(--dl-rule);
+}
+/* Nothing is measured here, and the hairline says so rather than reading as a
+   score of zero. */
+.dl-d__scale--unknown::before {
+  border-top-style: dashed;
+  border-top-color: var(--dl-ink-quiet);
+}
+
+.dl-d__measure {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  margin-top: -1px;
+  border-top: 2px solid var(--dl-ink);
+}
+/* The uncertainty above a confirmed floor, when one subcriterion is unknown. */
+.dl-d__reach {
+  position: absolute;
+  top: 50%;
+  margin-top: -1px;
+  border-top: 2px dotted var(--dl-ink-quiet);
+}
+.dl-d__tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--dl-accent);
+}
+.dl-d__tick--open {
+  background: none;
+  width: 0;
+  border-left: 2px dotted var(--dl-accent);
+}
+
+.dl-d__grad {
+  position: absolute;
+  top: 0.15rem;
+  bottom: 0.15rem;
+  width: 1px;
+  margin-left: -0.5px;
+  background: var(--dl-rule);
+}
+
+/* --------------------------------------------------------------------------
+   Why this score? — opens in place, on a raised ground, still inside the
+   instrument. ------------------------------------------------------------- */
+
+.dl-d__panel {
+  background: var(--dl-raised);
+  border-top: 1px solid var(--dl-rule);
+  border-bottom: 1.5px solid var(--dl-rule-strong);
+}
+
+/* Marginalia: superscript source ordinals set into prose (A's apparatus). */
+.dl-d__cite {
+  font-family: "Archivo", system-ui, sans-serif;
+  font-stretch: 100%;
+  font-weight: 700;
+  font-size: 0.625em;
+  vertical-align: super;
+  line-height: 0;
+  color: var(--dl-accent);
 }
 
 /* ==========================================================================

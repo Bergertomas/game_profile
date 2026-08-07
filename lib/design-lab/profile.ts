@@ -1,4 +1,4 @@
-import { alanWake2 } from "@/content/games/alan-wake-2";
+import { SEED_PROFILES, alanWake2 } from "@/content";
 import { buildProfileView, type ProfileView } from "@/lib/profile/build";
 import type { DimensionKey } from "@/lib/rubric";
 
@@ -13,6 +13,20 @@ import type { DimensionKey } from "@/lib/rubric";
 
 export function designLabProfile(): ProfileView {
   return buildProfileView(alanWake2);
+}
+
+/** Every seeded profile, in seed order. Direction D is rendered with all three. */
+export function designLabProfiles(): ProfileView[] {
+  return SEED_PROFILES.map(buildProfileView);
+}
+
+export function designLabProfileFor(slug: string): ProfileView | null {
+  const record = SEED_PROFILES.find((entry) => entry.game.slug === slug);
+  return record ? buildProfileView(record) : null;
+}
+
+export function designLabSlugs(): string[] {
+  return SEED_PROFILES.map((entry) => entry.game.slug);
 }
 
 /**
@@ -53,7 +67,37 @@ export const ALAN_WAKE_2_ACCENT = {
   amber: "#D69A3C",
 } as const;
 
-/** The three D0 directions. */
+/**
+ * Direction D accents — one colour per game, drawn from that game's own visual
+ * identity.
+ *
+ * These are identity, never judgement. The same hue marks the polygon, the
+ * reading tick on every score row, citation ordinals and the active state, on a
+ * 4.5 game and a 10.0 game alike; nothing in the direction maps colour to
+ * quality, and no dimension is ever recoloured by its value.
+ *
+ * Each value is measured against all three D grounds — #F4F4F2 field, #FFFFFF
+ * surface, #EBEBE8 raised — and clears WCAG AA for normal text on every one.
+ * Ratios on the worst case (raised): Alan Wake 2 5.54:1, Returnal 7.71:1,
+ * Redfall 6.66:1, fallback 7.55:1.
+ */
+const DIRECTION_D_ACCENTS: Readonly<Record<string, string>> = {
+  // The warm red of the Dark Place's lamps and the manuscript pages.
+  "alan-wake-2": "#A8341B",
+  // Atropos' violet bioluminescence.
+  returnal: "#5B2F94",
+  // The cold blue of a sun the vampires stopped.
+  redfall: "#27547B",
+};
+
+/** Neutral slate for any profile without an authored accent. */
+export const DIRECTION_D_FALLBACK_ACCENT = "#3F4A57";
+
+export function accentFor(slug: string): string {
+  return DIRECTION_D_ACCENTS[slug] ?? DIRECTION_D_FALLBACK_ACCENT;
+}
+
+/** The three D0 exploration directions, kept intact as review artifacts. */
 export const DIRECTIONS = [
   {
     slug: "a",
@@ -85,3 +129,18 @@ export const DIRECTIONS = [
 ] as const;
 
 export type DirectionSlug = (typeof DIRECTIONS)[number]["slug"];
+
+/**
+ * Direction D — the consolidated direction chosen after the A/B/C review.
+ * Listed separately because it is not one of the three exploration artifacts:
+ * it is what they resolved into.
+ */
+export const DIRECTION_D = {
+  slug: "d",
+  letter: "D",
+  name: "Editorial Instrument",
+  thesis:
+    "A premium editorial document that behaves like a precise measurement tool. A's hierarchy, marginalia and index rhythm; B's shared measurement scale, hard alignment and derivation language; C's willingness to let the composition breathe.",
+  field: "Light neutral, one game accent",
+  type: "Condensed Archivo display + Newsreader prose + Archivo tabular numerals",
+} as const;
