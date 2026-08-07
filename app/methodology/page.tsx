@@ -1,15 +1,37 @@
 import type { Metadata } from "next";
+import { JsonLd } from "@/components/JsonLd";
 import {
   dimensionsInRadarOrder,
   RUBRIC_V1,
   SUBCRITERION_SCALE,
 } from "@/lib/rubric";
 import { formatScore } from "@/lib/scoring/derive";
+import { methodologyGraph } from "@/lib/seo/structured-data";
+import { absoluteUrl } from "@/lib/site";
+
+const OG_DESCRIPTION =
+  "Eight fixed dimensions, five subcriteria each, and no overall score. The published rubric every Game Profile is measured against.";
 
 export const metadata: Metadata = {
-  title: "Methodology",
+  title: "How Game Profiles are scored",
   description:
-    "How Game Profile scores games: eight dimensions, five subcriteria each, 0–2 per subcriterion, and no overall score.",
+    "The Game Profile methodology: eight fixed dimensions, five subcriteria each, 0–2 per subcriterion summed to a 0–10 total, and deliberately no overall score.",
+  alternates: { canonical: "/methodology" },
+  openGraph: {
+    type: "article",
+    url: absoluteUrl("/methodology"),
+    title: "How Game Profiles are scored",
+    description: OG_DESCRIPTION,
+    // Declaring `openGraph` replaces the root object wholesale, so the
+    // site-level card has to be named again rather than inherited.
+    images: ["/opengraph-image"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "How Game Profiles are scored",
+    description: OG_DESCRIPTION,
+    images: ["/opengraph-image"],
+  },
 };
 
 /**
@@ -21,6 +43,7 @@ export default function MethodologyPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 sm:py-16">
+      <JsonLd data={methodologyGraph(RUBRIC_V1.version)} />
       <span className="label-micro text-bone-faint">
         Scoring Rubric v{RUBRIC_V1.version} · locked {RUBRIC_V1.lockedAt}
       </span>

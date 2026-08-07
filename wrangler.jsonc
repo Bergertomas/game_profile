@@ -1,0 +1,63 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+
+  // The canonical Worker identity. This is the ONLY Cloudflare application for
+  // this repository, and it must match the Worker that already exists in the
+  // account. Cloudflare's framework auto-detection falls back to the
+  // package.json name when it cannot find a name here, which is how a stale
+  // `game-profile` self-reference got created — package.json is now named to
+  // match for that reason. Change one and you must change both.
+  "name": "should-i-play",
+
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-08-07",
+  // Required by @opennextjs/cloudflare: the Next.js server needs Node built-ins.
+  "compatibility_flags": ["nodejs_compat"],
+
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+
+  // NO `services` BINDING, DELIBERATELY.
+  //
+  // @opennextjs/cloudflare uses a `WORKER_SELF_REFERENCE` service binding for
+  // on-demand revalidation and its cache queue. Nothing here uses either —
+  // every route is prerendered — so the binding is dead weight, and it is what
+  // failed the first deploy:
+  //
+  //   Service binding 'WORKER_SELF_REFERENCE' references Worker 'game-profile'
+  //   which was not found.
+  //
+  // A service binding must name a Worker that already has a script uploaded, so
+  // a *self*-reference cannot resolve on a Worker's first successful deploy.
+  // Declaring one here would have swapped a wrong name for a chicken-and-egg.
+  // An uploaded configuration replaces the Worker's bindings, so simply not
+  // declaring it is what clears the stale one.
+  //
+  // Add it back — pointing at "should-i-play" — only when a route actually
+  // starts using ISR or on-demand revalidation, by which time the Worker will
+  // long since have deployed.
+
+  // Version preview URLs are how every non-production branch and pull request
+  // becomes reviewable in a browser. Workers Builds uploads a version (rather
+  // than deploying) for any branch that is not the production branch, so a
+  // preview can never take over production traffic.
+  "preview_urls": true,
+
+  // Kept on so there is a working URL before shouldiplay.gg is attached to this
+  // Worker. Once the custom domain is live, set this to false: a production
+  // build answering on <worker>.workers.dev is a second host serving canonical
+  // content, and there is no reason to leave it addressable.
+  "workers_dev": true,
+
+  "observability": {
+    "enabled": true
+  }
+
+  // The production custom domain is attached in the Cloudflare dashboard
+  // (Workers > shouldiplay > Settings > Domains & Routes), not here, because the
+  // zone must already exist in the account for a `routes` entry to validate.
+  // Target state: shouldiplay.gg as a custom domain, www.shouldiplay.gg as a
+  // redirect rule to the apex. See docs/decisions/0008-cloudflare-hosting.md.
+}

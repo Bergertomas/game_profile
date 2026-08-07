@@ -18,6 +18,8 @@ export default async function HomePage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
+      {/* The site's name already asks the question, so the first heading gives
+          the answer mechanism rather than repeating the brand. */}
       <section className="max-w-2xl">
         <h1 className="display text-[2rem] leading-[1.1] text-bone sm:text-[2.75rem]">
           Not just whether a game is good.
@@ -25,18 +27,22 @@ export default async function HomePage() {
           <span className="text-brass">What kind of good is it?</span>
         </h1>
         <p className="mt-5 text-base leading-relaxed text-bone-dim">
-          Every game here is described across the same eight dimensions, scored
-          0–10 each against a published rubric. We do not average them into an
-          overall score, because an 87 can describe a beautifully written but
-          clumsy RPG or a nearly storyless, mechanically perfect action game —
-          and those are completely different purchases.
+          Every game here gets a Game Profile: the same eight dimensions, scored
+          0–10 each against a published rubric, so you can see what a game is
+          actually good at — and what might make it wrong for you.
+        </p>
+        <p className="mt-4 text-base leading-relaxed text-bone-dim">
+          We do not average them into an overall score, because an 87 can
+          describe a beautifully written but clumsy RPG or a nearly storyless,
+          mechanically perfect action game — and those are completely different
+          purchases.
         </p>
       </section>
 
       <section aria-labelledby="catalog-heading" className="mt-14">
         <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-b border-line pb-4">
           <h2 id="catalog-heading" className="display text-xl text-bone">
-            Three shapes
+            Compare the shapes
           </h2>
           <p className="max-w-md text-[0.8125rem] leading-snug text-bone-dim sm:text-right">
             Same eight axes in the same order on every profile. Compare the{" "}
@@ -129,7 +135,7 @@ function ProfileCard({ profile }: { profile: ProfileView }) {
       </p>
 
       <span className="label-micro mt-auto inline-block pt-5 text-bone-faint transition-colors group-hover:text-brass">
-        Full profile →
+        Read the Game Profile →
       </span>
     </Link>
   );
