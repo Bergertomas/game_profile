@@ -77,7 +77,7 @@ These are product semantics, not preferences. Most are covered by a test.
 |---|---|
 | No aggregate score is computed, stored or displayed | no summing code exists; asserted in `tests/e2e` and `tests/radar-geometry.test.ts` |
 | No aggregate score is published in JSON-LD or on a share card either | no `Review`/`AggregateRating` schema, asserted in `tests/seo.test.ts` |
-| A preview deployment can never be indexed or become canonical | `lib/site.ts` fails closed; asserted in `tests/seo.test.ts` |
+| A preview deployment can never be indexed or become canonical | `lib/site.ts` fails closed; asserted in `tests/seo.test.ts` and against the real Worker by `npm run cf:verify` |
 | The sitemap lists exactly the published profiles, dated by publication | `app/sitemap.ts`, `tests/seo.test.ts` |
 | Sources are evidence, never votes averaged into a score | no source value reaches a number; wording is "supported by", never "calculated from" |
 | Dimension totals are derived from subcriteria, never entered | `lib/scoring/derive.ts`, `dimension_scores` view |
@@ -142,9 +142,14 @@ with its own URL. See [ADR 0008](docs/decisions/0008-cloudflare-hosting.md).
 ```bash
 npm run cf:build          # next build + OpenNext bundle -> .open-next/worker.js
 npm run cf:preview        # the above, then run the real Worker locally under workerd
+npm run cf:verify         # build as production, boot the Worker, assert what it serves
 npm run cf:deploy         # build, then deploy to production (main only)
 npm run cf:deploy-preview # build, then upload a branch-aliased preview version
 ```
+
+Run `cf:verify` before any production deploy. It is the only check that sees what
+the Workers runtime actually returns — prerendered output on disk, unit tests and
+e2e have all been green while the deployed Worker served the opposite (ADR 0008).
 
 Both deploy scripts build the Worker they ship rather than inheriting whatever a
 previous step left in `.open-next/`, so they behave the same on a laptop as in
