@@ -71,6 +71,21 @@ const EVALUATION_ART: Readonly<Record<string, EvaluationArt>> = {
   },
 };
 
+/*
+ * Deliberately NOT exporting a derived list of URLs or hostnames from here.
+ *
+ * A module-level `Object.values(EVALUATION_ART)` export was tried and it broke
+ * the containment it was meant to help verify: the derived constant kept a live
+ * reference to the table, the bundler could no longer treat the table as dead
+ * code behind the production guard below, and all three artwork URLs appeared
+ * in a client chunk. `scripts/check-build-containment.ts` caught it, which is
+ * the check earning its place on its first run.
+ *
+ * The checker reads this file as text instead, and
+ * tests/no-committed-artwork.test.ts asserts its parse matches what the module
+ * actually returns, so the two cannot drift apart.
+ */
+
 export function evaluationArtFor(slug: string): EvaluationArt | null {
   // Belt and braces. The route already 404s in production; this makes sure the
   // URL itself cannot be emitted from a production build either.

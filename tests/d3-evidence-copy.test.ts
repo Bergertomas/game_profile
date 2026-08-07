@@ -1,0 +1,113 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it } from "vitest";
+import { D3Study } from "@/components/design-lab/d3/Study";
+import { alanWake2 } from "@/content";
+import { buildProfileView } from "@/lib/profile/build";
+import { linkedEvidenceSummary } from "@/lib/profile/vocabulary";
+import { scoreStateFixture } from "@/lib/design-lab/score-states";
+
+/**
+ * A count of linked sources is a claim about reconciled individual records.
+ * While the ledger is `pending` it holds evidence *classes* — one row can stand
+ * for a whole body of critical coverage — so counting rows and publishing the
+ * total both understates the basis and overstates its precision.
+ *
+ * D3's expanded rows published `N linked sources` off `linkedSources.length`
+ * regardless of ledger state, which directly contradicted the evidence section
+ * at the foot of the same page ("No source count is published until it does").
+ * These tests pin the corrected behaviour on both surfaces.
+ */
+
+/** Any numeric linked-source claim, in any phrasing we might drift into. */
+const NUMERIC_SOURCE_CLAIM = /\d+\s*(?:linked\s*)?sources?\b/i;
+
+function render(profile: Parameters<typeof D3Study>[0]["profile"]): string {
+  return renderToStaticMarkup(createElement(D3Study, { profile }));
+}
+
+const pendingProfile = buildProfileView(alanWake2);
+
+const populatedProfile = buildProfileView({
+  ...alanWake2,
+  evaluation: { ...alanWake2.evaluation, evidenceLedger: "populated" },
+});
+
+describe("linkedEvidenceSummary", () => {
+  it("never states a number while the ledger is pending", () => {
+    for (const count of [0, 1, 2, 7]) {
+      const copy = linkedEvidenceSummary("pending", count);
+      expect(copy, `count=${count}`).not.toMatch(NUMERIC_SOURCE_CLAIM);
+      expect(copy, `count=${count}`).not.toMatch(/\d/);
+    }
+  });
+
+  it("uses the agreed pending wording when coverage exists", () => {
+    expect(linkedEvidenceSummary("pending", 2)).toBe(
+      "Evidence coverage recorded; source records pending",
+    );
+  });
+
+  it("does not claim coverage that is not there", () => {
+    expect(linkedEvidenceSummary("pending", 0)).toBe(
+      "No evidence coverage recorded yet",
+    );
+  });
+
+  it("may count once the ledger holds records", () => {
+    expect(linkedEvidenceSummary("populated", 1)).toBe("1 linked source");
+    expect(linkedEvidenceSummary("populated", 3)).toBe("3 linked sources");
+    expect(linkedEvidenceSummary("populated", 0)).toBe("No source linked yet");
+  });
+});
+
+describe("D3 pages on a pending ledger", () => {
+  it("is the state the seed corpus is actually in", () => {
+    // If this ever flips, the assertions below stop proving anything.
+    expect(pendingProfile.evaluation.evidenceLedger).toBe("pending");
+    expect(
+      pendingProfile.dimensions.some((d) => d.linkedSources.length > 0),
+      "at least one dimension must have linked evidence, or a count could not be rendered anyway",
+    ).toBe(true);
+  });
+
+  it("renders no numeric linked-source claim anywhere on the page", () => {
+    const html = render(pendingProfile);
+    expect(html).not.toMatch(NUMERIC_SOURCE_CLAIM);
+  });
+
+  it("states the pending wording in the expanded rows", () => {
+    const html = render(pendingProfile);
+    expect(html).toContain("Evidence coverage recorded; source records pending");
+  });
+
+  it("does not let the rows and the evidence section contradict each other", () => {
+    const html = render(pendingProfile);
+    // The foot of the page says no count is published…
+    expect(html).toContain("No source count is published until it does");
+    // …so nothing above it may publish one.
+    expect(html).not.toMatch(NUMERIC_SOURCE_CLAIM);
+  });
+
+  it("names the list for what the ledger actually holds", () => {
+    const html = render(pendingProfile);
+    expect(html).toContain("Evidence classes bearing on this dimension");
+    expect(html).not.toContain("Sources linked to this dimension");
+  });
+
+  it("holds on the score-state fixture too", () => {
+    const html = render(buildProfileView(scoreStateFixture("D3")));
+    expect(html).not.toMatch(NUMERIC_SOURCE_CLAIM);
+  });
+});
+
+describe("D3 pages on a populated ledger", () => {
+  it("does publish a count, so the pending copy is a real branch", () => {
+    const html = render(populatedProfile);
+    expect(html).toMatch(NUMERIC_SOURCE_CLAIM);
+    expect(html).not.toContain(
+      "Evidence coverage recorded; source records pending",
+    );
+    expect(html).toContain("Sources linked to this dimension");
+  });
+});

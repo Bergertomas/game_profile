@@ -1,7 +1,8 @@
 "use client";
 
 import type { DimensionView, ProfileView } from "@/lib/profile/build";
-import { CONFIDENCE_LABEL } from "@/lib/profile/vocabulary";
+import { CONFIDENCE_LABEL, linkedEvidenceSummary } from "@/lib/profile/vocabulary";
+import type { EvidenceLedgerState } from "@/lib/profile/types";
 import { formatScore } from "@/lib/scoring/derive";
 import {
   axisLabelPlacement,
@@ -280,6 +281,7 @@ export function ScoreRow({
   isActive,
   isOpen,
   accent,
+  ledger,
   onHover,
   onFocus,
   onToggle,
@@ -288,6 +290,11 @@ export function ScoreRow({
   isActive: boolean;
   isOpen: boolean;
   accent: string;
+  /**
+   * Whether the evidence ledger holds individual source records yet. The panel
+   * may only publish a count when it does — see `linkedEvidenceSummary`.
+   */
+  ledger: EvidenceLedgerState;
   onHover: (key: string | null) => void;
   onFocus: (key: string | null) => void;
   onToggle: (key: string) => void;
@@ -330,11 +337,7 @@ export function ScoreRow({
           <h3 className="dl-d3__label dl-d3__label--bone">Why this score?</h3>
           <span className="dl-d3__label">
             {CONFIDENCE_LABEL[confidence]} confidence ·{" "}
-            {view.linkedSources.length > 0
-              ? `${view.linkedSources.length} linked source${
-                  view.linkedSources.length === 1 ? "" : "s"
-                }`
-              : "No source linked yet"}
+            {linkedEvidenceSummary(ledger, view.linkedSources.length)}
           </span>
         </div>
 
@@ -374,6 +377,13 @@ export function ScoreRow({
 
         {view.linkedSources.length > 0 && (
           <ul className="mt-3 list-none space-y-1 p-0">
+            {/* Named to match what the ledger actually holds, so this list and
+                the evidence section at the foot describe the same thing. */}
+            <li className="dl-d3__label">
+              {ledger === "pending"
+                ? "Evidence classes bearing on this dimension"
+                : "Sources linked to this dimension"}
+            </li>
             {view.linkedSources.map((source) => (
               <li
                 key={source.id}
