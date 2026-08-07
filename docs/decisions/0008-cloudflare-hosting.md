@@ -67,20 +67,40 @@ for it with a migration back at exactly the point the project gets busy.
 $5/month is inside "free/very-low-cost at our current scale". Should that change,
 static export is the fallback and it is a config change rather than a rewrite.
 
-## Environment separation
+## Environment separation, and the bug that proved it needs a gate
 
-Every page is prerendered, so the environment must be resolved at **build** time,
-not request time. `lib/site.ts` does this once:
+The environment must be resolved at **build** time. `next.config.ts` calls
+`resolveSiteEnv` once and pins the answer into `env.NEXT_PUBLIC_SITE_ENV`, which
+Next substitutes textually into both bundles:
 
 1. `NEXT_PUBLIC_SITE_ENV` if explicitly set, else
 2. `WORKERS_CI_BRANCH` (injected by Workers Builds) compared against `main`, else
 3. `preview`.
 
-Failing closed matters. Getting this wrong in the indexable direction puts
-`*.workers.dev` hostnames into Google's index and takes months to unwind;
-getting it wrong in the other direction is a one-line fix noticed on the first
-`robots.txt` check after deploy. That check is step 1 of the post-deployment
-runbook in `docs/Should_I_Play_Brand_and_SEO_Foundation_v0.2.md` §7.
+That indirection is load-bearing, and the first version got it wrong. It called
+`resolveSiteEnv()` inside `lib/site.ts` through a parameter, which defeats Next's
+substitution and leaves a real `process.env` lookup in the deployed Worker. The
+lookup finds nothing — `WORKERS_CI_BRANCH` is a *build* variable with no
+existence in the Workers runtime — so it answered `preview` on every request.
+
+The symptom was invisible to everything that normally catches things here: the
+prerendered files on disk said `Allow: /` and `index, follow`, unit tests passed,
+`next build` output was correct, e2e passed. Only the Worker disagreed, and only
+when asked. Production would have served `noindex` and `Disallow: /` from
+`shouldiplay.gg` while every local check stayed green.
+
+So `lib/site.ts` now reads `process.env.NEXT_PUBLIC_SITE_ENV` as a literal member
+expression and nothing else, with a comment saying why it must stay that way, and
+**`npm run cf:verify`** builds as production, boots the Worker under `workerd`
+and asserts what it actually serves. Run it before any production deploy. It is
+deliberately outside `npm run verify` — it builds twice and boots a runtime — but
+it is the only check that would have caught this.
+
+Failing closed remains right. Getting this wrong in the indexable direction puts
+`*.workers.dev` hostnames into Google's index and takes months to unwind; getting
+it wrong in the other direction costs a redeploy. But "we'll notice it in the
+post-deploy runbook" was too weak a safety net for something this quiet, which is
+what `cf:verify` fixes.
 
 There are no secrets in the application yet — the site reads typed fixtures, not
 Postgres. When `DATABASE_URL` arrives it goes in the Worker's production
@@ -148,6 +168,8 @@ version problem.
 |---|---|
 | `wrangler.jsonc` | Worker name, `nodejs_compat`, assets and self-reference bindings, preview settings |
 | `open-next.config.ts` | Adapter config (bare; see above) |
+| `lib/site-env.ts` | Build-time environment resolution, importable from `next.config.ts` |
+| `scripts/cf-verify.mjs` | Pre-deploy gate: asserts what the Worker serves as production |
 | `scripts/cf-common.mjs` | Shared build/run helpers for the two entry points |
 | `scripts/cf-deploy.mjs` | Guard → build → production deploy |
 | `scripts/cf-preview-deploy.mjs` | Build → version upload → branch preview alias |

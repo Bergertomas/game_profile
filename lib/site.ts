@@ -28,34 +28,29 @@ export const SITE_DESCRIPTION =
   "against a published rubric, so you can see what a game is actually good at — " +
   "and what might make it wrong for you. There is no overall score.";
 
-/**
- * The branch that owns the production deployment. Any other branch that
- * Cloudflare builds is a preview and must not be indexed.
- */
-export const PRODUCTION_BRANCH = "main";
-
-export type SiteEnv = "production" | "preview";
+export { PRODUCTION_BRANCH, resolveSiteEnv, type SiteEnv } from "@/lib/site-env";
 
 /**
- * Resolved at build time, because every public page is statically rendered.
+ * The environment this bundle was built for.
  *
- * `NEXT_PUBLIC_SITE_ENV` wins if set. Otherwise Cloudflare Workers Builds tells
- * us which branch it is building. With neither signal we assume "preview": a
- * build we cannot identify is one we should not let into the index.
+ * `process.env.NEXT_PUBLIC_SITE_ENV` is written as a literal member expression
+ * on purpose, and it must stay that way. `next.config.ts` resolves the
+ * environment once at build time and declares it under `env`, which Next
+ * substitutes textually — so this compiles down to a constant string baked into
+ * the bundle.
+ *
+ * Reading it any other way (through a variable, a helper, a destructure) defeats
+ * the substitution and leaves a real `process.env` lookup in the deployed
+ * Worker. That lookup finds nothing: `WORKERS_CI_BRANCH` is a *build* variable
+ * and does not exist in the Workers runtime, so the fallback answers "preview"
+ * on every request and production serves `noindex` and `Disallow: /` while the
+ * prerendered files on disk say the opposite. That bug shipped once and was
+ * caught by `npm run cf:verify`, which exists to catch it again.
  */
-export function resolveSiteEnv(
-  env: Readonly<Record<string, string | undefined>> = process.env,
-): SiteEnv {
-  const explicit = env.NEXT_PUBLIC_SITE_ENV;
-  if (explicit === "production" || explicit === "preview") return explicit;
+export const SITE_ENV: SiteEnvValue =
+  process.env.NEXT_PUBLIC_SITE_ENV === "production" ? "production" : "preview";
 
-  const branch = env.WORKERS_CI_BRANCH;
-  if (branch) return branch === PRODUCTION_BRANCH ? "production" : "preview";
-
-  return "preview";
-}
-
-export const SITE_ENV: SiteEnv = resolveSiteEnv();
+type SiteEnvValue = "production" | "preview";
 
 /** Whether this build may be indexed by search engines. */
 export const IS_INDEXABLE = SITE_ENV === "production";
