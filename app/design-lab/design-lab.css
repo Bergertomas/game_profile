@@ -91,8 +91,8 @@ body:has(.dl-shell) nextjs-portal {
   display: inline-flex;
   align-items: baseline;
   gap: 0.5rem;
-  /* Tight enough that seven entries stay on one line at 390px — a wrapped lab
-     nav would eat the vertical budget the studies are being measured against. */
+  /* Tight enough that every entry stays on one line at 390px — a wrapped lab
+     nav would eat the vertical budget the studies are measured against. */
   padding: 0.75rem 0.5rem;
   font-size: 0.75rem;
   letter-spacing: 0.12em;
@@ -101,18 +101,18 @@ body:has(.dl-shell) nextjs-portal {
   border-bottom: 2px solid transparent;
   text-decoration: none;
 }
-
-@media (min-width: 640px) {
-  .dl-switch__link {
-    padding: 0.75rem 1rem;
-  }
-}
 .dl-switch__link[aria-current="page"] {
   color: #ece7dd;
   border-bottom-color: #b4321e;
 }
 .dl-switch__link:hover {
   color: #ece7dd;
+}
+
+@media (min-width: 640px) {
+  .dl-switch__link {
+    padding: 0.75rem 1rem;
+  }
 }
 
 /* Shared: every direction gets the same focus treatment so keyboard use is
@@ -756,58 +756,57 @@ body:has(.dl-shell) nextjs-portal {
 }
 
 /* ==========================================================================
-   D2 — IDENTITY STUDIES
-   Two focused studies of one question Direction D failed: does the page read as
-   a game profile rather than an institutional report?
+   D3 — GAME-LED PROFILE
+   The consolidated direction, built on D2-A.
 
-   D keeps its structure underneath both — the grid, the ProfileView contract,
-   the measurement system, the uncertainty states, the accessibility work. What
-   changes here is identity: real game media, surface strategy and how the radar
-   is drawn.
+   Direction D's structure, measurement system, uncertainty states and
+   accessibility work are unchanged underneath. What identity does here: the
+   game arrives first as real key art at full width, and the profile answers it
+   on a graphite field attached directly to the artwork's lower edge.
 
-   Shared with D and deliberately unchanged: Archivo display, Newsreader for
-   summary and rationale, letter-spacing 0, a 12px text floor, and one
-   game-specific accent that never encodes quality.
+   Carried from D: Archivo display, Newsreader rationed to the experience
+   summary and expanded rationale, letter-spacing 0, a 12px text floor, and one
+   game accent that never encodes quality.
 
-   Removed from both: dotted leaders, running heads, and the rule-heavy
-   structure. Cadence comes from surfaces now, not from ruled divisions.
+   Not here: running heads, rubric versions, calibration language, publication
+   dates or methodology copy anywhere above the fold. All of it lives in
+   "How this profile was made" at the foot.
    ========================================================================== */
 
-.dl-d2a,
-.dl-d2b {
+.dl-d3 {
+  --dl-graphite: #191b1f;
+  --dl-panel: #14161a;
+  --dl-page: #f1f1ee;
+  --dl-trust: #e4e4e0;
   --dl-ink: #16181c;
   --dl-ink-soft: #41454b;
   --dl-ink-quiet: #54595f;
   --dl-bone: #edebe7;
   --dl-bone-soft: #b9bbbf;
   --dl-bone-quiet: #9a9da2;
-  /* One accent per game, in two tints so the same hue can sit on either
-     surface at AA. Both are the red the key art is actually made of, which is
-     what ties artwork, polygon and active row together. Identity, not quality:
-     Redfall's would be its cold blue on a 4.5 profile, drawn identically. */
-  --dl-accent: #a8341b; /* on light: 5.6–6.6:1  */
-  --dl-accent-lift: #ee7454; /* on dark:  5.3–6.8:1  */
+  /* Both tints set per game from the artwork. */
+  --dl-accent: #3f4a57;
+  --dl-accent-lift: #9fb3c8;
 
+  background: var(--dl-page);
+  color: var(--dl-ink);
   font-family: "Archivo", system-ui, sans-serif;
   font-size: 1rem;
   line-height: 1.5;
 }
 
-/* Carried forward from D: no tracking anywhere, positive or negative. */
-.dl-d2a,
-.dl-d2a *,
-.dl-d2b,
-.dl-d2b * {
+/* Carried from D: no tracking anywhere, positive or negative. */
+.dl-d3,
+.dl-d3 * {
   letter-spacing: 0;
 }
 
-.dl-d2a :focus-visible,
-.dl-d2b :focus-visible {
+.dl-d3 :focus-visible {
   outline: 2px solid currentColor;
   outline-offset: 3px;
 }
 
-.dl-d2__display {
+.dl-d3__display {
   font-family: "Archivo", system-ui, sans-serif;
   font-stretch: 72%;
   font-weight: 700;
@@ -815,16 +814,26 @@ body:has(.dl-shell) nextjs-portal {
   text-transform: uppercase;
 }
 
-.dl-d2__label {
+.dl-d3__label {
   font-family: "Archivo", system-ui, sans-serif;
   font-stretch: 100%;
   font-weight: 600;
   font-size: 0.75rem;
   line-height: 1.35;
   text-transform: uppercase;
+  color: var(--dl-bone-quiet);
+}
+.dl-d3__label--bone {
+  color: var(--dl-bone);
+}
+.dl-d3__label--ink {
+  color: var(--dl-ink-quiet);
+}
+.dl-d3__label--accent {
+  color: var(--dl-accent);
 }
 
-.dl-d2__num {
+.dl-d3__num {
   font-family: "Archivo", system-ui, sans-serif;
   font-stretch: 100%;
   font-weight: 700;
@@ -832,77 +841,101 @@ body:has(.dl-shell) nextjs-portal {
   font-feature-settings: "tnum" 1;
 }
 
-/* Newsreader is now rationed: the one-sentence experience summary, and
-   expanded rationale. Nothing else. */
-.dl-d2__prose {
+/* Newsreader is rationed: the one-sentence experience summary, and expanded
+   rationale inside a panel. Nothing else. */
+.dl-d3__prose {
   font-family: "Newsreader", Georgia, serif;
   line-height: 1.5;
 }
 
 /* --------------------------------------------------------------------------
-   The identity stage. A hard crop of real key art — object-fit only, no
-   filter, no blur, no full-frame tint. The single overlay is a bottom-edge
-   scrim confined to the lower half, which exists so type can sit in the
-   composition; the subject and the whole upper frame are untouched.
+   Identity stage. A hard crop of real key art, loaded live from the rights
+   holder in development only. object-fit is the entire treatment: no filter,
+   no blur, no desaturation, no full-frame tint.
    -------------------------------------------------------------------------- */
 
-.dl-d2__stage {
+.dl-d3__stage {
   position: relative;
   overflow: hidden;
   background: #0c0b0a;
 }
 
-.dl-d2__stage img {
+.dl-d3__stage img {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-/* Bottom-edge legibility scrim, tuned per viewport against measured pixels
-   rather than by eye — see docs/design/d2/README.md.
-
-   The two viewports need different amounts because they see different parts of
-   the picture. Desktop crops a dark band of forest and the type would clear AA
-   over raw pixels with no scrim at all, so it gets a light one. A phone shows
-   the full frame height including the lit fern litter along the bottom, where
-   the brightest covered pixel drops the title to 1.9:1, so the lower third is
-   taken down harder there.
-
-   In both cases the gradient is fully transparent above the midline: the
-   subject, the canopy and the whole upper frame are painted exactly as
-   delivered. No blur, no full-frame tint, no desaturation. */
-.dl-d2__scrim {
-  position: absolute;
-  inset: 36% 0 0 0;
-  pointer-events: none;
-  background: linear-gradient(
-    to bottom,
-    rgba(12, 11, 10, 0) 0%,
-    rgba(12, 11, 10, 0.5) 45%,
-    rgba(12, 11, 10, 0.88) 100%
-  );
+/* The scrim exists for one reason: the desktop title sits inside the picture.
+   On a phone the title is on the graphite field instead, so there is nothing to
+   protect and no scrim is drawn at all. Above 640px it is the lightest ramp
+   that clears AA against measured pixels, and it is transparent across the
+   whole upper half. */
+.dl-d3__scrim {
+  display: none;
 }
 
 @media (min-width: 640px) {
-  .dl-d2__scrim {
-    inset: 46% 0 0 0;
+  .dl-d3__scrim {
+    display: block;
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    /* Diagonal from the bottom-left corner, which is the only part of the frame
+       the title and credit line occupy. It reaches zero well before the middle,
+       so the subject — centre or centre-right in all three heroes — is painted
+       exactly as delivered. Stops were set against measured pixels, not by eye:
+       Returnal's lit pod wall is the case that needs them. */
     background: linear-gradient(
-      to bottom,
-      rgba(12, 11, 10, 0) 0%,
-      rgba(12, 11, 10, 0.22) 52%,
-      rgba(12, 11, 10, 0.6) 100%
+      to top right,
+      rgba(12, 11, 10, 0.92) 0%,
+      rgba(12, 11, 10, 0.72) 18%,
+      rgba(12, 11, 10, 0.32) 38%,
+      rgba(12, 11, 10, 0) 56%
     );
   }
 }
 
 /* --------------------------------------------------------------------------
-   Score rows. Collapsed state carries three things only: dimension,
-   measurement, exact value. Confidence and evidence moved inside the panel.
-   No leader dots — the grid does the alignment.
+   Graphite profile field, attached directly to the artwork's lower edge. No
+   gap, no radius, no container.
    -------------------------------------------------------------------------- */
 
-.dl-d2__row {
+.dl-d3__band {
+  position: relative;
+  background: var(--dl-graphite);
+  color: var(--dl-bone);
+}
+
+/* One <h1> in the DOM, placed differently by viewport. On a phone the identity
+   block sits at the top of the graphite field, directly under the picture, so
+   nothing is set over the artwork and no subject is covered. From 640px it is
+   lifted into the composition and sits inside the picture. */
+.dl-d3__identity {
+  padding-top: 1.375rem;
+}
+
+@media (min-width: 640px) {
+  .dl-d3__identity {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    padding-top: 0;
+    padding-bottom: 1.75rem;
+    color: var(--dl-bone);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Score rows: dimension, ruler, exact value. Nothing else in the collapsed
+   state. No leader dots — the grid does the alignment.
+   -------------------------------------------------------------------------- */
+
+.dl-d3__row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-areas:
@@ -917,130 +950,88 @@ body:has(.dl-shell) nextjs-portal {
   background: none;
   border: 0;
   cursor: pointer;
-  color: inherit;
+  color: var(--dl-bone);
 }
 
 @media (min-width: 640px) {
-  .dl-d2__row {
+  .dl-d3__row {
     grid-template-columns: minmax(0, 1fr) 9rem 4.5rem;
     grid-template-areas: "name scale value";
     gap: 0 1.25rem;
   }
 }
 
-.dl-d2__row-name {
+.dl-d3__row-name {
   grid-area: name;
 }
-.dl-d2__row-scale {
+.dl-d3__row-scale {
   grid-area: scale;
   align-self: center;
 }
-.dl-d2__row-value {
+.dl-d3__row-value {
   grid-area: value;
 }
 
-.dl-d2__scale {
+.dl-d3__row-wrap + .dl-d3__row-wrap {
+  border-top: 1px solid rgba(237, 235, 231, 0.14);
+}
+.dl-d3__row[data-active="true"] {
+  background: #21242a;
+}
+
+.dl-d3__panel {
+  background: var(--dl-panel);
+}
+.dl-d3__sub {
+  border-top: 1px solid rgba(237, 235, 231, 0.16);
+}
+
+/* The shared 0–10 reading. Square ends, hairline baseline, measured rule and an
+   accent tick — a ruler, not a filled bar. */
+.dl-d3__scale {
   position: relative;
   display: block;
   height: 0.75rem;
+  color: var(--dl-bone);
 }
-.dl-d2__scale::before {
+.dl-d3__scale::before {
   content: "";
   position: absolute;
   left: 0;
   right: 0;
   top: 50%;
   border-top: 1px solid currentColor;
-  opacity: 0.28;
+  opacity: 0.3;
 }
-.dl-d2__scale--unknown::before {
+.dl-d3__scale--unknown::before {
   border-top-style: dashed;
-  opacity: 0.6;
+  opacity: 0.62;
 }
-.dl-d2__measure {
+.dl-d3__measure {
   position: absolute;
   left: 0;
   top: 50%;
   margin-top: -1px;
   border-top: 2px solid currentColor;
 }
-.dl-d2__reach {
+.dl-d3__reach {
   position: absolute;
   top: 50%;
   margin-top: -1px;
   border-top: 2px dotted currentColor;
-  opacity: 0.65;
+  opacity: 0.7;
 }
-.dl-d2__tick {
+.dl-d3__tick {
   position: absolute;
   top: 0;
   bottom: 0;
   width: 2px;
   margin-left: -1px;
 }
-.dl-d2__tick--open {
+.dl-d3__tick--open {
   width: 0;
   background: none !important;
   border-left: 2px dotted;
-}
-
-/* --------------------------------------------------------------------------
-   D2-A — Game-Led Editorial. Art stage, then a full-width graphite profile
-   band. The game leads; the instrument answers it on its own ground.
-   -------------------------------------------------------------------------- */
-
-.dl-d2a {
-  --dl-graphite: #191b1f;
-  --dl-page: #f1f1ee;
-  --dl-trust: #e4e4e0;
-
-  background: var(--dl-page);
-  color: var(--dl-ink);
-}
-
-.dl-d2a__band {
-  background: var(--dl-graphite);
-  color: var(--dl-bone);
-}
-
-.dl-d2a__row-wrap + .dl-d2a__row-wrap {
-  border-top: 1px solid rgba(237, 235, 231, 0.14);
-}
-.dl-d2a .dl-d2__row[data-active="true"] {
-  background: #21242a;
-}
-.dl-d2a__panel {
-  background: #14161a;
-  color: var(--dl-bone-soft);
-}
-
-/* --------------------------------------------------------------------------
-   D2-B — Profile As Game Object. Restrained image field, dominant radar,
-   mixed neutral surfaces giving the page its cadence.
-   -------------------------------------------------------------------------- */
-
-.dl-d2b {
-  --dl-page: #ededea;
-  --dl-panel: #ffffff;
-  --dl-trust: #e1e1dd;
-  --dl-ident: #23262b;
-
-  background: var(--dl-page);
-  color: var(--dl-ink);
-}
-
-.dl-d2b__panel {
-  background: var(--dl-panel);
-}
-
-.dl-d2b__row-wrap + .dl-d2b__row-wrap {
-  border-top: 1px solid #e6e6e2;
-}
-.dl-d2b .dl-d2__row[data-active="true"] {
-  background: #f4f4f1;
-}
-.dl-d2b__panel-open {
-  background: #f4f4f1;
 }
 
 /* ==========================================================================

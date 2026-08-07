@@ -1,5 +1,18 @@
 # D2 — identity studies
 
+> **Superseded and withdrawn.** D2-A was selected and became
+> [D3 — Game-Led Profile](../d3/README.md); D2-B was not selected. Both routes,
+> both components and all four review frames have been removed, together with
+> the evaluation artwork that was stored under `public/`.
+>
+> The artwork should never have been committed: `public/` is served as a static
+> asset in production regardless of route guards, and the four screenshots
+> embedded the same uncleared key art a second way. D3 holds URLs and a rights
+> record instead of files — see [`../d3/ASSET-PROVENANCE.md`](../d3/ASSET-PROVENANCE.md).
+>
+> This file is kept as the record of the comparison that led to D3. The frames
+> it describes were delivered for review and are not in the repository.
+
 Direction D was rejected on identity, not on structure. These two studies keep
 everything D got right underneath them and change only what the page looks like
 it is about.
@@ -8,13 +21,8 @@ Alan Wake 2 only, by design. Whether real game media, a different surface
 strategy and a differently-drawn radar fix the identity problem is answerable
 with one game; carrying it to three is the next step, not this one.
 
-Routes — development only, 404 in a production build, asserted by
-`tests/e2e/profile.spec.ts`:
-
-| | Route | Screenshots |
-|---|---|---|
-| D2-A | `/design-lab/d2/a` | `D2-A-desktop.png` (1440×1000), `D2-A-mobile.png` (390×844) |
-| D2-B | `/design-lab/d2/b` | `D2-B-desktop.png` (1440×1000), `D2-B-mobile.png` (390×844) |
+Routes, as they were while the studies existed: `/design-lab/d2/a` and
+`/design-lab/d2/b`, development only.
 
 ---
 

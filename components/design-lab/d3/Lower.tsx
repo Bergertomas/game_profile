@@ -21,34 +21,27 @@ const PROVENANCE_LABEL: Readonly<
 };
 
 /**
- * Everything below the identity treatment, shared by both D2 studies.
+ * Everything below the profile field.
  *
- * This is Direction D's structure, unchanged in substance. The one real move is
- * that the trust and provenance material — evidence status, overall confidence,
- * rubric version, calibration round, evidence cut-off, ledger state and the
- * no-overall-score rule — has been pulled out of the first viewport and
- * collected here, where a reader who wants it can find all of it at once.
- *
- * The studies differ above this line, not below it, so a reviewer is comparing
- * identity treatments rather than two different pages.
+ * All the trust and provenance material Direction D scattered through its
+ * masthead and instrument is collected here: evidence status, overall
+ * confidence, rubric version, calibration round, evidence cut-off, release
+ * context, ledger state, full scope, the evidence list and the derivation rule.
+ * A reader who wants any of it finds all of it in one place; a reader who wants
+ * to know what the game is like never has to walk past it.
  */
 export function Lower({
   profile,
   art,
-  serifInterpretation = false,
 }: {
   profile: ProfileView;
-  art: EvaluationArt;
-  /** D2-B reserves the serif for editorial interpretation; D2-A does not. */
-  serifInterpretation?: boolean;
+  art: EvaluationArt | null;
 }) {
   const { evaluation } = profile;
   const headings = blockHeadings(evaluation.evidenceStatus);
-  const interpretation = serifInterpretation ? "dl-d2__prose" : "";
 
   return (
     <>
-      {/* Pull and risk ------------------------------------------------- */}
       <section className="mx-auto w-full max-w-[74rem] px-5 py-10 sm:px-8 sm:py-14">
         <div className="grid gap-x-12 gap-y-8 md:grid-cols-2">
           {(
@@ -59,16 +52,13 @@ export function Lower({
           ).map(([label, text, isPull]) => (
             <div key={label}>
               <h2
-                className="dl-d2__label"
-                style={{
-                  color: isPull ? "var(--dl-accent)" : "var(--dl-ink-quiet)",
-                }}
+                className={`dl-d3__label ${
+                  isPull ? "dl-d3__label--accent" : "dl-d3__label--ink"
+                }`}
               >
                 {label}
               </h2>
-              <p
-                className={`${interpretation} mt-2.5 max-w-[34rem] text-[1.0625rem] leading-[1.5]`}
-              >
+              <p className="mt-2.5 max-w-[34rem] text-[1.0625rem] leading-[1.5]">
                 {text}
               </p>
             </div>
@@ -76,23 +66,19 @@ export function Lower({
         </div>
       </section>
 
-      {/* Who this is for ------------------------------------------------ */}
       <section className="mx-auto w-full max-w-[74rem] px-5 pb-12 sm:px-8">
-        <h2 className="dl-d2__label" style={{ color: "var(--dl-ink-quiet)" }}>
-          Who this is for
-        </h2>
+        <h2 className="dl-d3__label dl-d3__label--ink">Who this is for</h2>
         <div className="mt-5 grid gap-x-10 gap-y-8 lg:grid-cols-3">
           {BLOCK_ORDER.map((type) => (
             <section key={type}>
-              <h3 className="dl-d2__display text-[1.0625rem]">
+              <h3 className="dl-d3__display text-[1.0625rem]">
                 {headings[type].title}
               </h3>
               <ul className="mt-3 list-none space-y-2.5 p-0">
                 {evaluation.blocks[type].map((item) => (
                   <li
                     key={item}
-                    className="text-[0.9375rem] leading-snug"
-                    style={{ color: "var(--dl-ink-soft)" }}
+                    className="text-[0.9375rem] leading-snug text-[var(--dl-ink-soft)]"
                   >
                     {item}
                   </li>
@@ -104,24 +90,19 @@ export function Lower({
 
         <div className="mt-10 grid gap-x-10 gap-y-6 lg:grid-cols-2">
           <div>
-            <h3
-              className="dl-d2__label"
-              style={{ color: "var(--dl-ink-quiet)" }}
-            >
-              Traits
-            </h3>
-            <p
-              className="mt-2 max-w-[38rem] text-[0.9375rem] leading-relaxed"
-              style={{ color: "var(--dl-ink-soft)" }}
-            >
+            <h3 className="dl-d3__label dl-d3__label--ink">Traits</h3>
+            <p className="mt-2 max-w-[38rem] text-[0.9375rem] leading-relaxed text-[var(--dl-ink-soft)]">
               {profile.tags.map((tag, i) => (
                 <span key={tag.definition.key}>
                   {i > 0 && " · "}
-                  <span style={{ color: "var(--dl-ink)" }}>
+                  <span className="text-[var(--dl-ink)]">
                     {tag.definition.label}
                   </span>
                   {tag.intensity && (
-                    <span className="dl-d2__label"> {tag.intensity}</span>
+                    <span className="dl-d3__label dl-d3__label--ink">
+                      {" "}
+                      {tag.intensity}
+                    </span>
                   )}
                 </span>
               ))}
@@ -129,16 +110,10 @@ export function Lower({
           </div>
           {evaluation.platformWarning && (
             <div>
-              <h3
-                className="dl-d2__label"
-                style={{ color: "var(--dl-accent)" }}
-              >
+              <h3 className="dl-d3__label dl-d3__label--accent">
                 Platform variance
               </h3>
-              <p
-                className="mt-2 max-w-[38rem] text-[0.9375rem] leading-relaxed"
-                style={{ color: "var(--dl-ink-soft)" }}
-              >
+              <p className="mt-2 max-w-[38rem] text-[0.9375rem] leading-relaxed text-[var(--dl-ink-soft)]">
                 {evaluation.platformWarning}
               </p>
             </div>
@@ -146,14 +121,12 @@ export function Lower({
         </div>
       </section>
 
-      {/* Trust and provenance — everything the first viewport no longer
-          carries, collected in one compact place. -------------------------- */}
       <section
         className="px-5 py-10 sm:px-8"
         style={{ background: "var(--dl-trust)" }}
       >
         <div className="mx-auto w-full max-w-[74rem]">
-          <h2 className="dl-d2__label" style={{ color: "var(--dl-ink)" }}>
+          <h2 className="dl-d3__label" style={{ color: "var(--dl-ink)" }}>
             How this profile was made
           </h2>
 
@@ -161,8 +134,14 @@ export function Lower({
             <div>
               <dl className="grid max-w-[40rem] grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-3">
                 {[
-                  ["Evidence status", EVIDENCE_STATUS_LABEL[evaluation.evidenceStatus]],
-                  ["Overall confidence", CONFIDENCE_LABEL[evaluation.confidence]],
+                  [
+                    "Evidence status",
+                    EVIDENCE_STATUS_LABEL[evaluation.evidenceStatus],
+                  ],
+                  [
+                    "Overall confidence",
+                    CONFIDENCE_LABEL[evaluation.confidence],
+                  ],
                   ["Rubric", `v${evaluation.rubricVersion}`],
                   ["Scores", PROVENANCE_LABEL[evaluation.scoreProvenance]],
                   ["Evidence cut-off", formatDate(evaluation.evidenceCutoffAt)],
@@ -179,12 +158,7 @@ export function Lower({
                   ["Build", evaluation.scope.buildOrPatch],
                 ].map(([term, value]) => (
                   <div key={term}>
-                    <dt
-                      className="dl-d2__label"
-                      style={{ color: "var(--dl-ink-quiet)" }}
-                    >
-                      {term}
-                    </dt>
+                    <dt className="dl-d3__label dl-d3__label--ink">{term}</dt>
                     <dd className="mt-0.5 text-[0.875rem] leading-snug">
                       {value}
                     </dd>
@@ -192,10 +166,7 @@ export function Lower({
                 ))}
               </dl>
 
-              <p
-                className="mt-6 max-w-[40rem] text-[0.9375rem] leading-relaxed"
-                style={{ color: "var(--dl-ink-soft)" }}
-              >
+              <p className="mt-6 max-w-[40rem] text-[0.9375rem] leading-relaxed text-[var(--dl-ink-soft)]">
                 Each of the eight dimensions is scored 0–10 on its own, from five
                 subcriteria worth 0–2 each. Totals are derived from those five,
                 never entered by hand. There is no overall score, and nothing is
@@ -205,28 +176,22 @@ export function Lower({
             </div>
 
             <div>
-              <h3
-                className="dl-d2__label"
-                style={{ color: "var(--dl-ink-quiet)" }}
-              >
-                Evidence
-              </h3>
+              <h3 className="dl-d3__label dl-d3__label--ink">Evidence</h3>
               <ol className="mt-2.5 list-none space-y-2 p-0">
                 {evaluation.sources.map((source) => (
                   <li
                     key={source.id}
-                    className="text-[0.9375rem] leading-snug"
-                    style={{ color: "var(--dl-ink-soft)" }}
+                    className="text-[0.9375rem] leading-snug text-[var(--dl-ink-soft)]"
                   >
                     {source.title}
-                    <span className="dl-d2__label"> Tier {source.tier}</span>
+                    <span className="dl-d3__label dl-d3__label--ink">
+                      {" "}
+                      Tier {source.tier}
+                    </span>
                   </li>
                 ))}
               </ol>
-              <p
-                className="mt-3 text-[0.875rem] leading-relaxed"
-                style={{ color: "var(--dl-ink-quiet)" }}
-              >
+              <p className="mt-3 text-[0.875rem] leading-relaxed text-[var(--dl-ink-quiet)]">
                 {evaluation.evidenceLedger === "pending"
                   ? "The ledger holds these classes of source, not yet the individual records behind them. No source count is published until it does."
                   : "Sources are evidence, not votes. Nothing here is averaged."}
@@ -235,15 +200,14 @@ export function Lower({
           </div>
 
           {/* Rights notice. Required wherever the evaluation artwork renders. */}
-          <p
-            className="mt-8 max-w-[54rem] border-t pt-4 text-[0.8125rem] leading-relaxed"
-            style={{
-              color: "var(--dl-ink-quiet)",
-              borderColor: "rgba(22,24,28,0.18)",
-            }}
-          >
-            {evaluationNotice(art)}
-          </p>
+          {art && (
+            <p
+              className="mt-8 max-w-[54rem] border-t pt-4 text-[0.8125rem] leading-relaxed text-[var(--dl-ink-quiet)]"
+              style={{ borderColor: "rgba(22,24,28,0.18)" }}
+            >
+              {evaluationNotice(art)}
+            </p>
+          )}
         </div>
       </section>
     </>

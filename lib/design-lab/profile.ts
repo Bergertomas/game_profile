@@ -97,6 +97,43 @@ export function accentFor(slug: string): string {
   return DIRECTION_D_ACCENTS[slug] ?? DIRECTION_D_FALLBACK_ACCENT;
 }
 
+/**
+ * D3 accents — the same one-colour-per-game rule, in two tints so the hue can
+ * sit on the graphite profile field and on the light lower page at AA.
+ *
+ * Each is taken from the game's own key art, which is what ties the artwork to
+ * the polygon and the active row. Identity, never judgement: Redfall's 4.0–5.5
+ * profile is drawn with exactly the same grammar as Alan Wake 2's 9.5s, and no
+ * dimension is ever recoloured by its value.
+ *
+ * Measured: `lift` on graphite #191B1F / panel #14161A, `base` on page #F1F1EE /
+ * trust #E4E4E0.
+ *   Alan Wake 2  lift 5.96 / 6.26   base 5.85 / 5.19
+ *   Returnal     lift 8.70 / 9.14   base 6.30 / 5.60
+ *   Redfall      lift 6.08 / 6.38   base 7.03 / 6.24
+ */
+export interface D3Accent {
+  /** For light surfaces. */
+  readonly base: string;
+  /** For the graphite profile field and the open panel. */
+  readonly lift: string;
+}
+
+const D3_ACCENTS: Readonly<Record<string, D3Accent>> = {
+  // The red of the Dark Place's lamps, which is most of the key art.
+  "alan-wake-2": { base: "#A8341B", lift: "#EE7454" },
+  // The amber of Selene's suit rigging against the teal pod wall.
+  returnal: { base: "#6F5400", lift: "#E0B23A" },
+  // The moonlit blue the whole Redfall night is lit by.
+  redfall: { base: "#27547B", lift: "#5C9EDE" },
+};
+
+const D3_FALLBACK: D3Accent = { base: "#3F4A57", lift: "#9FB3C8" };
+
+export function d3AccentFor(slug: string): D3Accent {
+  return D3_ACCENTS[slug] ?? D3_FALLBACK;
+}
+
 /** The three D0 exploration directions, kept intact as review artifacts. */
 export const DIRECTIONS = [
   {
@@ -146,31 +183,19 @@ export const DIRECTION_D = {
 } as const;
 
 /**
- * D2 — identity studies.
+ * D3 — Game-Led Profile, built on the selected D2-A identity study.
  *
- * Direction D was rejected on identity, not on structure: it read as an
- * institutional report, its method dominated its public face, and the game had
- * no visual presence beyond its title. These two studies keep D's grid,
- * measurement system, uncertainty states and accessibility work and change only
- * what the page looks like it is about. Alan Wake 2 only, by design.
+ * Direction D was rejected on identity: it read as an institutional report and
+ * the game had no visual presence beyond its title. D3 keeps D's structure,
+ * measurement system, uncertainty states and accessibility work, and changes
+ * what the page looks like it is about.
  */
-export const D2_STUDIES = [
-  {
-    slug: "d2/a",
-    letter: "D2-A",
-    name: "Game-Led Editorial",
-    thesis:
-      "A shallow full-width stage of real key art carries the title and the essential facts, and a full-width graphite band answers it with the shape and the eight exact values.",
-    field: "Key art, then graphite",
-    type: "Archivo throughout; Newsreader for the experience summary and expanded rationale only",
-  },
-  {
-    slug: "d2/b",
-    letter: "D2-B",
-    name: "Profile As Game Object",
-    thesis:
-      "The artwork is held back to a hard-cropped field bleeding off the page edge, and the profile becomes the dominant object: a solid silhouette in the game's own colour rather than a chart.",
-    field: "Mixed neutral surfaces",
-    type: "Archivo for measurement; Newsreader reserved for editorial interpretation",
-  },
-] as const;
+export const D3 = {
+  slug: "d3",
+  letter: "D3",
+  name: "Game-Led Profile",
+  thesis:
+    "The game arrives first, at full width, as real key art; the profile answers it on a graphite field attached directly to the artwork's lower edge, in an accent taken from the artwork itself.",
+  field: "Key art, then graphite",
+  type: "Archivo throughout; Newsreader for the experience summary and expanded rationale only",
+} as const;

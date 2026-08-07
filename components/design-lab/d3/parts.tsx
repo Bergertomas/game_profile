@@ -1,6 +1,5 @@
 "use client";
 
-import type { CSSProperties } from "react";
 import type { DimensionView, ProfileView } from "@/lib/profile/build";
 import { CONFIDENCE_LABEL } from "@/lib/profile/vocabulary";
 import { formatScore } from "@/lib/scoring/derive";
@@ -14,31 +13,27 @@ import {
 import type { RadarLayout } from "../radar-layout";
 
 /**
- * Shared parts for the two D2 identity studies.
+ * D3 radar and score rows.
  *
  * The measurement system, uncertainty states and disclosure behaviour are
- * Direction D's, unchanged. What the studies vary is how the radar is *drawn*
- * and which surface each part sits on, so both are passed in as a skin rather
- * than hard-coded — one geometry implementation, two identities.
+ * Direction D's, unchanged. Two things are specific to D3:
  *
- * Direction D itself is frozen as a reference artifact, so the small helpers it
- * keeps private are duplicated here rather than extracted out of it.
+ *  - The grid is drawn *over* the polygon fill, not under it. A filled shape
+ *    with the geometry hidden behind it reads as a coloured quality badge; with
+ *    four rings and eight spokes crossing it, it stays a measurement you can
+ *    read a value off.
+ *  - The fill is deliberately light (around a third), so the shape is legible
+ *    as a silhouette without becoming a solid area the eye wants to compare.
  */
 
 export interface RadarSkin {
-  readonly ring: string;
-  readonly ringOuter: string;
-  readonly ringOuterWidth: number;
-  readonly spoke: string;
-  /** Which score levels get a grid ring. Fewer rings, less chart-like. */
-  readonly rings: readonly number[];
+  readonly grid: string;
+  readonly gridOuter: string;
   readonly fill: string;
   readonly fillOpacity: number;
   readonly stroke: string;
-  readonly strokeWidth: number;
   readonly vertex: string;
   readonly vertexEdge: string;
-  readonly vertexSize: number;
   readonly reach: string;
   readonly label: string;
   readonly value: string;
@@ -46,6 +41,9 @@ export interface RadarSkin {
   readonly activeValue: string;
   readonly activeMark: string;
 }
+
+/** Every half-step the rubric can land on, so the rings are a real scale. */
+const RINGS = [2.5, 5, 7.5, 10] as const;
 
 export function ProfileRadar({
   profile,
@@ -73,31 +71,6 @@ export function ProfileRadar({
       aria-hidden="true"
       focusable="false"
     >
-      <g fill="none">
-        {skin.rings.map((level) => (
-          <path
-            key={level}
-            d={ringPath(center, radius, count, level)}
-            stroke={level === 10 ? skin.ringOuter : skin.ring}
-            strokeWidth={level === 10 ? skin.ringOuterWidth : 0.75}
-          />
-        ))}
-        {profile.radar.map((point, index) => {
-          const outer = pointAt(center, radius, index, count);
-          return (
-            <line
-              key={point.key}
-              x1={center.x}
-              y1={center.y}
-              x2={outer.x}
-              y2={outer.y}
-              stroke={skin.spoke}
-              strokeWidth={0.75}
-            />
-          );
-        })}
-      </g>
-
       {polygon.fillPath && (
         <path
           d={polygon.fillPath}
@@ -107,8 +80,35 @@ export function ProfileRadar({
         />
       )}
 
-      {/* Uncertainty reach on any axis published as a range. Drawn above the
-          fill so a solid silhouette cannot swallow it. */}
+      {/* Grid over the fill: the geometry has to survive the colour, or the
+          shape stops being a measurement. */}
+      <g fill="none">
+        {RINGS.map((level) => (
+          <path
+            key={level}
+            d={ringPath(center, radius, count, level)}
+            stroke={level === 10 ? skin.gridOuter : skin.grid}
+            strokeWidth={level === 10 ? 1.25 : 0.75}
+          />
+        ))}
+        {profile.radar.map((point, index) => {
+          const outer = pointAt(center, radius, index, count);
+          const on = active === point.key;
+          return (
+            <line
+              key={point.key}
+              x1={center.x}
+              y1={center.y}
+              x2={outer.x}
+              y2={outer.y}
+              stroke={on ? skin.activeMark : skin.grid}
+              strokeWidth={on ? 1.75 : 0.75}
+            />
+          );
+        })}
+      </g>
+
+      {/* Uncertainty reach on any axis published as a range. */}
       <g fill="none">
         {profile.radar.map((point, index) => {
           if (point.value === null || point.ceiling === null) return null;
@@ -138,37 +138,18 @@ export function ProfileRadar({
             x2={segment.to.x}
             y2={segment.to.y}
             stroke={skin.stroke}
-            strokeWidth={skin.strokeWidth}
+            strokeWidth={2.5}
             strokeDasharray={segment.bridged ? "3 4" : undefined}
           />
         ))}
       </g>
-
-      {/* The active axis is marked over the polygon, so a filled silhouette
-          cannot hide the link between an open row and its axis. */}
-      {active !== null &&
-        (() => {
-          const index = profile.radar.findIndex((p) => p.key === active);
-          if (index < 0) return null;
-          const outer = pointAt(center, radius, index, count);
-          return (
-            <line
-              x1={center.x}
-              y1={center.y}
-              x2={outer.x}
-              y2={outer.y}
-              stroke={skin.activeMark}
-              strokeWidth={2}
-            />
-          );
-        })()}
 
       <g>
         {profile.radar.map((point, index) => {
           if (point.value === null) return null;
           const v = vertexFor(center, radius, index, count, point.value);
           const on = active === point.key;
-          const size = on ? skin.vertexSize + 1.5 : skin.vertexSize;
+          const size = on ? 5 : 3.5;
           return (
             <rect
               key={point.key}
@@ -247,11 +228,6 @@ export function ProfileRadar({
 
 /* ========================================================================== */
 
-/**
- * A reading on the shared 0–10 scale. Identical logic to Direction D — exact,
- * range and unknown all read differently and unknown is never a zero — with the
- * leader-dot rhythm removed and the colours taken from the surface it sits on.
- */
 export function ScaleReading({
   score,
   accent,
@@ -260,26 +236,18 @@ export function ScaleReading({
   accent: string;
 }) {
   if (score.kind === "insufficient") {
-    return (
-      <span
-        className="dl-d2__scale dl-d2__scale--unknown"
-        aria-hidden="true"
-      />
-    );
+    return <span className="dl-d3__scale dl-d3__scale--unknown" aria-hidden="true" />;
   }
 
   const low = score.kind === "exact" ? score.score : score.low;
   const high = score.kind === "exact" ? score.score : score.high;
 
   return (
-    <span className="dl-d2__scale" aria-hidden="true">
-      <span
-        className="dl-d2__measure"
-        style={{ width: `${(low / 10) * 100}%` }}
-      />
+    <span className="dl-d3__scale" aria-hidden="true">
+      <span className="dl-d3__measure" style={{ width: `${(low / 10) * 100}%` }} />
       {score.kind === "range" && (
         <span
-          className="dl-d2__reach"
+          className="dl-d3__reach"
           style={{
             left: `${(low / 10) * 100}%`,
             width: `${((high - low) / 10) * 100}%`,
@@ -287,12 +255,12 @@ export function ScaleReading({
         />
       )}
       <span
-        className="dl-d2__tick"
+        className="dl-d3__tick"
         style={{ left: `${(low / 10) * 100}%`, background: accent }}
       />
       {score.kind === "range" && (
         <span
-          className="dl-d2__tick dl-d2__tick--open"
+          className="dl-d3__tick dl-d3__tick--open"
           style={{ left: `${(high / 10) * 100}%`, borderColor: accent }}
         />
       )}
@@ -302,30 +270,16 @@ export function ScaleReading({
 
 /* ========================================================================== */
 
-export interface RowSkin {
-  /** Class on the wrapper that draws the divider between rows. */
-  readonly wrap: string;
-  readonly panel: string;
-  readonly accent: string;
-  readonly nameColor: string;
-  readonly valueColor: string;
-  readonly quietColor: string;
-  readonly proseColor: string;
-  readonly ruleColor: string;
-}
-
 /**
- * A collapsed row carries three things: the dimension, its measurement and its
- * exact value. Per-dimension confidence and linked evidence used to repeat on
- * all eight rows; they now live inside the panel, where they are read once and
- * in context.
+ * A collapsed row carries three things: dimension, measurement, exact value.
+ * Confidence and linked evidence live inside the panel, read once and in
+ * context, rather than repeating quietly across all eight rows.
  */
 export function ScoreRow({
   view,
   isActive,
   isOpen,
-  idPrefix,
-  skin,
+  accent,
   onHover,
   onFocus,
   onToggle,
@@ -333,21 +287,19 @@ export function ScoreRow({
   view: DimensionView;
   isActive: boolean;
   isOpen: boolean;
-  idPrefix: string;
-  skin: RowSkin;
+  accent: string;
   onHover: (key: string | null) => void;
   onFocus: (key: string | null) => void;
   onToggle: (key: string) => void;
 }) {
   const { dimension, display, score, subcriteria, confidence } = view;
-  const panelId = `${idPrefix}-why-${dimension.key}`;
-  const notScored = score.kind === "insufficient";
+  const panelId = `dl-d3-why-${dimension.key}`;
 
   return (
-    <li className={skin.wrap}>
+    <li className="dl-d3__row-wrap">
       <button
         type="button"
-        className="dl-d2__row"
+        className="dl-d3__row"
         data-active={isActive}
         aria-expanded={isOpen}
         aria-controls={panelId}
@@ -357,41 +309,26 @@ export function ScoreRow({
         onFocus={() => onFocus(dimension.key)}
         onBlur={() => onFocus(null)}
       >
-        <span
-          className="dl-d2__row-name text-[0.9375rem] font-medium sm:truncate"
-          style={{ color: skin.nameColor }}
-        >
+        <span className="dl-d3__row-name text-[0.9375rem] font-medium sm:truncate">
           {dimension.name}
         </span>
-        <span
-          className="dl-d2__row-scale"
-          style={{ color: skin.valueColor }}
-        >
-          <ScaleReading score={score} accent={skin.accent} />
+        <span className="dl-d3__row-scale">
+          <ScaleReading score={score} accent={accent} />
         </span>
-        <span
-          className="dl-d2__row-value sm:text-right"
-          style={{ color: skin.valueColor }}
-        >
-          {notScored ? (
-            <span className="dl-d2__label whitespace-nowrap">Not scored</span>
+        <span className="dl-d3__row-value sm:text-right">
+          {score.kind === "insufficient" ? (
+            <span className="dl-d3__label whitespace-nowrap">Not scored</span>
           ) : (
-            <span className="dl-d2__num text-[1.0625rem]">{display}</span>
+            <span className="dl-d3__num text-[1.0625rem]">{display}</span>
           )}
         </span>
         <span className="dl-sr">Why this score?</span>
       </button>
 
-      <div
-        id={panelId}
-        hidden={!isOpen}
-        className={`${skin.panel} px-3 py-4 sm:px-4`}
-      >
+      <div id={panelId} hidden={!isOpen} className="dl-d3__panel px-3 py-4 sm:px-4">
         <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
-          <h3 className="dl-d2__label" style={{ color: skin.valueColor }}>
-            Why this score?
-          </h3>
-          <span className="dl-d2__label" style={{ color: skin.quietColor }}>
+          <h3 className="dl-d3__label dl-d3__label--bone">Why this score?</h3>
+          <span className="dl-d3__label">
             {CONFIDENCE_LABEL[confidence]} confidence ·{" "}
             {view.linkedSources.length > 0
               ? `${view.linkedSources.length} linked source${
@@ -401,10 +338,7 @@ export function ScoreRow({
           </span>
         </div>
 
-        <p
-          className="dl-d2__prose mt-2 max-w-[46rem] text-[0.9375rem]"
-          style={{ color: skin.proseColor }}
-        >
+        <p className="dl-d3__prose mt-2 max-w-[46rem] text-[0.9375rem] text-[var(--dl-bone-soft)]">
           {dimension.coreQuestion}
         </p>
 
@@ -412,30 +346,20 @@ export function ScoreRow({
           {subcriteria.map((sub) => (
             <li
               key={sub.key}
-              className="grid grid-cols-[minmax(0,1fr)_3rem] gap-x-3 py-2.5"
-              style={{ borderTop: `1px solid ${skin.ruleColor}` }}
+              className="dl-d3__sub grid grid-cols-[minmax(0,1fr)_3rem] gap-x-3 py-2.5"
             >
               <span>
-                <span
-                  className="block text-[0.9375rem] font-medium"
-                  style={{ color: skin.valueColor }}
-                >
+                <span className="block text-[0.9375rem] font-medium text-[var(--dl-bone)]">
                   {sub.name}
                 </span>
-                <span
-                  className="dl-d2__prose mt-1 block max-w-[42rem] text-[0.9375rem]"
-                  style={{ color: skin.proseColor }}
-                >
+                <span className="dl-d3__prose mt-1 block max-w-[42rem] text-[0.9375rem] text-[var(--dl-bone-soft)]">
                   {sub.entry.rationale ||
                     "No evidence available for this subcriterion."}
                 </span>
               </span>
-              <span
-                className="dl-d2__num text-right text-[0.9375rem]"
-                style={{ color: skin.valueColor }}
-              >
+              <span className="dl-d3__num text-right text-[0.9375rem] text-[var(--dl-bone)]">
                 {sub.entry.value === "unknown" ? (
-                  <span className="dl-d2__label">Unknown</span>
+                  <span className="dl-d3__label">Unknown</span>
                 ) : (
                   formatScore(sub.entry.value)
                 )}
@@ -444,13 +368,7 @@ export function ScoreRow({
           ))}
         </ol>
 
-        <p
-          className="dl-d2__prose mt-2.5 pt-2.5 text-[0.9375rem]"
-          style={{
-            color: skin.proseColor,
-            borderTop: `1px solid ${skin.ruleColor}`,
-          }}
-        >
+        <p className="dl-d3__prose dl-d3__sub mt-2.5 pt-2.5 text-[0.9375rem] text-[var(--dl-bone-soft)]">
           {derivationSentence(view)}
         </p>
 
@@ -459,11 +377,10 @@ export function ScoreRow({
             {view.linkedSources.map((source) => (
               <li
                 key={source.id}
-                className="text-[0.875rem]"
-                style={{ color: skin.quietColor }}
+                className="text-[0.875rem] text-[var(--dl-bone-quiet)]"
               >
                 {source.title}
-                <span className="dl-d2__label"> Tier {source.tier}</span>
+                <span className="dl-d3__label"> Tier {source.tier}</span>
               </li>
             ))}
           </ul>
@@ -495,9 +412,4 @@ export function derivationSentence(view: DimensionView): string {
         score.knownSum,
       )}, but a range that wide would be a guess, so no total is published. Unknown is not zero.`;
   }
-}
-
-/** Inline CSS custom properties without fighting the type checker. */
-export function vars(record: Record<string, string>): CSSProperties {
-  return record as CSSProperties;
 }
