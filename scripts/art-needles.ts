@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 /**
- * The evaluation-art URLs and hostnames, read out of the art module's source
- * text rather than imported from it.
+ * The evaluation-art URLs and hostnames, read out of the game fixtures' source
+ * text rather than imported from them.
  *
  * Importing would require the module to export a derived list, and a
  * module-level derived export keeps the URL table alive through tree-shaking —
@@ -15,15 +15,15 @@ import { join } from "node:path";
  * tests/no-committed-artwork.test.ts can use it. That test asserts this parse
  * matches what `evaluationArtFor()` actually returns, so the two cannot drift.
  */
-export const ART_MODULE = join("lib", "design-lab", "evaluation-art.ts");
+export const ART_MODULES = [join("content", "evaluation-artwork.ts")];
 
 export const ROOT = join(import.meta.dirname, "..");
 
 export function artNeedles(root: string = ROOT): string[] {
-  const source = readFileSync(join(root, ART_MODULE), "utf8");
-  const urls = [...source.matchAll(/url:\s*"(https:\/\/[^"]+)"/g)].map(
-    (m) => m[1]!,
-  );
+  const urls = ART_MODULES.flatMap((module) => {
+    const source = readFileSync(join(root, module), "utf8");
+    return [...source.matchAll(/url:\s*"(https:\/\/[^"]+)"/g)].map((m) => m[1]!);
+  });
   const hosts = urls.map((url) => new URL(url).hostname);
   return [...new Set([...hosts, ...urls])];
 }
