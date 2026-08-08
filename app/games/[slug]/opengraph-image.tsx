@@ -127,7 +127,8 @@ export default async function OpengraphImage({
         </div>
 
         <div style={{ display: "flex", alignItems: "center" }}>
-          {/* eslint-disable-next-line @next/next/no-img-element -- Satori renders this inside ImageResponse; next/image cannot run here. */}
+          {/* Satori's own element, not the DOM's: next/image has no meaning
+              inside an ImageResponse. */}
           <img
             src={svgDataUri(radarSvg(profile.radar, 420))}
             width={420}
