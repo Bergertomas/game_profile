@@ -60,6 +60,11 @@ an explicit cut-over choice.
   editorial operations. That is preferable to allowing a rare race to rewrite
   public history. Publication is not serialized against itself: two editors
   publishing different games under the same rubric proceed independently.
+- The two known content corrections are asserted, not merely attempted. Each
+  patch is guarded on the exact pre-hardening value, so a database holding any
+  other text would silently keep it — and the immutability triggers installed
+  moments later would freeze it permanently. Migration `0002` therefore
+  verifies its own patches and aborts rather than freezing uncorrected data.
 - Platform-specific score overrides remain a separate product/schema decision;
   this ADR does not make the currently non-authoritative column look functional.
 

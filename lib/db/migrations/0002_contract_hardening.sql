@@ -237,6 +237,84 @@ WHERE game.slug = 'redfall'
 ON CONFLICT DO NOTHING;
 --> statement-breakpoint
 
+-- Prove the patches above actually landed.
+--
+-- Each one is guarded on the exact pre-hardening value, so a database holding
+-- any other text matches nothing and the UPDATE is a silent no-op. That would
+-- normally be recoverable — except the immutability triggers installed below
+-- freeze these rows moments later, leaving no correction path short of a new
+-- evaluation version. A migration that cannot fix the data must refuse to
+-- freeze it. A fresh database has no rows here yet and skips every check.
+DO $$
+DECLARE
+  returnal_scope   text;
+  redfall_rationale text;
+  source_row       record;
+  missing          integer;
+BEGIN
+  SELECT e.mode_scope INTO returnal_scope
+  FROM evaluations e
+  JOIN games g ON g.id = e.game_id
+  WHERE g.slug = 'returnal' AND e.rubric_version = '1.0' AND e.version_number = 1;
+
+  IF FOUND AND returnal_scope IS DISTINCT FROM
+     'Single-player main-game campaign, excluding co-op and the Tower of Sisyphus' THEN
+    RAISE EXCEPTION
+      'Returnal mode scope was not corrected (found "%"). Correct it before this migration freezes final history.',
+      returnal_scope
+      USING ERRCODE = 'check_violation';
+  END IF;
+
+  SELECT url, publisher, published_at INTO source_row
+  FROM evidence_sources WHERE source_key = 'src_returnal_update_history';
+
+  IF FOUND AND (
+       source_row.url IS DISTINCT FROM 'https://housemarque.com/news/2022/3/21/returnal-ascension-update'
+       OR source_row.publisher IS DISTINCT FROM 'Housemarque'
+       OR source_row.published_at IS DISTINCT FROM DATE '2022-03-21'
+     ) THEN
+    RAISE EXCEPTION
+      'Returnal primary source metadata was not corrected (url "%").', source_row.url
+      USING ERRCODE = 'check_violation';
+  END IF;
+
+  SELECT score.rationale INTO redfall_rationale
+  FROM subcriterion_scores score
+  JOIN evaluations e ON e.id = score.evaluation_id
+  JOIN games g ON g.id = e.game_id
+  JOIN subcriteria s ON s.id = score.subcriterion_id
+  JOIN dimensions d ON d.id = s.dimension_id
+  WHERE g.slug = 'redfall' AND e.rubric_version = '1.0' AND e.version_number = 1
+    AND d.key = 'execution' AND s.key = 'technical_stability';
+
+  IF FOUND AND redfall_rationale NOT LIKE '%Performance Mode introduced in Update 2%' THEN
+    RAISE EXCEPTION
+      'Redfall technical rationale still misattributes Performance Mode (found "%").',
+      redfall_rationale
+      USING ERRCODE = 'check_violation';
+  END IF;
+
+  -- If the Redfall evaluation exists, its Update 2 source must exist and be linked.
+  SELECT count(*) INTO missing
+  FROM evaluations e
+  JOIN games g ON g.id = e.game_id
+  WHERE g.slug = 'redfall' AND e.rubric_version = '1.0' AND e.version_number = 1
+    AND NOT EXISTS (
+      SELECT 1
+      FROM evaluation_evidence_links link
+      JOIN evidence_sources src ON src.id = link.evidence_source_id
+      WHERE link.evaluation_id = e.id AND src.source_key = 'src_redfall_update_2'
+    );
+
+  IF missing > 0 THEN
+    RAISE EXCEPTION
+      'The Redfall Update 2 source was not linked to its evaluation.'
+      USING ERRCODE = 'check_violation';
+  END IF;
+END;
+$$ LANGUAGE plpgsql;
+--> statement-breakpoint
+
 -- ---------------------------------------------------------------------------
 -- Rubric-local children. Foreign keys prove that every referenced row exists;
 -- these triggers prove that it belongs to the evaluation's rubric. They run on
