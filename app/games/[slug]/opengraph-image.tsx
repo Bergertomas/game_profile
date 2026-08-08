@@ -19,6 +19,7 @@ import { SITE_NAME } from "@/lib/site";
 export const alt = "Game Profile share card";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
+export const dynamicParams = false;
 
 export function generateStaticParams() {
   return listGameSlugs().then((slugs) => slugs.map((slug) => ({ slug })));

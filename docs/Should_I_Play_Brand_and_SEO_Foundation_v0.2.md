@@ -112,12 +112,13 @@ Three independent mechanisms, because getting this wrong is expensive and silent
 2. A non-production build emits `<meta name="robots" content="noindex, nofollow">`.
 3. A non-production build serves `robots.txt` as `Disallow: /` with no sitemap.
 
-"Production" means an explicit `NEXT_PUBLIC_SITE_ENV=production`, or a
-Cloudflare Workers Build of the `main` branch. Anything else — every other
-branch, every local build, any other host — is preview and is not indexable.
-This fails closed on purpose: an unidentifiable build is one that should not be
-in the index. The cost of the opposite default is a duplicate-content problem
-that takes months to unwind.
+"Production" means an explicit `NEXT_PUBLIC_SITE_ENV=production` with no
+non-production branch signal, or a Cloudflare Workers Build of `main` with no
+contradictory explicit value. A non-main `WORKERS_CI_BRANCH`, an explicit
+`preview`, or an invalid explicit value always resolves to preview. With neither
+signal, local and unidentified builds are preview and are not indexable. This
+fails closed on purpose: the cost of the opposite default is a duplicate-content
+problem that takes months to unwind.
 
 ---
 

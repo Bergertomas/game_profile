@@ -4,6 +4,10 @@ import { isTagKey } from "@/lib/rubric/tags";
 import { deriveDimensionScore } from "@/lib/scoring/derive";
 import type { Evaluation, GameWithEvaluation } from "@/lib/profile/types";
 
+function isFinalEvaluation(evaluation: Evaluation): boolean {
+  return evaluation.status === "published" || evaluation.status === "superseded";
+}
+
 /**
  * Publish-gate validation (Plan §13.2 constraints, §14.3 validation checks,
  * §22.3 data QA). These run in tests today and behind the admin Publish button
@@ -130,12 +134,13 @@ export function validateEvaluation(evaluation: Evaluation): ValidationIssue[] {
     }
   }
 
-  let anyProvisionalDimension = false;
   let scoredDimensionCount = 0;
 
   for (const dimension of rubric.dimensions) {
     // SOP §5 / Plan §13.1 — dimension confidence is a required editorial input.
-    if (!evaluation.dimensionConfidence[dimension.key as DimensionKey]) {
+    const dimensionConfidence =
+      evaluation.dimensionConfidence[dimension.key as DimensionKey];
+    if (!dimensionConfidence) {
       issues.push({
         code: "missing_dimension_confidence",
         message: `Dimension "${dimension.name}" has no confidence rating.`,
@@ -156,7 +161,14 @@ export function validateEvaluation(evaluation: Evaluation): ValidationIssue[] {
         Object.entries(entries).map(([k, v]) => [k, v.value]),
       );
       const score = deriveDimensionScore(dimension, values);
-      if (score.unknownCount > 1) anyProvisionalDimension = true;
+      // Plan §9.2 — unknown coverage caps the confidence of this dimension,
+      // not the unrelated overall profile confidence.
+      if (score.unknownCount > 1 && dimensionConfidence === "high") {
+        issues.push({
+          code: "confidence_too_high",
+          message: `${dimension.name} cannot have High confidence while more than one subcriterion is unknown.`,
+        });
+      }
       if (score.kind === "exact") scoredDimensionCount += 1;
     } catch (error) {
       issues.push({
@@ -173,15 +185,6 @@ export function validateEvaluation(evaluation: Evaluation): ValidationIssue[] {
         });
       }
     }
-  }
-
-  // Plan §9.2 — unknown coverage caps confidence.
-  if (anyProvisionalDimension && evaluation.confidence === "high") {
-    issues.push({
-      code: "confidence_too_high",
-      message:
-        "Confidence cannot be High while a dimension has more than one unknown subcriterion.",
-    });
   }
 
   // Plan §6.3 — 2–5 bullets in each interpretation block.
@@ -220,6 +223,21 @@ export function validateEvaluation(evaluation: Evaluation): ValidationIssue[] {
           "High confidence requires at least two Tier A/B sources for a released game.",
       });
     }
+  }
+
+  // "Verified" is a public claim that evidence exists. Drafts may be entered
+  // before their ledger is assembled, but a final verified profile cannot
+  // carry exact editorial judgements with no recorded evidence coverage at all.
+  // Superseded rows were published snapshots too; history is not a weaker tier.
+  if (
+    isFinalEvaluation(evaluation) &&
+    evaluation.evidenceStatus === "verified" &&
+    evaluation.sources.length === 0
+  ) {
+    issues.push({
+      code: "verified_without_evidence",
+      message: "A final Verified evaluation must record evidence coverage.",
+    });
   }
 
   // Rubric §14, SOP §10 — pre-release profiles must not present false certainty.
@@ -312,10 +330,10 @@ export function validateEvaluation(evaluation: Evaluation): ValidationIssue[] {
     });
   }
 
-  if (evaluation.status === "published" && !evaluation.publishedAt) {
+  if (isFinalEvaluation(evaluation) && !evaluation.publishedAt) {
     issues.push({
       code: "missing_published_at",
-      message: "A published evaluation must record publishedAt.",
+      message: "A final evaluation must record publishedAt.",
     });
   }
 
@@ -366,6 +384,7 @@ export function validateGameRecord(
   const issues: ValidationIssue[] = [];
   const history = record.history ?? [];
   const chain = [...history, record.evaluation];
+  const selectedRubric = record.evaluation.rubricVersion;
 
   const ids = new Set<string>();
   const versions = new Set<number>();
@@ -381,7 +400,7 @@ export function validateGameRecord(
     if (versions.has(evaluation.versionNumber)) {
       issues.push({
         code: "duplicate_version_number",
-        message: `Version ${evaluation.versionNumber} appears more than once for ${record.game.slug}.`,
+        message: `Version ${evaluation.versionNumber} appears more than once for ${record.game.slug} under rubric ${selectedRubric}.`,
       });
     }
     versions.add(evaluation.versionNumber);
@@ -392,14 +411,24 @@ export function validateGameRecord(
         message: `Evaluation "${evaluation.id}" belongs to game "${evaluation.gameId}", not "${record.game.id}".`,
       });
     }
+
+    if (evaluation.rubricVersion !== selectedRubric) {
+      issues.push({
+        code: "history_rubric_mismatch",
+        message: `Evaluation "${evaluation.id}" uses rubric ${evaluation.rubricVersion}; this public record selects rubric ${selectedRubric}. Keep each rubric lineage in a separate record.`,
+      });
+    }
   }
 
   // Exactly one live evaluation (Plan §13.2).
+  // A GameWithEvaluation is one selected rubric lineage. The database may keep
+  // one live row for several rubric versions during a migration, but each is a
+  // separate record and the public data boundary chooses one explicitly.
   const published = chain.filter((e) => e.status === "published");
   if (published.length > 1) {
     issues.push({
       code: "multiple_published_evaluations",
-      message: `${record.game.slug} has ${published.length} published evaluations; only one may be live.`,
+      message: `${record.game.slug} has ${published.length} published evaluations in the selected rubric lineage; only one may be live.`,
     });
   }
 
@@ -465,6 +494,14 @@ export function validateGameRecord(
       issues.push({
         code: "cross_game_supersession",
         message: `Evaluation "${evaluation.id}" supersedes "${link}", which belongs to a different game.`,
+      });
+      return;
+    }
+
+    if (target.rubricVersion !== evaluation.rubricVersion) {
+      issues.push({
+        code: "cross_rubric_supersession",
+        message: `Evaluation "${evaluation.id}" under rubric ${evaluation.rubricVersion} supersedes "${link}" under rubric ${target.rubricVersion}.`,
       });
       return;
     }

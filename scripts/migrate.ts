@@ -5,9 +5,10 @@
  *
  * This is the canonical, and only, database setup path. Starting from an empty
  * database it produces the fully constrained schema: `0000_schema.sql` creates
- * the tables, `0001_contract.sql` installs the checks, indexes, triggers and the
- * `dimension_scores` view. Drizzle runs every pending migration inside one
- * transaction, so the schema is never left half-built.
+ * the tables, `0001_contract.sql` installs the first contract and derived view,
+ * and `0002_contract_hardening.sql` registers rubric identity and immutable
+ * final history. Drizzle runs every pending migration transactionally, so the
+ * schema is never left half-built.
  *
  * There is deliberately no second command to remember. The contract SQL used to
  * live outside the migration path, which meant a migration-only deploy produced

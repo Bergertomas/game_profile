@@ -103,6 +103,37 @@ describe("No seed profile still carries unreconciled derived scores", () => {
   });
 });
 
+describe("First-party update facts stay correctly attributed", () => {
+  it("treats Returnal co-op and the Tower of Sisyphus as separate modes", () => {
+    expect(returnal.evaluation.scope.mode).toBe(
+      "Single-player main-game campaign, excluding co-op and the Tower of Sisyphus",
+    );
+    expect(
+      returnal.evaluation.sources.find(
+        (source) => source.id === "src_returnal_update_history",
+      ),
+    ).toMatchObject({
+      publisher: "Housemarque",
+      publishedAt: "2022-03-21",
+      note: expect.stringContaining("separate single-player endless mode"),
+    });
+  });
+
+  it("attributes Redfall's Xbox Performance Mode to Update 2", () => {
+    expect(
+      redfall.evaluation.dimensions.execution.technical_stability?.rationale,
+    ).toContain("introduced in Update 2");
+    expect(
+      redfall.evaluation.sources.find(
+        (source) => source.id === "src_redfall_update_2",
+      ),
+    ).toMatchObject({
+      title: "Game Update 2 release notes introducing Xbox Performance Mode",
+      category: "first_party",
+    });
+  });
+});
+
 describe("Seed corpus validity", () => {
   for (const record of SEED_PROFILES) {
     describe(record.game.canonicalTitle, () => {

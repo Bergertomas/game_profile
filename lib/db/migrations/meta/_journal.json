@@ -15,6 +15,13 @@
       "when": 1786029699215,
       "tag": "0001_contract",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786173954243,
+      "tag": "0002_contract_hardening",
+      "breakpoints": true
     }
   ]
 }

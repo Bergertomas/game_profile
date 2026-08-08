@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { join } from "node:path";
 
 const PORT = Number(process.env.PORT ?? 3111);
 
@@ -9,6 +10,10 @@ const PORT = Number(process.env.PORT ?? 3111);
  * machine without editing this file.
  */
 const executablePath = process.env.PLAYWRIGHT_CHROMIUM_PATH;
+const nodeCommand = quoteForShell(process.execPath);
+const serverScript = quoteForShell(
+  join(process.cwd(), "scripts", "playwright-server.mjs"),
+);
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -30,11 +35,18 @@ export default defineConfig({
     },
   ],
   webServer: {
-    // Invoked through npx so the suite does not assume npm, pnpm or yarn — each
-    // puts the `next` binary in node_modules/.bin, which npx resolves.
-    command: `npx next build && npx next start -p ${PORT}`,
+    // The wrapper owns both build and server lifecycle. Avoiding shell chains
+    // matters on Windows: killing `cmd /c "build && start"` can leave the Next
+    // child holding Playwright's output pipe open after every test has passed.
+    command: `${nodeCommand} ${serverScript} ${PORT}`,
     url: `http://localhost:${PORT}`,
-    reuseExistingServer: !process.env.CI,
+    // Reusing whatever happens to own this port can make a local green run test
+    // yesterday's build (or an unrelated app). Keep that escape hatch explicit.
+    reuseExistingServer: process.env.PLAYWRIGHT_REUSE_SERVER === "1",
     timeout: 240_000,
   },
 });
+
+function quoteForShell(value: string): string {
+  return `"${value}"`;
+}

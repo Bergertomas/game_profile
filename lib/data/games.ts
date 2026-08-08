@@ -1,6 +1,7 @@
 import { SEED_PROFILES } from "@/content";
 import { buildProfileView, type ProfileView } from "@/lib/profile/build";
 import type { GameWithEvaluation } from "@/lib/profile/types";
+import { RUBRIC_V1 } from "@/lib/rubric";
 
 /**
  * The single data-access boundary for the public site.
@@ -12,8 +13,19 @@ import type { GameWithEvaluation } from "@/lib/profile/types";
  * See docs/decisions/0002-data-access.md.
  */
 
+/**
+ * The database deliberately permits one published row per game *per rubric*
+ * so a rubric migration can preserve both interpretations. The public site
+ * still needs one deterministic answer; changing this selector is the explicit
+ * cut-over step when a future rubric becomes authoritative.
+ */
+export const PUBLIC_RUBRIC_VERSION = RUBRIC_V1.version;
+
 function publishedOnly(record: GameWithEvaluation): boolean {
-  return record.evaluation.status === "published";
+  return (
+    record.evaluation.status === "published" &&
+    record.evaluation.rubricVersion === PUBLIC_RUBRIC_VERSION
+  );
 }
 
 export async function listGameProfiles(): Promise<ProfileView[]> {

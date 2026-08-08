@@ -9,7 +9,7 @@ import {
   PRE_RELEASE_NOTICE,
 } from "@/lib/profile/vocabulary";
 import { validateEvaluation } from "@/lib/validation/evaluation";
-import { RUBRIC_V1 } from "@/lib/rubric";
+import { RUBRIC_V1, UNKNOWN } from "@/lib/rubric";
 
 /**
  * Evidence provenance, per-dimension confidence and the pre-release rules
@@ -25,6 +25,24 @@ function withEvaluation(patch: Partial<Evaluation>): GameWithEvaluation {
 }
 
 describe("Per-dimension confidence", () => {
+  const storyWithTwoUnknowns = {
+    ...alanWake2.evaluation.dimensions.story,
+    story_hook: {
+      ...alanWake2.evaluation.dimensions.story.story_hook,
+      value: UNKNOWN,
+      rationale:
+        alanWake2.evaluation.dimensions.story.story_hook?.rationale ??
+        "Evidence unavailable.",
+    },
+    character_investment: {
+      ...alanWake2.evaluation.dimensions.story.character_investment,
+      value: UNKNOWN,
+      rationale:
+        alanWake2.evaluation.dimensions.story.character_investment?.rationale ??
+        "Evidence unavailable.",
+    },
+  };
+
   it("is recorded for all eight dimensions on every seeded profile", () => {
     for (const { game, evaluation } of SEED_PROFILES) {
       for (const dimension of RUBRIC_V1.dimensions) {
@@ -65,9 +83,76 @@ describe("Per-dimension confidence", () => {
     );
     expect(issues.map((i) => i.code)).toContain("missing_dimension_confidence");
   });
+
+  it("caps the affected dimension rather than overall profile confidence", () => {
+    const issues = validateEvaluation(
+      withEvaluation({
+        confidence: "high",
+        dimensions: {
+          ...alanWake2.evaluation.dimensions,
+          story: storyWithTwoUnknowns,
+        },
+        dimensionConfidence: {
+          ...alanWake2.evaluation.dimensionConfidence,
+          story: "medium",
+        },
+      }).evaluation,
+    );
+    expect(issues.map((issue) => issue.code)).not.toContain(
+      "confidence_too_high",
+    );
+  });
+
+  it("rejects High confidence on a dimension with too many unknowns", () => {
+    const issues = validateEvaluation(
+      withEvaluation({
+        confidence: "medium",
+        dimensions: {
+          ...alanWake2.evaluation.dimensions,
+          story: storyWithTwoUnknowns,
+        },
+        dimensionConfidence: {
+          ...alanWake2.evaluation.dimensionConfidence,
+          story: "high",
+        },
+      }).evaluation,
+    );
+    expect(issues.map((issue) => issue.code)).toContain("confidence_too_high");
+  });
 });
 
 describe("Evidence provenance", () => {
+  it("rejects a published Verified profile with no recorded evidence", () => {
+    const issues = validateEvaluation(
+      withEvaluation({
+        status: "published",
+        evidenceStatus: "verified",
+        confidence: "medium",
+        sources: [],
+        evidenceLedger: "pending",
+      }).evaluation,
+    );
+    expect(issues.map((issue) => issue.code)).toContain(
+      "verified_without_evidence",
+    );
+  });
+
+  it("keeps that evidence requirement on superseded history", () => {
+    const issues = validateEvaluation(
+      withEvaluation({
+        status: "superseded",
+        publishedAt: "2026-08-01",
+        evidenceStatus: "verified",
+        confidence: "medium",
+        sources: [],
+        evidenceLedger: "pending",
+      }).evaluation,
+    );
+    expect(issues.map((issue) => issue.code)).toContain(
+      "verified_without_evidence",
+    );
+  });
+
   it("categorises every source", () => {
     for (const { game, evaluation } of SEED_PROFILES) {
       for (const source of evaluation.sources) {

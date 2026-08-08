@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 /**
- * Production deploy: guard, build, deploy.
+ * Production deploy: guard, verify, deploy the verified artifact.
  *
- * Self-contained by design — it builds the Worker it is about to ship rather
- * than trusting whatever a previous CI step left in `.open-next/`. See
- * scripts/cf-common.mjs.
+ * Self-contained by design — `cf-verify` builds the production Worker and boots
+ * that artifact under workerd. The containment check then inspects the same
+ * `.open-next/` tree that deploy consumes; nothing rebuilds between verification
+ * and upload.
  *
  * The branch guard duplicates the Workers Builds production-branch setting on
  * purpose. Promoting an experiment to shouldiplay.gg is one mis-set dashboard
@@ -14,7 +15,7 @@
  * Locally (no WORKERS_CI_BRANCH) the guard stays out of the way: a deliberate
  * `npm run cf:deploy` from a laptop still deploys.
  */
-import { buildForCloudflare, run } from "./cf-common.mjs";
+import { run, runOpenNext } from "./cf-common.mjs";
 
 const PRODUCTION_BRANCH = "main";
 const branch = process.env.WORKERS_CI_BRANCH;
@@ -30,8 +31,9 @@ if (branch && branch !== PRODUCTION_BRANCH) {
 }
 
 console.log(
-  `Building for Cloudflare, then deploying to production${branch ? ` from "${branch}"` : ""}.`,
+  `Verifying the production Worker, then deploying that artifact${branch ? ` from "${branch}"` : ""}.`,
 );
 
-buildForCloudflare();
-run("npx", ["opennextjs-cloudflare", "deploy"]);
+run(process.execPath, ["scripts/cf-verify.mjs"]);
+run(process.execPath, ["--import", "tsx", "scripts/check-build-containment.ts"]);
+runOpenNext(["deploy"]);

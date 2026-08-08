@@ -183,6 +183,23 @@ export const gameAliases = pgTable(
 );
 
 /**
+ * Registered, locked rubric identities.
+ *
+ * Evaluations and dimensions both reference this table, so a typo such as
+ * `1.O` cannot create a vacuously-complete published profile. The expected
+ * shape is checked again by the publish constraint trigger: registering a
+ * version without its canonical dimensions is not enough to make it usable.
+ */
+export const rubricVersions = pgTable("rubric_versions", {
+  version: text("version").primaryKey(),
+  expectedDimensionCount: integer("expected_dimension_count").notNull(),
+  expectedSubcriteriaPerDimension: integer(
+    "expected_subcriteria_per_dimension",
+  ).notNull(),
+  lockedAt: date("locked_at").notNull(),
+});
+
+/**
  * Rubric metadata is versioned in the database as well as in code. The typed
  * module in lib/rubric is the authoring source; these rows exist so historical
  * evaluations remain joinable and renderable after a rubric version bump.
@@ -191,7 +208,12 @@ export const dimensions = pgTable(
   "dimensions",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    rubricVersion: text("rubric_version").notNull(),
+    rubricVersion: text("rubric_version")
+      .notNull()
+      .references(() => rubricVersions.version, {
+        onDelete: "restrict",
+        onUpdate: "restrict",
+      }),
     key: text("key").notNull(),
     name: text("name").notNull(),
     description: text("description"),
@@ -224,7 +246,12 @@ export const evaluations = pgTable(
     gameId: uuid("game_id")
       .notNull()
       .references(() => games.id, { onDelete: "cascade" }),
-    rubricVersion: text("rubric_version").notNull(),
+    rubricVersion: text("rubric_version")
+      .notNull()
+      .references(() => rubricVersions.version, {
+        onDelete: "restrict",
+        onUpdate: "restrict",
+      }),
     versionNumber: integer("version_number").notNull(),
 
     // Mandatory evaluation scope. Rubric §1.
@@ -278,6 +305,7 @@ export const evaluations = pgTable(
       table.versionNumber,
     ),
     index("evaluations_game_status_idx").on(table.gameId, table.status),
+    index("evaluations_supersedes_idx").on(table.supersedesEvaluationId),
   ],
 );
 

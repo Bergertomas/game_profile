@@ -110,7 +110,7 @@ for (const slug of SLUGS) {
       await expect(first.getByText(/derived, not entered/)).toBeVisible();
     });
 
-    test("reports source categories rather than a single opaque count", async ({
+    test("names pending evidence classes without publishing source counts", async ({
       page,
     }) => {
       await page.goto(`/games/${slug}`);
@@ -118,9 +118,33 @@ for (const slug of SLUGS) {
         has: page.locator("#evidence-heading"),
       });
       await expect(evidence.getByText("Direct play")).toBeVisible();
+      await expect(
+        evidence.getByText(
+          "Evidence coverage recorded; source records pending",
+        ),
+      ).toBeVisible();
+      await expect(
+        evidence.getByText(/not yet a complete per-source ledger/),
+      ).toBeVisible();
+      await expect(
+        evidence.getByText("Critic reviews").first(),
+      ).toBeVisible();
+      await expect(
+        evidence.locator("dt").filter({ hasText: "Critic reviews" }),
+      ).toHaveCount(0);
+      expect(await evidence.innerText()).not.toMatch(
+        /\b\d+\s+(?:linked\s+)?sources?\b/i,
+      );
     });
   });
 }
+
+test("an unknown game slug is not rendered on demand", async ({ request }) => {
+  expect((await request.get("/games/not-a-game")).status()).toBe(404);
+  expect(
+    (await request.get("/games/not-a-game/opengraph-image")).status(),
+  ).toBe(404);
+});
 
 test("keyboard focus on a score row highlights its radar axis", async ({
   page,

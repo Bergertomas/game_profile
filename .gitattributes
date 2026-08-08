@@ -1,0 +1,2 @@
+lib/db/seed.sql text eol=lf
+*.sh text eol=lf

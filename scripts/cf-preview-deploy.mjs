@@ -14,14 +14,20 @@
  * (`<alias>-should-i-play.<subdomain>.workers.dev`) that keeps pointing at that
  * branch's newest version, so a review link stays valid across pushes.
  *
- * Aliases must be a valid DNS label: lowercase alphanumerics and hyphens, 63
- * characters at most. Branch names like `claude/brand-seo-e0cvl8` are not, so
- * they are normalised here.
+ * Cloudflare requires an alias to begin with a lowercase letter, and the alias
+ * plus Worker name must fit in one 63-character DNS label. Branch names like
+ * `claude/brand-seo-e0cvl8` are therefore normalised and hashed here.
  */
-import { buildForCloudflare, run } from "./cf-common.mjs";
+import { readFileSync } from "node:fs";
+import { buildForCloudflare, runOpenNext } from "./cf-common.mjs";
+import { toPreviewAlias } from "./cf-preview-alias.mjs";
 
+const packageJson = JSON.parse(
+  readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+);
+const WORKER_NAME = packageJson.name;
 const branch = process.env.WORKERS_CI_BRANCH ?? process.env.GIT_BRANCH ?? "";
-const alias = toAlias(branch);
+const alias = toPreviewAlias(branch, WORKER_NAME);
 
 console.log(
   alias
@@ -31,18 +37,6 @@ console.log(
 
 buildForCloudflare();
 
-const args = ["opennextjs-cloudflare", "upload"];
+const args = ["upload"];
 if (alias) args.push("--", "--preview-alias", alias);
-run("npx", args);
-
-function toAlias(name) {
-  const normalised = name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 63)
-    .replace(/-+$/g, "");
-  // A leading digit is legal in a DNS label but reads badly in a hostname made
-  // of two joined parts; anything empty just means "no alias".
-  return normalised.length > 0 ? normalised : "";
-}
+runOpenNext(args);
