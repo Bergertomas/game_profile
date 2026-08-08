@@ -15,9 +15,8 @@
  * Locally (no WORKERS_CI_BRANCH) the guard stays out of the way: a deliberate
  * `npm run cf:deploy` from a laptop still deploys.
  */
-import { run, runOpenNext } from "./cf-common.mjs";
+import { PRODUCTION_BRANCH, run, runOpenNext } from "./cf-common.mjs";
 
-const PRODUCTION_BRANCH = "main";
 const branch = process.env.WORKERS_CI_BRANCH;
 
 if (branch && branch !== PRODUCTION_BRANCH) {

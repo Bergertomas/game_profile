@@ -166,23 +166,34 @@ test("home page contrasts three distinct silhouettes", async ({ page }) => {
 });
 
 /**
- * The unknown/range rendering itself is asserted in tests/radar-geometry.test.ts
- * (no vertex at the origin, dashed bridge across the gap) and reviewed visually
- * via /dev/radar-states. What matters here is that the harness never ships:
- * a development-only route must not be reachable in a production build.
+ * This suite builds and serves a PREVIEW artifact — the same thing a Cloudflare
+ * branch deployment is. So the design surfaces below are expected to be
+ * reachable here, and that is what these tests assert.
+ *
+ * The production side of the same guarantee — every one of these routes 404ing
+ * on the public site — is asserted by `npm run cf:verify`, against the real
+ * Worker rather than `next start`. It belongs there rather than here because
+ * proving it needs a second build in a different environment, and because the
+ * runtime is the only witness that has ever caught a regression in it.
  */
-test("the development radar harness is not exposed in production", async ({
+test("the development radar harness is reachable for review, unindexed", async ({
   page,
 }) => {
   const response = await page.goto("/dev/radar-states");
-  expect(response?.status()).toBe(404);
+  expect(response?.status()).toBe(200);
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
+    "content",
+    /noindex/,
+  );
 });
 
-test("the design lab is not exposed in production", async ({ page }) => {
-  // Design exploration must never reach a visitor. Every route under the
-  // segment 404s, not just the index — including each Direction D render and
-  // the score-state proof, which are prerendered per game and so are separate
-  // routes rather than one dynamic page.
+test("every design-lab route is reachable for review, and none is indexable", async ({
+  page,
+}) => {
+  // Design exploration is why previews exist. Every route under the segment is
+  // reviewable — including each Direction D and D3 render and the score-state
+  // proofs, which are prerendered per game and so are separate routes rather
+  // than one dynamic page — and none of them may be indexable anywhere.
   for (const route of [
     "/design-lab",
     "/design-lab/a",
@@ -191,16 +202,40 @@ test("the design lab is not exposed in production", async ({ page }) => {
     "/design-lab/d",
     ...SLUGS.map((slug) => `/design-lab/d/${slug}`),
     "/design-lab/d/states",
-    // A slug the lab does not know must 404 for the ordinary reason too.
-    "/design-lab/d/not-a-game",
-    // D3 references third-party key art by URL. If these ever stopped 404ing,
-    // uncleared artwork would be embedded in a public page.
     "/design-lab/d3",
     ...SLUGS.map((slug) => `/design-lab/d3/${slug}`),
     "/design-lab/d3/states",
   ]) {
-    const response = await page.goto(route);
-    expect(response?.status(), route).toBe(404);
+    // `domcontentloaded`, not `load`: the D3 routes reference key art on the
+    // rights holders' own servers, and a review-surface reachability check must
+    // not depend on a third-party CDN being up or reachable from CI.
+    const response = await page.goto(route, { waitUntil: "domcontentloaded" });
+    expect(response?.status(), route).toBe(200);
+    await expect(page.locator('meta[name="robots"]'), route).toHaveAttribute(
+      "content",
+      /noindex/,
+    );
+  }
+
+  // A slug the lab does not know still 404s, for the ordinary reason.
+  const missing = await page.goto("/design-lab/d/not-a-game", {
+    waitUntil: "domcontentloaded",
+  });
+  expect(missing?.status()).toBe(404);
+});
+
+test("no public page requests evaluation artwork, even in preview", async ({
+  request,
+}) => {
+  // The lab may reference uncleared key art; a public document may not, in any
+  // environment. check-build-containment asserts this against the build output
+  // — this asserts it against what the server actually returns.
+  const artHosts = ["alanwake.com", "steamstatic.com"];
+  for (const path of ["/", "/methodology", ...SLUGS.map((s) => `/games/${s}`)]) {
+    const body = await (await request.get(path)).text();
+    for (const host of artHosts) {
+      expect(body.includes(host), `${path} references ${host}`).toBe(false);
+    }
   }
 });
 

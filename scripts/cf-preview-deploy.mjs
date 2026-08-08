@@ -19,7 +19,7 @@
  * `claude/brand-seo-e0cvl8` are therefore normalised and hashed here.
  */
 import { readFileSync } from "node:fs";
-import { buildForCloudflare, runOpenNext } from "./cf-common.mjs";
+import { run, runOpenNext } from "./cf-common.mjs";
 import { toPreviewAlias } from "./cf-preview-alias.mjs";
 
 const packageJson = JSON.parse(
@@ -31,11 +31,18 @@ const alias = toPreviewAlias(branch, WORKER_NAME);
 
 console.log(
   alias
-    ? `Building for Cloudflare, then uploading a preview version for "${branch}" as alias "${alias}".`
-    : "Building for Cloudflare, then uploading a preview version (no branch name available, no alias assigned).",
+    ? `Verifying the preview Worker, then uploading that artifact for "${branch}" as alias "${alias}".`
+    : "Verifying the preview Worker, then uploading that artifact (no branch name available, no alias assigned).",
 );
 
-buildForCloudflare();
+// Same contract as production: build the artifact, boot it, check what it
+// actually serves, then upload that exact `.open-next/` tree. A preview has its
+// own obligations — reachable design surfaces, nothing indexable, production
+// canonicals, no artwork on a public page — and only the runtime can confirm
+// them. cf-verify --preview leaves the built tree in place; nothing rebuilds
+// between verification and upload.
+run(process.execPath, ["scripts/cf-verify.mjs", "--preview"]);
+run(process.execPath, ["--import", "tsx", "scripts/check-build-containment.ts"]);
 
 const args = ["upload"];
 if (alias) args.push("--", "--preview-alias", alias);

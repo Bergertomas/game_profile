@@ -21,6 +21,14 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
+
+/**
+ * The branch that owns production. One definition, imported by every script
+ * that needs it, so a rename cannot leave a guard checking the old name — the
+ * TypeScript side reads it from lib/site-env.ts and tests/cf-command-paths
+ * asserts the two agree.
+ */
+export const PRODUCTION_BRANCH = "main";
 export const OPEN_NEXT_CLI = join(
   ROOT,
   "node_modules",

@@ -3,6 +3,7 @@ import { DirectionD } from "@/components/design-lab/DirectionD";
 import { LabStrip } from "@/components/design-lab/LabStrip";
 import { buildProfileView } from "@/lib/profile/build";
 import { scoreStateFixture } from "@/lib/design-lab/score-states";
+import { DESIGN_SURFACES_ENABLED } from "@/lib/site";
 
 export const metadata = { title: "Direction D — score-state proof" };
 
@@ -14,7 +15,9 @@ export const metadata = { title: "Direction D — score-state proof" };
  * D3's proof, so both directions are measured against identical data.
  */
 export default function Page() {
-  if (process.env.NODE_ENV === "production") notFound();
+  // Site environment, not NODE_ENV: the layout above uses the same gate, and
+  // a Cloudflare branch preview must show this proof. See lib/site.ts.
+  if (!DESIGN_SURFACES_ENABLED) notFound();
 
   const harness = scoreStateFixture("Direction D");
 

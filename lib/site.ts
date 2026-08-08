@@ -55,6 +55,25 @@ type SiteEnvValue = "production" | "preview";
 /** Whether this build may be indexed by search engines. */
 export const IS_INDEXABLE = SITE_ENV === "production";
 
+/**
+ * Whether internal design-review surfaces are part of this build.
+ *
+ * Covers `/design-lab/*`, `/dev/*` and the evaluation artwork they reference.
+ *
+ * This is deliberately keyed to the *site* environment and not to `NODE_ENV`.
+ * `NODE_ENV` says how the JavaScript was compiled; a Cloudflare branch preview
+ * is compiled exactly like production and is still not the public site. Keying
+ * the lab to `NODE_ENV === "production"` made the design work invisible
+ * everywhere except a laptop, which defeated the point of having branch
+ * previews at all — see docs/decisions/0010-design-surfaces-and-site-environment.md.
+ *
+ * Because `SITE_ENV` folds to a literal at build time, so does this, so the
+ * whole lab and its artwork table remain dead code a bundler can drop from a
+ * production build. `npm run check:containment` verifies that against the real
+ * artefact rather than trusting it.
+ */
+export const DESIGN_SURFACES_ENABLED = SITE_ENV !== "production";
+
 /** Absolute canonical URL for a site-root-relative path. */
 export function absoluteUrl(path = "/"): string {
   return new URL(path, SITE_URL).toString();

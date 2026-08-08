@@ -46,11 +46,14 @@ describe("committed assets", () => {
 });
 
 describe("evaluation artwork", () => {
-  it("resolves to nothing in a production build", async () => {
+  it("resolves to nothing on the public production site", async () => {
     // Second guard behind the route 404: even if a design-lab route were
     // reachable, a production build must not emit a third-party URL.
-    // vi.stubEnv is used because process.env.NODE_ENV is not reconfigurable.
-    vi.stubEnv("NODE_ENV", "production");
+    //
+    // Keyed to the SITE environment, not NODE_ENV. A Cloudflare branch preview
+    // is compiled exactly like production and must still show the artwork —
+    // that is where the design work gets reviewed.
+    vi.stubEnv("NEXT_PUBLIC_SITE_ENV", "production");
     try {
       vi.resetModules();
       const { evaluationArtFor } = await import(
@@ -62,6 +65,51 @@ describe("evaluation artwork", () => {
     } finally {
       vi.unstubAllEnvs();
       vi.resetModules();
+    }
+  });
+
+  it("resolves in a preview build, compiled as production or not", async () => {
+    // The regression this file now guards in the other direction: gating the
+    // artwork on NODE_ENV made D3 invisible on every Cloudflare preview, which
+    // is the only place it can be reviewed in a browser.
+    for (const nodeEnv of ["development", "production"]) {
+      vi.stubEnv("NODE_ENV", nodeEnv);
+      vi.stubEnv("NEXT_PUBLIC_SITE_ENV", "preview");
+      try {
+        vi.resetModules();
+        const { evaluationArtFor } = await import(
+          "@/lib/design-lab/evaluation-art"
+        );
+        for (const slug of ["alan-wake-2", "returnal", "redfall"]) {
+          expect(evaluationArtFor(slug), `${slug} @ NODE_ENV=${nodeEnv}`).not.toBeNull();
+        }
+      } finally {
+        vi.unstubAllEnvs();
+        vi.resetModules();
+      }
+    }
+  });
+
+  it("agrees with the shared design-surface policy in both directions", async () => {
+    // evaluation-art.ts duplicates DESIGN_SURFACES_ENABLED as a literal member
+    // expression because an imported boolean does not fold, and an unfolded
+    // guard leaves the whole URL table in the production bundle. The
+    // duplication is deliberate; this is what stops it drifting.
+    for (const siteEnv of ["production", "preview"]) {
+      vi.stubEnv("NEXT_PUBLIC_SITE_ENV", siteEnv);
+      try {
+        vi.resetModules();
+        const { DESIGN_SURFACES_ENABLED } = await import("@/lib/site");
+        const { evaluationArtFor } = await import(
+          "@/lib/design-lab/evaluation-art"
+        );
+        expect(evaluationArtFor("alan-wake-2") !== null, siteEnv).toBe(
+          DESIGN_SURFACES_ENABLED,
+        );
+      } finally {
+        vi.unstubAllEnvs();
+        vi.resetModules();
+      }
     }
   });
 
