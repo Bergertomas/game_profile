@@ -79,7 +79,17 @@ try {
   check("robots.txt advertises the sitemap", robots.includes("Sitemap: https://shouldiplay.gg/sitemap.xml"));
   check("robots.txt excludes the dev surfaces", robots.includes("/dev/") && robots.includes("/design-lab/"));
 
-  const page = await text("/games/returnal");
+  // Status first. A 404 body still carries the root layout's indexable
+  // metadata, so every content check below would pass while the Worker served
+  // nothing — which is exactly how `dynamicParams = false` slipped through as
+  // "indexable" while 404ing every game page.
+  const gamePage = await get("/games/returnal");
+  check(
+    "game page is served at all",
+    gamePage.status === 200,
+    `got ${gamePage.status}`,
+  );
+  const page = gamePage.body;
   check("game page is indexable", /content="index, follow"/.test(page), matchOf(page, /<meta name="robots"[^>]*>/));
   check("game page is canonical to production", page.includes('href="https://shouldiplay.gg/games/returnal"'));
   check("game page asks the search question", page.includes("<title>Should I Play Returnal? | Should I Play?</title>"));
@@ -154,11 +164,14 @@ function workerStopped(outcome) {
 }
 
 async function text(path) {
-  return (
-    await fetch(`${ORIGIN}${path}`, {
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    })
-  ).text();
+  return (await get(path)).body;
+}
+
+async function get(path) {
+  const response = await fetch(`${ORIGIN}${path}`, {
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
+  return { status: response.status, body: await response.text() };
 }
 
 async function head(path) {
