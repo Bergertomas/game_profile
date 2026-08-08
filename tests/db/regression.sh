@@ -59,13 +59,15 @@ RACE_TMP=''
 
 cleanup_regression_artifacts() {
   local background_pid
-  for background_pid in "${child_publish_pid:-}" "${rubric_publish_pid:-}"; do
+  for background_pid in "${child_publish_pid:-}" "${rubric_publish_pid:-}" \
+                        "${parallel_publish_pid:-}"; do
     if [[ -n "$background_pid" ]] && kill -0 "$background_pid" 2>/dev/null; then
       kill "$background_pid" 2>/dev/null || true
     fi
   done
   if [[ -n "${RACE_TMP:-}" ]]; then
-    rm -f "$RACE_TMP/child-publish.out" "$RACE_TMP/rubric-publish.out"
+    rm -f "$RACE_TMP/child-publish.out" "$RACE_TMP/rubric-publish.out" \
+          "$RACE_TMP/parallel-publish.out"
     rmdir "$RACE_TMP" 2>/dev/null || true
   fi
   psql "$ADMIN_URL" -X -q \
@@ -970,7 +972,12 @@ else
   fail=$((fail + 1))
 fi
 
-if [[ "$rubric_mutation_status" -ne 0 && "$rubric_mutation_out" == *'rubric test-race'* ]]; then
+# Match the serialization message specifically. 'rubric test-race' alone would
+# also match trg_dimension_definition_immutable's "is used by final
+# evaluations", so the test would still pass if the advisory lock stopped
+# working and the immutability check happened to catch it instead.
+if [[ "$rubric_mutation_status" -ne 0 \
+      && "$rubric_mutation_out" == *'being edited or finalized concurrently'* ]]; then
   printf '  pass  concurrent rubric mutation was serialized and rejected\n'
   pass=$((pass + 1))
 else
@@ -985,6 +992,106 @@ expect 'the first publication retains the registered rubric shape' \
    )::text
    FROM evaluations e WHERE e.id=$RUBRIC_RACE_EVAL;" \
   'published/1'
+
+# The contract must serialize publication against *definition* edits without
+# serializing publication against itself. Keying the advisory identity on the
+# rubric alone and taking it exclusively made two editors publishing unrelated
+# games under rubric 1.0 fail with a spurious serialization error.
+fixture 'create two complete drafts on one rubric for two different games' \
+  "INSERT INTO rubric_versions (
+     version,expected_dimension_count,expected_subcriteria_per_dimension,locked_at
+   ) VALUES ('test-par',1,1,'2026-08-08');
+   INSERT INTO dimensions (rubric_version,key,name,display_order,radar_order)
+   VALUES ('test-par','par_dimension','Parallel dimension',1,1);
+   INSERT INTO subcriteria (dimension_id,key,name,display_order)
+   SELECT id,'par_subcriterion','Parallel subcriterion',1
+   FROM dimensions WHERE rubric_version='test-par';
+   INSERT INTO evaluations (
+     game_id,rubric_version,version_number,edition_scope,mode_scope,platform_scope,
+     build_or_patch_scope,status,evidence_status,confidence,evidence_cutoff_at,
+     score_provenance,one_line_experience,primary_pull,primary_risk
+   ) VALUES
+     ($RETURNAL_GAME,'test-par',1,'par','par',ARRAY['PC'],'par','draft',
+      'verified','medium','2026-08-06','calibration_round_1','par','par','par'),
+     ($REDFALL_GAME,'test-par',1,'par','par',ARRAY['PC'],'par','draft',
+      'verified','medium','2026-08-06','calibration_round_1','par','par','par');
+   INSERT INTO subcriterion_scores (evaluation_id,subcriterion_id,score,rationale)
+   SELECT e.id,s.id,1.5,'parallel publication fixture'
+   FROM evaluations e
+   JOIN subcriteria s ON s.key='par_subcriterion'
+   JOIN dimensions d ON d.id=s.dimension_id AND d.rubric_version='test-par'
+   WHERE e.rubric_version='test-par';
+   INSERT INTO dimension_assessments (evaluation_id,dimension_id,confidence)
+   SELECT e.id,d.id,'medium'
+   FROM evaluations e
+   JOIN dimensions d ON d.rubric_version='test-par'
+   WHERE e.rubric_version='test-par';"
+
+PAR_FIRST_EVAL="(SELECT id FROM evaluations
+  WHERE game_id=$RETURNAL_GAME AND rubric_version='test-par' AND version_number=1)"
+PAR_SECOND_EVAL="(SELECT id FROM evaluations
+  WHERE game_id=$REDFALL_GAME AND rubric_version='test-par' AND version_number=1)"
+PAR_PUBLISH_READY=8211021
+
+# The other two races have the competing session signal back before it ends.
+# That cannot work here, because the competing session is expected to *succeed*
+# and commit — a session-level signal dies with the psql process the moment it
+# does, so the holder could never observe it. Instead the first publication
+# holds its transaction open for a fixed window that comfortably outlasts the
+# second one, and the second session's lock_timeout is set well inside that
+# window so genuine contention fails rather than being waited out into a false
+# pass.
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q \
+  -c 'BEGIN;' \
+  -c "SET LOCAL statement_timeout='30s';" \
+  -c "UPDATE evaluations SET status='published',published_at='2026-08-08'
+      WHERE id=$PAR_FIRST_EVAL;" \
+  -c "SELECT pg_advisory_lock($PAR_PUBLISH_READY);" \
+  -c 'SELECT pg_sleep(6);' \
+  -c 'COMMIT;' >"$RACE_TMP/parallel-publish.out" 2>&1 &
+parallel_publish_pid=$!
+
+if wait_for_advisory_lock "$PAR_PUBLISH_READY" "$parallel_publish_pid"; then
+  if parallel_second_out="$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q \
+      -c 'BEGIN;' \
+      -c "SET LOCAL lock_timeout='2s'; SET LOCAL statement_timeout='4s';" \
+      -c "UPDATE evaluations SET status='published',published_at='2026-08-08'
+          WHERE id=$PAR_SECOND_EVAL;" \
+      -c 'COMMIT;' 2>&1)"; then
+    printf '  pass  a second game publishes while the first is still uncommitted\n'
+    pass=$((pass + 1))
+  else
+    printf '  FAIL  concurrent publication of an unrelated game was rejected:\n        %s\n' \
+      "$(first_line "$parallel_second_out")"
+    fail=$((fail + 1))
+  fi
+else
+  printf '  FAIL  parallel publisher did not reach its ready signal\n'
+  fail=$((fail + 1))
+  kill "$parallel_publish_pid" 2>/dev/null || true
+fi
+
+if wait "$parallel_publish_pid"; then
+  printf '  pass  the first publication still commits alongside it\n'
+  pass=$((pass + 1))
+else
+  printf '  FAIL  the first publication failed:\n        %s\n' \
+    "$(first_line "$(<"$RACE_TMP/parallel-publish.out")")"
+  fail=$((fail + 1))
+fi
+parallel_publish_pid=''
+
+expect 'both games are published under the shared rubric' \
+  "SELECT count(*) FROM evaluations
+   WHERE rubric_version='test-par' AND status='published';" '2'
+
+# The shared mode must not weaken the guarantee the exclusive mode provided.
+reject 'a definition edit is still refused while a publication holds the rubric' \
+  "UPDATE evaluations SET status='published',published_at='2026-08-08'
+   WHERE id=$PAR_SECOND_EVAL;
+   INSERT INTO dimensions (rubric_version,key,name,display_order,radar_order)
+   VALUES ('test-par','late_dimension','Late dimension',2,2);" \
+  'rubric test-par is used by final evaluations'
 
 echo
 echo '== 9. Existing scalar constraints still hold on editable drafts =='

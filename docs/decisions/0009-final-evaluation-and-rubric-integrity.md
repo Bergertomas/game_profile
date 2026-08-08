@@ -31,10 +31,13 @@ an explicit cut-over choice.
    The transition is checked at transaction commit so predecessor and successor
    can be finalized atomically.
 4. Child mutations take a conflicting lock on their owner evaluation. Rubric
-   definition edits and first publication also acquire the same transaction
-   identity; a concurrent conflict fails fast with a retryable serialization
-   error. This prevents two individually valid editor transactions from
-   committing an invalid combined state.
+   definition edits and finalization also coordinate on a shared transaction
+   identity, in two modes: finalization takes it in *shared* mode, definition
+   edits take it *exclusively*. A conflict fails fast with a retryable
+   serialization error. This prevents two individually valid editor
+   transactions from committing an invalid combined state, while leaving
+   unrelated evaluations free to publish at the same time — the contract needs
+   publication to exclude contract edits, not to exclude other publications.
 5. Generated seeds insert new evaluations as drafts, attach children only to
    transaction-local newly inserted IDs, verify any pre-existing natural key is
    the same snapshot, and finalize last. When appending history, the declared
@@ -53,9 +56,10 @@ an explicit cut-over choice.
   supported transactionally.
 - The known Returnal and Redfall corrections are an explicit pre-freeze data
   patch in migration `0002`, so an upgraded 0001 database matches a fresh one.
-- Rubric definition edits and finalization are intentionally low-throughput,
-  serialized editorial operations. That is preferable to allowing a rare race
-  to rewrite public history.
+- Rubric definition edits are intentionally low-throughput, serialized
+  editorial operations. That is preferable to allowing a rare race to rewrite
+  public history. Publication is not serialized against itself: two editors
+  publishing different games under the same rubric proceed independently.
 - Platform-specific score overrides remain a separate product/schema decision;
   this ADR does not make the currently non-authoritative column look functional.
 

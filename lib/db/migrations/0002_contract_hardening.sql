@@ -392,7 +392,8 @@ BEGIN
       WHERE version = OLD.rubric_version OR version = NEW.rubric_version
       ORDER BY version
     LOOP
-      PERFORM lock_rubric_contract(locked_version);
+      -- Shared: this must exclude definition edits, not other evaluations.
+      PERFORM lock_rubric_contract(locked_version, false);
     END LOOP;
 
     IF (
@@ -421,20 +422,37 @@ CREATE TRIGGER evaluations_rubric_change_coherent
 -- `published -> superseded`; all content and provenance must remain byte-for-
 -- byte the same. Evaluation-owned children are frozen for both final states.
 -- ---------------------------------------------------------------------------
-CREATE FUNCTION lock_rubric_contract(target_version text) RETURNS void AS $$
+CREATE FUNCTION lock_rubric_contract(target_version text, exclusive boolean)
+RETURNS void AS $$
+DECLARE
+  contract_key bigint;
+  acquired     boolean;
 BEGIN
   IF target_version IS NULL THEN
     RETURN;
   END IF;
+
+  contract_key := hashtextextended('game-profile:rubric:' || target_version, 0);
 
   -- Fail fast instead of waiting: definition DML has already locked its target
   -- row before a BEFORE trigger runs, while publication has already locked its
   -- evaluation row. Waiting in both directions can deadlock. A transaction-
   -- scoped advisory identity makes exactly one side proceed and tells the
   -- editor to retry the other operation.
-  IF NOT pg_try_advisory_xact_lock(
-    hashtextextended('game-profile:rubric:' || target_version, 0)
-  ) THEN
+  --
+  -- The two modes matter. What must not interleave is a rubric *definition*
+  -- edit against a *finalization* that is validating the shape it produces.
+  -- Two finalizations do not conflict with each other at all, so publication
+  -- takes the lock in shared mode: an exclusive lock here would make
+  -- publishing two unrelated games under the same rubric fail as a spurious
+  -- serialization error, which is contention the contract never needed.
+  IF exclusive THEN
+    acquired := pg_try_advisory_xact_lock(contract_key);
+  ELSE
+    acquired := pg_try_advisory_xact_lock_shared(contract_key);
+  END IF;
+
+  IF NOT acquired THEN
     RAISE EXCEPTION
       'rubric % is being edited or finalized concurrently; retry the transaction',
       target_version
@@ -447,7 +465,8 @@ $$ LANGUAGE plpgsql VOLATILE;
 CREATE FUNCTION trg_evaluation_snapshot_immutable() RETURNS trigger AS $$
 BEGIN
   IF TG_OP <> 'DELETE' AND NEW.status IN ('published', 'superseded') THEN
-    PERFORM lock_rubric_contract(NEW.rubric_version);
+    -- Shared: two games finalizing under one rubric are independent.
+    PERFORM lock_rubric_contract(NEW.rubric_version, false);
   END IF;
 
   IF TG_OP = 'INSERT' THEN
@@ -680,7 +699,8 @@ $$ LANGUAGE plpgsql VOLATILE;
 CREATE FUNCTION trg_rubric_version_immutable() RETURNS trigger AS $$
 BEGIN
   IF TG_OP <> 'INSERT' THEN
-    PERFORM lock_rubric_contract(OLD.version);
+    -- Exclusive: this rewrites the registered contract itself.
+    PERFORM lock_rubric_contract(OLD.version, true);
   END IF;
   IF TG_OP <> 'INSERT' AND rubric_has_final_evaluation(OLD.version) THEN
     RAISE EXCEPTION 'rubric version % is used by final evaluations and is immutable', OLD.version
@@ -719,7 +739,8 @@ BEGIN
     WHERE version = old_version OR version = new_version
     ORDER BY version
   LOOP
-    PERFORM lock_rubric_contract(locked_version);
+    -- Exclusive: a dimension is part of the rubric's canonical shape.
+    PERFORM lock_rubric_contract(locked_version, true);
   END LOOP;
 
   IF old_version IS NOT NULL AND rubric_has_final_evaluation(old_version) THEN
@@ -765,7 +786,8 @@ BEGIN
     WHERE version = old_rubric OR version = new_rubric
     ORDER BY version
   LOOP
-    PERFORM lock_rubric_contract(locked_rubric);
+    -- Exclusive: a subcriterion is part of the rubric's canonical shape.
+    PERFORM lock_rubric_contract(locked_rubric, true);
   END LOOP;
 
   IF old_rubric IS NOT NULL AND rubric_has_final_evaluation(old_rubric) THEN
