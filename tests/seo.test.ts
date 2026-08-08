@@ -38,6 +38,48 @@ describe("site environment", () => {
     expect(resolveSiteEnv({})).toBe("preview");
     expect(resolveSiteEnv({ NEXT_PUBLIC_SITE_ENV: "staging" })).toBe("preview");
   });
+
+  it.each([
+    {
+      label: "a non-production branch vetoes explicit production",
+      env: {
+        NEXT_PUBLIC_SITE_ENV: "production",
+        WORKERS_CI_BRANCH: "feature/anything",
+      },
+      expected: "preview",
+    },
+    {
+      label: "explicit preview vetoes the production branch",
+      env: {
+        NEXT_PUBLIC_SITE_ENV: "preview",
+        WORKERS_CI_BRANCH: "main",
+      },
+      expected: "preview",
+    },
+    {
+      label: "an invalid explicit value vetoes the production branch",
+      env: {
+        NEXT_PUBLIC_SITE_ENV: "staging",
+        WORKERS_CI_BRANCH: "main",
+      },
+      expected: "preview",
+    },
+    {
+      label: "matching production signals remain indexable",
+      env: {
+        NEXT_PUBLIC_SITE_ENV: "production",
+        WORKERS_CI_BRANCH: "main",
+      },
+      expected: "production",
+    },
+    {
+      label: "an explicit local production build remains indexable",
+      env: { NEXT_PUBLIC_SITE_ENV: "production" },
+      expected: "production",
+    },
+  ] as const)("resolves $label", ({ env, expected }) => {
+    expect(resolveSiteEnv(env)).toBe(expected);
+  });
 });
 
 describe("robots.txt", () => {

@@ -1,6 +1,10 @@
 import { RUBRIC_V1, UNKNOWN } from "@/lib/rubric";
 import { TAGS } from "@/lib/rubric/tags";
-import type { Evaluation, GameWithEvaluation } from "@/lib/profile/types";
+import type {
+  Evaluation,
+  EvidenceSource,
+  GameWithEvaluation,
+} from "@/lib/profile/types";
 import { assertValidGameRecord } from "@/lib/validation/evaluation";
 
 /**
@@ -60,8 +64,75 @@ function sourceRef(sourceKey: string): string {
   )})`;
 }
 
+interface SeedFinalizer {
+  readonly evaluationRef: string;
+  readonly targetStatus: Evaluation["status"];
+  readonly publishedAt?: string;
+}
+
+function isNewEvaluation(evaluationRefSql: string): string {
+  return `EXISTS (SELECT 1 FROM _seed_new_evaluations seeded WHERE seeded.evaluation_id = ${evaluationRefSql})`;
+}
+
+function sourceMetadataSignature(source: EvidenceSource): string {
+  return JSON.stringify({
+    title: source.title,
+    url: source.url ?? null,
+    publisher: source.publisher ?? null,
+    author: source.author ?? null,
+    publishedAt: source.publishedAt ?? null,
+    tier: source.tier,
+    category: source.category,
+  });
+}
+
+function sourceMetadataMatches(source: EvidenceSource): string {
+  return [
+    `title = ${sqlString(source.title)}`,
+    `url IS NOT DISTINCT FROM ${sqlString(source.url)}`,
+    `publisher IS NOT DISTINCT FROM ${sqlString(source.publisher)}`,
+    `author IS NOT DISTINCT FROM ${sqlString(source.author)}`,
+    `published_at IS NOT DISTINCT FROM ${sqlString(source.publishedAt)}`,
+    `evidence_tier = ${sqlString(source.tier)}`,
+    `source_category = ${sqlString(source.category)}`,
+  ].join(" AND ");
+}
+
+function evaluationSnapshotMatches(
+  evaluation: Evaluation,
+  supersedesRef: string,
+): string {
+  return [
+    `edition_scope = ${sqlString(evaluation.scope.edition)}`,
+    `mode_scope = ${sqlString(evaluation.scope.mode)}`,
+    `platform_scope = ${sqlArray(evaluation.scope.platforms)}`,
+    `build_or_patch_scope = ${sqlString(evaluation.scope.buildOrPatch)}`,
+    `current_state_cutoff_at IS NOT DISTINCT FROM ${sqlString(evaluation.scope.currentStateCutoff)}`,
+    `evidence_status = ${sqlString(evaluation.evidenceStatus)}`,
+    `evidence_maturity IS NOT DISTINCT FROM ${sqlString(evaluation.evidenceMaturity)}`,
+    `confidence = ${sqlString(evaluation.confidence)}`,
+    `evidence_cutoff_at = ${sqlString(evaluation.evidenceCutoffAt)}`,
+    `release_context = ${sqlString(evaluation.releaseContext)}`,
+    `one_line_experience = ${sqlString(evaluation.oneLineExperience)}`,
+    `primary_pull = ${sqlString(evaluation.primaryPull)}`,
+    `primary_risk = ${sqlString(evaluation.primaryRisk)}`,
+    `platform_warning IS NOT DISTINCT FROM ${sqlString(evaluation.platformWarning)}`,
+    `score_provenance = ${sqlString(evaluation.scoreProvenance)}`,
+    `provenance_note IS NOT DISTINCT FROM ${sqlString(evaluation.provenanceNote)}`,
+    `evidence_ledger = ${sqlString(evaluation.evidenceLedger)}`,
+    `published_at IS NOT DISTINCT FROM ${
+      evaluation.status === "published" || evaluation.status === "superseded"
+        ? `${sqlString(evaluation.publishedAt)}::timestamptz`
+        : "NULL"
+    }`,
+    `supersedes_evaluation_id IS NOT DISTINCT FROM ${supersedesRef}`,
+    `change_summary IS NOT DISTINCT FROM ${sqlString(evaluation.changeSummary)}`,
+  ].join(" AND ");
+}
+
 function emitEvaluation(
   out: string[],
+  finalizers: SeedFinalizer[],
   slug: string,
   evaluation: Evaluation,
   /**
@@ -73,13 +144,19 @@ function emitEvaluation(
    */
   supersedes: Evaluation | null,
 ): void {
+  if (evaluation.status === "superseded" && !evaluation.publishedAt) {
+    throw new Error(
+      `${slug}: superseded evaluation "${evaluation.id}" needs publishedAt so the seed can reconstruct draft -> published -> superseded history.`,
+    );
+  }
+
   const supersedesRef =
     supersedes === null
       ? "NULL"
       : evaluationRef(slug, supersedes.rubricVersion, supersedes.versionNumber);
 
   out.push(
-    `INSERT INTO evaluations (game_id, rubric_version, version_number, edition_scope, mode_scope, platform_scope, build_or_patch_scope, current_state_cutoff_at, status, evidence_status, evidence_maturity, confidence, evidence_cutoff_at, release_context, one_line_experience, primary_pull, primary_risk, platform_warning, score_provenance, provenance_note, evidence_ledger, published_at, supersedes_evaluation_id, change_summary) SELECT g.id, ${sqlString(
+    `WITH inserted AS (INSERT INTO evaluations (game_id, rubric_version, version_number, edition_scope, mode_scope, platform_scope, build_or_patch_scope, current_state_cutoff_at, status, evidence_status, evidence_maturity, confidence, evidence_cutoff_at, release_context, one_line_experience, primary_pull, primary_risk, platform_warning, score_provenance, provenance_note, evidence_ledger, published_at, supersedes_evaluation_id, change_summary) SELECT g.id, ${sqlString(
       evaluation.rubricVersion,
     )}, ${evaluation.versionNumber}, ${sqlString(
       evaluation.scope.edition,
@@ -87,7 +164,7 @@ function emitEvaluation(
       evaluation.scope.platforms,
     )}, ${sqlString(evaluation.scope.buildOrPatch)}, ${sqlString(
       evaluation.scope.currentStateCutoff,
-    )}, ${sqlString(evaluation.status)}, ${sqlString(
+    )}, 'draft', ${sqlString(
       evaluation.evidenceStatus,
     )}, ${sqlString(evaluation.evidenceMaturity)}, ${sqlString(
       evaluation.confidence,
@@ -99,15 +176,11 @@ function emitEvaluation(
       evaluation.platformWarning,
     )}, ${sqlString(evaluation.scoreProvenance)}, ${sqlString(
       evaluation.provenanceNote,
-    )}, ${sqlString(evaluation.evidenceLedger)}, ${
-      evaluation.publishedAt
-        ? `${sqlString(evaluation.publishedAt)}::timestamptz`
-        : "NULL"
-    }, ${supersedesRef}, ${sqlString(
+    )}, ${sqlString(evaluation.evidenceLedger)}, NULL, ${supersedesRef}, ${sqlString(
       evaluation.changeSummary,
     )} FROM games g WHERE g.slug = ${sqlString(
       slug,
-    )} ON CONFLICT (game_id, rubric_version, version_number) DO NOTHING;`,
+    )} ON CONFLICT (game_id, rubric_version, version_number) DO NOTHING RETURNING id) INSERT INTO _seed_new_evaluations (evaluation_id) SELECT id FROM inserted;`,
   );
 
   const evalRef = evaluationRef(
@@ -115,16 +188,36 @@ function emitEvaluation(
     evaluation.rubricVersion,
     evaluation.versionNumber,
   );
+  const newEvaluationGuard = isNewEvaluation(evalRef);
+  finalizers.push({
+    evaluationRef: evalRef,
+    targetStatus: evaluation.status,
+    publishedAt: evaluation.publishedAt,
+  });
+  const compatibleStatus =
+    evaluation.status === "superseded"
+      ? "status IN ('published', 'superseded')"
+      : `status = ${sqlString(evaluation.status)}`;
+  out.push(
+    `DO $seed$ BEGIN IF NOT ${newEvaluationGuard} AND NOT EXISTS (SELECT 1 FROM evaluations WHERE id = ${evalRef} AND ${compatibleStatus} AND ${evaluationSnapshotMatches(
+      evaluation,
+      supersedesRef,
+    )}) THEN RAISE EXCEPTION 'seed snapshot mismatch for % rubric % version %', ${sqlString(
+      slug,
+    )}, ${sqlString(evaluation.rubricVersion)}, ${
+      evaluation.versionNumber
+    } USING ERRCODE = 'check_violation'; END IF; END $seed$;`,
+  );
 
   // Per-dimension confidence: an editorial input, stored not derived (SOP §5).
   for (const [dimensionKey, confidence] of Object.entries(
     evaluation.dimensionConfidence,
   )) {
     out.push(
-      `INSERT INTO dimension_assessments (evaluation_id, dimension_id, confidence) VALUES (${evalRef}, ${dimensionRef(
+      `INSERT INTO dimension_assessments (evaluation_id, dimension_id, confidence) SELECT ${evalRef}, ${dimensionRef(
         evaluation.rubricVersion,
         dimensionKey,
-      )}, ${sqlString(confidence)}) ON CONFLICT DO NOTHING;`,
+      )}, ${sqlString(confidence)} WHERE ${newEvaluationGuard} ON CONFLICT DO NOTHING;`,
     );
   }
 
@@ -141,7 +234,7 @@ function emitEvaluation(
           evaluation.rubricVersion,
         )} AND d.key = ${sqlString(dimensionKey)} AND s.key = ${sqlString(
           subKey,
-        )} ON CONFLICT DO NOTHING;`,
+        )} AND ${newEvaluationGuard} ON CONFLICT DO NOTHING;`,
       );
     }
   }
@@ -149,9 +242,9 @@ function emitEvaluation(
   for (const [blockType, items] of Object.entries(evaluation.blocks)) {
     items.forEach((text, index) => {
       out.push(
-        `INSERT INTO profile_blocks (evaluation_id, block_type, item_order, text) VALUES (${evalRef}, ${sqlString(
+        `INSERT INTO profile_blocks (evaluation_id, block_type, item_order, text) SELECT ${evalRef}, ${sqlString(
           blockType,
-        )}, ${index + 1}, ${sqlString(text)}) ON CONFLICT DO NOTHING;`,
+        )}, ${index + 1}, ${sqlString(text)} WHERE ${newEvaluationGuard} ON CONFLICT DO NOTHING;`,
       );
     });
   }
@@ -162,13 +255,13 @@ function emitEvaluation(
         tag.intensity,
       )}, ${sqlString(tag.note)} FROM tags t WHERE t.key = ${sqlString(
         tag.key,
-      )} ON CONFLICT DO NOTHING;`,
+      )} AND ${newEvaluationGuard} ON CONFLICT DO NOTHING;`,
     );
   }
 
   for (const source of evaluation.sources) {
     out.push(
-      `INSERT INTO evidence_sources (source_key, title, url, publisher, author, published_at, evidence_tier, source_category) VALUES (${sqlString(
+      `INSERT INTO evidence_sources (source_key, title, url, publisher, author, published_at, evidence_tier, source_category) SELECT ${sqlString(
         source.id,
       )}, ${sqlString(source.title)}, ${sqlString(source.url)}, ${sqlString(
         source.publisher,
@@ -176,7 +269,16 @@ function emitEvaluation(
         source.publishedAt,
       )}, ${sqlString(source.tier)}, ${sqlString(
         source.category,
-      )}) ON CONFLICT (source_key) DO NOTHING;`,
+      )} WHERE ${newEvaluationGuard} ON CONFLICT (source_key) DO NOTHING;`,
+    );
+    out.push(
+      `DO $seed$ BEGIN IF ${newEvaluationGuard} AND NOT EXISTS (SELECT 1 FROM evidence_sources WHERE source_key = ${sqlString(
+        source.id,
+      )} AND ${sourceMetadataMatches(
+        source,
+      )}) THEN RAISE EXCEPTION 'evidence source key % resolves to different metadata', ${sqlString(
+        source.id,
+      )} USING ERRCODE = 'check_violation'; END IF; END $seed$;`,
     );
 
     const platformScope = source.platformScope
@@ -190,11 +292,11 @@ function emitEvaluation(
       : ["NULL"];
     for (const target of targets) {
       out.push(
-        `INSERT INTO evaluation_evidence_links (evaluation_id, evidence_source_id, dimension_id, platform_scope, note) VALUES (${evalRef}, ${sourceRef(
+        `INSERT INTO evaluation_evidence_links (evaluation_id, evidence_source_id, dimension_id, platform_scope, note) SELECT ${evalRef}, ${sourceRef(
           source.id,
         )}, ${target}, ${platformScope}, ${sqlString(
           source.note,
-        )}) ON CONFLICT DO NOTHING;`,
+        )} WHERE ${newEvaluationGuard} ON CONFLICT DO NOTHING;`,
       );
     }
   }
@@ -204,6 +306,50 @@ export function buildSeedSql(
   profiles: readonly GameWithEvaluation[],
 ): string {
   const out: string[] = [];
+  const finalizers: SeedFinalizer[] = [];
+  const gamesBySlug = new Map<string, string>();
+  const evaluationsByNaturalKey = new Set<string>();
+  const sourcesByKey = new Map<string, string>();
+
+  // Validate database identities across the whole corpus. Record-local checks
+  // cannot detect two games or sources that claim the same global key with
+  // different metadata, leaving insertion order to choose which truth wins.
+  for (const record of profiles) {
+    assertValidGameRecord(record);
+
+    const gameSignature = JSON.stringify(record.game);
+    const existingGame = gamesBySlug.get(record.game.slug);
+    if (existingGame !== undefined && existingGame !== gameSignature) {
+      throw new Error(
+        `Game slug "${record.game.slug}" has conflicting metadata in the seed corpus.`,
+      );
+    }
+    gamesBySlug.set(record.game.slug, gameSignature);
+
+    for (const evaluation of [
+      ...(record.history ?? []),
+      record.evaluation,
+    ]) {
+      const naturalKey = `${record.game.slug}\u0000${evaluation.rubricVersion}\u0000${evaluation.versionNumber}`;
+      if (evaluationsByNaturalKey.has(naturalKey)) {
+        throw new Error(
+          `${record.game.slug}: rubric ${evaluation.rubricVersion} version ${evaluation.versionNumber} appears in more than one seed record.`,
+        );
+      }
+      evaluationsByNaturalKey.add(naturalKey);
+
+      for (const source of evaluation.sources) {
+        const signature = sourceMetadataSignature(source);
+        const existingSource = sourcesByKey.get(source.id);
+        if (existingSource !== undefined && existingSource !== signature) {
+          throw new Error(
+            `Evidence source key "${source.id}" has conflicting metadata in the seed corpus.`,
+          );
+        }
+        sourcesByKey.set(source.id, signature);
+      }
+    }
+  }
 
   out.push("-- GENERATED FILE — do not edit by hand.");
   out.push("-- Regenerate with: npm run db:seed-sql > lib/db/seed.sql");
@@ -211,6 +357,9 @@ export function buildSeedSql(
   out.push("--");
   out.push("-- Every statement is idempotent: re-running this file is a no-op.");
   out.push("BEGIN;");
+  out.push(
+    "CREATE TEMP TABLE _seed_new_evaluations (evaluation_id uuid PRIMARY KEY) ON COMMIT DROP;",
+  );
   out.push("");
 
   // -- Rubric ---------------------------------------------------------------
@@ -218,13 +367,17 @@ export function buildSeedSql(
   for (const dimension of RUBRIC_V1.dimensions) {
     const radarOrder = RUBRIC_V1.radarOrder.indexOf(dimension.key) + 1;
     out.push(
-      `INSERT INTO dimensions (rubric_version, key, name, description, display_order, radar_order) VALUES (${sqlString(
+      `INSERT INTO dimensions (rubric_version, key, name, description, display_order, radar_order) SELECT ${sqlString(
         RUBRIC_V1.version,
       )}, ${sqlString(dimension.key)}, ${sqlString(
         dimension.name,
       )}, ${sqlString(dimension.coreQuestion)}, ${
         dimension.displayOrder
-      }, ${radarOrder}) ON CONFLICT (rubric_version, key) DO NOTHING;`,
+      }, ${radarOrder} WHERE NOT EXISTS (SELECT 1 FROM dimensions WHERE rubric_version = ${sqlString(
+        RUBRIC_V1.version,
+      )} AND key = ${sqlString(
+        dimension.key,
+      )}) ON CONFLICT (rubric_version, key) DO NOTHING;`,
     );
     for (const sub of dimension.subcriteria) {
       out.push(
@@ -236,7 +389,9 @@ export function buildSeedSql(
           RUBRIC_V1.version,
         )} AND key = ${sqlString(
           dimension.key,
-        )} ON CONFLICT (dimension_id, key) DO NOTHING;`,
+        )} AND NOT EXISTS (SELECT 1 FROM subcriteria existing WHERE existing.dimension_id = dimensions.id AND existing.key = ${sqlString(
+          sub.key,
+        )}) ON CONFLICT (dimension_id, key) DO NOTHING;`,
       );
     }
   }
@@ -259,6 +414,12 @@ export function buildSeedSql(
   const platforms = new Map<string, string>();
   for (const { game } of profiles) {
     for (const platform of game.platforms) {
+      const existingName = platforms.get(platform.slug);
+      if (existingName !== undefined && existingName !== platform.name) {
+        throw new Error(
+          `Platform slug "${platform.slug}" is named both "${existingName}" and "${platform.name}".`,
+        );
+      }
       platforms.set(platform.slug, platform.name);
     }
   }
@@ -274,9 +435,6 @@ export function buildSeedSql(
 
   // -- Games and evaluations ------------------------------------------------
   for (const record of profiles) {
-    // Never emit SQL for a record that would fail the publish gate.
-    assertValidGameRecord(record);
-
     const { game, evaluation } = record;
     const history = [...(record.history ?? [])].sort(
       (a, b) => a.versionNumber - b.versionNumber,
@@ -334,12 +492,38 @@ export function buildSeedSql(
           `${game.slug}: evaluation "${link.id}" supersedes unknown "${link.supersedesEvaluationId}".`,
         );
       }
-      emitEvaluation(out, game.slug, link, supersedes);
+      emitEvaluation(out, finalizers, game.slug, link, supersedes);
     }
 
     out.push("");
   }
 
+  out.push(
+    "-- Finalize new rows; an existing published predecessor may make the one allowed transition to superseded.",
+  );
+  for (const finalizer of finalizers) {
+    const guard = isNewEvaluation(finalizer.evaluationRef);
+    if (finalizer.targetStatus === "published") {
+      out.push(
+        `UPDATE evaluations SET status = 'published', published_at = ${sqlString(
+          finalizer.publishedAt,
+        )}::timestamptz WHERE id = ${finalizer.evaluationRef} AND ${guard};`,
+      );
+    } else if (finalizer.targetStatus === "superseded") {
+      out.push(
+        `UPDATE evaluations SET status = 'published', published_at = ${sqlString(
+          finalizer.publishedAt,
+        )}::timestamptz WHERE id = ${finalizer.evaluationRef} AND ${guard};`,
+      );
+      out.push(
+        `UPDATE evaluations SET status = 'superseded' WHERE id = ${finalizer.evaluationRef} AND status = 'published';`,
+      );
+    } else if (finalizer.targetStatus === "review") {
+      out.push(
+        `UPDATE evaluations SET status = 'review' WHERE id = ${finalizer.evaluationRef} AND ${guard};`,
+      );
+    }
+  }
   out.push("COMMIT;");
   return out.join("\n") + "\n";
 }

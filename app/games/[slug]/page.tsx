@@ -13,6 +13,7 @@ import { TrustLine } from "@/components/TrustLine";
 import { getGameProfile, listGameSlugs } from "@/lib/data/games";
 import { formatDate } from "@/lib/format";
 import {
+  linkedEvidenceSummary,
   PRE_RELEASE_NOTICE,
   SOURCE_CATEGORY_LABEL,
 } from "@/lib/profile/vocabulary";
@@ -27,6 +28,8 @@ import { gameTitle, gameUrl } from "@/lib/site";
  * copy is deliberately pushed below the profile — the first viewport belongs to
  * the purchase decision.
  */
+
+export const dynamicParams = false;
 
 export async function generateStaticParams() {
   const slugs = await listGameSlugs();
@@ -230,19 +233,23 @@ export default async function GameProfilePage({
 
             {/* Source-category counts (Plan §6.6, SOP §6). Counts of evidence,
                 never votes: the wording is "supported by", never "calculated
-                from". */}
+                from". Pending ledgers hold classes rather than reconciled
+                records, so they must not publish numeric counts. */}
             <dl className="mt-3 space-y-1.5 border-t border-line pt-3">
-              {profile.evidence.categoryCounts.map(({ category, count }) => (
-                <div
-                  key={category}
-                  className="flex items-baseline justify-between gap-4"
-                >
-                  <dt className="text-[0.8125rem] text-bone-dim">
-                    {SOURCE_CATEGORY_LABEL[category]}
-                  </dt>
-                  <dd className="tabular text-[0.8125rem] text-bone">{count}</dd>
-                </div>
-              ))}
+              {evaluation.evidenceLedger === "populated" &&
+                profile.evidence.categoryCounts.map(({ category, count }) => (
+                  <div
+                    key={category}
+                    className="flex items-baseline justify-between gap-4"
+                  >
+                    <dt className="text-[0.8125rem] text-bone-dim">
+                      {SOURCE_CATEGORY_LABEL[category]}
+                    </dt>
+                    <dd className="tabular text-[0.8125rem] text-bone">
+                      {count}
+                    </dd>
+                  </div>
+                ))}
               <div className="flex items-baseline justify-between gap-4">
                 <dt className="text-[0.8125rem] text-bone-dim">Direct play</dt>
                 <dd className="text-[0.8125rem] text-bone">
@@ -252,12 +259,19 @@ export default async function GameProfilePage({
             </dl>
 
             {evaluation.evidenceLedger === "pending" && (
-              <p className="mt-3 text-xs leading-relaxed text-bone-faint">
-                These are evidence classes, not individual source records. The
-                profile was scored against broad critical consensus; the
-                per-source ledger is populated in the editorial evidence
-                manager.
-              </p>
+              <div className="mt-3 text-xs leading-relaxed text-bone-faint">
+                <p>
+                  {linkedEvidenceSummary(
+                    evaluation.evidenceLedger,
+                    profile.evidence.totalSources,
+                  )}
+                </p>
+                <p className="mt-1.5">
+                  The list below mixes evidence classes with any individual
+                  sources already reconciled; it is not yet a complete
+                  per-source ledger.
+                </p>
+              </div>
             )}
 
             <ul className="mt-5 space-y-3">

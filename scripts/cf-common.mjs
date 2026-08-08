@@ -1,19 +1,42 @@
 /**
  * Shared pieces of the two Cloudflare deployment entry points.
  *
- * Both `cf:deploy` and `cf:deploy-preview` build the Worker themselves rather
+ * Both deployment entry points produce the Worker artifact they ship rather
  * than inheriting whatever the CI provider's build step happened to leave on
- * disk. `opennextjs-cloudflare deploy` and `upload` both read a compiled
- * OpenNext config from `.open-next/`, which a plain `next build` does not
- * produce — so a script that only deploys fails with
+ * disk. Production does that through `cf-verify`, which boots and checks the
+ * artifact before deploying it; preview does it through `buildForCloudflare`
+ * below. `opennextjs-cloudflare deploy` and `upload` both read a compiled OpenNext
+ * config from `.open-next/`, which a plain `next build` does not produce — so a
+ * script that only deploys fails with
  * "Could not find compiled Open Next config" the moment the surrounding build
  * command is anything other than the OpenNext one.
  *
  * Making each script produce exactly the artifact it ships means the workflow
- * behaves identically on a laptop and in Workers Builds, and stays correct
- * whatever the dashboard's build command is set to.
+ * behaves identically on a laptop and in Workers Builds, stays correct whatever
+ * the dashboard's build command is set to, and never verifies one build before
+ * deploying a different one.
  */
 import { spawnSync } from "node:child_process";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
+export const OPEN_NEXT_CLI = join(
+  ROOT,
+  "node_modules",
+  "@opennextjs",
+  "cloudflare",
+  "dist",
+  "cli",
+  "index.js",
+);
+export const WRANGLER_CLI = join(
+  ROOT,
+  "node_modules",
+  "wrangler",
+  "bin",
+  "wrangler.js",
+);
 
 /** Runs a command, streaming its output, and exits the process if it fails. */
 export function run(command, args) {
@@ -27,7 +50,12 @@ export function run(command, args) {
   }
 }
 
+/** Run the installed OpenNext CLI without relying on a platform shell or npx shim. */
+export function runOpenNext(args) {
+  run(process.execPath, [OPEN_NEXT_CLI, ...args]);
+}
+
 /** Produces `.open-next/` — the Worker bundle, its assets and the compiled config. */
 export function buildForCloudflare() {
-  run("npx", ["opennextjs-cloudflare", "build"]);
+  runOpenNext(["build"]);
 }

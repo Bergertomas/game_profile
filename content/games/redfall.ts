@@ -118,7 +118,7 @@ export const redfall: GameWithEvaluation = {
         technical_stability: {
           value: 1,
           rationale:
-            "Update 4 resolved the worst of the launch state and added a 60fps performance mode, but pop-in, traversal hitching and animation faults remain routine.",
+            "The final build includes the 60fps Performance Mode introduced in Update 2; Update 4 added offline play and pausing, but pop-in, traversal hitching and animation faults remain routine.",
           platformNote:
             "Assessed on Xbox Series X|S and PC at the Game Update 4 build.",
         },
@@ -346,6 +346,17 @@ export const redfall: GameWithEvaluation = {
           "craft",
         ],
         note: "Extensive, but assess a build that no longer exists. Linked only to the dimensions Update 4 did not materially change; this mismatch is why overall confidence is held at Medium rather than High.",
+      },
+      {
+        id: "src_redfall_update_2",
+        title:
+          "Game Update 2 release notes introducing Xbox Performance Mode",
+        url: "https://bethesda.net/en-US/news/redfall-game-update-2-release-notes",
+        publisher: "Bethesda Softworks",
+        publishedAt: "2023-10-06",
+        tier: "C",
+        category: "first_party",
+        note: "Establishes that the Xbox Series X|S 60fps Performance Mode arrived in Update 2, not Update 4. Used for factual update attribution, not for judging technical quality.",
       },
       {
         id: "src_redfall_update_4",

@@ -40,7 +40,8 @@ export const returnal: GameWithEvaluation = {
     versionNumber: 1,
     scope: {
       edition: "Base game",
-      mode: "Single-player campaign, excluding the co-op Tower of Sisyphus",
+      mode:
+        "Single-player main-game campaign, excluding co-op and the Tower of Sisyphus",
       platforms: ["PlayStation 5", "PC"],
       buildOrPatch:
         "Current retail build, including the suspend-cycle and Ascension updates",
@@ -366,9 +367,12 @@ export const returnal: GameWithEvaluation = {
         id: "src_returnal_update_history",
         title:
           "Developer update history, including the suspend-cycle and Ascension updates",
+        url: "https://housemarque.com/news/2022/3/21/returnal-ascension-update",
+        publisher: "Housemarque",
+        publishedAt: "2022-03-21",
         tier: "C",
         category: "first_party",
-        note: "Establishes the current-state build scope. Not used to judge quality.",
+        note: "Establishes the current-state build scope: co-op applies to the main game, while the Tower of Sisyphus is a separate single-player endless mode. Not used to judge quality.",
       },
     ],
   },

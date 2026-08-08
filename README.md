@@ -5,9 +5,9 @@
 **Should I Play?** ([shouldiplay.gg](https://shouldiplay.gg)) gives every game a
 **Game Profile**: eight fixed dimensions, each scored 0–10 against a published
 rubric, so a player can tell what kind of experience a game is before buying it.
-**There is no overall score** — an 87 can describe a beautifully written but
-mechanically clumsy RPG or a nearly storyless, mechanically perfect action game,
-and those are entirely different purchases.
+**There is no overall score** — a beautifully written but mechanically clumsy
+RPG and a nearly storyless, mechanically perfect action game can look equally
+strong at a glance, but they are entirely different purchases.
 
 *Should I Play?* is the site. *Game Profile* is the evaluation it publishes, and
 the name of the methodology. Internal identifiers (`GameProfile`, `game_profile`,
@@ -89,10 +89,11 @@ These are product semantics, not preferences. Most are covered by a test.
 | Every evaluation declares edition, mode, platform and build | NOT NULL columns, shown on the page |
 | Every dimension carries its own confidence | `dimension_assessments`, publish trigger, `tests/lineage.test.ts` |
 | A missing subcriterion row can never become a precise score | `dimension_scores` derives against the full expected set |
-| A published evaluation has no gaps | deferrable constraint triggers, on delete *and* retargeting update |
+| A final evaluation has no gaps, including superseded history | rubric registry + deferrable completeness triggers |
 | Evidence counts count distinct sources, not links | `COUNT(DISTINCT evidence_source_id)` in `dimension_scores` |
 | Every edge of a supersession chain is validated and seeded as declared | `validateGameRecord`, `tests/lineage.test.ts` |
 | Evidence sources are identified by key, never by title | `evidence_sources.source_key`, `tests/seed-sql.test.ts` |
+| Final snapshots cannot be rewritten through children or shared source/tag metadata | immutable snapshot triggers, [ADR 0009](docs/decisions/0009-final-evaluation-and-rubric-integrity.md) |
 | Superseded evaluations are preserved and linked, never overwritten | self-referencing FK + lineage validation, `tests/lineage.test.ts` |
 | Source counts stay hidden until the ledger is genuinely populated | `evaluations.evidence_ledger`, `tests/lineage.test.ts` |
 | Every scored subcriterion has a rationale | publish gate, `tests/calibration.test.ts` |
@@ -104,9 +105,10 @@ These are product semantics, not preferences. Most are covered by a test.
 
 ## Database
 
-The schema is real and has been applied to Postgres 16 — migration, constraints
-and the derived view all run, and the seed loads. The site does not yet read from
-it; see [ADR 0002](docs/decisions/0002-data-access.md).
+The schema targets Postgres 16 and the integration workflow applies every
+migration, loads the seed, runs the real-database contract suite and exercises
+the derived view. The site does not yet read from it; see
+[ADR 0002](docs/decisions/0002-data-access.md).
 
 One command takes an empty database to a fully constrained, seeded schema:
 
@@ -115,10 +117,11 @@ DATABASE_URL=postgres://…/game_profile npm run db:setup
 ```
 
 That is `db:migrate` followed by `db:seed`, and it is the canonical path — there
-is no second step to remember. `0000_schema.sql` creates the tables and
-`0001_contract.sql` installs the checks, indexes, triggers and the
-`dimension_scores` view; Drizzle applies all pending migrations inside a single
-transaction, so the schema is never left half-built.
+is no second step to remember. `0000_schema.sql` creates the tables,
+`0001_contract.sql` installs the first checks and derived `dimension_scores`
+view, and `0002_contract_hardening.sql` registers rubric identity and freezes
+final history. Drizzle applies every pending migration transactionally, so the
+schema is never left half-built.
 
 ```bash
 npm run db:migrate                     # schema only
@@ -126,12 +129,18 @@ npm run db:seed                        # data only; safe to run repeatedly
 npm run db:generate                    # regenerate migrations from the schema
 npm run db:seed-sql > lib/db/seed.sql  # regenerate the seed from the fixtures
 
-DATABASE_URL=… tests/db/regression.sh  # 33 Postgres invariant checks
+DATABASE_URL=postgres://…/game_profile_test \
+  CONFIRM_DATABASE_RESET=game_profile_test npm run test:db  # destructive, disposable DB only
 ```
 
+`test:db` requires Bash (`bash` on Linux/macOS, Git Bash or WSL on Windows) and
+`psql`. It refuses any database name that does not end in `_test` or `_ci`, and
+also requires the exact name repeated in `CONFIRM_DATABASE_RESET`.
+
 `lib/db/seed.sql` is generated output — edit `content/games/*.ts` and regenerate.
-A test asserts the committed file is byte-identical to the generator, and every
-statement in it is idempotent.
+A test asserts the committed file is byte-identical to the generator. Re-running
+it is a no-op for identical snapshots; a conflicting natural key fails loudly,
+and a declared new version can supersede its existing predecessor atomically.
 
 ## Deployment
 
@@ -143,17 +152,22 @@ with its own URL. See [ADR 0008](docs/decisions/0008-cloudflare-hosting.md).
 npm run cf:build          # next build + OpenNext bundle -> .open-next/worker.js
 npm run cf:preview        # the above, then run the real Worker locally under workerd
 npm run cf:verify         # build as production, boot the Worker, assert what it serves
-npm run cf:deploy         # build, then deploy to production (main only)
+npm run cf:deploy         # verify + contain + deploy the exact artifact (main only)
 npm run cf:deploy-preview # build, then upload a branch-aliased preview version
 ```
 
-Run `cf:verify` before any production deploy. It is the only check that sees what
-the Workers runtime actually returns — prerendered output on disk, unit tests and
-e2e have all been green while the deployed Worker served the opposite (ADR 0008).
+`cf:deploy` runs `cf:verify` before every production deploy, then checks the
+resulting artifact for unlicensed evaluation art and deploys that same tree
+without rebuilding. `cf:verify` is also available on its own; it is the only
+check that sees what the Workers runtime actually returns — prerendered output on
+disk, unit tests and e2e have all been green while the Worker served the opposite
+(ADR 0008).
 
-Both deploy scripts build the Worker they ship rather than inheriting whatever a
+Both deploy paths produce the Worker they ship rather than inheriting whatever a
 previous step left in `.open-next/`, so they behave the same on a laptop as in
-Workers Builds regardless of how the CI build command is configured.
+Workers Builds regardless of how the CI build command is configured. Production
+deploys the artifact that `cf:verify` actually booted; it does not rebuild after
+the check.
 
 `npm run cf:preview` is the honest pre-deploy check — it exercises the Worker
 runtime, not just the Next.js build.
@@ -173,6 +187,7 @@ default is deliberate — see `lib/site.ts`.
 - [0006 — Evidence provenance, per-dimension confidence and pre-release maturity](docs/decisions/0006-evidence-provenance-and-confidence.md)
 - [0007 — Database integrity: derivation completeness, source identity, lineage](docs/decisions/0007-database-integrity.md)
 - [0008 — Hosting on Cloudflare Workers via OpenNext](docs/decisions/0008-cloudflare-hosting.md) *(supersedes the hosting half of 0001)*
+- [0009 — Final evaluation and rubric integrity](docs/decisions/0009-final-evaluation-and-rubric-integrity.md)
 
 ## Not built, deliberately
 

@@ -43,6 +43,10 @@ test.describe("game page discoverability", () => {
         "content",
         "summary_large_image",
       );
+      await expect(page.locator('meta[name="twitter:image"]')).toHaveAttribute(
+        "content",
+        /\/opengraph-image/,
+      );
     });
 
     test(`${slug} serves its substantive content in the HTML`, async ({

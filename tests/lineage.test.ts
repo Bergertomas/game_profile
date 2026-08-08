@@ -26,7 +26,7 @@ const preRelease: Evaluation = {
   // independent sources, and SOP §10.3 targets three before a pre-release
   // profile may claim Medium. That rule has its own coverage in evidence.test.ts.
   confidence: "low",
-  publishedAt: undefined,
+  publishedAt: "2026-08-01",
 };
 
 const postRelease: Evaluation = {
@@ -117,6 +117,15 @@ describe("Invalid supersession", () => {
     ).toContain("history_not_superseded");
   });
 
+  it("requires superseded history to retain its publication date", () => {
+    expect(
+      codes({
+        ...validChain,
+        history: [{ ...preRelease, publishedAt: undefined }],
+      }),
+    ).toContain("missing_published_at");
+  });
+
   it("rejects two live published evaluations for one game", () => {
     expect(
       codes({
@@ -159,7 +168,7 @@ describe("Multi-version chains", () => {
     evidenceStatus: "pre_release",
     evidenceMaturity: "hands_on",
     confidence: "low",
-    publishedAt: undefined,
+    publishedAt: "2026-08-01",
     supersedesEvaluationId: undefined,
   };
   const v2: Evaluation = {
@@ -169,7 +178,7 @@ describe("Multi-version chains", () => {
     status: "superseded",
     evidenceStatus: "provisional",
     confidence: "medium",
-    publishedAt: undefined,
+    publishedAt: "2026-08-02",
     supersedesEvaluationId: "evl_v1",
   };
   const v3: Evaluation = {

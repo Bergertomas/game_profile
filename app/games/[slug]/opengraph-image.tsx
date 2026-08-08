@@ -19,6 +19,7 @@ import { SITE_NAME } from "@/lib/site";
 export const alt = "Game Profile share card";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
+export const dynamicParams = false;
 
 export function generateStaticParams() {
   return listGameSlugs().then((slugs) => slugs.map((slug) => ({ slug })));
@@ -126,8 +127,7 @@ export default async function OpengraphImage({
         </div>
 
         <div style={{ display: "flex", alignItems: "center" }}>
-          {/* Satori's own element, not the DOM's: next/image has no meaning
-              inside an ImageResponse. */}
+          {/* eslint-disable-next-line @next/next/no-img-element -- Satori renders this inside ImageResponse; next/image cannot run here. */}
           <img
             src={svgDataUri(radarSvg(profile.radar, 420))}
             width={420}

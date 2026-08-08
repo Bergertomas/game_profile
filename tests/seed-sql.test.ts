@@ -27,6 +27,31 @@ describe("Idempotent seeding", () => {
     expect(inserts.length).toBeGreaterThan(100);
     const unguarded = inserts.filter((line) => !line.includes("ON CONFLICT"));
     expect(unguarded, `unguarded inserts:\n${unguarded.join("\n")}`).toEqual([]);
+    expect(seed).toContain(
+      "ON CONFLICT (game_id, rubric_version, version_number) DO NOTHING RETURNING id",
+    );
+  });
+
+  it("stages new evaluations as drafts and makes an existing evaluation a true no-op", () => {
+    expect(seed).toContain("CREATE TEMP TABLE _seed_new_evaluations");
+    expect(seed).toContain("NULL, 'draft',");
+    expect(seed).toContain("Finaliz");
+    expect(seed).toContain("SET status = 'published'");
+
+    // Child INSERTs are SELECTs guarded by the transaction-local marker. This
+    // matters under snapshot immutability: a BEFORE INSERT trigger runs before
+    // ON CONFLICT can turn a repeated insert into a no-op.
+    const childInserts = seed
+      .split("\n")
+      .filter((line) =>
+        /INSERT INTO (dimension_assessments|subcriterion_scores|profile_blocks|evaluation_tags|evaluation_evidence_links)/.test(
+          line,
+        ),
+      );
+    expect(childInserts.length).toBeGreaterThan(100);
+    expect(
+      childInserts.every((line) => line.includes("_seed_new_evaluations")),
+    ).toBe(true);
   });
 
   it("identifies evidence sources by their stable key, never by title", () => {
@@ -64,6 +89,47 @@ describe("Idempotent seeding", () => {
     ).toBe(2);
   });
 
+  it("rejects one global source key carrying conflicting metadata", () => {
+    const firstBase = withSources([
+      { id: "src_shared", title: "Original", tier: "B", category: "critic" },
+    ]);
+    const first: GameWithEvaluation = {
+      ...firstBase,
+      evaluation: { ...firstBase.evaluation, confidence: "medium" },
+    };
+    const second: GameWithEvaluation = {
+      game: {
+        ...alanWake2.game,
+        id: "gme_other",
+        slug: "other-game",
+        canonicalTitle: "Other Game",
+      },
+      evaluation: {
+        ...alanWake2.evaluation,
+        id: "evl_other",
+        gameId: "gme_other",
+        confidence: "medium",
+        sources: [
+          {
+            id: "src_shared",
+            title: "Conflicting",
+            tier: "B",
+            category: "critic",
+          },
+        ],
+      },
+    };
+
+    expect(() => buildSeedSql([first, second])).toThrow(
+      /source key "src_shared" has conflicting metadata/i,
+    );
+  });
+
+  it("fails loudly when an existing natural key is a different snapshot", () => {
+    expect(seed).toContain("seed snapshot mismatch");
+    expect(seed).toContain("evidence source key % resolves to different metadata");
+  });
+
   it("persists evidence-ledger state", () => {
     expect(seed).toContain("evidence_ledger");
     for (const { evaluation } of SEED_PROFILES) {
@@ -81,7 +147,7 @@ describe("Supersession seeding", () => {
     evidenceStatus: "pre_release",
     evidenceMaturity: "review_code",
     confidence: "low",
-    publishedAt: undefined,
+    publishedAt: "2026-08-01",
   };
 
   const current: Evaluation = {
@@ -99,7 +165,9 @@ describe("Supersession seeding", () => {
   };
 
   const evaluationInserts = (sql: string) =>
-    sql.split("\n").filter((line) => line.startsWith("INSERT INTO evaluations"));
+    sql
+      .split("\n")
+      .filter((line) => line.startsWith("WITH inserted AS (INSERT INTO evaluations"));
 
   it("emits the predecessor before the successor", () => {
     // Order matters: the successor's supersedes_evaluation_id is a subquery
@@ -116,6 +184,16 @@ describe("Supersession seeding", () => {
     expect(inserts[0]).not.toMatch(/e\.version_number = \d+\)/);
     // The second resolves its predecessor by (game slug, version number).
     expect(inserts[1]).toMatch(/e\.version_number = 1\)/);
+  });
+
+  it("can supersede an existing published predecessor while appending", () => {
+    const sql = buildSeedSql([record]);
+    const transition = sql
+      .split("\n")
+      .find((line) => line.includes("SET status = 'superseded'"));
+    expect(transition).toBeDefined();
+    expect(transition).toContain("status = 'published'");
+    expect(transition).not.toContain("_seed_new_evaluations");
   });
 
   it("seeds a null supersession link when there is no history", () => {
@@ -154,12 +232,14 @@ describe("Supersession seeding", () => {
       id: "evl_a",
       versionNumber: 1,
       supersedesEvaluationId: undefined,
+      publishedAt: "2026-08-01",
     };
     const v2: Evaluation = {
       ...previous,
       id: "evl_b",
       versionNumber: 2,
       supersedesEvaluationId: undefined,
+      publishedAt: "2026-08-02",
     };
     const v3: Evaluation = {
       ...current,

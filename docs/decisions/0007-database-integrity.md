@@ -1,6 +1,8 @@
 # ADR 0007 — Database integrity: derivation completeness, source identity, lineage
 
 **Status:** Accepted · 2026-08-06
+**Hardened by:** [ADR 0009](0009-final-evaluation-and-rubric-integrity.md) —
+rubric identity, final-snapshot immutability and bidirectional lineage.
 **Context:** Master Plan §13.1–13.2, §22.3, §23.3 (ADRs required for "score
 storage/derivation"); SOP v0.2 §10.9
 
@@ -10,10 +12,10 @@ write down: how scores are derived and stored, and what the database will refuse
 ## 0. The contract ships inside the migrations
 
 `npm run db:migrate` is the canonical database setup path, and the only one.
-`0000_schema.sql` creates the tables; `0001_contract.sql` installs the checks,
-partial indexes, constraint triggers and the `dimension_scores` view. Drizzle
-applies all pending migrations inside a single transaction, so the schema is
-never left half-built.
+`0000_schema.sql` creates the tables; `0001_contract.sql` installs the initial
+checks and `dimension_scores` view; later contract migrations harden those
+invariants without creating a second setup path. Drizzle applies all pending
+migrations transactionally, so the schema is never left half-built.
 
 The contract previously lived in a standalone `lib/db/constraints.sql` applied
 by a second, documented-but-manual command. A normal migration-only deployment

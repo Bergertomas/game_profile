@@ -73,9 +73,12 @@ The environment must be resolved at **build** time. `next.config.ts` calls
 `resolveSiteEnv` once and pins the answer into `env.NEXT_PUBLIC_SITE_ENV`, which
 Next substitutes textually into both bundles:
 
-1. `NEXT_PUBLIC_SITE_ENV` if explicitly set, else
-2. `WORKERS_CI_BRANCH` (injected by Workers Builds) compared against `main`, else
-3. `preview`.
+1. a non-main `WORKERS_CI_BRANCH` is always `preview`, even if an explicit value
+   says otherwise;
+2. explicit `preview` (or any invalid explicit value) is `preview`;
+3. explicit `production`, with no non-main branch signal, is `production`;
+4. otherwise `main` is `production`; and
+5. an unidentified build is `preview`.
 
 That indirection is load-bearing, and the first version got it wrong. It called
 `resolveSiteEnv()` inside `lib/site.ts` through a parameter, which defeats Next's
@@ -92,9 +95,10 @@ when asked. Production would have served `noindex` and `Disallow: /` from
 So `lib/site.ts` now reads `process.env.NEXT_PUBLIC_SITE_ENV` as a literal member
 expression and nothing else, with a comment saying why it must stay that way, and
 **`npm run cf:verify`** builds as production, boots the Worker under `workerd`
-and asserts what it actually serves. Run it before any production deploy. It is
-deliberately outside `npm run verify` — it builds twice and boots a runtime — but
-it is the only check that would have caught this.
+and asserts what it actually serves. It remains outside `npm run verify` because
+it builds again and boots a runtime, but `npm run cf:deploy` invokes it, runs the
+artifact-containment check, and deploys that same `.open-next/` tree without a
+second build. It is the only check that would have caught this.
 
 Failing closed remains right. Getting this wrong in the indexable direction puts
 `*.workers.dev` hostnames into Google's index and takes months to unwind; getting
@@ -103,9 +107,11 @@ post-deploy runbook" was too weak a safety net for something this quiet, which i
 what `cf:verify` fixes.
 
 There are no secrets in the application yet — the site reads typed fixtures, not
-Postgres. When `DATABASE_URL` arrives it goes in the Worker's production
-environment as a secret and is not exposed to preview versions. Deliberately not
-built ahead of that need.
+Postgres. Preview uploads are currently versions of the same Worker, and Worker
+versions capture their bindings. A separate preview Worker (or an explicitly
+accepted shared-binding policy) must therefore be decided before `DATABASE_URL`
+is attached; production data credentials must not be added under the assumption
+that same-Worker preview versions are isolated.
 
 ## Preview URLs
 
@@ -171,15 +177,18 @@ version problem.
 | `lib/site-env.ts` | Build-time environment resolution, importable from `next.config.ts` |
 | `scripts/cf-verify.mjs` | Pre-deploy gate: asserts what the Worker serves as production |
 | `scripts/cf-common.mjs` | Shared build/run helpers for the two entry points |
-| `scripts/cf-deploy.mjs` | Guard → build → production deploy |
+| `scripts/cf-deploy.mjs` | Guard → production Worker verification → containment → deploy that artifact |
 | `scripts/cf-preview-deploy.mjs` | Build → version upload → branch preview alias |
 | `package.json` → `cf:*` | `cf:build`, `cf:preview`, `cf:deploy`, `cf:deploy-preview` |
 
-**Both deploy scripts build the Worker they ship.** They do not inherit whatever
-a preceding CI step left in `.open-next/`. This is not belt-and-braces; it is the
-difference between working and not. `opennextjs-cloudflare deploy` and `upload`
-both read a *compiled OpenNext config* from `.open-next/`, which a plain
-`next build` never writes — so a deploy-only script fails with
+**Both deploy scripts produce the Worker they ship.** They do not inherit
+whatever a preceding CI step left in `.open-next/`. Production builds through
+`cf:verify`, boots that artifact under `workerd`, checks containment, and deploys
+it without rebuilding. Preview builds directly before upload. This is not
+belt-and-braces; it is the difference between working and not.
+`opennextjs-cloudflare deploy` and `upload` both read a *compiled OpenNext config*
+from `.open-next/`, which a plain `next build` never writes — so a deploy-only
+script fails with
 "Could not find compiled Open Next config" the moment the surrounding build
 command is anything other than the OpenNext one. That is exactly what happened
 on the second deploy attempt, whose build command was `npm run build`.
@@ -187,7 +196,8 @@ on the second deploy attempt, whose build command was `npm run build`.
 The consequence is that the dashboard's build command no longer affects
 correctness: the scripts produce exactly the artifact they upload, and the
 workflow behaves identically on a laptop and in Workers Builds. Setting it to
-`npm run cf:build` only avoids building twice.
+`npm run cf:build` is still redundant because each deployment path produces its
+own artifact.
 
 The branch check in `cf:deploy` duplicates the dashboard's production-branch
 setting on purpose. Promoting an experiment to `shouldiplay.gg` is one
