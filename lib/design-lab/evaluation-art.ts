@@ -1,130 +1,37 @@
 /**
- * Third-party game artwork referenced for internal design evaluation.
+ * Evaluation artwork for the design lab.
  *
- * NOTHING HERE IS COMMITTED AS A BINARY. Each entry is a URL on the rights
- * holder's own site or storefront, loaded live by the browser when a design-lab
- * route is rendered in development. The repository stores the address and the
- * rights record, never a copy of the work.
+ * The records themselves moved onto the game fixtures in content/games/, where
+ * artwork belongs — it is game metadata, not lab furniture, and a provider will
+ * populate it automatically at catalogue scale (lib/profile/artwork.ts).
  *
- * Two independent guards keep it off the public site:
- *   1. `app/design-lab/layout.tsx` calls `notFound()` when design surfaces are
- *      off, so every route under /design-lab returns 404 on production.
- *   2. `evaluationArtFor()` returns null in the same case, so even a stray
- *      import cannot emit a third-party URL into a production bundle.
- *
- * Both are keyed to `DESIGN_SURFACES_ENABLED` — the *site* environment — and
- * not to `NODE_ENV`. A Cloudflare branch preview compiles exactly like
- * production and is still not the public site, so the artwork does render
- * there. That is the point: it is where the design work gets reviewed.
- *
- * A preview is public-but-unindexed unless Cloudflare Access is enabled on
- * preview URLs. The exposure is bounded — the browser fetches each image
- * directly from the rights holder's own server, and this repository stores and
- * serves no copy — but it is a public display, so previews carrying artwork
- * should be Access-protected. See
- * docs/decisions/0010-design-surfaces-and-site-environment.md.
- *
- * There is deliberately no `images.remotePatterns` entry, no image proxy and no
- * `next/image` use for these — a production remote-image configuration would
- * outlive the lab and is exactly the kind of leak this file exists to avoid.
- *
- * Rights record: docs/design/d3/ASSET-PROVENANCE.md. None of this artwork is
- * licensed or cleared; it may not appear on a public route.
+ * This module is now only the lab's view of that data. It exists so the D3
+ * study keeps working unchanged; both it and the product page resolve the same
+ * record and honour the same `rights` field.
  */
-/**
- * The same policy as `DESIGN_SURFACES_ENABLED` in lib/site.ts, written out
- * again here as a literal member expression, and it has to stay that way.
- *
- * Importing the shared constant reads better and does not work: Next
- * substitutes `process.env.NEXT_PUBLIC_SITE_ENV` textually *within a module*,
- * so an imported boolean is not a literal at the point the bundler decides
- * whether the table below is reachable. The table then survives into a
- * production build. That was tried, and `npm run check:containment` found all
- * three URLs in a production client chunk — the second time that check has
- * caught this exact class of leak.
- *
- * tests/no-committed-artwork.test.ts asserts this agrees with the shared
- * constant in both directions, so the duplication cannot drift.
- */
-const DESIGN_SURFACES_ENABLED =
-  process.env.NEXT_PUBLIC_SITE_ENV !== "production";
+import { heroArtworkFor, type ProfileArtwork } from "@/lib/profile/artwork";
+import { SEED_PROFILES } from "@/content";
 
-export interface EvaluationArt {
-  /** Remote URL on the rights holder's own site or storefront listing. */
-  readonly url: string;
+export type EvaluationArt = ProfileArtwork & {
   readonly intrinsicWidth: number;
   readonly intrinsicHeight: number;
-  /** Factual description of what the image shows. Not marketing copy. */
-  readonly alt: string;
-  readonly rightsHolder: string;
-  /** Human-visitable page the asset belongs to. */
-  readonly sourcePage: string;
-  readonly retrieved: string;
-  /**
-   * Hard-crop framing for the stage, chosen per image so the recognisable
-   * subject stays in a shallow band. `object-fit: cover` does the rest — no
-   * scaling distortion, no blur, no filter.
-   */
-  readonly objectPosition: string;
-}
-
-const EVALUATION_ART: Readonly<Record<string, EvaluationArt>> = {
-  "alan-wake-2": {
-    url: "https://www.alanwake.com/wp-content/uploads/2023/05/Alan_Wake_2_keyart_for_web3-2560x1318.webp",
-    intrinsicWidth: 2560,
-    intrinsicHeight: 1318,
-    alt: "Alan Wake 2 key art: Alan Wake stands vast and half-dissolved among red-lit forest, with FBI agent Saga Anderson small and lit at his feet.",
-    rightsHolder: "Remedy Entertainment Plc / Epic Games Publishing",
-    sourcePage: "https://alanwake.com",
-    retrieved: "7 August 2026",
-    objectPosition: "center 32%",
-  },
-  returnal: {
-    url: "https://cdn.akamai.steamstatic.com/steam/apps/1649240/library_hero.jpg",
-    intrinsicWidth: 1920,
-    intrinsicHeight: 620,
-    alt: "Returnal key art: astronaut Selene in a scuffed spacesuit and glass helmet, standing before a wall of teal alien pods.",
-    rightsHolder: "Housemarque / Sony Interactive Entertainment",
-    sourcePage: "https://store.steampowered.com/app/1649240/Returnal/",
-    retrieved: "7 August 2026",
-    objectPosition: "center 42%",
-  },
-  redfall: {
-    url: "https://cdn.akamai.steamstatic.com/steam/apps/1294810/library_hero.jpg",
-    intrinsicWidth: 1920,
-    intrinsicHeight: 620,
-    alt: "Redfall key art: four armed survivors on a moonlit New England street, a pale vampire lunging into the foreground.",
-    rightsHolder: "Arkane Austin / Bethesda Softworks",
-    sourcePage: "https://store.steampowered.com/app/1294810/Redfall/",
-    retrieved: "7 August 2026",
-    objectPosition: "center 38%",
-  },
 };
 
-/*
- * Deliberately NOT exporting a derived list of URLs or hostnames from here.
- *
- * A module-level `Object.values(EVALUATION_ART)` export was tried and it broke
- * the containment it was meant to help verify: the derived constant kept a live
- * reference to the table, the bundler could no longer treat the table as dead
- * code behind the production guard below, and all three artwork URLs appeared
- * in a client chunk. `scripts/check-build-containment.ts` caught it, which is
- * the check earning its place on its first run.
- *
- * The checker reads this file as text instead, and
- * tests/no-committed-artwork.test.ts asserts its parse matches what the module
- * actually returns, so the two cannot drift apart.
- */
-
 export function evaluationArtFor(slug: string): EvaluationArt | null {
-  // Belt and braces. The route already 404s on the public site; this makes sure
-  // the URL itself cannot be emitted from a production build either. Folds to a
-  // literal at build time, so the table above is droppable dead code there.
-  if (!DESIGN_SURFACES_ENABLED) return null;
-  return EVALUATION_ART[slug] ?? null;
+  const record = SEED_PROFILES.find((entry) => entry.game.slug === slug);
+  if (!record) return null;
+  const art = heroArtworkFor(record.game);
+  const hero = record.game.artwork?.hero;
+  if (!art || !hero) return null;
+  return { ...art, intrinsicWidth: hero.width, intrinsicHeight: hero.height };
 }
 
-/** Shown on every page that renders evaluation artwork. Not optional. */
+/** Shown on every lab page that renders evaluation artwork. Not optional. */
 export function evaluationNotice(art: EvaluationArt): string {
-  return `Key art © ${art.rightsHolder}, loaded live from ${art.sourcePage} for internal design evaluation only. No copy is stored in this repository. Not licensed, not cleared for production.`;
+  return (
+    `Key art © ${art.credit}` +
+    (art.sourcePage ? `, loaded live from ${art.sourcePage}` : "") +
+    `, for internal design evaluation only. No copy is stored in this ` +
+    `repository. Not licensed, not cleared for production.`
+  );
 }

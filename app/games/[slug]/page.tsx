@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { GameProfile } from "@/components/profile/GameProfile";
 import { JsonLd } from "@/components/JsonLd";
-import { artworkFor } from "@/lib/profile/artwork";
+import { heroArtworkFor } from "@/lib/profile/artwork";
 import { getGameProfile, listGameSlugs } from "@/lib/data/games";
 import { gameProfileGraph } from "@/lib/seo/structured-data";
 import { gameTitle, gameUrl } from "@/lib/site";
@@ -86,7 +86,7 @@ export default async function GameProfilePage({
   return (
     <>
       <JsonLd data={gameProfileGraph(profile)} />
-      <GameProfile profile={profile} artwork={artworkFor(profile.game)} />
+      <GameProfile profile={profile} artwork={heroArtworkFor(profile.game)} />
     </>
   );
 }

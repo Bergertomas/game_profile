@@ -46,7 +46,7 @@ describe("committed assets", () => {
 });
 
 describe("evaluation artwork", () => {
-  it("resolves to nothing on the public production site", async () => {
+  it("keeps evaluation-basis artwork off the public production site", async () => {
     // Second guard behind the route 404: even if a design-lab route were
     // reachable, a production build must not emit a third-party URL.
     //
@@ -77,11 +77,14 @@ describe("evaluation artwork", () => {
       vi.stubEnv("NEXT_PUBLIC_SITE_ENV", "preview");
       try {
         vi.resetModules();
-        const { evaluationArtFor } = await import(
-          "@/lib/design-lab/evaluation-art"
+        const { evaluationArtworkFor } = await import(
+          "@/content/evaluation-artwork"
         );
         for (const slug of ["alan-wake-2", "returnal", "redfall"]) {
-          expect(evaluationArtFor(slug), `${slug} @ NODE_ENV=${nodeEnv}`).not.toBeNull();
+          expect(
+            evaluationArtworkFor(slug),
+            `${slug} @ NODE_ENV=${nodeEnv}`,
+          ).not.toBeNull();
         }
       } finally {
         vi.unstubAllEnvs();
@@ -100,10 +103,10 @@ describe("evaluation artwork", () => {
       try {
         vi.resetModules();
         const { DESIGN_SURFACES_ENABLED } = await import("@/lib/site");
-        const { evaluationArtFor } = await import(
-          "@/lib/design-lab/evaluation-art"
+        const { evaluationArtworkFor } = await import(
+          "@/content/evaluation-artwork"
         );
-        expect(evaluationArtFor("alan-wake-2") !== null, siteEnv).toBe(
+        expect(evaluationArtworkFor("alan-wake-2") !== null, siteEnv).toBe(
           DESIGN_SURFACES_ENABLED,
         );
       } finally {
@@ -119,34 +122,36 @@ describe("evaluation artwork", () => {
     // tree-shaking. That decoupling is only safe if the parse stays in step
     // with the module — which is what this asserts.
     const { artNeedles } = await import("@/scripts/art-needles");
-    const { evaluationArtFor } = await import(
-      "@/lib/design-lab/evaluation-art"
+    const { evaluationArtworkFor } = await import(
+      "@/content/evaluation-artwork"
     );
 
     const needles = new Set(artNeedles());
     expect(needles.size).toBeGreaterThan(0);
 
     for (const slug of ["alan-wake-2", "returnal", "redfall"]) {
-      const art = evaluationArtFor(slug)!;
-      expect(needles.has(art.url), `${slug} url`).toBe(true);
+      const hero = evaluationArtworkFor(slug)!.hero!;
+      expect(needles.has(hero.url), `${slug} url`).toBe(true);
       expect(
-        needles.has(new URL(art.url).hostname),
+        needles.has(new URL(hero.url).hostname),
         `${slug} hostname`,
       ).toBe(true);
     }
   });
 
   it("is referenced only by URL, never by a repository path", async () => {
-    const { evaluationArtFor } = await import(
-      "@/lib/design-lab/evaluation-art"
+    const { evaluationArtworkFor } = await import(
+      "@/content/evaluation-artwork"
     );
     for (const slug of ["alan-wake-2", "returnal", "redfall"]) {
-      const art = evaluationArtFor(slug);
-      expect(art, slug).not.toBeNull();
+      const artwork = evaluationArtworkFor(slug);
+      expect(artwork, slug).not.toBeNull();
       // A relative path would mean a copy is being served from this repo.
-      expect(art!.url, slug).toMatch(/^https:\/\//);
-      expect(art!.rightsHolder, slug).toBeTruthy();
-      expect(art!.sourcePage, slug).toMatch(/^https:\/\//);
+      expect(artwork!.hero!.url, slug).toMatch(/^https:\/\//);
+      expect(artwork!.credit, slug).toBeTruthy();
+      expect(artwork!.sourcePage, slug).toMatch(/^https:\/\//);
+      // The basis has to be recorded, because it is what gates rendering.
+      expect(artwork!.rights, slug).toBe("evaluation");
     }
   });
 });

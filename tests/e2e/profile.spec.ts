@@ -10,6 +10,23 @@ import { expect, test } from "@playwright/test";
 
 const SLUGS = ["alan-wake-2", "returnal", "redfall"] as const;
 
+/**
+ * Never wait on a third-party CDN.
+ *
+ * A preview build renders real key art from the rights holders' own servers.
+ * That is correct for a human reviewing the page and wrong for a test suite:
+ * it makes every navigation depend on someone else's uptime and on outbound
+ * network access from CI, and `page.goto` waits for `load`. Blocking the
+ * requests keeps the suite hermetic and deterministic — the markup is what
+ * these tests are about, and that is asserted from the HTML instead.
+ */
+test.beforeEach(async ({ page }) => {
+  await page.route(
+    /^https:\/\/(www\.alanwake\.com|cdn\.akamai\.steamstatic\.com)\//,
+    (route) => route.abort(),
+  );
+});
+
 const DIMENSION_NAMES = [
   "Story & Character Investment",
   "Thematic & Emotional Impact",
@@ -259,18 +276,26 @@ test("every design-lab route is reachable for review, and none is indexable", as
   expect(missing?.status()).toBe(404);
 });
 
-test("no public page requests evaluation artwork, even in preview", async ({
+test("evaluation artwork renders in preview, and says on what basis", async ({
   request,
 }) => {
-  // The lab may reference uncleared key art; a public document may not, in any
-  // environment. check-build-containment asserts this against the build output
-  // — this asserts it against what the server actually returns.
-  const artHosts = ["alanwake.com", "steamstatic.com"];
-  for (const path of ["/", "/methodology", ...SLUGS.map((s) => `/games/${s}`)]) {
+  // This suite serves a preview artifact, where reviewing the real page with
+  // real artwork is the point. What must hold is that the basis travels with
+  // the image — a page carrying uncleared art has to say so.
+  //
+  // Production carries none of it at all; that guarantee is asserted against
+  // the built artefact by check-build-containment and against the Worker by
+  // `npm run cf:verify`.
+  for (const slug of SLUGS) {
+    const body = await (await request.get(`/games/${slug}`)).text();
+    expect(body).toMatch(/alanwake\.com|steamstatic\.com/);
+    expect(body).toContain("Not licensed, not cleared for production");
+  }
+
+  // Pages with no artwork of their own must not acquire any.
+  for (const path of ["/", "/methodology"]) {
     const body = await (await request.get(path)).text();
-    for (const host of artHosts) {
-      expect(body.includes(host), `${path} references ${host}`).toBe(false);
-    }
+    expect(body).not.toMatch(/alanwake\.com|steamstatic\.com/);
   }
 });
 

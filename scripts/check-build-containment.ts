@@ -12,14 +12,14 @@
  * depends on which site environment was built, because the two builds have
  * genuinely different rules:
  *
- *   production — the artwork must appear NOWHERE in deployable output. The
- *     lab 404s, the art table is dead code, and anything that survived is a
- *     leak.
- *   preview — the lab is the point, so JavaScript chunks may carry the URLs.
- *     What must still hold is that no *public* page references them: the home
- *     page, /methodology, any /games/<slug>, the sitemap and robots.txt are the
- *     same documents production will serve, and none of them has any business
- *     naming uncleared artwork in any environment.
+ *   production — evaluation-basis artwork must appear NOWHERE in deployable
+ *     output. `rights: "evaluation"` makes `heroArtworkFor()` return null, the
+ *     lab 404s, the records are dead code, and anything that survived is a leak.
+ *     This is the guarantee that actually matters and it is absolute.
+ *   preview — a preview is not the public site. It is noindex, Disallow:/, and
+ *     Access-protectable, and reviewing real artwork on the real page is the
+ *     reason it exists. Artwork is expected here, including on /games/<slug>,
+ *     so this check only reports what it found.
  *
  * The build's own environment is read back out of the artefact (the prerendered
  * robots.txt body) and cross-checked against what this process resolves, so the
@@ -36,23 +36,6 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join, relative, sep } from "node:path";
 import { resolveSiteEnv, type SiteEnv } from "../lib/site-env";
 import { ROOT, artNeedles } from "./art-needles";
-
-/**
- * Prerendered documents that are public on production, whatever environment
- * built them. These may never name evaluation artwork.
- */
-const PUBLIC_SURFACE = [
-  join(".next", "server", "app", "index.html"),
-  join(".next", "server", "app", "methodology.html"),
-  join(".next", "server", "app", "sitemap.xml.body"),
-  join(".next", "server", "app", "robots.txt.body"),
-];
-
-function isPublicSurface(relPath: string): boolean {
-  if (PUBLIC_SURFACE.includes(relPath)) return true;
-  const gamesDir = join(".next", "server", "app", "games") + sep;
-  return relPath.startsWith(gamesDir);
-}
 
 /**
  * Which environment the build on disk was made for, read from the artefact.
@@ -166,6 +149,7 @@ const siteEnv: SiteEnv = builtEnv ?? resolveSiteEnv(process.env);
 
 const scannedRoots: string[] = [];
 const violations: { file: string; needle: string; line: number }[] = [];
+const previewReferences = new Set<string>();
 let filesScanned = 0;
 
 for (const root of ROOTS) {
@@ -187,9 +171,14 @@ for (const root of ROOTS) {
     }
     filesScanned += 1;
 
-    // A preview build is *supposed* to carry the lab and its artwork; only the
-    // public documents are held to the production rule there.
-    if (siteEnv === "preview" && !isPublicSurface(rel)) continue;
+    // A preview build is *supposed* to carry artwork, on the lab routes and on
+    // the game pages alike. Only production is held to the absolute rule.
+    if (siteEnv === "preview") {
+      for (const needle of NEEDLES) {
+        if (text.includes(needle)) previewReferences.add(rel);
+      }
+      continue;
+    }
 
     for (const needle of NEEDLES) {
       const at = text.indexOf(needle);
@@ -214,9 +203,21 @@ if (scannedRoots.length === 0) {
 
 console.log(
   `check-build-containment: ${siteEnv} build — scanned ${filesScanned} files across ` +
-    `${scannedRoots.join(", ")} for ${NEEDLES.length} evaluation-art needles ` +
-    `(${siteEnv === "production" ? "all deployable output" : "public documents only"}).`,
+    `${scannedRoots.join(", ")} for ${NEEDLES.length} evaluation-art needles.`,
 );
+
+if (siteEnv === "preview") {
+  console.log(
+    previewReferences.size === 0
+      ? "PASS: preview build, no evaluation-art reference found.\n" +
+          "      (Expected on a preview that renders artwork — check the rights\n" +
+          "      field if the lab or a game page should be showing it.)"
+      : `PASS: preview build — evaluation artwork referenced in ${previewReferences.size} ` +
+          `file(s), which is expected here.\n      A preview is noindex and not the ` +
+          `public site; only production is held to the absolute rule.`,
+  );
+  process.exit(0);
+}
 
 if (violations.length > 0) {
   console.error(
@@ -235,8 +236,4 @@ if (violations.length > 0) {
   process.exit(1);
 }
 
-console.log(
-  siteEnv === "production"
-    ? "PASS: no evaluation-art hostname or URL in deployable output."
-    : "PASS: no evaluation-art hostname or URL on any public page.",
-);
+console.log("PASS: no evaluation-art hostname or URL in deployable output.");
