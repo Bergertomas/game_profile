@@ -3,6 +3,7 @@ import { ProfilePanel } from "@/components/ProfilePanel";
 import { alanWake2 } from "@/content";
 import { buildProfileView } from "@/lib/profile/build";
 import type { GameWithEvaluation } from "@/lib/profile/types";
+import { DESIGN_SURFACES_ENABLED } from "@/lib/site";
 
 /**
  * Development-only harness for the profile states the seed corpus does not
@@ -14,7 +15,9 @@ import type { GameWithEvaluation } from "@/lib/profile/types";
  * uncertainty treatment" — can only be checked by looking at them.
  */
 export default function RadarStatesPage() {
-  if (process.env.NODE_ENV === "production") notFound();
+  // Site environment, not NODE_ENV: a Cloudflare branch preview is a
+  // production-mode build of a non-production site. See lib/site.ts.
+  if (!DESIGN_SURFACES_ENABLED) notFound();
 
   const withUnknowns: GameWithEvaluation = {
     game: { ...alanWake2.game, canonicalTitle: "Unknown-handling harness" },

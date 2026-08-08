@@ -1,97 +1,73 @@
-# Vendored design-lab fonts — copyright and licence
+# Vendored fonts — copyright and licence
 
-Every font file in this directory is third-party software, redistributed here
-under the **SIL Open Font License, Version 1.1**. Nothing in this directory is
+Every `.woff2` in this directory is third-party software. Nothing here is
 original work of this repository.
 
-The files here, and the two promoted to `public/fonts/` (Archivo and Newsreader
-— see `public/fonts/LICENSES.md`, which now carries their notices), were obtained from the Google Fonts CSS API
-(`https://fonts.googleapis.com/css2`, `latin` subset) on **6 August 2026** and
-renamed to the local filenames below. They are subsets: only the `latin` glyph
-set is present, and the variable axes listed are those exposed by the upstream
-release. Version strings are read from each file's own `name` table (name ID 5),
-so they describe the exact binaries committed here.
+| File | Family | Version | Axes | Glyphs | Licence |
+|---|---|---|---|---|---|
+| `fraunces-latin.woff2` | Fraunces | — | variable | latin | SIL OFL 1.1 |
+| `inter-latin.woff2` | Inter | — | variable | latin | SIL OFL 1.1 |
+| `archivo-latin.woff2` | Archivo | 2.001 | `wght` 100–900, `wdth` 62–125 | 302 | SIL OFL 1.1 |
+| `newsreader-latin.woff2` | Newsreader | 1.003 | `wght` 200–800, `opsz` 6–72 | 262 | SIL OFL 1.1 |
 
-The faces remaining in this directory are used **only** by the `/design-lab`
-routes and are loaded solely by `app/design-lab/design-lab.css`. Archivo and
-Newsreader were promoted to production with direction D3 and now live in
-`public/fonts/` with their notices in `public/fonts/LICENSES.md`.
+Archivo and Newsreader were obtained from the Google Fonts CSS API
+(`https://fonts.googleapis.com/css2`, `latin` subset) on **6 August 2026**, and
+promoted from `public/fonts/design-lab/` to production on **7 August 2026** when
+design direction D3 became the game page. They are `latin` subsets; the variable
+axes listed are those exposed by the upstream release, and version strings are
+read from each file's own `name` table (name ID 5).
 
 Under OFL 1.1 §1 and §2 this notice, the copyright statements below and the full
-licence text must travel with the font files. Do not move, rename or delete a
-`.woff2` in this directory without carrying its entry here with it.
-
----
-
-## Files
-
-| File | Family | Version | Axes | Glyphs |
-|---|---|---|---|---|
-| `space-grotesk.woff2` | Space Grotesk | 2.000 | `wght` 300–700 | 291 |
-| `jetbrains-mono.woff2` | JetBrains Mono | 2.211 | `wght` 100–800 | 394 |
-| `instrument-serif.woff2` | Instrument Serif | 1.000 | static (400) | 220 |
+licence text must travel with the font files. **Do not move, rename or delete a
+`.woff2` in this directory without carrying its entry here with it** — that rule
+is why this file exists, and it is what was followed when Archivo and Newsreader
+moved up from the design-lab directory.
 
 ## Copyright and upstream source
 
-### Space Grotesk — `space-grotesk.woff2`
+### Archivo — `archivo-latin.woff2`
 
 ```
-Copyright 2020 The Space Grotesk Project Authors (https://github.com/floriankarsten/space-grotesk)
+Copyright 2020 The Archivo Project Authors (https://github.com/Omnibus-Type/Archivo)
 ```
 
-- Designer: Florian Karsten
-- Upstream project: https://github.com/floriankarsten/space-grotesk
-- Google Fonts catalogue entry: https://github.com/google/fonts/tree/main/ofl/spacegrotesk
-- Version in this repository: 2.000
+- Designer: Omnibus-Type
+- Upstream project: https://github.com/Omnibus-Type/Archivo
+- Google Fonts catalogue entry: https://github.com/google/fonts/tree/main/ofl/archivo
+- Version in this repository: 2.001
 - Licence: SIL Open Font License 1.1 (full text below)
 
-### JetBrains Mono — `jetbrains-mono.woff2`
+### Newsreader — `newsreader-latin.woff2`
 
 ```
-Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono)
+Copyright 2020 The Newsreader Project Authors (http://github.com/productiontype/Newsreader)
 ```
 
-- Designers: JetBrains, Philipp Nurullin, Konstantin Bulenkov
-- Upstream project: https://github.com/JetBrains/JetBrainsMono
-- Google Fonts catalogue entry: https://github.com/google/fonts/tree/main/ofl/jetbrainsmono
-- Version in this repository: 2.211
+- Designer: Production Type
+- Upstream project: https://github.com/productiontype/Newsreader
+- Google Fonts catalogue entry: https://github.com/google/fonts/tree/main/ofl/newsreader
+- Version in this repository: 1.003
 - Licence: SIL Open Font License 1.1 (full text below)
 
-### Instrument Serif — `instrument-serif.woff2`
+### Fraunces — `fraunces-latin.woff2`
 
 ```
-Copyright 2022 The Instrument Serif Project Authors (https://github.com/Instrument/instrument-serif)
+Copyright 2019 The Fraunces Project Authors (https://github.com/undercasetype/Fraunces)
 ```
 
-- Designers: Rodrigo Fuenzalida, Jordan Egstad
-- Upstream project: https://github.com/Instrument/instrument-serif
-- Google Fonts catalogue entry: https://github.com/google/fonts/tree/main/ofl/instrumentserif
-- Version in this repository: 1.000
+- Upstream project: https://github.com/undercasetype/Fraunces
 - Licence: SIL Open Font License 1.1 (full text below)
 
----
-
-## Reserved Font Names
-
-None of the five upstream `OFL.txt` files declare a Reserved Font Name, so OFL
-1.1 §3 imposes no renaming obligation on the subsets committed here. The files
-are unmodified apart from Google Fonts' own `latin` subsetting and the local
-rename; the family names in each `name` table are unchanged.
-
----
-
-## SIL Open Font License, Version 1.1
-
-The licence text is byte-identical across all five upstream `OFL.txt` files
-(modulo trailing whitespace and the `http`/`https` spelling of the SIL URL), so
-it is reproduced once. Each family's own copyright line is quoted above and is
-the copyright notice that applies to that file.
+### Inter — `inter-latin.woff2`
 
 ```
-This Font Software is licensed under the SIL Open Font License, Version 1.1.
-This license is copied below, and is also available with a FAQ at:
-https://scripts.sil.org/OFL
+Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter)
+```
 
+- Upstream project: https://github.com/rsms/inter
+- Licence: SIL Open Font License 1.1 (full text below)
+
+## Full licence text
 
 -----------------------------------------------------------
 SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007

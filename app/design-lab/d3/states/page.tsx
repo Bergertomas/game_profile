@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { D3Study } from "@/components/design-lab/d3/Study";
 import { buildProfileView } from "@/lib/profile/build";
 import { scoreStateFixture } from "@/lib/design-lab/score-states";
+import { DESIGN_SURFACES_ENABLED } from "@/lib/site";
 
 export const metadata = { title: "D3 — score-state proof" };
 
@@ -28,7 +29,9 @@ export const metadata = { title: "D3 — score-state proof" };
  * representation: every state is one of these three.
  */
 export default function Page() {
-  if (process.env.NODE_ENV === "production") notFound();
+  // Site environment, not NODE_ENV: the layout above uses the same gate, and
+  // a Cloudflare branch preview must show this proof. See lib/site.ts.
+  if (!DESIGN_SURFACES_ENABLED) notFound();
 
   const harness = scoreStateFixture("D3");
 

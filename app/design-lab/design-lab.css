@@ -24,14 +24,14 @@
   font-weight: 300 800;
   font-stretch: 62% 125%;
   font-display: swap;
-  src: url("/fonts/design-lab/archivo.woff2") format("woff2");
+  src: url("/fonts/archivo-latin.woff2") format("woff2");
 }
 @font-face {
   font-family: "Newsreader";
   font-style: normal;
   font-weight: 300 700;
   font-display: swap;
-  src: url("/fonts/design-lab/newsreader.woff2") format("woff2");
+  src: url("/fonts/newsreader-latin.woff2") format("woff2");
 }
 @font-face {
   font-family: "Space Grotesk";

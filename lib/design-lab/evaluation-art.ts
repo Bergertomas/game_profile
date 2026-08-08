@@ -6,11 +6,23 @@
  * route is rendered in development. The repository stores the address and the
  * rights record, never a copy of the work.
  *
- * Two independent guards keep it out of production:
- *   1. `app/design-lab/layout.tsx` calls `notFound()` in a production build, so
- *      every route under /design-lab returns 404.
- *   2. `evaluationArtFor()` returns null when NODE_ENV is "production", so even
- *      a stray import cannot emit a third-party URL into a production bundle.
+ * Two independent guards keep it off the public site:
+ *   1. `app/design-lab/layout.tsx` calls `notFound()` when design surfaces are
+ *      off, so every route under /design-lab returns 404 on production.
+ *   2. `evaluationArtFor()` returns null in the same case, so even a stray
+ *      import cannot emit a third-party URL into a production bundle.
+ *
+ * Both are keyed to `DESIGN_SURFACES_ENABLED` — the *site* environment — and
+ * not to `NODE_ENV`. A Cloudflare branch preview compiles exactly like
+ * production and is still not the public site, so the artwork does render
+ * there. That is the point: it is where the design work gets reviewed.
+ *
+ * A preview is public-but-unindexed unless Cloudflare Access is enabled on
+ * preview URLs. The exposure is bounded — the browser fetches each image
+ * directly from the rights holder's own server, and this repository stores and
+ * serves no copy — but it is a public display, so previews carrying artwork
+ * should be Access-protected. See
+ * docs/decisions/0010-design-surfaces-and-site-environment.md.
  *
  * There is deliberately no `images.remotePatterns` entry, no image proxy and no
  * `next/image` use for these — a production remote-image configuration would
@@ -19,6 +31,24 @@
  * Rights record: docs/design/d3/ASSET-PROVENANCE.md. None of this artwork is
  * licensed or cleared; it may not appear on a public route.
  */
+/**
+ * The same policy as `DESIGN_SURFACES_ENABLED` in lib/site.ts, written out
+ * again here as a literal member expression, and it has to stay that way.
+ *
+ * Importing the shared constant reads better and does not work: Next
+ * substitutes `process.env.NEXT_PUBLIC_SITE_ENV` textually *within a module*,
+ * so an imported boolean is not a literal at the point the bundler decides
+ * whether the table below is reachable. The table then survives into a
+ * production build. That was tried, and `npm run check:containment` found all
+ * three URLs in a production client chunk — the second time that check has
+ * caught this exact class of leak.
+ *
+ * tests/no-committed-artwork.test.ts asserts this agrees with the shared
+ * constant in both directions, so the duplication cannot drift.
+ */
+const DESIGN_SURFACES_ENABLED =
+  process.env.NEXT_PUBLIC_SITE_ENV !== "production";
+
 export interface EvaluationArt {
   /** Remote URL on the rights holder's own site or storefront listing. */
   readonly url: string;
@@ -87,9 +117,10 @@ const EVALUATION_ART: Readonly<Record<string, EvaluationArt>> = {
  */
 
 export function evaluationArtFor(slug: string): EvaluationArt | null {
-  // Belt and braces. The route already 404s in production; this makes sure the
-  // URL itself cannot be emitted from a production build either.
-  if (process.env.NODE_ENV === "production") return null;
+  // Belt and braces. The route already 404s on the public site; this makes sure
+  // the URL itself cannot be emitted from a production build either. Folds to a
+  // literal at build time, so the table above is droppable dead code there.
+  if (!DESIGN_SURFACES_ENABLED) return null;
   return EVALUATION_ART[slug] ?? null;
 }
 
