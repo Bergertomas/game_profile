@@ -29,8 +29,6 @@ import { gameTitle, gameUrl } from "@/lib/site";
  * the purchase decision.
  */
 
-export const dynamicParams = false;
-
 export async function generateStaticParams() {
   const slugs = await listGameSlugs();
   return slugs.map((slug) => ({ slug }));
