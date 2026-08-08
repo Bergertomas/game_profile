@@ -28,31 +28,43 @@ for (const slug of SLUGS) {
     }) => {
       await page.goto(`/games/${slug}`);
 
+      const rows = page.locator(".gp__row");
+      await expect(rows).toHaveCount(8);
       for (const name of DIMENSION_NAMES) {
         await expect(
-          page.getByRole("heading", { name, exact: true }),
+          rows.locator(".gp__row-name").filter({ hasText: name }).first(),
         ).toBeVisible();
       }
 
-      // Every row shows a number in the form N.N out of 10, no hover required.
-      const scores = await page
-        .locator("summary .tabular")
-        .allTextContents();
+      // Every row shows its exact value with no hover and no click. Reading a
+      // score must never require an interaction.
+      const scores = await rows.locator(".gp__num").allTextContents();
       expect(scores.length).toBe(8);
       for (const score of scores) {
-        expect(score).toMatch(/^\d{1,2}\.\d\/10$/);
+        expect(score).toMatch(/^\d{1,2}\.\d$/);
       }
     });
 
     test("subcriteria and rationales are reachable", async ({ page }) => {
       await page.goto(`/games/${slug}`);
-      const first = page.locator("details").first();
-      // Collapsed by default: present in the DOM for search and assistive tech,
-      // but not shown until asked for.
-      await expect(first.locator("ol > li").first()).toBeHidden();
-      await first.locator("summary").click();
-      await expect(first.locator("ol > li")).toHaveCount(5);
-      await expect(first.locator("ol > li").first()).toBeVisible();
+      const row = page.locator(".gp__row-wrap").first();
+      const panel = row.locator(".gp__panel");
+
+      // Collapsed by default: in the DOM for search and assistive tech, not
+      // shown until asked for.
+      await expect(panel).toBeHidden();
+      await expect(row.locator(".gp__row")).toHaveAttribute(
+        "aria-expanded",
+        "false",
+      );
+
+      await row.locator(".gp__row").click();
+      await expect(panel).toBeVisible();
+      await expect(row.locator(".gp__row")).toHaveAttribute(
+        "aria-expanded",
+        "true",
+      );
+      await expect(panel.locator("ol > li")).toHaveCount(5);
     });
 
     test("publishes no aggregate or overall score", async ({ page }) => {
@@ -76,63 +88,75 @@ for (const slug of SLUGS) {
       expect(overflow).toBeLessThanOrEqual(0);
     });
 
-    test("states its evidence status and evaluation scope", async ({ page }) => {
+    test("states its evidence status, confidence and full evaluation scope", async ({
+      page,
+    }) => {
       await page.goto(`/games/${slug}`);
-      await expect(page.getByText("Evidence checked").first()).toBeVisible();
-      await expect(page.getByText("What was assessed")).toBeVisible();
+      const trust = page.locator("section", {
+        has: page.getByText("How this profile was made"),
+      });
+
+      // An unscoped score is not a valid score (Rubric §1).
+      for (const term of [
+        "Evidence status",
+        "Overall confidence",
+        "Rubric",
+        "Evidence cut-off",
+        "Edition",
+        "Mode",
+        "Platforms",
+        "Build",
+      ]) {
+        await expect(trust.getByText(term, { exact: true }).first()).toBeVisible();
+      }
+      await expect(trust.getByText("v1.0", { exact: true })).toBeVisible();
     });
 
-    test("carries a trust line above the numbers", async ({ page }) => {
+    test("says the totals are derived, and never that they are calculated from sources", async ({
+      page,
+    }) => {
       await page.goto(`/games/${slug}`);
-      const trustLine = page
-        .locator("section", { has: page.locator("#profile-heading") })
-        .locator("p", { hasText: "Rubric v1.0" });
-      await expect(trustLine).toContainText(/confidence/i);
-      await expect(trustLine).toContainText("Rubric v1.0");
-      await expect(trustLine).toContainText("Evidence checked");
-      // Sources are evidence, not votes (SOP §6).
       const body = await page.locator("body").innerText();
+      // Sources are evidence, not votes (SOP §6).
       expect(body).not.toMatch(/calculated from \d+/i);
+      expect(body).toMatch(/derived from those five, never entered by hand/i);
+      // Nor may the shape be presented as a quantity.
+      expect(body).toMatch(/nothing is\s+calculated from the area/i);
     });
 
     test("exposes Why this score? with per-dimension confidence", async ({
       page,
     }) => {
       await page.goto(`/games/${slug}`);
-      const first = page.locator("details").first();
-      await first.locator("summary").click();
-      // Two matches by design: a screen-reader label naming the affordance on
-      // the summary, and the visible heading on the panel it opens.
-      await expect(first.getByText("Why this score?")).toHaveCount(2);
-      await expect(first.getByText("Why this score?").last()).toBeVisible();
-      await expect(first.getByText(/(Low|Medium|High) confidence/)).toBeVisible();
+      const row = page.locator(".gp__row-wrap").first();
+      await row.locator(".gp__row").click();
+      const panel = row.locator(".gp__panel");
+
+      await expect(panel.getByText("Why this score?")).toBeVisible();
+      await expect(panel.getByText(/(Low|Medium|High) confidence/)).toBeVisible();
       // The published total must be reproducible from the five values shown.
-      await expect(first.getByText(/derived, not entered/)).toBeVisible();
+      await expect(panel.getByText(/Derived, not entered/)).toBeVisible();
     });
 
     test("names pending evidence classes without publishing source counts", async ({
       page,
     }) => {
       await page.goto(`/games/${slug}`);
-      const evidence = page.locator("section", {
-        has: page.locator("#evidence-heading"),
+      const trust = page.locator("section", {
+        has: page.getByText("How this profile was made"),
       });
-      await expect(evidence.getByText("Direct play")).toBeVisible();
+
+      // Counts of evidence by kind, never one opaque number.
+      await expect(trust.getByText("Direct play").first()).toBeVisible();
+      await expect(trust.getByText("Critic reviews").first()).toBeVisible();
       await expect(
-        evidence.getByText(
-          "Evidence coverage recorded; source records pending",
-        ),
+        trust.getByText("Source records pending").first(),
       ).toBeVisible();
       await expect(
-        evidence.getByText(/not yet a complete per-source ledger/),
+        trust.getByText(/not yet the individual records behind them/),
       ).toBeVisible();
-      await expect(
-        evidence.getByText("Critic reviews").first(),
-      ).toBeVisible();
-      await expect(
-        evidence.locator("dt").filter({ hasText: "Critic reviews" }),
-      ).toHaveCount(0);
-      expect(await evidence.innerText()).not.toMatch(
+      // No "supported by N sources" claim while the ledger is pending.
+      expect(await trust.innerText()).not.toMatch(
         /\b\d+\s+(?:linked\s+)?sources?\b/i,
       );
     });
@@ -146,15 +170,26 @@ test("an unknown game slug is not rendered on demand", async ({ request }) => {
   ).toBe(404);
 });
 
-test("keyboard focus on a score row highlights its radar axis", async ({
+test("keyboard focus reaches every score row and drives the radar", async ({
   page,
 }) => {
   await page.goto("/games/alan-wake-2");
-  const readout = page.locator("figcaption");
-  await expect(readout).toContainText("no overall score");
 
-  await page.locator("summary").first().focus();
-  await expect(readout).toContainText("Story & Character Investment");
+  // The polygon is aria-hidden decoration; its text equivalent describes the
+  // distribution and must not imply a rating.
+  const shape = page.locator(".gp-sr").first();
+  await expect(shape).toContainText("scored 0 to 10 independently");
+
+  // Every row is a real button: reachable, operable and expandable by keyboard.
+  const first = page.locator(".gp__row").first();
+  await first.focus();
+  await expect(first).toBeFocused();
+  await expect(first).toHaveAttribute("data-active", "true");
+
+  await page.keyboard.press("Enter");
+  await expect(first).toHaveAttribute("aria-expanded", "true");
+  await page.keyboard.press("Enter");
+  await expect(first).toHaveAttribute("aria-expanded", "false");
 });
 
 test("home page contrasts three distinct silhouettes", async ({ page }) => {
@@ -239,9 +274,7 @@ test("no public page requests evaluation artwork, even in preview", async ({
   }
 });
 
-test("production profile pages are untouched by the design lab", async ({
-  page,
-}) => {
+test("production profile pages keep the site chrome", async ({ page }) => {
   // The lab hides the site chrome via its own stylesheet; that must not leak.
   await page.goto("/games/alan-wake-2");
   await expect(page.locator("body > header")).toBeVisible();

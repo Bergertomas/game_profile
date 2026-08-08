@@ -58,13 +58,20 @@ test.describe("game page discoverability", () => {
       const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
 
       expect(text).toContain("Story &amp; Character Investment");
-      expect(text).toContain("Evidence &amp; scope");
-      // Eight dimension totals, written out rather than only drawn.
-      expect(text.match(/\d{1,2}\.\d \/10/g)?.length ?? 0).toBeGreaterThanOrEqual(
-        8,
-      );
-      // And the reasoning behind them, not just the numbers.
+      expect(text).toContain("How this profile was made");
+
+      // All eight dimension totals, written out rather than only drawn. The
+      // radar is aria-hidden decoration and carries no crawlable value.
+      const values = text.match(/\b\d{1,2}\.\d\b/g) ?? [];
+      expect(values.length).toBeGreaterThanOrEqual(8);
+
+      // The reasoning behind them, present without any interaction: the panels
+      // are hidden with `hidden`, not unmounted, so a crawler and a reader
+      // without JavaScript both get every rationale.
       expect(text).toContain("Why this score?");
+      expect(text).toContain("Derived, not entered");
+      // And the scope that makes the numbers readable at all.
+      expect(text).toContain("Evidence cut-off");
     });
 
     test(`${slug} publishes structured data with no rating`, async ({ page }) => {

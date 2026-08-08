@@ -59,9 +59,22 @@ export interface Game {
   readonly releaseStatus: ReleaseStatus;
   readonly platforms: readonly Platform[];
   readonly aliases: readonly string[];
-  /** Optional owned/licensed art. Absent art must degrade gracefully. */
+  /**
+   * Optional owned/licensed art. Absent art must degrade gracefully, and today
+   * it always is absent — see lib/profile/artwork.ts and ADR 0011.
+   *
+   * `coverUrl` is portrait box art. `heroUrl` is the wide stage image the game
+   * page composes around; only art we hold a licence or permission for belongs
+   * in either. A storefront or press URL is not a licence.
+   */
   readonly coverUrl?: string;
   readonly heroUrl?: string;
+  /** Factual description of the hero image. Required whenever heroUrl is set. */
+  readonly heroAlt?: string;
+  /** `object-position` for the stage crop, e.g. "center 32%". */
+  readonly heroFocus?: string;
+  /** Rights holder to credit. Defaults to the publisher when omitted. */
+  readonly heroCredit?: string;
 }
 
 /**
