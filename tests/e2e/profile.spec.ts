@@ -211,10 +211,40 @@ test("keyboard focus reaches every score row and drives the radar", async ({
 
 test("home page contrasts three distinct silhouettes", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator("svg")).toHaveCount(3);
+  // One instrument mark per game card. Counted through the card, not through
+  // every <svg> on the page, so the explainer radar beneath the shelf is not
+  // mistaken for a fourth game.
+  await expect(page.locator("article svg")).toHaveCount(SLUGS.length);
   for (const slug of SLUGS) {
     await expect(page.locator(`a[href="/games/${slug}"]`)).toBeVisible();
   }
+});
+
+test("a game card leads with the game, not with its numbers", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const card = page.locator("article").first();
+
+  // The card's own heading is the game and nothing else. If a score or a
+  // dimension name were reaching the heading, the hierarchy the card exists to
+  // enforce would have inverted.
+  // textContent, not innerText: the display face is uppercased in CSS, and the
+  // assertion is about the words in the document, not about the rendering.
+  const heading = (await card.locator("h3").textContent()) ?? "";
+  expect(heading).toMatch(/^Alan Wake 2\b/);
+  expect(heading).not.toMatch(/\d\.\d/);
+  expect(heading).not.toMatch(/Atmosphere|Strongest|Weakest/);
+
+  // The mark carries no text of its own, so the card owes exact values in
+  // words — nothing in this product is communicated by shape alone.
+  await expect(card.locator("dt").first()).toContainText("Strongest");
+  await expect(card.locator("dd").first()).toHaveText(/\d+\.\d/);
+
+  // And no aggregate, here or anywhere.
+  const body = await page.content();
+  expect(body).not.toMatch(/overall score:\s*\d/);
+  expect(body).not.toMatch(/average score/);
 });
 
 /**
@@ -292,11 +322,14 @@ test("evaluation artwork renders in preview, and says on what basis", async ({
     expect(body).toContain("Not cleared for production");
   }
 
-  // Pages with no artwork of their own must not acquire any.
-  for (const path of ["/", "/methodology"]) {
-    const body = await (await request.get(path)).text();
-    expect(body).not.toMatch(/alanwake\.com|steamstatic\.com/);
-  }
+  // The shelf shows covers on a review surface for the same reason the profile
+  // shows a hero: the card grammar cannot be reviewed without them.
+  const home = await (await request.get("/")).text();
+  expect(home).toMatch(/steamstatic\.com/);
+
+  // A page with no game on it must not acquire artwork in any environment.
+  const methodology = await (await request.get("/methodology")).text();
+  expect(methodology).not.toMatch(/alanwake\.com|steamstatic\.com/);
 });
 
 test("production profile pages keep the site chrome", async ({ page }) => {
