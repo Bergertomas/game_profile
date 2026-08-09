@@ -2,7 +2,7 @@
 
 import { useState, type CSSProperties } from "react";
 import type { ProfileView } from "@/lib/profile/build";
-import { evaluationArtFor } from "@/lib/design-lab/evaluation-art";
+import { heroArtworkFor } from "@/lib/profile/artwork";
 import { d3AccentFor } from "@/lib/design-lab/profile";
 import { formatYear } from "@/lib/format";
 import { COMPACT, full } from "../radar-layout";
@@ -38,7 +38,7 @@ export function D3Study({ profile }: { profile: ProfileView }) {
   const active = hovered ?? focused ?? open;
 
   const { game, evaluation } = profile;
-  const art = evaluationArtFor(game.slug);
+  const art = heroArtworkFor(game);
   const accent = d3AccentFor(game.slug);
 
   const radarSkin: RadarSkin = {
@@ -81,8 +81,8 @@ export function D3Study({ profile }: { profile: ProfileView }) {
           <img
             src={art.url}
             alt={art.alt}
-            width={art.intrinsicWidth}
-            height={art.intrinsicHeight}
+            width={art.width}
+            height={art.height}
             style={{ objectPosition: art.objectPosition }}
           />
         )}

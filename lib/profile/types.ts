@@ -47,6 +47,50 @@ export interface Platform {
   readonly name: string;
 }
 
+/**
+ * One image. `url` is remote and belongs to whoever the artwork record credits;
+ * no copy is committed to this repository.
+ */
+export interface GameImage {
+  readonly url: string;
+  readonly width: number;
+  readonly height: number;
+  /** Factual description of what the image shows. Never marketing copy. */
+  readonly alt?: string;
+  /** `object-position` for a hard crop, e.g. "center 32%". */
+  readonly focus?: string;
+}
+
+/**
+ * A game's artwork, and whether it may be shown on the public site.
+ *
+ * Shaped so a provider (RAWG, MobyGames, a press kit) can populate it
+ * automatically and a human can override one game without touching the
+ * sourcing system. `clearance` is the only field that decides where these
+ * images may render — see lib/profile/artwork.ts.
+ */
+export interface GameArtwork {
+  /** Standardised portrait art, for cards and listings. */
+  readonly cover?: GameImage;
+  /** Landscape promotional art, for the profile stage. */
+  readonly hero?: GameImage;
+  readonly source: import("./artwork").ArtworkSource;
+  /** The provider's own identifier, so a record can be refreshed later. */
+  readonly externalId?: string;
+  /** The application-level question: may this render on production? */
+  readonly clearance: import("./artwork").ArtworkClearance;
+  /**
+   * Why we hold it. Recorded for the humans who have to answer for it later,
+   * and deliberately never consulted by rendering code.
+   */
+  readonly basis: import("./artwork").ArtworkBasis;
+  /** Rights holder to credit. Defaults to the publisher when omitted. */
+  readonly credit?: string;
+  /** Human-visitable page the asset belongs to. */
+  readonly sourcePage?: string;
+  readonly retrieved?: string;
+}
+
 export interface Game {
   readonly id: string;
   readonly slug: string;
@@ -60,21 +104,10 @@ export interface Game {
   readonly platforms: readonly Platform[];
   readonly aliases: readonly string[];
   /**
-   * Optional owned/licensed art. Absent art must degrade gracefully, and today
-   * it always is absent — see lib/profile/artwork.ts and ADR 0011.
-   *
-   * `coverUrl` is portrait box art. `heroUrl` is the wide stage image the game
-   * page composes around; only art we hold a licence or permission for belongs
-   * in either. A storefront or press URL is not a licence.
+   * Artwork, or nothing. Absent art must degrade gracefully — see
+   * lib/profile/artwork.ts and ADR 0011.
    */
-  readonly coverUrl?: string;
-  readonly heroUrl?: string;
-  /** Factual description of the hero image. Required whenever heroUrl is set. */
-  readonly heroAlt?: string;
-  /** `object-position` for the stage crop, e.g. "center 32%". */
-  readonly heroFocus?: string;
-  /** Rights holder to credit. Defaults to the publisher when omitted. */
-  readonly heroCredit?: string;
+  readonly artwork?: GameArtwork;
 }
 
 /**

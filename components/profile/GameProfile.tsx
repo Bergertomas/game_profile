@@ -7,9 +7,15 @@ import type { ProfileArtwork } from "@/lib/profile/artwork";
 import type { ProfileView } from "@/lib/profile/build";
 import { PRE_RELEASE_NOTICE } from "@/lib/profile/vocabulary";
 import { GameStage } from "./GameStage";
-import { ProfileRadar, ScoreRow, type RadarSkin } from "./instrument";
+import { ScoreRow } from "./instrument";
+import { GRAPHITE_SKIN, ProfileRadar } from "./radar";
 import { ProfileLower } from "./ProfileLower";
 import { COMPACT, full } from "./radar-layout";
+// The stylesheet travels with the component rather than with one route. It
+// used to be imported by app/games/[slug]/page.tsx alone, so the review
+// harness at /dev/radar-states rendered the profile completely unstyled — the
+// one surface built to prove the uncertainty states could not show them.
+import "./profile.css";
 
 /**
  * The public game profile.
@@ -45,22 +51,6 @@ export function GameProfile({
   const { game, evaluation } = profile;
   const accent = accentFor(game.slug);
 
-  const radarSkin: RadarSkin = {
-    grid: "rgba(237,235,231,0.20)",
-    gridOuter: "rgba(237,235,231,0.46)",
-    fill: "var(--gp-accent-lift)",
-    fillOpacity: 0.35,
-    stroke: "var(--gp-accent-lift)",
-    vertex: "var(--gp-accent-lift)",
-    vertexEdge: "var(--gp-graphite)",
-    reach: "var(--gp-bone-soft)",
-    label: "var(--gp-bone-quiet)",
-    value: "var(--gp-bone)",
-    activeLabel: "var(--gp-bone)",
-    activeValue: "var(--gp-accent-lift)",
-    activeMark: "var(--gp-bone)",
-  };
-
   return (
     <div
       className="gp"
@@ -69,6 +59,10 @@ export function GameProfile({
         {
           "--gp-accent": accent.base,
           "--gp-accent-lift": accent.lift,
+          // The radar skin is shared with the card mark, so it reads the
+          // system-wide names rather than this page's scoped ones.
+          "--sip-accent-lift": accent.lift,
+          "--sip-radar-ground": "var(--color-graphite)",
         } as CSSProperties
       }
     >
@@ -123,7 +117,7 @@ export function GameProfile({
                   profile={profile}
                   active={active}
                   layout={COMPACT}
-                  skin={radarSkin}
+                  skin={GRAPHITE_SKIN}
                 />
               </div>
               <div className="hidden sm:block">
@@ -139,7 +133,7 @@ export function GameProfile({
                     nameSize: 14,
                     valueSize: 20,
                   })}
-                  skin={radarSkin}
+                  skin={GRAPHITE_SKIN}
                 />
               </div>
               {/* The polygon is aria-hidden decoration; this is its text

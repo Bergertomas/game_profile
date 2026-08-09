@@ -10,6 +10,23 @@ import { expect, test } from "@playwright/test";
 
 const SLUGS = ["alan-wake-2", "returnal", "redfall"] as const;
 
+/**
+ * Never wait on a third-party CDN.
+ *
+ * A preview build renders real key art from the rights holders' own servers.
+ * That is correct for a human reviewing the page and wrong for a test suite:
+ * it makes every navigation depend on someone else's uptime and on outbound
+ * network access from CI, and `page.goto` waits for `load`. Blocking the
+ * requests keeps the suite hermetic and deterministic — the markup is what
+ * these tests are about, and that is asserted from the HTML instead.
+ */
+test.beforeEach(async ({ page }) => {
+  await page.route(
+    /^https:\/\/(www\.alanwake\.com|cdn\.akamai\.steamstatic\.com)\//,
+    (route) => route.abort(),
+  );
+});
+
 const DIMENSION_NAMES = [
   "Story & Character Investment",
   "Thematic & Emotional Impact",
@@ -194,10 +211,40 @@ test("keyboard focus reaches every score row and drives the radar", async ({
 
 test("home page contrasts three distinct silhouettes", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator("svg")).toHaveCount(3);
+  // One instrument mark per game card. Counted through the card, not through
+  // every <svg> on the page, so the explainer radar beneath the shelf is not
+  // mistaken for a fourth game.
+  await expect(page.locator("article svg")).toHaveCount(SLUGS.length);
   for (const slug of SLUGS) {
     await expect(page.locator(`a[href="/games/${slug}"]`)).toBeVisible();
   }
+});
+
+test("a game card leads with the game, not with its numbers", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const card = page.locator("article").first();
+
+  // The card's own heading is the game and nothing else. If a score or a
+  // dimension name were reaching the heading, the hierarchy the card exists to
+  // enforce would have inverted.
+  // textContent, not innerText: the display face is uppercased in CSS, and the
+  // assertion is about the words in the document, not about the rendering.
+  const heading = (await card.locator("h3").textContent()) ?? "";
+  expect(heading).toMatch(/^Alan Wake 2\b/);
+  expect(heading).not.toMatch(/\d\.\d/);
+  expect(heading).not.toMatch(/Atmosphere|Strongest|Weakest/);
+
+  // The mark carries no text of its own, so the card owes exact values in
+  // words — nothing in this product is communicated by shape alone.
+  await expect(card.locator("dt").first()).toContainText("Strongest");
+  await expect(card.locator("dd").first()).toHaveText(/\d+\.\d/);
+
+  // And no aggregate, here or anywhere.
+  const body = await page.content();
+  expect(body).not.toMatch(/overall score:\s*\d/);
+  expect(body).not.toMatch(/average score/);
 });
 
 /**
@@ -259,19 +306,30 @@ test("every design-lab route is reachable for review, and none is indexable", as
   expect(missing?.status()).toBe(404);
 });
 
-test("no public page requests evaluation artwork, even in preview", async ({
+test("evaluation artwork renders in preview, and says on what basis", async ({
   request,
 }) => {
-  // The lab may reference uncleared key art; a public document may not, in any
-  // environment. check-build-containment asserts this against the build output
-  // — this asserts it against what the server actually returns.
-  const artHosts = ["alanwake.com", "steamstatic.com"];
-  for (const path of ["/", "/methodology", ...SLUGS.map((s) => `/games/${s}`)]) {
-    const body = await (await request.get(path)).text();
-    for (const host of artHosts) {
-      expect(body.includes(host), `${path} references ${host}`).toBe(false);
-    }
+  // This suite serves a preview artifact, where reviewing the real page with
+  // real artwork is the point. What must hold is that the basis travels with
+  // the image — a page carrying uncleared art has to say so.
+  //
+  // Production carries none of it at all; that guarantee is asserted against
+  // the built artefact by check-build-containment and against the Worker by
+  // `npm run cf:verify`.
+  for (const slug of SLUGS) {
+    const body = await (await request.get(`/games/${slug}`)).text();
+    expect(body).toMatch(/alanwake\.com|steamstatic\.com/);
+    expect(body).toContain("Not cleared for production");
   }
+
+  // The shelf shows covers on a review surface for the same reason the profile
+  // shows a hero: the card grammar cannot be reviewed without them.
+  const home = await (await request.get("/")).text();
+  expect(home).toMatch(/steamstatic\.com/);
+
+  // A page with no game on it must not acquire artwork in any environment.
+  const methodology = await (await request.get("/methodology")).text();
+  expect(methodology).not.toMatch(/alanwake\.com|steamstatic\.com/);
 });
 
 test("production profile pages keep the site chrome", async ({ page }) => {

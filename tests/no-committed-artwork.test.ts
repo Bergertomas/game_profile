@@ -46,9 +46,11 @@ describe("committed assets", () => {
 });
 
 describe("evaluation artwork", () => {
-  it("resolves to nothing on the public production site", async () => {
+  it("keeps evaluation-clearance artwork off the public production site", async () => {
     // Second guard behind the route 404: even if a design-lab route were
-    // reachable, a production build must not emit a third-party URL.
+    // reachable, a production build must not emit a third-party URL. Asserted
+    // through the resolvers every surface actually calls, both image roles,
+    // rather than through the overlay module alone.
     //
     // Keyed to the SITE environment, not NODE_ENV. A Cloudflare branch preview
     // is compiled exactly like production and must still show the artwork —
@@ -56,16 +58,71 @@ describe("evaluation artwork", () => {
     vi.stubEnv("NEXT_PUBLIC_SITE_ENV", "production");
     try {
       vi.resetModules();
-      const { evaluationArtFor } = await import(
-        "@/lib/design-lab/evaluation-art"
+      const { coverArtworkFor, heroArtworkFor } = await import(
+        "@/lib/profile/artwork"
       );
-      for (const slug of ["alan-wake-2", "returnal", "redfall"]) {
-        expect(evaluationArtFor(slug), slug).toBeNull();
+      const { SEED_PROFILES } = await import("@/content");
+      for (const { game } of SEED_PROFILES) {
+        expect(heroArtworkFor(game), `${game.slug} hero`).toBeNull();
+        expect(coverArtworkFor(game), `${game.slug} cover`).toBeNull();
       }
     } finally {
       vi.unstubAllEnvs();
       vi.resetModules();
     }
+  });
+
+  it("resolves both image roles on a review surface", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SITE_ENV", "preview");
+    try {
+      vi.resetModules();
+      const { coverArtworkFor, heroArtworkFor } = await import(
+        "@/lib/profile/artwork"
+      );
+      const { SEED_PROFILES } = await import("@/content");
+      const bySlug = new Map(SEED_PROFILES.map((p) => [p.game.slug, p.game]));
+
+      // Every seeded game has a hero to review the stage against.
+      for (const { game } of SEED_PROFILES) {
+        expect(heroArtworkFor(game), `${game.slug} hero`).not.toBeNull();
+      }
+
+      // Covers are deliberately partial: the card grammar has to survive a
+      // game with no portrait art, so one is reviewed in that state on every
+      // preview rather than only imagined.
+      expect(coverArtworkFor(bySlug.get("returnal")!)).not.toBeNull();
+      expect(coverArtworkFor(bySlug.get("redfall")!)).not.toBeNull();
+      expect(coverArtworkFor(bySlug.get("alan-wake-2")!)).toBeNull();
+
+      // A hero is never demoted into the cover role, and never the reverse.
+      const hero = heroArtworkFor(bySlug.get("alan-wake-2")!)!;
+      expect(hero.width).toBeGreaterThan(hero.height);
+      const cover = coverArtworkFor(bySlug.get("returnal")!)!;
+      expect(cover.height).toBeGreaterThan(cover.width);
+      expect(cover.url).not.toBe(heroArtworkFor(bySlug.get("returnal")!)!.url);
+    } finally {
+      vi.unstubAllEnvs();
+      vi.resetModules();
+    }
+  });
+
+  it("refuses production clearance on an internal-evaluation basis", async () => {
+    const { assertClearedBasis } = await import("@/lib/profile/artwork");
+    expect(() =>
+      assertClearedBasis({
+        source: "manual",
+        clearance: "production",
+        basis: "internal-evaluation",
+      }),
+    ).toThrow(/internal-evaluation/);
+    // Every other combination is a human judgement this code does not police.
+    expect(() =>
+      assertClearedBasis({
+        source: "rawg",
+        clearance: "production",
+        basis: "provider-terms",
+      }),
+    ).not.toThrow();
   });
 
   it("resolves in a preview build, compiled as production or not", async () => {
@@ -77,11 +134,14 @@ describe("evaluation artwork", () => {
       vi.stubEnv("NEXT_PUBLIC_SITE_ENV", "preview");
       try {
         vi.resetModules();
-        const { evaluationArtFor } = await import(
-          "@/lib/design-lab/evaluation-art"
+        const { evaluationArtworkFor } = await import(
+          "@/content/evaluation-artwork"
         );
         for (const slug of ["alan-wake-2", "returnal", "redfall"]) {
-          expect(evaluationArtFor(slug), `${slug} @ NODE_ENV=${nodeEnv}`).not.toBeNull();
+          expect(
+            evaluationArtworkFor(slug),
+            `${slug} @ NODE_ENV=${nodeEnv}`,
+          ).not.toBeNull();
         }
       } finally {
         vi.unstubAllEnvs();
@@ -100,10 +160,10 @@ describe("evaluation artwork", () => {
       try {
         vi.resetModules();
         const { DESIGN_SURFACES_ENABLED } = await import("@/lib/site");
-        const { evaluationArtFor } = await import(
-          "@/lib/design-lab/evaluation-art"
+        const { evaluationArtworkFor } = await import(
+          "@/content/evaluation-artwork"
         );
-        expect(evaluationArtFor("alan-wake-2") !== null, siteEnv).toBe(
+        expect(evaluationArtworkFor("alan-wake-2") !== null, siteEnv).toBe(
           DESIGN_SURFACES_ENABLED,
         );
       } finally {
@@ -119,34 +179,42 @@ describe("evaluation artwork", () => {
     // tree-shaking. That decoupling is only safe if the parse stays in step
     // with the module — which is what this asserts.
     const { artNeedles } = await import("@/scripts/art-needles");
-    const { evaluationArtFor } = await import(
-      "@/lib/design-lab/evaluation-art"
+    const { evaluationArtworkFor } = await import(
+      "@/content/evaluation-artwork"
     );
 
     const needles = new Set(artNeedles());
     expect(needles.size).toBeGreaterThan(0);
 
     for (const slug of ["alan-wake-2", "returnal", "redfall"]) {
-      const art = evaluationArtFor(slug)!;
-      expect(needles.has(art.url), `${slug} url`).toBe(true);
-      expect(
-        needles.has(new URL(art.url).hostname),
-        `${slug} hostname`,
-      ).toBe(true);
+      const artwork = evaluationArtworkFor(slug)!;
+      // Both roles, so adding a cover cannot silently escape containment.
+      for (const image of [artwork.hero, artwork.cover].filter((i) => !!i)) {
+        expect(needles.has(image.url), `${slug} url`).toBe(true);
+        expect(
+          needles.has(new URL(image.url).hostname),
+          `${slug} hostname`,
+        ).toBe(true);
+      }
     }
   });
 
   it("is referenced only by URL, never by a repository path", async () => {
-    const { evaluationArtFor } = await import(
-      "@/lib/design-lab/evaluation-art"
+    const { evaluationArtworkFor } = await import(
+      "@/content/evaluation-artwork"
     );
     for (const slug of ["alan-wake-2", "returnal", "redfall"]) {
-      const art = evaluationArtFor(slug);
-      expect(art, slug).not.toBeNull();
+      const artwork = evaluationArtworkFor(slug);
+      expect(artwork, slug).not.toBeNull();
       // A relative path would mean a copy is being served from this repo.
-      expect(art!.url, slug).toMatch(/^https:\/\//);
-      expect(art!.rightsHolder, slug).toBeTruthy();
-      expect(art!.sourcePage, slug).toMatch(/^https:\/\//);
+      expect(artwork!.hero!.url, slug).toMatch(/^https:\/\//);
+      expect(artwork!.cover?.url ?? "https://", slug).toMatch(/^https:\/\//);
+      expect(artwork!.credit, slug).toBeTruthy();
+      expect(artwork!.sourcePage, slug).toMatch(/^https:\/\//);
+      // Clearance gates rendering; basis records why, for the humans who have
+      // to answer for it. Both are required on every record.
+      expect(artwork!.clearance, slug).toBe("evaluation");
+      expect(artwork!.basis, slug).toBe("internal-evaluation");
     }
   });
 });

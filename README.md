@@ -44,16 +44,19 @@ node scripts/screenshots.mjs screenshots http://localhost:3000
 
 ```
 app/
-  page.tsx                     three contrasting silhouettes side by side
-  games/[slug]/page.tsx        the canonical profile page
+  globals.css                  the site-wide visual system: tokens and type roles
+  page.tsx                     the library entrance — proposition, shelf, explainer
+  games/[slug]/page.tsx        the canonical profile page, then more games
   games/[slug]/opengraph-image  prerendered share card, silhouette and all
   methodology/page.tsx         renders itself from the typed rubric
   robots.ts / sitemap.ts       generated from the same data the pages read
-  dev/radar-states/            unknown/range harness, dev only
+  dev/radar-states/            unknown/range harness, non-production only
 components/
-  ProfilePanel.tsx             radar + score rows as one linked unit
-  ProfileRadar.tsx             the signature eight-axis silhouette
-  ScoreRows.tsx                exact scores, always visible, expandable
+  SiteChrome.tsx               header and footer — achromatic, so games carry colour
+  GameCard.tsx                 the one card grammar every list of games will use
+  profile/radar.tsx            the only radar in the product, at three sizes
+  profile/instrument.tsx       score rows, disclosure and hover linking
+  profile/GameProfile.tsx      the canonical profile, with profile.css beside it
 lib/
   rubric/                      canonical typed Rubric v1.0 — the source of truth
   scoring/derive.ts            dimension totals, unknowns, ranges
@@ -83,9 +86,11 @@ These are product semantics, not preferences. Most are covered by a test.
 | Dimension totals are derived from subcriteria, never entered | `lib/scoring/derive.ts`, `dimension_scores` view |
 | Scores are 0–2 in 0.5 increments | schema check constraints, `tests/scoring.test.ts` |
 | `unknown` is never zero, on screen or in the database | `NULL` in Postgres, `null` vertex in geometry, [ADR 0004](docs/decisions/0004-unknown-and-range-scores.md) |
-| Exact scores are readable without hover or interaction | `ScoreRows`, asserted in e2e |
+| Exact scores are readable without hover or interaction | `components/profile/instrument.tsx`, asserted in e2e |
 | Radar axis order is globally fixed | `lib/rubric/v1.ts`, `tests/rubric.test.ts` |
-| No good/bad colour semantics | one accent, used neutrally, at one opacity |
+| No good/bad colour semantics | one per-game accent, identity only; the same hue marks a 4.0 and a 10.0 |
+| Nothing is communicated by shape or colour alone | the label-free card mark is `aria-hidden`; the card states its extremes as exact figures |
+| One radar implementation, one visual system | `components/profile/radar.tsx`; `tests/accessibility-tokens.test.ts` fails on a second typeface |
 | Every evaluation declares edition, mode, platform and build | NOT NULL columns, shown on the page |
 | Every dimension carries its own confidence | `dimension_assessments`, publish trigger, `tests/lineage.test.ts` |
 | A missing subcriterion row can never become a precise score | `dimension_scores` derives against the full expected set |
@@ -177,6 +182,24 @@ A local build is a **preview** build and is served `noindex`; set
 `NEXT_PUBLIC_SITE_ENV=production` to reproduce the production artefact. That
 default is deliberate — see `lib/site.ts`.
 
+### Runbook: protect preview URLs (one click, once, account-wide)
+
+Previews render evaluation-clearance artwork, and `noindex` is discoverability
+control, not access control — a preview URL is public to anyone holding it until
+Cloudflare Access is on. Access is an account-level Zero Trust policy with no
+representation in `wrangler.jsonc`, so it cannot be enabled from this repository.
+
+1. Cloudflare dashboard -> **Workers & Pages** -> **should-i-play**
+2. **Settings -> Domains & Routes**
+3. Next to **Preview URLs**, click **Enable Cloudflare Access**
+4. **Manage Cloudflare Access** -> authorise the reviewing email addresses
+
+`cf:deploy-preview` reports the current state of this on every upload
+(`node scripts/check-preview-access.mjs <url>` runs the same check by hand).
+Until it is enabled, treat preview links as shareable-but-public: use them, do
+not post them anywhere durable. See
+[ADR 0012](docs/decisions/0012-preview-access-and-artwork-exposure.md).
+
 ## Decisions
 
 - [0001 — Stack and hosting](docs/decisions/0001-stack-and-hosting.md)
@@ -188,6 +211,10 @@ default is deliberate — see `lib/site.ts`.
 - [0007 — Database integrity: derivation completeness, source identity, lineage](docs/decisions/0007-database-integrity.md)
 - [0008 — Hosting on Cloudflare Workers via OpenNext](docs/decisions/0008-cloudflare-hosting.md) *(supersedes the hosting half of 0001)*
 - [0009 — Final evaluation and rubric integrity](docs/decisions/0009-final-evaluation-and-rubric-integrity.md)
+- [0010 — Design surfaces are gated by site environment, not `NODE_ENV`](docs/decisions/0010-design-surfaces-and-site-environment.md)
+- [0011 — Artwork is game metadata, and clearance decides where it renders](docs/decisions/0011-production-artwork.md)
+- [0012 — `noindex` is not access control](docs/decisions/0012-preview-access-and-artwork-exposure.md)
+- [0013 — One Should I Play? visual system](docs/decisions/0013-visual-system.md)
 
 ## Not built, deliberately
 

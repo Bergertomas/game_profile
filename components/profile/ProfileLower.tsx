@@ -8,7 +8,7 @@ import {
   blockHeadings,
 } from "@/lib/profile/vocabulary";
 import { formatDate } from "@/lib/format";
-import type { ProfileArtwork } from "@/lib/profile/artwork";
+import { creditLineFor, type ProfileArtwork } from "@/lib/profile/artwork";
 
 const PROVENANCE_LABEL: Readonly<
   Record<ProfileView["evaluation"]["scoreProvenance"], string>
@@ -257,13 +257,15 @@ export function ProfileLower({
             </div>
           </div>
 
-          {/* Artwork credit. Required wherever key art renders. */}
+          {/* Credit, and — for artwork held on an evaluation basis — the full
+              rights notice. Required wherever the image renders, so the basis
+              is visible on the page carrying it rather than only in an ADR. */}
           {artwork && (
             <p
               className="mt-8 max-w-[54rem] border-t pt-4 text-[0.8125rem] leading-relaxed text-[var(--gp-ink-quiet)]"
               style={{ borderColor: "rgba(22,24,28,0.18)" }}
             >
-              Key art © {artwork.credit}.
+              {creditLineFor(artwork)}
             </p>
           )}
         </div>

@@ -19,8 +19,13 @@
  * `claude/brand-seo-e0cvl8` are therefore normalised and hashed here.
  */
 import { readFileSync } from "node:fs";
-import { run, runOpenNext } from "./cf-common.mjs";
+import { run, runOpenNextCaptured } from "./cf-common.mjs";
 import { toPreviewAlias } from "./cf-preview-alias.mjs";
+import {
+  checkPreviewAccess,
+  previewUrlFrom,
+  reportAccess,
+} from "./check-preview-access.mjs";
 
 const packageJson = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url), "utf8"),
@@ -46,4 +51,22 @@ run(process.execPath, ["--import", "tsx", "scripts/check-build-containment.ts"])
 
 const args = ["upload"];
 if (alias) args.push("--", "--preview-alias", alias);
-runOpenNext(args);
+const uploadOutput = runOpenNextCaptured(args);
+
+// A preview carries evaluation-clearance artwork, and `noindex` is not access
+// control. Cloudflare Access is an account-level Zero Trust setting with no
+// representation in wrangler.jsonc, so this cannot enable it — but it can stop
+// the question being answered by assumption. Advisory on purpose: failing here
+// would take away the review surface previews exist to provide.
+const previewUrl = previewUrlFrom(uploadOutput);
+if (previewUrl) {
+  reportAccess(
+    previewUrl,
+    await checkPreviewAccess(previewUrl).catch(() => "unknown"),
+  );
+} else {
+  console.warn(
+    "\nWARNING: no preview URL found in the upload output, so its Cloudflare Access\n" +
+      "      state could not be checked. Verify by hand before sharing the link.",
+  );
+}

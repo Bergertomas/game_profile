@@ -158,14 +158,24 @@ try {
     }
   }
 
+  const artHosts = ["alanwake.com", "steamstatic.com"];
   if (PREVIEW) {
-    // The lab renders evaluation artwork; a public page must not, in any
-    // environment. check-build-containment asserts the same thing against the
-    // artefact — this asserts it against what the Worker actually returns.
-    const home = await text("/");
-    const artHosts = ["alanwake.com", "steamstatic.com"];
+    // A preview exists to review the real page with real artwork, so the game
+    // page is expected to carry it — and to say on what basis.
     check(
-      "no public page requests evaluation artwork",
+      "game page renders evaluation artwork for review",
+      artHosts.some((host) => page.includes(host)),
+    );
+    check(
+      "game page states the artwork clearance basis",
+      page.includes("Not cleared for production"),
+    );
+  } else {
+    // The absolute guarantee. check-build-containment asserts it against the
+    // artefact; this asserts it against what the Worker actually returns.
+    const home = await text("/");
+    check(
+      "no production page requests evaluation artwork",
       artHosts.every((host) => !home.includes(host) && !page.includes(host)),
     );
   }

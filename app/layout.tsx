@@ -41,9 +41,15 @@ export const metadata: Metadata = {
     : { index: false, follow: false },
 };
 
+/**
+ * The chrome is graphite and the page is warm paper, so the browser furniture
+ * should match the chrome rather than the body — the header is what sits under
+ * the address bar. `colorScheme: light` because the product ground is light;
+ * the graphite bands are structure, not a dark theme.
+ */
 export const viewport: Viewport = {
-  themeColor: "#08090b",
-  colorScheme: "dark",
+  themeColor: "#191b1f",
+  colorScheme: "light",
 };
 
 export default function RootLayout({
@@ -53,16 +59,16 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="min-h-screen antialiased">
+      <body className="flex min-h-screen flex-col antialiased">
         <JsonLd data={siteGraph()} />
         <a
           href="#main"
-          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:border focus:border-brass focus:bg-ink-900 focus:px-3 focus:py-2 focus:text-sm focus:text-bone"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-graphite focus:px-3 focus:py-2 focus:text-sm focus:text-bone focus:outline-signal"
         >
           Skip to content
         </a>
         <SiteHeader />
-        <main id="main">{children}</main>
+        <main id="main" className="flex-1">{children}</main>
         <SiteFooter />
       </body>
     </html>

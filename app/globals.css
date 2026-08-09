@@ -1,63 +1,106 @@
 @import "tailwindcss";
 
+/* ===========================================================================
+   SHOULD I PLAY? — the site-wide visual system.
+
+   One system, not three. The header, the homepage and the game profile used to
+   run on different typefaces, different grounds and different accents; what
+   follows is the single language all of them now speak, promoted from design
+   direction D3 and warmed up for a product about videogames.
+
+   The governing idea: RIGOUR IS NOT HEAVINESS. Trust comes from clarity,
+   consistency, evidence and hierarchy — not from looking solemn. So the
+   measurement grammar stays exact and the surface around it is allowed to be
+   inviting.
+
+   THE SITE IS THE FRAME; THE GAMES ARE THE COLOUR. Every game arrives with a
+   visual identity far louder than any brand we could put over it. So the
+   chrome is achromatic — graphite and bone — and the colour on any page comes
+   from the game being shown: its artwork, and its accent (lib/profile/accent.ts).
+   A grid of thirty covers is therefore polychrome by construction, and it
+   scales to hundreds of games without anyone choosing a palette.
+
+   See docs/decisions/0013-visual-system.md.
+   =========================================================================== */
+
 /* ---------------------------------------------------------------------------
-   Self-hosted variable fonts. Both are SIL Open Font License.
-   Hermetic build: no network fetch at build or runtime.
+   Typefaces. Both SIL Open Font License and vendored, so builds stay hermetic
+   and no third party sees a visitor's IP. Licences: public/fonts/LICENSES.md.
+
+   Archivo carries the product: display, chrome, labels, tabular numerals, one
+   variable face across every surface. Its condensed axis is what gives a title
+   set at 4.75rem the poster energy a game deserves.
+
+   Newsreader is the reading voice. On the profile page it is rationed to the
+   experience summary and expanded rationale; on the homepage and methodology it
+   is allowed to run, because those surfaces are prose and should feel written
+   rather than reported.
+
+   Fraunces and Inter were the old system and are gone, along with their font
+   files. Two typographic systems in one product is the bug, not a hedge.
    --------------------------------------------------------------------------- */
+
 @font-face {
-  font-family: "Fraunces";
+  font-family: "Archivo";
   font-style: normal;
-  font-weight: 300 900;
+  font-weight: 300 800;
+  font-stretch: 62% 125%;
   font-display: swap;
-  src: url("/fonts/fraunces-latin.woff2") format("woff2");
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
-    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
-    U+2212, U+2215, U+FEFF, U+FFFD;
+  src: url("/fonts/archivo-latin.woff2") format("woff2");
 }
 
 @font-face {
-  font-family: "Inter";
+  font-family: "Newsreader";
   font-style: normal;
-  font-weight: 100 900;
+  font-weight: 300 700;
   font-display: swap;
-  src: url("/fonts/inter-latin.woff2") format("woff2");
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
-    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
-    U+2212, U+2215, U+FEFF, U+FFFD;
+  src: url("/fonts/newsreader-latin.woff2") format("woff2");
 }
 
-/* ---------------------------------------------------------------------------
-   Design tokens.
-
-   Premium editorial, analytical, a little cinematic (Plan §15.1). Warm ink and
-   bone rather than blue-grey SaaS; a single brass accent rather than a rainbow
-   dashboard. Critically: there is no good/bad colour scale anywhere in this
-   product. A low score is neutral information (Rubric §1).
-   --------------------------------------------------------------------------- */
 @theme {
-  --color-ink-950: #08090b;
-  --color-ink-900: #0c0e11;
-  --color-ink-850: #111418;
-  --color-ink-800: #161a1f;
-  --color-ink-700: #1d2228;
+  /* -- Grounds ------------------------------------------------------------
+     Two, and the relationship between them is the site's structural signature:
+     warm paper for reading and browsing, graphite for chrome and for the
+     measurement field. A page is bracketed by graphite and filled with paper. */
+  --color-page: #f1f1ee;
+  --color-page-sunk: #e7e7e2;
+  --color-graphite: #191b1f;
+  --color-graphite-deep: #14161a;
+  /* Behind artwork, so an image loading over it never flashes light. */
+  --color-stage: #0c0b0a;
 
-  --color-line: #242a32;
-  --color-line-strong: #333a44;
+  /* -- Ink, on paper ------------------------------------------------------ */
+  --color-ink: #16181c;
+  --color-ink-soft: #41454b;
+  --color-ink-quiet: #54595f;
 
-  --color-bone: #ece7dd;
-  --color-bone-dim: #a5a299;
-  --color-bone-faint: #8c8981;
+  /* -- Bone, on graphite -------------------------------------------------- */
+  --color-bone: #edebe7;
+  --color-bone-soft: #b9bbbf;
+  --color-bone-quiet: #9a9da2;
 
-  --color-brass: #d6a244;
-  --color-brass-bright: #e8bc6b;
-  --color-brass-deep: #8a6a2c;
+  /* -- Rules --------------------------------------------------------------
+     Hairlines, never boxes. The grammar is a ruled page: things are separated
+     by a line, not enclosed in a container. */
+  --color-rule: rgba(22, 24, 28, 0.14);
+  --color-rule-strong: rgba(22, 24, 28, 0.3);
+  --color-rule-bone: rgba(237, 235, 231, 0.16);
+  --color-rule-bone-strong: rgba(237, 235, 231, 0.32);
 
-  --font-display: "Fraunces", ui-serif, Georgia, "Times New Roman", serif;
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
-    sans-serif;
+  /* -- The one brand colour ------------------------------------------------
+     Amber, carried over from the old identity and kept for a specific job: the
+     question mark in the wordmark, and affordances in the chrome. It lives on
+     graphite, where it measures 7.84:1. It is never used on paper (1.94:1) and
+     never encodes a value of any kind. `signal-ink` is the paper-ground
+     equivalent for the rare mark that has to sit on the light side. */
+  --color-signal: #e2a33f;
+  --color-signal-ink: #7e5f26;
 
-  --text-micro: 0.6875rem;
-  --text-micro--line-height: 1rem;
+  --font-display: "Archivo", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-prose: "Newsreader", Georgia, "Times New Roman", serif;
+
+  --text-micro: 0.75rem;
+  --text-micro--line-height: 1.35;
 }
 
 @layer base {
@@ -66,12 +109,19 @@
   }
 
   body {
-    background-color: var(--color-ink-950);
-    color: var(--color-bone);
-    font-family: var(--font-sans);
-    font-feature-settings: "cv05" 1, "ss01" 1;
+    background-color: var(--color-page);
+    color: var(--color-ink);
+    font-family: var(--font-display);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+  }
+
+  /* Carried from D3: no tracking anywhere on the product, positive or negative.
+     Letter-spacing is the first thing that makes an interface look designed-at
+     rather than designed. */
+  body,
+  body * {
+    letter-spacing: 0;
   }
 
   /* Every number in this product is a measurement. Align them. */
@@ -81,52 +131,115 @@
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-brass-bright);
-    outline-offset: 2px;
-    border-radius: 2px;
+    outline: 2px solid currentColor;
+    outline-offset: 3px;
+    border-radius: 0;
   }
 
   ::selection {
-    background: var(--color-brass-deep);
-    color: var(--color-bone);
+    background: var(--color-signal);
+    color: var(--color-ink);
   }
 }
 
 @layer components {
-  /* Small-caps analytical label used for axis names, eyebrows and field keys. */
-  .label-micro {
-    font-size: var(--text-micro);
-    line-height: 1rem;
-    letter-spacing: 0.11em;
-    text-transform: uppercase;
-    font-weight: 500;
-  }
+  /* -- Type roles ---------------------------------------------------------
+     Three, and the whole product is built from them.
 
-  .display {
+     `sip-display` is the poster voice: condensed, heavy, uppercase, set tight.
+     It is what makes a game's name read as a game's name.
+
+     `sip-label` is the instrument voice: the small uppercase key that names a
+     field, an axis or a section. 12px floor, never smaller.
+
+     `sip-prose` is the reading voice. */
+  .sip-display {
     font-family: var(--font-display);
-    font-variation-settings: "SOFT" 0, "WONK" 0;
-    font-weight: 600;
-    letter-spacing: -0.015em;
+    font-stretch: 72%;
+    font-weight: 700;
+    line-height: 0.9;
+    text-transform: uppercase;
   }
 
-  /* Paper-grain wash behind the hero. Stands in for key art, which we do not
-     license yet, and keeps the page from reading as an empty admin screen. */
-  .hero-wash {
-    background:
-      radial-gradient(
-        120% 90% at 15% 0%,
-        color-mix(in oklab, var(--color-brass) 9%, transparent) 0%,
-        transparent 60%
-      ),
-      radial-gradient(
-        100% 80% at 90% 10%,
-        color-mix(in oklab, #4a6fa5 7%, transparent) 0%,
-        transparent 55%
-      );
+  .sip-label {
+    font-family: var(--font-display);
+    font-stretch: 100%;
+    font-weight: 600;
+    font-size: var(--text-micro);
+    line-height: 1.35;
+    text-transform: uppercase;
+  }
+
+  .sip-num {
+    font-family: var(--font-display);
+    font-stretch: 100%;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+
+  .sip-prose {
+    font-family: var(--font-prose);
+    line-height: 1.55;
+  }
+
+  /* -- The wordmark -------------------------------------------------------
+     "Should I Play?" is a question, and the identity should sound like one.
+     The mark is the words, set condensed and tight, with the question mark
+     doing the work a logo would otherwise do. No glyph, no lockup, no badge. */
+  .sip-wordmark {
+    font-family: var(--font-display);
+    font-stretch: 72%;
+    font-weight: 800;
+    text-transform: uppercase;
+    line-height: 1;
+  }
+
+  .sip-wordmark__q {
+    color: var(--color-signal);
+    /* The one piece of motion in the chrome, and it is a nod rather than an
+       animation: the mark acknowledges the pointer and settles. */
+    display: inline-block;
+    transition: transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+
+  a:hover > .sip-wordmark__q,
+  a:focus-visible > .sip-wordmark__q {
+    transform: translateY(-0.08em) rotate(-6deg);
+  }
+
+  /* -- Tactility ----------------------------------------------------------
+     Interactive things should feel interactive. Restrained on purpose: a
+     220ms response and a 1.5% crop push, which reads as the object noticing
+     you rather than as an effect. Reduced-motion strips all of it below. */
+  .sip-lift {
+    transition:
+      transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1),
+      background-color 180ms linear;
+  }
+
+  .sip-crop {
+    overflow: hidden;
+    background: var(--color-stage);
+  }
+
+  .sip-crop img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 320ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+
+  .group:hover .sip-crop img,
+  .group:focus-within .sip-crop img {
+    transform: scale(1.015);
   }
 }
 
-/* Plan §22.2 — reduced-motion support. */
+/* Plan §22.2 — reduced-motion support. Motion here is decorative reinforcement
+   of a state that is also communicated structurally, so removing it costs
+   nothing. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -135,5 +248,12 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  .group:hover .sip-crop img,
+  .group:focus-within .sip-crop img,
+  a:hover > .sip-wordmark__q,
+  a:focus-visible > .sip-wordmark__q {
+    transform: none;
   }
 }

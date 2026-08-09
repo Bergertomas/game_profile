@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { GameCard } from "@/components/GameCard";
 import { GameProfile } from "@/components/profile/GameProfile";
 import { JsonLd } from "@/components/JsonLd";
-import { artworkFor } from "@/lib/profile/artwork";
-import { getGameProfile, listGameSlugs } from "@/lib/data/games";
+import { heroArtworkFor } from "@/lib/profile/artwork";
+import {
+  getGameProfile,
+  listGameProfiles,
+  listGameSlugs,
+} from "@/lib/data/games";
 import { gameProfileGraph } from "@/lib/seo/structured-data";
 import { gameTitle, gameUrl } from "@/lib/site";
-import "./profile.css";
 
 /**
  * The canonical game profile page, and the only public address for a game.
@@ -83,10 +87,40 @@ export default async function GameProfilePage({
   const profile = await getGameProfile(slug);
   if (!profile) notFound();
 
+  // Everything else in the catalogue. Not a recommendation engine and not
+  // pretending to be one — no similarity, no ranking, no personalisation. It is
+  // the shelf, minus the game you are already looking at, so a profile ends on
+  // somewhere to go rather than on a provenance table. When the catalogue
+  // outgrows a strip this becomes a real selection; the card grammar it renders
+  // does not change.
+  const others = (await listGameProfiles()).filter(
+    (other) => other.game.slug !== slug,
+  );
+
   return (
     <>
       <JsonLd data={gameProfileGraph(profile)} />
-      <GameProfile profile={profile} artwork={artworkFor(profile.game)} />
+      <GameProfile profile={profile} artwork={heroArtworkFor(profile.game)} />
+
+      {others.length > 0 && (
+        <section
+          aria-labelledby="more-games"
+          className="border-t border-rule bg-page"
+        >
+          <div className="mx-auto w-full max-w-[74rem] px-5 py-12 sm:px-8 sm:py-14">
+            <h2 id="more-games" className="sip-display text-[1.5rem]">
+              More in the library
+            </h2>
+            <ul className="mt-7 grid list-none grid-cols-1 gap-x-6 gap-y-10 p-0 min-[30rem]:grid-cols-2 sm:gap-x-8 sm:gap-y-12 lg:grid-cols-3">
+              {others.map((other) => (
+                <li key={other.game.slug} className="flex min-w-0">
+                  <GameCard profile={other} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      )}
     </>
   );
 }

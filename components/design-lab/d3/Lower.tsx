@@ -6,10 +6,7 @@ import {
   blockHeadings,
 } from "@/lib/profile/vocabulary";
 import { formatDate } from "@/lib/format";
-import {
-  evaluationNotice,
-  type EvaluationArt,
-} from "@/lib/design-lab/evaluation-art";
+import { creditLineFor, type ProfileArtwork } from "@/lib/profile/artwork";
 
 const PROVENANCE_LABEL: Readonly<
   Record<ProfileView["evaluation"]["scoreProvenance"], string>
@@ -35,7 +32,7 @@ export function Lower({
   art,
 }: {
   profile: ProfileView;
-  art: EvaluationArt | null;
+  art: ProfileArtwork | null;
 }) {
   const { evaluation } = profile;
   const headings = blockHeadings(evaluation.evidenceStatus);
@@ -205,7 +202,7 @@ export function Lower({
               className="mt-8 max-w-[54rem] border-t pt-4 text-[0.8125rem] leading-relaxed text-[var(--dl-ink-quiet)]"
               style={{ borderColor: "rgba(22,24,28,0.18)" }}
             >
-              {evaluationNotice(art)}
+              {creditLineFor(art)}
             </p>
           )}
         </div>

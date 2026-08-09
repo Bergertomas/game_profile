@@ -31,8 +31,10 @@ to engineering.
   whole thing must be `aria-hidden` beside an authoritative score table. That is
   ~150 lines of SVG and pure geometry, and it removes a dependency whose defaults
   would work against us.
-- **Self-hosted fonts.** Fraunces and Inter (both SIL OFL) are vendored into
-  `public/fonts` rather than fetched at build time, so builds are hermetic.
+- **Self-hosted fonts.** Vendored into `public/fonts` rather than fetched at
+  build time, so builds are hermetic and no third party sees a visitor's IP.
+  Originally Fraunces and Inter; Archivo and Newsreader since
+  [ADR 0013](0013-visual-system.md) made one typographic system site-wide.
 
 ## Consequences
 
