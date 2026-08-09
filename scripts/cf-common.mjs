@@ -58,9 +58,39 @@ export function run(command, args) {
   }
 }
 
+/**
+ * Runs a command, echoing its output *and* returning it.
+ *
+ * Same failure behaviour as `run`. The capture exists so a deploy can read the
+ * URL Cloudflare just printed rather than reconstructing a hostname from parts
+ * this repository does not know (the account's workers.dev subdomain).
+ */
+export function runCaptured(command, args) {
+  const result = spawnSync(command, args, {
+    encoding: "utf8",
+    stdio: ["inherit", "pipe", "pipe"],
+  });
+  const output = `${result.stdout ?? ""}${result.stderr ?? ""}`;
+  process.stdout.write(result.stdout ?? "");
+  process.stderr.write(result.stderr ?? "");
+  if (result.error) {
+    console.error(`Failed to start ${command}: ${result.error.message}`);
+    process.exit(1);
+  }
+  if (result.status !== 0) {
+    process.exit(result.status ?? 1);
+  }
+  return output;
+}
+
 /** Run the installed OpenNext CLI without relying on a platform shell or npx shim. */
 export function runOpenNext(args) {
   run(process.execPath, [OPEN_NEXT_CLI, ...args]);
+}
+
+/** Run the OpenNext CLI, returning everything it printed. */
+export function runOpenNextCaptured(args) {
+  return runCaptured(process.execPath, [OPEN_NEXT_CLI, ...args]);
 }
 
 /** Produces `.open-next/` — the Worker bundle, its assets and the compiled config. */

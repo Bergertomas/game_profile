@@ -167,8 +167,8 @@ try {
       artHosts.some((host) => page.includes(host)),
     );
     check(
-      "game page states the artwork rights basis",
-      page.includes("Not licensed, not cleared for production"),
+      "game page states the artwork clearance basis",
+      page.includes("Not cleared for production"),
     );
   } else {
     // The absolute guarantee. check-build-containment asserts it against the

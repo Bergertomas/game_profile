@@ -8,7 +8,7 @@ import {
   blockHeadings,
 } from "@/lib/profile/vocabulary";
 import { formatDate } from "@/lib/format";
-import { rightsNoticeFor, type ProfileArtwork } from "@/lib/profile/artwork";
+import { creditLineFor, type ProfileArtwork } from "@/lib/profile/artwork";
 
 const PROVENANCE_LABEL: Readonly<
   Record<ProfileView["evaluation"]["scoreProvenance"], string>
@@ -265,7 +265,7 @@ export function ProfileLower({
               className="mt-8 max-w-[54rem] border-t pt-4 text-[0.8125rem] leading-relaxed text-[var(--gp-ink-quiet)]"
               style={{ borderColor: "rgba(22,24,28,0.18)" }}
             >
-              {rightsNoticeFor(artwork) ?? `Key art © ${artwork.credit}.`}
+              {creditLineFor(artwork)}
             </p>
           )}
         </div>

@@ -62,12 +62,12 @@ export interface GameImage {
 }
 
 /**
- * A game's artwork and the basis on which we hold it.
+ * A game's artwork, and whether it may be shown on the public site.
  *
  * Shaped so a provider (RAWG, MobyGames, a press kit) can populate it
  * automatically and a human can override one game without touching the
- * sourcing system. `rights` is what decides where these images may render —
- * see lib/profile/artwork.ts.
+ * sourcing system. `clearance` is the only field that decides where these
+ * images may render — see lib/profile/artwork.ts.
  */
 export interface GameArtwork {
   /** Standardised portrait art, for cards and listings. */
@@ -77,7 +77,13 @@ export interface GameArtwork {
   readonly source: import("./artwork").ArtworkSource;
   /** The provider's own identifier, so a record can be refreshed later. */
   readonly externalId?: string;
-  readonly rights: import("./artwork").ArtworkRights;
+  /** The application-level question: may this render on production? */
+  readonly clearance: import("./artwork").ArtworkClearance;
+  /**
+   * Why we hold it. Recorded for the humans who have to answer for it later,
+   * and deliberately never consulted by rendering code.
+   */
+  readonly basis: import("./artwork").ArtworkBasis;
   /** Rights holder to credit. Defaults to the publisher when omitted. */
   readonly credit?: string;
   /** Human-visitable page the asset belongs to. */

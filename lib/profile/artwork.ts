@@ -3,85 +3,137 @@ import { DESIGN_SURFACES_ENABLED } from "@/lib/site";
 import type { Game, GameArtwork, GameImage } from "@/lib/profile/types";
 
 /**
- * Artwork resolution for the public game page.
+ * Artwork resolution for the public site.
  *
  * ARTWORK IS METADATA, NOT CURATION. At a few hundred games and growing,
  * hand-picking every image is not a workflow, so the model assumes a provider
  * supplies art automatically and a human only intervenes when a specific image
- * is wrong. Nothing in the product knows or cares which provider that is: the
- * page asks for a hero, gets one or doesn't, and composes either way.
+ * is wrong. Nothing in the product knows or cares which provider that is: a
+ * surface asks for a cover or a hero, gets one or doesn't, and composes either
+ * way.
  *
- * Two image roles, modelled from the start even though only the hero is used
- * today, because retrofitting a second role into forty call sites is exactly
- * the mistake worth avoiding once:
+ * Two image roles, because they are two different jobs:
  *
- *   cover — standardised portrait art. Search results, comparison cards,
- *           related games, anywhere a game needs to be recognisable small.
- *   hero  — landscape promotional art. The stage on this page.
+ *   cover — standardised portrait art. Cards, listings, search results,
+ *           related games: anywhere a game has to be recognisable small.
+ *   hero  — landscape promotional art. The stage on the profile page.
  *
- * A cover is never substituted for a missing hero. Cropping 3:4 box art into a
- * 21:9 stage produces the stretched, subject-clipped banner this design exists
- * to avoid, and a bad hero is worse than none — the artless composition is
- * finished work (ADR 0011).
+ * A cover is never substituted for a missing hero, and a hero is never
+ * substituted for a missing cover. Cropping 3:4 box art into a 21:9 stage
+ * produces the stretched, subject-clipped banner this design exists to avoid,
+ * and a bad image is worse than none — both artless compositions are finished
+ * work, not holes (ADR 0011).
  *
- * ── Rights are data, and they decide where an image may render ──────────────
+ * ── Clearance is data, and it decides where an image may render ─────────────
  *
- * Every artwork record carries the basis on which we hold it. That basis, not
- * the environment and not the provider, is what decides whether an image can
- * appear on the public site:
+ * The rendering layer is not copyright counsel, so it does not model rights.
+ * It models the one question it actually has to answer:
  *
- *   licensed   — a provider's terms, a press-kit grant or direct permission
- *                cover it. Renders everywhere, production included.
- *   evaluation — held for internal design review only, no licence. Renders
- *                only where design surfaces are enabled: local development and
- *                Cloudflare previews, never production.
+ *   May this asset appear on the public production site?
  *
- * That means a game can carry uncleared art today and cleared art tomorrow by
- * changing one field, with no code change and no risk of the uncleared image
- * reaching production in between. `npm run check:containment` proves the
- * production half against the built artefact rather than trusting this comment.
+ *   production — yes, everywhere, production included.
+ *   evaluation — internal review only: local development and Cloudflare
+ *                previews, never production.
+ *
+ * *Why* an asset is cleared — a licence, a provider's API terms, a press-kit
+ * grant, direct permission — is recorded separately in `basis`, for the humans
+ * who have to answer for it. No rendering code reads it, because "licensed" is
+ * a claim the application is in no position to make on a publisher's behalf.
+ *
+ * A game moves from uncleared to cleared by changing one field, with no code
+ * change and no window in which the uncleared image could reach production.
+ * `npm run check:containment` proves the production half against the built
+ * artefact rather than trusting this comment.
  */
 
 /** Where an image came from. Free-form so a new provider needs no code change. */
 export type ArtworkSource = "manual" | "rawg" | "mobygames" | "press-kit";
 
-export type ArtworkRights = "licensed" | "evaluation";
+/**
+ * Whether an asset may render on the public production site. This is an
+ * application-level permission, not a legal characterisation.
+ */
+export type ArtworkClearance = "production" | "evaluation";
+
+/**
+ * The production basis an asset is held on. Descriptive and auditable; never
+ * read by rendering code, and never asserted in public copy.
+ *
+ * `internal-evaluation` is the only value that cannot support production
+ * clearance, and `assertClearedBasis` enforces exactly that.
+ */
+export type ArtworkBasis =
+  | "licence"
+  | "provider-terms"
+  | "press-kit"
+  | "permission"
+  | "internal-evaluation";
 
 export interface ProfileArtwork {
   readonly url: string;
   /** Factual description of what the image shows. Never marketing copy. */
   readonly alt: string;
+  readonly width: number;
+  readonly height: number;
   /**
-   * Hard-crop framing for the stage, chosen per image so the recognisable
-   * subject stays in a shallow band. `object-fit: cover` does the rest — no
-   * scaling distortion, no blur, no filter.
+   * Hard-crop framing, chosen per image so the recognisable subject stays in a
+   * shallow band. `object-fit: cover` does the rest — no scaling distortion,
+   * no blur, no filter.
    */
   readonly objectPosition: string;
-  /** Rights holder, rendered wherever the image is. */
+  /** Rights holder, credited wherever the image renders. */
   readonly credit: string;
-  readonly rights: ArtworkRights;
+  readonly clearance: ArtworkClearance;
+  readonly basis: ArtworkBasis;
   readonly source: ArtworkSource;
   /** Human-visitable page the asset belongs to, where one is known. */
   readonly sourcePage?: string;
 }
 
-/** Whether an image with this basis may render in the current build. */
-export function mayRender(rights: ArtworkRights): boolean {
-  return rights === "licensed" || DESIGN_SURFACES_ENABLED;
+/**
+ * Whether an image with this clearance may render in the current build.
+ *
+ * The whole rule, in one expression. `DESIGN_SURFACES_ENABLED` folds to a
+ * literal at build time (lib/site.ts), so a production bundle contains
+ * `clearance === "production"` and nothing else.
+ */
+export function mayRender(clearance: ArtworkClearance): boolean {
+  return clearance === "production" || DESIGN_SURFACES_ENABLED;
+}
+
+/**
+ * The one consistency rule worth encoding: an asset held for internal
+ * evaluation only cannot also be cleared for production. Everything else about
+ * `basis` is a human judgement this code has no business second-guessing.
+ */
+export function assertClearedBasis(artwork: GameArtwork): void {
+  if (
+    artwork.clearance === "production" &&
+    artwork.basis === "internal-evaluation"
+  ) {
+    throw new Error(
+      "Artwork cleared for production cannot be held on an internal-evaluation basis.",
+    );
+  }
 }
 
 function toProfileArtwork(
   image: GameImage,
   artwork: GameArtwork,
   game: Game,
+  fallbackFocus: string,
 ): ProfileArtwork | null {
-  if (!mayRender(artwork.rights)) return null;
+  if (!mayRender(artwork.clearance)) return null;
+  assertClearedBasis(artwork);
   return {
     url: image.url,
     alt: image.alt ?? `Key art for ${game.canonicalTitle}.`,
-    objectPosition: image.focus ?? "center 40%",
+    width: image.width,
+    height: image.height,
+    objectPosition: image.focus ?? fallbackFocus,
     credit: artwork.credit ?? game.publisherText,
-    rights: artwork.rights,
+    clearance: artwork.clearance,
+    basis: artwork.basis,
     source: artwork.source,
     sourcePage: artwork.sourcePage,
   };
@@ -90,21 +142,23 @@ function toProfileArtwork(
 /**
  * The landscape stage image, or null when there is none we may show.
  *
- * Resolution order is provider record, then manual override — the override
- * wins, because the point of having one is fixing a single game's bad
- * alternate-edition art without touching the sourcing system.
+ * Used by the profile stage and nowhere else. A portrait cover is never
+ * promoted into this role.
  */
 export function heroArtworkFor(game: Game): ProfileArtwork | null {
   const artwork = artworkRecordFor(game);
   if (!artwork?.hero) return null;
-  return toProfileArtwork(artwork.hero, artwork, game);
+  return toProfileArtwork(artwork.hero, artwork, game, "center 40%");
 }
 
-/** The portrait image, for cards and listings. Not used on the profile stage. */
+/**
+ * The portrait image, for cards and listings, or null when there is none we
+ * may show. A landscape hero is never demoted into this role.
+ */
 export function coverArtworkFor(game: Game): ProfileArtwork | null {
   const artwork = artworkRecordFor(game);
   if (!artwork?.cover) return null;
-  return toProfileArtwork(artwork.cover, artwork, game);
+  return toProfileArtwork(artwork.cover, artwork, game, "center 50%");
 }
 
 /**
@@ -115,20 +169,30 @@ export function coverArtworkFor(game: Game): ProfileArtwork | null {
  * provider returns bad alternate-edition art for one game, it is corrected on
  * that game without touching the sourcing system.
  */
-function artworkRecordFor(game: Game): GameArtwork | null {
+export function artworkRecordFor(game: Game): GameArtwork | null {
   return game.artwork ?? evaluationArtworkFor(game.slug);
 }
 
 /**
- * The notice shown wherever evaluation-basis artwork renders. Not optional:
- * it is what makes the internal-review basis visible on the page carrying it.
+ * The notice shown wherever evaluation-clearance artwork renders. Not
+ * optional: it is what makes the internal-review basis visible on the page
+ * carrying it.
+ *
+ * Production-cleared artwork gets a plain credit instead. The page states who
+ * owns the image and stops there — it does not publish a claim about the terms
+ * we hold it under, because that claim is not the page's to make.
  */
 export function rightsNoticeFor(artwork: ProfileArtwork): string | null {
-  if (artwork.rights === "licensed") return null;
+  if (artwork.clearance === "production") return null;
   return (
     `Key art © ${artwork.credit}` +
     (artwork.sourcePage ? `, loaded live from ${artwork.sourcePage}` : "") +
     `, for internal design evaluation only. No copy is stored in this ` +
-    `repository. Not licensed, not cleared for production.`
+    `repository. Not cleared for production.`
   );
+}
+
+/** The credit line for any artwork, whatever its clearance. */
+export function creditLineFor(artwork: ProfileArtwork): string {
+  return rightsNoticeFor(artwork) ?? `Key art © ${artwork.credit}.`;
 }

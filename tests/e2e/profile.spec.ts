@@ -289,7 +289,7 @@ test("evaluation artwork renders in preview, and says on what basis", async ({
   for (const slug of SLUGS) {
     const body = await (await request.get(`/games/${slug}`)).text();
     expect(body).toMatch(/alanwake\.com|steamstatic\.com/);
-    expect(body).toContain("Not licensed, not cleared for production");
+    expect(body).toContain("Not cleared for production");
   }
 
   // Pages with no artwork of their own must not acquire any.
