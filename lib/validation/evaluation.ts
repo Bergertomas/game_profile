@@ -23,10 +23,18 @@ const subcriterionValue = z.union([
   z.literal(UNKNOWN),
 ]);
 
+export const subcriterionPlatformOverrideSchema = z.object({
+  platform: z.string().min(1),
+  value: subcriterionValue,
+  rationale: z.string().min(1),
+  confidence: z.enum(["low", "medium", "high"]).optional(),
+});
+
 export const subcriterionEntrySchema = z.object({
   value: subcriterionValue,
   rationale: z.string().min(1),
   platformNote: z.string().optional(),
+  platformOverrides: z.array(subcriterionPlatformOverrideSchema).optional(),
 });
 
 /** Matches the database's `profile_scopes_key_is_a_slug` check. */
@@ -201,6 +209,33 @@ export function validateEvaluation(evaluation: Evaluation): ValidationIssue[] {
           code: "missing_rationale",
           message: `${dimension.name} › ${key} is scored but has no rationale.`,
         });
+      }
+
+      // Rubric §3 — platform overrides record material deviations from the
+      // canonical value, one per platform.
+      const seenPlatforms = new Set<string>();
+      for (const override of entry.platformOverrides ?? []) {
+        if (seenPlatforms.has(override.platform)) {
+          issues.push({
+            code: "duplicate_platform_override",
+            message: `${dimension.name} › ${key} has two overrides for platform "${override.platform}".`,
+          });
+        }
+        seenPlatforms.add(override.platform);
+
+        if (override.value === entry.value) {
+          issues.push({
+            code: "immaterial_platform_override",
+            message: `${dimension.name} › ${key} records a "${override.platform}" override equal to the base value. An override states a material deviation, not agreement.`,
+          });
+        }
+
+        if (override.rationale.trim().length === 0) {
+          issues.push({
+            code: "missing_override_rationale",
+            message: `${dimension.name} › ${key} has a "${override.platform}" override with no rationale. An unexplained divergence is what the platform rule exists to prevent.`,
+          });
+        }
       }
     }
   }
@@ -403,6 +438,25 @@ export function validateGameRecord(
   const history = record.history ?? [];
   const chain = [...history, record.evaluation];
   const selectedRubric = record.evaluation.rubricVersion;
+
+  // A platform override can only speak about a platform the game ships on.
+  // This needs the game, so it cannot live in the per-evaluation checks; the
+  // database enforces the same rule against `game_platforms`.
+  const shipsOn = new Set(record.game.platforms.map((p) => p.slug));
+  for (const evaluation of [...history, record.evaluation]) {
+    for (const [dimensionKey, entries] of Object.entries(evaluation.dimensions)) {
+      for (const [subKey, entry] of Object.entries(entries)) {
+        for (const override of entry.platformOverrides ?? []) {
+          if (!shipsOn.has(override.platform)) {
+            issues.push({
+              code: "override_platform_not_on_game",
+              message: `${dimensionKey} › ${subKey} overrides platform "${override.platform}", which ${record.game.slug} does not ship on.`,
+            });
+          }
+        }
+      }
+    }
+  }
 
   // The scope is this record's identity, so it has to belong to this game.
   if (record.scope.gameId !== record.game.id) {

@@ -411,14 +411,80 @@ export const subcriterionScores = pgTable(
       .notNull()
       .references(() => subcriteria.id, { onDelete: "restrict" }),
     score: numeric("score", { precision: 2, scale: 1 }),
-    /** Platform-specific override, chiefly for Technical Stability. Rubric §3. */
-    platformId: uuid("platform_id").references(() => platforms.id),
     rationale: text("rationale"),
+    /**
+     * Platform *context* on the canonical score, e.g. "PC is demanding at
+     * ray-traced presets". Prose, not a deviation — a materially different
+     * value on a platform is an override row, not a note.
+     */
     platformNote: text("platform_note"),
     evidenceConfidence: confidenceEnum("evidence_confidence"),
   },
   (table) => [
     primaryKey({ columns: [table.evaluationId, table.subcriterionId] }),
+  ],
+);
+
+/**
+ * A materially different value for one subcriterion on one platform.
+ * Rubric §3: "If platform performance differs materially, store
+ * platform-specific Technical Stability overrides/notes. Do not hide severe
+ * PC/console differences inside a single unexplained number."
+ *
+ * A separate table rather than a nullable column on the score row, because the
+ * score row's primary key is (evaluation, subcriterion): it can hold at most
+ * one platform, which is the one shape this feature cannot use. The old
+ * `platform_id` column there was therefore never functional and is dropped.
+ *
+ * ── What the numbers mean ───────────────────────────────────────────────────
+ *
+ * The base `subcriterion_scores.score` remains canonical. It is what the
+ * profile publishes, what `dimension_scores` derives from, and what a reader
+ * sees; an override never enters a dimension total. Overrides are the exception
+ * layer — "on this platform, this specific reading differs and here is why" —
+ * so that a severe divergence is recorded rather than averaged into the base or
+ * duplicated into a whole parallel evaluation per platform.
+ *
+ * Enforced, not merely intended:
+ *  - one row per (evaluation, subcriterion, platform), by primary key, so a
+ *    conflicting duplicate cannot exist;
+ *  - a base score row must exist, by composite foreign key;
+ *  - the value must actually differ from the base — an override equal to the
+ *    base is not a material deviation, it is noise;
+ *  - the platform must be one the game ships on;
+ *  - the rationale is required, because an unexplained divergence is exactly
+ *    the "single unexplained number" the rubric forbids;
+ *  - overrides on a final evaluation are frozen with the rest of its children.
+ *
+ * A consumer reads a platform-specific value through the
+ * `subcriterion_platform_readings` view, which falls back to the base wherever
+ * no override exists.
+ */
+export const subcriterionPlatformOverrides = pgTable(
+  "subcriterion_platform_overrides",
+  {
+    evaluationId: uuid("evaluation_id").notNull(),
+    subcriterionId: uuid("subcriterion_id").notNull(),
+    platformId: uuid("platform_id")
+      .notNull()
+      .references(() => platforms.id, { onDelete: "restrict" }),
+    /** NULL means unknown on this platform — never zero, as everywhere else. */
+    score: numeric("score", { precision: 2, scale: 1 }),
+    rationale: text("rationale").notNull(),
+    evidenceConfidence: confidenceEnum("evidence_confidence"),
+  },
+  (table) => [
+    primaryKey({
+      columns: [table.evaluationId, table.subcriterionId, table.platformId],
+    }),
+    foreignKey({
+      name: "subcriterion_platform_overrides_base_fk",
+      columns: [table.evaluationId, table.subcriterionId],
+      foreignColumns: [
+        subcriterionScores.evaluationId,
+        subcriterionScores.subcriterionId,
+      ],
+    }).onDelete("cascade"),
   ],
 );
 

@@ -258,7 +258,8 @@ fi
 # migrations restructure identity beneath published rows the 0002 triggers have
 # already frozen, so "it builds an empty schema" is not evidence they work.
 for later_migration in \
-  lib/db/migrations/0003_profile_scopes.sql
+  lib/db/migrations/0003_profile_scopes.sql \
+  lib/db/migrations/0004_platform_overrides.sql
 do
   if upgrade_out="$(psql "$UPGRADE_DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -1 \
       -f "$later_migration" 2>&1)"; then
@@ -375,12 +376,14 @@ expect 'hardening triggers installed' \
      'profile_blocks_snapshot_immutable',
      'evaluation_tags_snapshot_immutable',
      'evaluation_evidence_links_snapshot_immutable',
+     'subcriterion_platform_overrides_snapshot_immutable',
+     'subcriterion_platform_overrides_material',
      'evaluation_revisions_append_only',
      'rubric_versions_immutable',
      'dimensions_definition_immutable',
      'subcriteria_definition_immutable',
      'evaluations_scope_stable'
-   );" '14'
+   );" '16'
 expect 'final-linked evidence source protection is installed' \
   "SELECT (count(*) > 0)::text FROM pg_trigger
    WHERE NOT tgisinternal AND tgrelid='evidence_sources'::regclass;" 'true'
@@ -681,6 +684,16 @@ reject 'a new child cannot be attached to a final evaluation' \
   "INSERT INTO profile_blocks (evaluation_id,block_type,item_order,text)
    VALUES ($AW,'great_fit',999,'late child');" \
   'children of final evaluation'
+reject 'a platform override cannot be added to a final evaluation' \
+  "INSERT INTO subcriterion_platform_overrides
+     (evaluation_id,subcriterion_id,platform_id,score,rationale)
+   SELECT $AW,ss.subcriterion_id,(SELECT id FROM platforms WHERE slug='pc'),0.5,
+          'a late platform correction on published history'
+   FROM subcriterion_scores ss
+   JOIN subcriteria s ON s.id=ss.subcriterion_id
+   JOIN dimensions d ON d.id=s.dimension_id
+   WHERE ss.evaluation_id=$AW AND d.key='execution' AND s.key='technical_stability';" \
+  'children of final evaluation'
 
 accept 'a revision may be appended to final history' \
   "INSERT INTO evaluation_revisions (evaluation_id,changed_by,summary)
@@ -726,10 +739,10 @@ fixture 'create a fully scored draft scratch evaluation' \
      'verified','medium','2026-08-06','calibration_round_1'
    );
    INSERT INTO subcriterion_scores (
-     evaluation_id,subcriterion_id,score,platform_id,rationale,platform_note,evidence_confidence
+     evaluation_id,subcriterion_id,score,rationale,platform_note,evidence_confidence
    ) SELECT
      (SELECT id FROM evaluations WHERE game_id=$AW_GAME AND rubric_version='1.0' AND version_number=901),
-     subcriterion_id,score,platform_id,rationale,platform_note,evidence_confidence
+     subcriterion_id,score,rationale,platform_note,evidence_confidence
    FROM subcriterion_scores WHERE evaluation_id=$AW;
    INSERT INTO dimension_assessments (evaluation_id,dimension_id,confidence,note)
    SELECT
@@ -764,6 +777,104 @@ accept 'a draft may link one source at dimension and subcriterion granularity' \
 expect 'linked_evidence_count counts distinct sources, not links' \
   "SELECT linked_evidence_count FROM dimension_scores
    WHERE evaluation_id=$SCRATCH AND dimension_id=$DIM1;" '1'
+
+echo
+echo '== 6b. Platform-specific subcriterion overrides =='
+#
+# Rubric §3 permits a materially platform-specific reading. The old model could
+# not store one: `subcriterion_scores.platform_id` sat under a primary key of
+# (evaluation, subcriterion), so a score could name at most one platform.
+#
+# The base value stays canonical throughout — the last assertion here is the
+# important one, because an override that moved a dimension total would have
+# quietly created a second, competing profile.
+STABILITY="(SELECT s.id FROM subcriteria s JOIN dimensions d ON d.id=s.dimension_id
+           WHERE d.rubric_version='1.0' AND d.key='execution' AND s.key='technical_stability')"
+EXECUTION="(SELECT id FROM dimensions WHERE rubric_version='1.0' AND key='execution')"
+PC="(SELECT id FROM platforms WHERE slug='pc')"
+PS5="(SELECT id FROM platforms WHERE slug='ps5')"
+
+expect 'the non-functional platform column is gone from the score row' \
+  "SELECT count(*) FROM information_schema.columns
+   WHERE table_name='subcriterion_scores' AND column_name='platform_id';" '0'
+
+expect 'the base dimension total before any override' \
+  "SELECT score FROM dimension_scores
+   WHERE evaluation_id=$SCRATCH AND dimension_id=$EXECUTION;" '9.0'
+
+accept 'one subcriterion may carry overrides for several platforms at once' \
+  "INSERT INTO subcriterion_platform_overrides
+     (evaluation_id,subcriterion_id,platform_id,score,rationale,evidence_confidence)
+   VALUES
+     ($SCRATCH,$STABILITY,$PC,1,'Path tracing destabilises frame delivery on mid-range PCs.','medium'),
+     ($SCRATCH,$STABILITY,$PS5,1.5,'Occasional traversal hitching absent on PC.','low');"
+
+expect 'both platform variants are stored for one evaluation and subcriterion' \
+  "SELECT count(*) FROM subcriterion_platform_overrides
+   WHERE evaluation_id=$SCRATCH AND subcriterion_id=$STABILITY;" '2'
+
+reject 'a conflicting duplicate override cannot exist' \
+  "INSERT INTO subcriterion_platform_overrides
+     (evaluation_id,subcriterion_id,platform_id,score,rationale)
+   VALUES ($SCRATCH,$STABILITY,$PC,0.5,'conflicting second reading');"
+
+reject 'an override repeating the base value is not a deviation' \
+  "INSERT INTO subcriterion_platform_overrides
+     (evaluation_id,subcriterion_id,platform_id,score,rationale)
+   SELECT $SCRATCH,$STABILITY,(SELECT id FROM platforms WHERE slug='xbox-series'),
+          score,'identical to base'
+   FROM subcriterion_scores WHERE evaluation_id=$SCRATCH AND subcriterion_id=$STABILITY;" \
+  'repeats the base score'
+
+reject 'an override cannot name a platform the game does not ship on' \
+  "INSERT INTO platforms (slug,name) VALUES ('test-handheld','Test Handheld')
+   ON CONFLICT (slug) DO NOTHING;
+   INSERT INTO subcriterion_platform_overrides
+     (evaluation_id,subcriterion_id,platform_id,score,rationale)
+   VALUES ($SCRATCH,$STABILITY,(SELECT id FROM platforms WHERE slug='test-handheld'),
+           0.5,'a platform this game never shipped on');" \
+  'does not ship on'
+
+reject 'an override requires a base score to deviate from' \
+  "DELETE FROM subcriterion_scores WHERE evaluation_id=$SCRATCH AND subcriterion_id=$SUB1;
+   INSERT INTO subcriterion_platform_overrides
+     (evaluation_id,subcriterion_id,platform_id,score,rationale)
+   VALUES ($SCRATCH,$SUB1,$PC,0.5,'no base row to deviate from');" \
+  'subcriterion_platform_overrides_base_fk'
+
+reject 'an override must explain itself' \
+  "INSERT INTO subcriterion_platform_overrides
+     (evaluation_id,subcriterion_id,platform_id,score,rationale)
+   VALUES ($SCRATCH,$STABILITY,(SELECT id FROM platforms WHERE slug='xbox-series'),
+           0.5,'   ');" \
+  'subcriterion_override_rationale_present'
+
+reject 'override scores obey the same 0-2 half-step grid' \
+  "INSERT INTO subcriterion_platform_overrides
+     (evaluation_id,subcriterion_id,platform_id,score,rationale)
+   VALUES ($SCRATCH,$STABILITY,(SELECT id FROM platforms WHERE slug='xbox-series'),
+           0.25,'off the grid');" \
+  'subcriterion_override_half_steps'
+
+# How a consumer asks for a platform-specific reading, and what it gets where
+# no override exists.
+expect 'a platform with an override reads the override' \
+  "SELECT score::text||'/'||is_override::text FROM subcriterion_platform_readings
+   WHERE evaluation_id=$SCRATCH AND subcriterion_id=$STABILITY AND platform_slug='pc';" \
+  '1.0/true'
+expect 'a platform without an override falls back to the base' \
+  "SELECT score::text||'/'||is_override::text FROM subcriterion_platform_readings
+   WHERE evaluation_id=$SCRATCH AND subcriterion_id=$STABILITY
+     AND platform_slug='xbox-series';" \
+  '2.0/false'
+expect 'every platform the game ships on has a reading' \
+  "SELECT count(*) FROM subcriterion_platform_readings
+   WHERE evaluation_id=$SCRATCH AND subcriterion_id=$STABILITY;" '3'
+
+# The load-bearing one. The published profile is the base profile.
+expect 'overrides never move a dimension total' \
+  "SELECT score FROM dimension_scores
+   WHERE evaluation_id=$SCRATCH AND dimension_id=$EXECUTION;" '9.0'
 
 echo
 echo '== 7. Bidirectional lineage and atomic supersession =='
@@ -847,10 +958,10 @@ fixture 'stage a complete same-rubric successor' \
      created_by,reviewed_by,id,'regression successor'
    FROM evaluations WHERE id=$AW;
    INSERT INTO subcriterion_scores (
-     evaluation_id,subcriterion_id,score,platform_id,rationale,platform_note,evidence_confidence
+     evaluation_id,subcriterion_id,score,rationale,platform_note,evidence_confidence
    ) SELECT
      (SELECT id FROM evaluations WHERE game_id=$AW_GAME AND rubric_version='1.0' AND version_number=902),
-     subcriterion_id,score,platform_id,rationale,platform_note,evidence_confidence
+     subcriterion_id,score,rationale,platform_note,evidence_confidence
    FROM subcriterion_scores WHERE evaluation_id=$AW;
    INSERT INTO dimension_assessments (evaluation_id,dimension_id,confidence,note)
    SELECT

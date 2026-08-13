@@ -162,12 +162,42 @@ export interface EvaluationScope {
   readonly currentStateCutoff?: string;
 }
 
+/**
+ * A materially different value for this subcriterion on one platform
+ * (Rubric §3, chiefly Technical Stability).
+ *
+ * The base `SubcriterionEntry.value` stays canonical: it is what the profile
+ * publishes and the only value that reaches a dimension total. An override is
+ * the exception layer, so a severe PC/console divergence is recorded rather
+ * than averaged into one unexplained number — and so a platform difference does
+ * not force an entire duplicate evaluation per platform.
+ *
+ * An override must differ from the base. A row repeating the base value is not
+ * a deviation, and would make "this game diverges here" true of every platform
+ * anybody bothered to mention.
+ */
+export interface SubcriterionPlatformOverride {
+  /** Platform slug, which must be one the game ships on. */
+  readonly platform: string;
+  /** The value on this platform. `unknown` is allowed; it is never zero. */
+  readonly value: SubcriterionValue;
+  /** Required. An unexplained divergence is what the rubric forbids. */
+  readonly rationale: string;
+  readonly confidence?: Confidence;
+}
+
 export interface SubcriterionEntry {
   readonly value: SubcriterionValue;
   /** Why this value. Required for every scored subcriterion (Plan §14.3). */
   readonly rationale: string;
-  /** Platform-specific override note, chiefly for Technical Stability. */
+  /**
+   * Platform *context* on the canonical value, e.g. "PC is demanding at
+   * ray-traced presets". Prose, not a deviation — a materially different value
+   * on a platform is a `platformOverrides` entry.
+   */
   readonly platformNote?: string;
+  /** Material per-platform deviations, where any exist. */
+  readonly platformOverrides?: readonly SubcriterionPlatformOverride[];
 }
 
 export type DimensionEntry = Readonly<Record<string, SubcriterionEntry>>;

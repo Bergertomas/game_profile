@@ -245,17 +245,34 @@ function emitEvaluation(
     for (const [subKey, entry] of Object.entries(entries)) {
       // NULL, not 0: an unknown is the absence of a score, not a score of zero.
       const score = entry.value === UNKNOWN ? "NULL" : String(entry.value);
+      const subcriterionSource = `FROM subcriteria s JOIN dimensions d ON d.id = s.dimension_id WHERE d.rubric_version = ${sqlString(
+        evaluation.rubricVersion,
+      )} AND d.key = ${sqlString(dimensionKey)} AND s.key = ${sqlString(
+        subKey,
+      )}`;
       out.push(
         `INSERT INTO subcriterion_scores (evaluation_id, subcriterion_id, score, rationale, platform_note) SELECT ${evalRef}, s.id, ${score}, ${sqlString(
           entry.rationale || null,
         )}, ${sqlString(
           entry.platformNote,
-        )} FROM subcriteria s JOIN dimensions d ON d.id = s.dimension_id WHERE d.rubric_version = ${sqlString(
-          evaluation.rubricVersion,
-        )} AND d.key = ${sqlString(dimensionKey)} AND s.key = ${sqlString(
-          subKey,
-        )} AND ${newEvaluationGuard} ON CONFLICT DO NOTHING;`,
+        )} ${subcriterionSource} AND ${newEvaluationGuard} ON CONFLICT DO NOTHING;`,
       );
+
+      // Material per-platform deviations (Rubric §3). Emitted after the base
+      // row, which the composite foreign key requires to exist.
+      for (const override of entry.platformOverrides ?? []) {
+        const overrideScore =
+          override.value === UNKNOWN ? "NULL" : String(override.value);
+        out.push(
+          `INSERT INTO subcriterion_platform_overrides (evaluation_id, subcriterion_id, platform_id, score, rationale, evidence_confidence) SELECT ${evalRef}, s.id, (SELECT id FROM platforms WHERE slug = ${sqlString(
+            override.platform,
+          )}), ${overrideScore}, ${sqlString(
+            override.rationale,
+          )}, ${sqlString(
+            override.confidence,
+          )} ${subcriterionSource} AND ${newEvaluationGuard} ON CONFLICT DO NOTHING;`,
+        );
+      }
     }
   }
 

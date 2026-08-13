@@ -29,6 +29,13 @@
       "when": 1786612012596,
       "tag": "0003_profile_scopes",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1786612865417,
+      "tag": "0004_platform_overrides",
+      "breakpoints": true
     }
   ]
 }
