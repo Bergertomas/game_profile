@@ -81,11 +81,37 @@ jobs:
       - name: Run database contract regression
         run: npm run test:db
 
+      # A database of its own, not the one the contract regression leaves
+      # behind: that suite deliberately ends holding extra scopes, extra
+      # rubrics and published fixtures, none of which the parity corpus is.
+      - name: Set up the read-path database
+        run: |
+          psql "$ADMIN_URL" -v ON_ERROR_STOP=1 \
+            -c 'DROP DATABASE IF EXISTS game_profile_read_ci' \
+            -c 'CREATE DATABASE game_profile_read_ci'
+          npm run db:setup
+        env:
+          PGPASSWORD: postgres
+          ADMIN_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
+          DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/game_profile_read_ci
+
+      # The Postgres read path: fixture/database parity for the calibration
+      # corpus, and the public selection rules. Needs a real database, so it
+      # cannot live in the unit suite.
+      - name: Run the database-backed read-path suite
+        run: npm run test:db-read
+        env:
+          DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/game_profile_read_ci
+
       - name: Run browser integration tests
         run: npm run test:e2e
+        env:
+          DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/game_profile_read_ci
 
       - name: Verify the production Worker runtime
         run: npm run cf:verify
+        env:
+          DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/game_profile_read_ci
 
       - name: Check the deployable Worker artifact
         run: npm run check:containment

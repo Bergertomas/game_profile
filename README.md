@@ -46,7 +46,8 @@ node scripts/screenshots.mjs screenshots http://localhost:3000
 app/
   globals.css                  the site-wide visual system: tokens and type roles
   page.tsx                     the library entrance — proposition, shelf, explainer
-  games/[slug]/page.tsx        the canonical profile page, then more games
+  games/[slug]/page.tsx        the game's primary profile, then more games
+  games/[slug]/[scope]/        a sibling profile scope; the primary key 308s
   games/[slug]/opengraph-image  prerendered share card, silhouette and all
   methodology/page.tsx         renders itself from the typed rubric
   robots.ts / sitemap.ts       generated from the same data the pages read
@@ -66,6 +67,9 @@ lib/
   validation/evaluation.ts     the publish gate
   db/                          Drizzle schema, migration, constraints, seed
   data/games.ts                the only data-access boundary
+  data/fixture-profiles.ts     typed fixtures: tests, harnesses, parity
+  db/client.ts                 the build-time Postgres connection
+  db/read-profiles.ts          published profiles, assembled from Postgres
   site.ts                      canonical origin, brand strings, build environment
   seo/                         JSON-LD graphs and share-card geometry
 content/games/                 seeded evaluations
@@ -106,6 +110,12 @@ These are product semantics, not preferences. Most are covered by a test.
 | Pre-release profiles declare evidence maturity and cannot claim High confidence | check constraints, `tests/evidence.test.ts` |
 | Pre-release recommendation blocks avoid verdict language | `lib/profile/vocabulary.ts`, `tests/evidence.test.ts` |
 | Runtime data can never reach the eight dimension scores | `game_time_estimates` hangs off `games`, not `evaluations` |
+| Published profiles are read from Postgres, through one data-access boundary | `lib/db/read-profiles.ts`, [ADR 0017](docs/decisions/0017-postgres-read-path.md) |
+| The database reproduces the calibration corpus exactly | `tests/db-read/parity.test.ts` — 45 assertions over three profiles |
+| Drafts, review rows and superseded history are never public | status filter, not ordering; `tests/db-read/resolution.test.ts` |
+| A game's primary scope owns `/games/<slug>`, and is explicit data | `profile_scopes.is_primary`, [ADR 0016](docs/decisions/0016-canonical-scope-urls.md) |
+| Reordering scopes never moves a canonical URL | primacy is a column, not `display_order`; asserted in both suites |
+| One profile, one indexable address | siblings canonicalise to themselves; the primary key 308s to the game URL |
 | A game may publish several current profiles, one per evaluated experience | `profile_scopes`, [ADR 0014](docs/decisions/0014-profile-scopes.md) |
 | Only one published evaluation per profile scope per rubric version | unique partial index |
 | Each profile scope versions and supersedes independently of its siblings | scope-local lineage triggers, `tests/profile-scope.test.ts` |
@@ -114,6 +124,33 @@ These are product semantics, not preferences. Most are covered by a test.
 | An ordinary editorial profile needs no calibration round and no schema change | `score_provenance` kind + `calibration_rounds` registry |
 | Artwork carries its clearance and basis, never a bare URL | `game_artwork`, [ADR 0011](docs/decisions/0011-production-artwork.md) |
 | All three profiles reproduce their calibration matrix exactly | `tests/calibration.test.ts` — 24 locked totals |
+
+## Where the data comes from
+
+Published profiles are read from **Postgres**, at build time, through the single
+data-access boundary in `lib/data/games.ts`. Every public route is prerendered,
+so the database is a *build* dependency: no Hyperdrive, no runtime pooling, no
+Worker binding, and `DATABASE_URL` is a build variable rather than a secret.
+
+```bash
+DATABASE_URL=postgres://…/game_profile npm run build   # reads Postgres
+npm run build                                          # reads the fixtures
+```
+
+The build says which path it took. **Production Postgres is not yet
+provisioned**, so a production build currently falls back to the calibration
+fixtures — the one temporary compatibility path, removed by deleting one branch
+in `loadPublishedProfiles`. See [ADR 0017](docs/decisions/0017-postgres-read-path.md)
+for the exact provisioning steps.
+
+```bash
+DATABASE_URL=postgres://…/game_profile_test npm run test:db-read
+```
+
+runs the parity and resolution suites: 45 assertions proving the database
+reproduces Alan Wake 2, Returnal and Redfall field for field including all 24
+approved dimension totals, and 13 more proving drafts, review rows and
+superseded history never become public.
 
 ## Profile identity and versioning
 
@@ -146,12 +183,27 @@ different scope; only an editor can tell those apart.
 Live-row uniqueness is `(scope, rubric version)`. Superseded versions are
 preserved and linked, never overwritten.
 
-**Every seeded game has exactly one scope (`default`), so nothing on the public
-site changes yet.** The multi-scope capability is proved against synthetic
-corpora in `tests/profile-scope.test.ts` and the database regression suite;
-authoring a real two-mode profile is Phase 2 editorial work. The public URL for
-a game with two current scopes is a deliberately open product decision — see
-[ADR 0014](docs/decisions/0014-profile-scopes.md).
+### Public addresses
+
+```
+/games/<slug>              the game's PRIMARY scope
+/games/<slug>/<scope-key>  every sibling scope
+```
+
+Primary is explicit data (`profile_scopes.is_primary`), never the lowest
+`display_order` — reordering a listing must not move a canonical URL. The
+database enforces at most one primary per game, and that a game publishing
+anything publishes its primary scope, so the bare game URL always resolves.
+
+One profile, one indexable address: a sibling canonicalises to itself, and
+`/games/<slug>/<primary-key>` 308s to the bare URL rather than publishing the
+same profile twice. See [ADR 0016](docs/decisions/0016-canonical-scope-urls.md).
+
+**Every seeded game has exactly one scope (`default`), so the public site has the
+same three URLs it always had.** The multi-scope capability is proved against
+synthetic corpora in `tests/profile-scope.test.ts`, `tests/db-read/` and the
+database regression suite; authoring a real two-mode profile is Phase 2
+editorial work.
 
 ## Database
 
@@ -271,6 +323,8 @@ not post them anywhere durable. See
 - [0013 — One Should I Play? visual system](docs/decisions/0013-visual-system.md)
 - [0014 — A game has profile scopes, and each one has its own history](docs/decisions/0014-profile-scopes.md)
 - [0015 — Platform overrides, and provenance that describes ordinary work](docs/decisions/0015-platform-overrides-and-provenance.md)
+- [0016 — A game's primary profile scope owns its canonical URL](docs/decisions/0016-canonical-scope-urls.md)
+- [0017 — Postgres is the read path, and it is a build dependency](docs/decisions/0017-postgres-read-path.md) *(supersedes the fixture half of 0002)*
 
 ## Not built, deliberately
 
