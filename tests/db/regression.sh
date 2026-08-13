@@ -259,7 +259,8 @@ fi
 # already frozen, so "it builds an empty schema" is not evidence they work.
 for later_migration in \
   lib/db/migrations/0003_profile_scopes.sql \
-  lib/db/migrations/0004_platform_overrides.sql
+  lib/db/migrations/0004_platform_overrides.sql \
+  lib/db/migrations/0005_score_provenance.sql
 do
   if upgrade_out="$(psql "$UPGRADE_DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -1 \
       -f "$later_migration" 2>&1)"; then
@@ -458,10 +459,10 @@ echo '== 3. Rubric identity and non-vacuous publication =='
 reject 'an unregistered rubric cannot be authored' \
   "INSERT INTO evaluations (
      game_id,scope_id,rubric_version,version_number,edition_scope,mode_scope,platform_scope,
-     build_or_patch_scope,status,evidence_status,confidence,evidence_cutoff_at,score_provenance
+     build_or_patch_scope,status,evidence_status,confidence,evidence_cutoff_at,score_provenance,calibration_round
    ) VALUES (
      $AW_GAME,$AW_SCOPE,'missing-test-rubric',990,'test','test',ARRAY['PC'],'test','draft',
-     'verified','medium','2026-08-06','calibration_round_1'
+     'verified','medium','2026-08-06','calibration','round_1'
    );" \
   'evaluations_rubric_version_rubric_versions_version_fk'
 
@@ -472,10 +473,10 @@ reject 'a registered but empty rubric cannot be published' \
    INSERT INTO evaluations (
      game_id,scope_id,rubric_version,version_number,edition_scope,mode_scope,platform_scope,
      build_or_patch_scope,status,evidence_status,confidence,evidence_cutoff_at,
-     score_provenance,one_line_experience,primary_pull,primary_risk
+     score_provenance,calibration_round,one_line_experience,primary_pull,primary_risk
    ) VALUES (
      $REDFALL_GAME,$REDFALL_SCOPE,'test-empty',990,'test','test',ARRAY['PC'],'test','draft',
-     'verified','medium','2026-08-06','calibration_round_1','test','test','test'
+     'verified','medium','2026-08-06','calibration','round_1','test','test','test'
    );
    UPDATE evaluations SET status='published', published_at='2026-08-06'
    WHERE game_id=$REDFALL_GAME AND rubric_version='test-empty' AND version_number=990;" \
@@ -485,10 +486,10 @@ reject 'a final snapshot cannot be inserted directly' \
   "INSERT INTO evaluations (
      game_id,scope_id,rubric_version,version_number,edition_scope,mode_scope,platform_scope,
      build_or_patch_scope,status,evidence_status,confidence,evidence_cutoff_at,
-     score_provenance,one_line_experience,primary_pull,primary_risk,published_at
+     score_provenance,calibration_round,one_line_experience,primary_pull,primary_risk,published_at
    ) VALUES (
      $REDFALL_GAME,$REDFALL_SCOPE,'1.0',991,'test','test',ARRAY['PC'],'test','published',
-     'verified','medium','2026-08-06','calibration_round_1','test','test','test','2026-08-06'
+     'verified','medium','2026-08-06','calibration','round_1','test','test','test','2026-08-06'
    );" \
   'must be created as draft/review'
 
@@ -507,10 +508,10 @@ fixture 'create a complete second rubric and a draft evaluation' \
    INSERT INTO evaluations (
      game_id,scope_id,rubric_version,version_number,edition_scope,mode_scope,platform_scope,
      build_or_patch_scope,status,evidence_status,confidence,evidence_cutoff_at,
-     score_provenance,one_line_experience,primary_pull,primary_risk
+     score_provenance,calibration_round,one_line_experience,primary_pull,primary_risk
    ) VALUES (
      $AW_GAME,$AW_SCOPE,'test-2.0',1,'test','test',ARRAY['PC'],'test','draft','verified',
-     'medium','2026-08-06','calibration_round_1','test','test','test'
+     'medium','2026-08-06','calibration','round_1','test','test','test'
    );"
 
 R2_EVAL="(SELECT id FROM evaluations WHERE game_id=$AW_GAME AND rubric_version='test-2.0' AND version_number=1)"
@@ -574,10 +575,10 @@ fixture 'create a second profile scope for one game, and a complete draft on it'
    INSERT INTO evaluations (
      game_id,scope_id,rubric_version,version_number,edition_scope,mode_scope,platform_scope,
      build_or_patch_scope,status,evidence_status,confidence,evidence_cutoff_at,
-     score_provenance,one_line_experience,primary_pull,primary_risk
+     score_provenance,calibration_round,one_line_experience,primary_pull,primary_risk
    ) VALUES (
      $RETURNAL_GAME,$SECOND_SCOPE,'1.0',1,'Base game','Second mode',ARRAY['PC'],'Launch',
-     'draft','verified','medium','2026-08-06','calibration_round_1','scope','scope','scope'
+     'draft','verified','medium','2026-08-06','calibration','round_1','scope','scope','scope'
    );
    INSERT INTO subcriterion_scores (evaluation_id,subcriterion_id,score,rationale)
    SELECT e.id,s.id,1,'second-scope fixture'
@@ -596,10 +597,10 @@ SECOND_V1="(SELECT id FROM evaluations WHERE scope_id=$SECOND_SCOPE AND version_
 reject 'a scope cannot belong to a different game than its evaluation' \
   "INSERT INTO evaluations (
      game_id,scope_id,rubric_version,version_number,edition_scope,mode_scope,platform_scope,
-     build_or_patch_scope,status,evidence_status,confidence,evidence_cutoff_at,score_provenance
+     build_or_patch_scope,status,evidence_status,confidence,evidence_cutoff_at,score_provenance,calibration_round
    ) VALUES (
      $REDFALL_GAME,$SECOND_SCOPE,'1.0',930,'x','x',ARRAY['PC'],'x','draft',
-     'verified','medium','2026-08-06','calibration_round_1'
+     'verified','medium','2026-08-06','calibration','round_1'
    );" \
   'evaluations_scope_belongs_to_game'
 
@@ -627,10 +628,10 @@ reject 'a second live row inside one scope is still refused' \
   "INSERT INTO evaluations (
      game_id,scope_id,rubric_version,version_number,edition_scope,mode_scope,platform_scope,
      build_or_patch_scope,status,evidence_status,confidence,evidence_cutoff_at,
-     score_provenance,one_line_experience,primary_pull,primary_risk
+     score_provenance,calibration_round,one_line_experience,primary_pull,primary_risk
    ) VALUES (
      $RETURNAL_GAME,$SECOND_SCOPE,'1.0',2,'x','x',ARRAY['PC'],'x','draft',
-     'verified','medium','2026-08-06','calibration_round_1','x','x','x'
+     'verified','medium','2026-08-06','calibration','round_1','x','x','x'
    );
    UPDATE evaluations SET status='published', published_at='2026-08-06'
    WHERE scope_id=$SECOND_SCOPE AND version_number=2;" \
@@ -640,10 +641,10 @@ reject 'one series cannot supersede another series of the same game' \
   "INSERT INTO evaluations (
      game_id,scope_id,rubric_version,version_number,edition_scope,mode_scope,platform_scope,
      build_or_patch_scope,status,evidence_status,confidence,evidence_cutoff_at,
-     score_provenance,supersedes_evaluation_id
+     score_provenance,calibration_round,supersedes_evaluation_id
    ) VALUES (
      $RETURNAL_GAME,$RETURNAL_SCOPE,'1.0',920,'x','x',ARRAY['PC'],'x','draft',
-     'verified','medium','2026-08-06','calibration_round_1',$SECOND_V1
+     'verified','medium','2026-08-06','calibration','round_1',$SECOND_V1
    );" \
   'supersedes an evaluation of a different profile scope'
 
@@ -733,10 +734,10 @@ echo '== 6. Derived scores remain honest on editable drafts =='
 fixture 'create a fully scored draft scratch evaluation' \
   "INSERT INTO evaluations (
      game_id,scope_id,rubric_version,version_number,edition_scope,mode_scope,platform_scope,
-     build_or_patch_scope,status,evidence_status,confidence,evidence_cutoff_at,score_provenance
+     build_or_patch_scope,status,evidence_status,confidence,evidence_cutoff_at,score_provenance,calibration_round
    ) VALUES (
      $AW_GAME,$AW_SCOPE,'1.0',901,'scratch','scratch',ARRAY['PC'],'scratch','draft',
-     'verified','medium','2026-08-06','calibration_round_1'
+     'verified','medium','2026-08-06','calibration','round_1'
    );
    INSERT INTO subcriterion_scores (
      evaluation_id,subcriterion_id,score,rationale,platform_note,evidence_confidence
@@ -877,14 +878,75 @@ expect 'overrides never move a dimension total' \
    WHERE evaluation_id=$SCRATCH AND dimension_id=$EXECUTION;" '9.0'
 
 echo
+echo '== 6c. Score provenance is general, not calibration-shaped =='
+#
+# The old enum listed calibration_round_1, calibration_round_2 and
+# derived_pending_round_1_reconciliation. An ordinary authored profile had no
+# value to carry, and a fourth round meant a schema migration. The kind is now
+# durable; the round is data.
+PROVENANCE_DRAFT="(SELECT id FROM evaluations WHERE version_number=940)"
+
+expect 'both conducted rounds are registered' \
+  "SELECT count(*) FROM calibration_rounds WHERE key IN ('round_1','round_2');" '2'
+expect 'the three seeded profiles cite a registered round' \
+  "SELECT count(*) FROM evaluations e
+   JOIN games g ON g.id=e.game_id
+   JOIN calibration_rounds r ON r.key=e.calibration_round
+   WHERE e.status='published' AND e.score_provenance='calibration'
+     AND e.rubric_version='1.0'
+     AND e.scope_id IN (SELECT id FROM profile_scopes WHERE key='default')
+     AND g.slug IN ('alan-wake-2','returnal','redfall');" '3'
+
+accept 'an ordinary editorial profile needs no round and no schema change' \
+  "INSERT INTO evaluations (
+     game_id,scope_id,rubric_version,version_number,edition_scope,mode_scope,platform_scope,
+     build_or_patch_scope,status,evidence_status,confidence,evidence_cutoff_at,
+     score_provenance,calibration_round
+   ) VALUES (
+     $REDFALL_GAME,$REDFALL_SCOPE,'1.0',940,'x','x',ARRAY['PC'],'x','draft',
+     'verified','medium','2026-08-06','editorial',NULL
+   );"
+
+reject 'a calibration profile must name its round' \
+  "UPDATE evaluations SET score_provenance='calibration' WHERE id=$PROVENANCE_DRAFT;" \
+  'calibration_provenance_names_its_round'
+reject 'a non-calibration profile cannot borrow a round' \
+  "UPDATE evaluations SET calibration_round='round_1' WHERE id=$PROVENANCE_DRAFT;" \
+  'calibration_provenance_names_its_round'
+reject 'a round must be registered before it can be cited' \
+  "UPDATE evaluations SET score_provenance='calibration', calibration_round='round_9'
+   WHERE id=$PROVENANCE_DRAFT;" \
+  'evaluations_calibration_round_calibration_rounds_key_fk'
+reject 'derived numbers must say they were not signed off' \
+  "UPDATE evaluations SET score_provenance='derived' WHERE id=$PROVENANCE_DRAFT;" \
+  'derived_provenance_explains_itself'
+accept 'derived numbers are fine once the profile explains itself' \
+  "UPDATE evaluations SET score_provenance='derived',
+     provenance_note='Scored by tooling against the rubric; not editorially reviewed.'
+   WHERE id=$PROVENANCE_DRAFT;"
+
+accept 'a new calibration round is a row, not a migration' \
+  "INSERT INTO calibration_rounds (key,label,conducted_at,report_reference)
+   VALUES ('round_3','Calibration round 3','2026-09-01','docs/round-3.md');
+   UPDATE evaluations SET score_provenance='calibration', calibration_round='round_3',
+     provenance_note=NULL
+   WHERE id=$PROVENANCE_DRAFT;"
+
+reject 'a round cited by final history cannot be relabelled' \
+  "UPDATE calibration_rounds SET label='Renamed round' WHERE key='round_1';" \
+  'cited by final evaluation'
+accept 'a round no final evaluation cites is still editable' \
+  "UPDATE calibration_rounds SET label='Calibration round 3 (revised)' WHERE key='round_3';"
+
+echo
 echo '== 7. Bidirectional lineage and atomic supersession =='
 fixture 'create a draft lineage used to exercise incoming-edge checks' \
   "INSERT INTO evaluations (
      game_id,scope_id,rubric_version,version_number,edition_scope,mode_scope,platform_scope,
-     build_or_patch_scope,status,evidence_status,confidence,evidence_cutoff_at,score_provenance
+     build_or_patch_scope,status,evidence_status,confidence,evidence_cutoff_at,score_provenance,calibration_round
    ) VALUES
-     ($REDFALL_GAME,$REDFALL_SCOPE,'1.0',910,'scratch','scratch',ARRAY['PC'],'scratch','draft','verified','medium','2026-08-06','calibration_round_1'),
-     ($REDFALL_GAME,$REDFALL_SCOPE,'1.0',911,'scratch','scratch',ARRAY['PC'],'scratch','draft','verified','medium','2026-08-06','calibration_round_1');
+     ($REDFALL_GAME,$REDFALL_SCOPE,'1.0',910,'scratch','scratch',ARRAY['PC'],'scratch','draft','verified','medium','2026-08-06','calibration','round_1'),
+     ($REDFALL_GAME,$REDFALL_SCOPE,'1.0',911,'scratch','scratch',ARRAY['PC'],'scratch','draft','verified','medium','2026-08-06','calibration','round_1');
    UPDATE evaluations SET supersedes_evaluation_id=(
      SELECT id FROM evaluations WHERE game_id=$REDFALL_GAME AND rubric_version='1.0' AND version_number=910
    ) WHERE game_id=$REDFALL_GAME AND rubric_version='1.0' AND version_number=911;"
@@ -912,12 +974,12 @@ fixture 'stage an incomplete predecessor and complete successor' \
   "INSERT INTO evaluations (
      game_id,scope_id,rubric_version,version_number,edition_scope,mode_scope,platform_scope,
      build_or_patch_scope,status,evidence_status,confidence,evidence_cutoff_at,
-     score_provenance,one_line_experience,primary_pull,primary_risk
+     score_provenance,calibration_round,one_line_experience,primary_pull,primary_risk
    ) VALUES
      ($REDFALL_GAME,$REDFALL_SCOPE,'test-2.0',20,'scratch','scratch',ARRAY['PC'],'scratch','draft',
-      'verified','medium','2026-08-06','calibration_round_1','test','test','test'),
+      'verified','medium','2026-08-06','calibration','round_1','test','test','test'),
      ($REDFALL_GAME,$REDFALL_SCOPE,'test-2.0',21,'scratch','scratch',ARRAY['PC'],'scratch','draft',
-      'verified','medium','2026-08-06','calibration_round_1','test','test','test');
+      'verified','medium','2026-08-06','calibration','round_1','test','test','test');
    UPDATE evaluations SET supersedes_evaluation_id=(
      SELECT id FROM evaluations
      WHERE game_id=$REDFALL_GAME AND rubric_version='test-2.0' AND version_number=20
@@ -948,13 +1010,13 @@ fixture 'stage a complete same-rubric successor' \
      game_id,scope_id,rubric_version,version_number,edition_scope,mode_scope,platform_scope,
      build_or_patch_scope,current_state_cutoff_at,status,evidence_status,evidence_maturity,
      confidence,evidence_cutoff_at,release_context,one_line_experience,primary_pull,
-     primary_risk,platform_warning,score_provenance,provenance_note,evidence_ledger,
+     primary_risk,platform_warning,score_provenance,calibration_round,provenance_note,evidence_ledger,
      created_by,reviewed_by,supersedes_evaluation_id,change_summary
    ) SELECT
      game_id,scope_id,rubric_version,902,edition_scope,mode_scope,platform_scope,
      build_or_patch_scope,current_state_cutoff_at,'draft',evidence_status,evidence_maturity,
      confidence,evidence_cutoff_at,release_context,one_line_experience,primary_pull,
-     primary_risk,platform_warning,score_provenance,provenance_note,evidence_ledger,
+     primary_risk,platform_warning,score_provenance,calibration_round,provenance_note,evidence_ledger,
      created_by,reviewed_by,id,'regression successor'
    FROM evaluations WHERE id=$AW;
    INSERT INTO subcriterion_scores (
@@ -1016,10 +1078,10 @@ fixture 'create a complete draft for the child/publication race' \
   "INSERT INTO evaluations (
      game_id,scope_id,rubric_version,version_number,edition_scope,mode_scope,platform_scope,
      build_or_patch_scope,status,evidence_status,confidence,evidence_cutoff_at,
-     score_provenance,one_line_experience,primary_pull,primary_risk
+     score_provenance,calibration_round,one_line_experience,primary_pull,primary_risk
    ) VALUES (
      $REDFALL_GAME,$REDFALL_SCOPE,'test-2.0',30,'race','race',ARRAY['PC'],'race','draft',
-     'verified','medium','2026-08-06','calibration_round_1','race','race','race'
+     'verified','medium','2026-08-06','calibration','round_1','race','race','race'
    );
    INSERT INTO subcriterion_scores (evaluation_id,subcriterion_id,score,rationale)
    SELECT id,$R2_SUB,1.5,'before concurrent publication'
@@ -1126,10 +1188,10 @@ fixture 'create a new rubric and complete draft for the definition race' \
    INSERT INTO evaluations (
      game_id,scope_id,rubric_version,version_number,edition_scope,mode_scope,platform_scope,
      build_or_patch_scope,status,evidence_status,confidence,evidence_cutoff_at,
-     score_provenance,one_line_experience,primary_pull,primary_risk
+     score_provenance,calibration_round,one_line_experience,primary_pull,primary_risk
    ) VALUES (
      $RETURNAL_GAME,$RETURNAL_SCOPE,'test-race',1,'race','race',ARRAY['PC'],'race','draft',
-     'verified','medium','2026-08-06','calibration_round_1','race','race','race'
+     'verified','medium','2026-08-06','calibration','round_1','race','race','race'
    );
    INSERT INTO subcriterion_scores (evaluation_id,subcriterion_id,score,rationale)
    SELECT e.id,s.id,1.5,'complete race fixture'
@@ -1273,12 +1335,12 @@ fixture 'create two complete drafts on one rubric for two different games' \
    INSERT INTO evaluations (
      game_id,scope_id,rubric_version,version_number,edition_scope,mode_scope,platform_scope,
      build_or_patch_scope,status,evidence_status,confidence,evidence_cutoff_at,
-     score_provenance,one_line_experience,primary_pull,primary_risk
+     score_provenance,calibration_round,one_line_experience,primary_pull,primary_risk
    ) VALUES
      ($RETURNAL_GAME,$RETURNAL_SCOPE,'test-par',1,'par','par',ARRAY['PC'],'par','draft',
-      'verified','medium','2026-08-06','calibration_round_1','par','par','par'),
+      'verified','medium','2026-08-06','calibration','round_1','par','par','par'),
      ($REDFALL_GAME,$REDFALL_SCOPE,'test-par',1,'par','par',ARRAY['PC'],'par','draft',
-      'verified','medium','2026-08-06','calibration_round_1','par','par','par');
+      'verified','medium','2026-08-06','calibration','round_1','par','par','par');
    INSERT INTO subcriterion_scores (evaluation_id,subcriterion_id,score,rationale)
    SELECT e.id,s.id,1.5,'parallel publication fixture'
    FROM evaluations e

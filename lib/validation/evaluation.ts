@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isCalibrationRoundKey } from "@/lib/profile/provenance";
 import { getRubric, UNKNOWN, type DimensionKey } from "@/lib/rubric";
 import { isTagKey } from "@/lib/rubric/tags";
 import { deriveDimensionScore } from "@/lib/scoring/derive";
@@ -124,12 +125,11 @@ export const evaluationSchema = z.object({
     }),
   ),
   evidenceLedger: z.enum(["populated", "pending"]),
-  scoreProvenance: z.enum([
-    "calibration_round_1",
-    "calibration_round_2",
-    "derived_pending_round_1_reconciliation",
-  ]),
-  provenanceNote: z.string().optional(),
+  scoreProvenance: z.object({
+    kind: z.enum(["editorial", "calibration", "derived"]),
+    round: z.string().min(1).optional(),
+    note: z.string().min(1).optional(),
+  }),
   publishedAt: isoDate.optional(),
   supersedesEvaluationId: z.string().optional(),
   changeSummary: z.string().optional(),
@@ -372,6 +372,40 @@ export function validateEvaluation(evaluation: Evaluation): ValidationIssue[] {
       code: "empty_populated_ledger",
       message:
         'Evidence ledger is marked "populated" but no sources are recorded.',
+    });
+  }
+
+  // Score provenance. The same biconditional the database enforces: a
+  // calibration profile names its round, and a profile that is not from a
+  // round does not get to borrow one's authority.
+  const provenance = evaluation.scoreProvenance;
+  if (provenance.kind === "calibration") {
+    if (!provenance.round) {
+      issues.push({
+        code: "calibration_without_round",
+        message:
+          'Provenance "calibration" must name the round whose report publishes the approved totals.',
+      });
+    } else if (!isCalibrationRoundKey(provenance.round)) {
+      issues.push({
+        code: "unknown_calibration_round",
+        message: `Calibration round "${provenance.round}" is not registered.`,
+      });
+    }
+  } else if (provenance.round) {
+    issues.push({
+      code: "unexpected_calibration_round",
+      message: `Provenance "${provenance.kind}" names calibration round "${provenance.round}". Only a calibration profile has one.`,
+    });
+  }
+
+  // Derived numbers have not been through editorial review, and the page says
+  // so. Silence would present them exactly like signed-off ones.
+  if (provenance.kind === "derived" && !provenance.note?.trim()) {
+    issues.push({
+      code: "derived_without_note",
+      message:
+        'Provenance "derived" must carry a note: these numbers have not been editorially signed off, and the profile has to say so.',
     });
   }
 

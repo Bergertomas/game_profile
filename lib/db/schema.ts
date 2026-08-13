@@ -92,11 +92,52 @@ export const tagIntensityEnum = pgEnum("tag_intensity", [
   "high",
 ]);
 
+/**
+ * How an evaluation's numbers came to exist — the durable kind, not the
+ * workflow event that produced them.
+ *
+ * The first version of this enum listed `calibration_round_1`,
+ * `calibration_round_2` and `derived_pending_round_1_reconciliation`. That was
+ * right for a three-profile calibration corpus and wrong for everything after
+ * it: an ordinary authored profile had no value to carry, a fourth round would
+ * need a schema migration, and "pending reconciliation" is a state a profile
+ * passes through rather than a fact about where its numbers came from.
+ *
+ *   editorial   — authored against the rubric and editorially signed off. The
+ *                 normal case, and the one Phase 2 will use for every game.
+ *   calibration — scored in a calibration round whose report publishes the
+ *                 approved totals. Which round is data: see calibration_rounds.
+ *   derived     — produced against the rubric without editorial sign-off, e.g.
+ *                 by tooling. Requires a note, because a reader is entitled to
+ *                 know the numbers have not been through review.
+ *
+ * Three kinds is the whole vocabulary. A new round is a row; a new workflow
+ * state is not this column's business.
+ */
 export const scoreProvenanceEnum = pgEnum("score_provenance", [
-  "calibration_round_1",
-  "calibration_round_2",
-  "derived_pending_round_1_reconciliation",
+  "editorial",
+  "calibration",
+  "derived",
 ]);
+
+/**
+ * The calibration rounds themselves.
+ *
+ * A registry rather than enum values, so conducting Round 3 inserts a row
+ * instead of migrating a type — and so the round can carry its date and the
+ * report that published its approved totals, which an enum label cannot.
+ *
+ * Frozen once a final evaluation cites it, exactly as evidence sources and tag
+ * definitions are (ADR 0009): the round's label appears on the published page,
+ * so rewriting it would rewrite that page's explanation of itself.
+ */
+export const calibrationRounds = pgTable("calibration_rounds", {
+  key: text("key").primaryKey(),
+  label: text("label").notNull(),
+  conductedAt: date("conducted_at"),
+  /** Where the approved totals are published, e.g. the round's report. */
+  reportReference: text("report_reference"),
+});
 
 /**
  * Whether the evidence ledger holds individual source records or only the broad
@@ -351,6 +392,16 @@ export const evaluations = pgTable(
     platformWarning: text("platform_warning"),
 
     scoreProvenance: scoreProvenanceEnum("score_provenance").notNull(),
+    /**
+     * Required when provenance is `calibration`, and meaningless otherwise —
+     * a check constraint enforces the biconditional, so a profile can neither
+     * claim a round it does not have nor cite one it is not from.
+     */
+    calibrationRound: text("calibration_round").references(
+      () => calibrationRounds.key,
+      { onDelete: "restrict", onUpdate: "restrict" },
+    ),
+    /** Required when provenance is `derived`. Shown in-product. */
     provenanceNote: text("provenance_note"),
     evidenceLedger: evidenceLedgerStateEnum("evidence_ledger")
       .notNull()

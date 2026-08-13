@@ -1,3 +1,4 @@
+import { CALIBRATION_ROUND_LIST } from "@/lib/profile/provenance";
 import { RUBRIC_V1, UNKNOWN } from "@/lib/rubric";
 import { TAGS } from "@/lib/rubric/tags";
 import type {
@@ -127,8 +128,9 @@ function evaluationSnapshotMatches(
     `primary_pull = ${sqlString(evaluation.primaryPull)}`,
     `primary_risk = ${sqlString(evaluation.primaryRisk)}`,
     `platform_warning IS NOT DISTINCT FROM ${sqlString(evaluation.platformWarning)}`,
-    `score_provenance = ${sqlString(evaluation.scoreProvenance)}`,
-    `provenance_note IS NOT DISTINCT FROM ${sqlString(evaluation.provenanceNote)}`,
+    `score_provenance = ${sqlString(evaluation.scoreProvenance.kind)}`,
+    `calibration_round IS NOT DISTINCT FROM ${sqlString(evaluation.scoreProvenance.round)}`,
+    `provenance_note IS NOT DISTINCT FROM ${sqlString(evaluation.scoreProvenance.note)}`,
     `evidence_ledger = ${sqlString(evaluation.evidenceLedger)}`,
     `published_at IS NOT DISTINCT FROM ${
       evaluation.status === "published" || evaluation.status === "superseded"
@@ -172,7 +174,7 @@ function emitEvaluation(
         );
 
   out.push(
-    `WITH inserted AS (INSERT INTO evaluations (game_id, scope_id, rubric_version, version_number, edition_scope, mode_scope, platform_scope, build_or_patch_scope, current_state_cutoff_at, status, evidence_status, evidence_maturity, confidence, evidence_cutoff_at, release_context, one_line_experience, primary_pull, primary_risk, platform_warning, score_provenance, provenance_note, evidence_ledger, published_at, supersedes_evaluation_id, change_summary) SELECT g.id, ${scopeRef(
+    `WITH inserted AS (INSERT INTO evaluations (game_id, scope_id, rubric_version, version_number, edition_scope, mode_scope, platform_scope, build_or_patch_scope, current_state_cutoff_at, status, evidence_status, evidence_maturity, confidence, evidence_cutoff_at, release_context, one_line_experience, primary_pull, primary_risk, platform_warning, score_provenance, calibration_round, provenance_note, evidence_ledger, published_at, supersedes_evaluation_id, change_summary) SELECT g.id, ${scopeRef(
       slug,
       scopeKey,
     )}, ${sqlString(
@@ -193,9 +195,9 @@ function emitEvaluation(
       evaluation.primaryPull,
     )}, ${sqlString(evaluation.primaryRisk)}, ${sqlString(
       evaluation.platformWarning,
-    )}, ${sqlString(evaluation.scoreProvenance)}, ${sqlString(
-      evaluation.provenanceNote,
-    )}, ${sqlString(evaluation.evidenceLedger)}, NULL, ${supersedesRef}, ${sqlString(
+    )}, ${sqlString(evaluation.scoreProvenance.kind)}, ${sqlString(
+      evaluation.scoreProvenance.round,
+    )}, ${sqlString(evaluation.scoreProvenance.note)}, ${sqlString(evaluation.evidenceLedger)}, NULL, ${supersedesRef}, ${sqlString(
       evaluation.changeSummary,
     )} FROM games g WHERE g.slug = ${sqlString(
       slug,
@@ -475,6 +477,23 @@ export function buildSeedSql(
       )}, ${sqlString(tag.label)}, ${sqlString(tag.category)}, ${sqlString(
         tag.description,
       )}, ${sqlString(tag.valueType)}) ON CONFLICT (key) DO NOTHING;`,
+    );
+  }
+  out.push("");
+
+  // -- Calibration rounds ---------------------------------------------------
+  //
+  // A registry, so conducting Round 3 is an entry here rather than a schema
+  // migration. Insert-if-absent rather than upsert: a round's label appears on
+  // every profile citing it, and the database freezes it on first final use.
+  out.push("-- Calibration rounds");
+  for (const round of CALIBRATION_ROUND_LIST) {
+    out.push(
+      `INSERT INTO calibration_rounds (key, label, conducted_at, report_reference) VALUES (${sqlString(
+        round.key,
+      )}, ${sqlString(round.label)}, ${sqlString(
+        round.conductedAt,
+      )}, ${sqlString(round.reportReference)}) ON CONFLICT (key) DO NOTHING;`,
     );
   }
   out.push("");

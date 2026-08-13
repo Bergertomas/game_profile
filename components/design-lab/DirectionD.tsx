@@ -14,6 +14,7 @@ import {
   blockHeadings,
 } from "@/lib/profile/vocabulary";
 import { formatDate, formatYear } from "@/lib/format";
+import { provenanceLabel } from "@/lib/profile/provenance";
 import { formatScore } from "@/lib/scoring/derive";
 import {
   axisAngleRad,
@@ -74,7 +75,7 @@ export function DirectionD({ profile }: { profile: ProfileView }) {
           <span className="dl-d__label">Game Profile · Experience assessment</span>
           <span className="dl-d__label">
             Rubric v{evaluation.rubricVersion} ·{" "}
-            {PROVENANCE_LABEL[evaluation.scoreProvenance]}
+            {provenanceLabel(evaluation.scoreProvenance)}
           </span>
         </div>
 
@@ -342,7 +343,7 @@ export function DirectionD({ profile }: { profile: ProfileView }) {
                 <h3 className="dl-d__label dl-d__label--ink">Provenance</h3>
                 <dl className="mt-2 max-w-[38rem] space-y-1.5">
                   {[
-                    ["Scores", PROVENANCE_LABEL[evaluation.scoreProvenance]],
+                    ["Scores", provenanceLabel(evaluation.scoreProvenance)],
                     ["Release context", evaluation.releaseContext],
                     [
                       "Evidence cut-off",
@@ -373,9 +374,9 @@ export function DirectionD({ profile }: { profile: ProfileView }) {
                     </div>
                   ))}
                 </dl>
-                {evaluation.provenanceNote && (
+                {evaluation.scoreProvenance.note && (
                   <p className="mt-2 max-w-[38rem] text-[0.9375rem] leading-relaxed text-[var(--dl-ink-soft)]">
-                    {evaluation.provenanceNote}
+                    {evaluation.scoreProvenance.note}
                   </p>
                 )}
               </div>
@@ -864,15 +865,6 @@ function RadarD({
 }
 
 /* ========================================================================== */
-
-const PROVENANCE_LABEL: Readonly<
-  Record<ProfileView["evaluation"]["scoreProvenance"], string>
-> = {
-  calibration_round_1: "Calibration round 1",
-  calibration_round_2: "Calibration round 2",
-  derived_pending_round_1_reconciliation:
-    "Derived from the rubric, pending calibration reconciliation",
-};
 
 /**
  * The derived-not-entered explanation, stated in the terms of whichever state

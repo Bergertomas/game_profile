@@ -36,6 +36,13 @@
       "when": 1786612865417,
       "tag": "0004_platform_overrides",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1786613212133,
+      "tag": "0005_score_provenance",
+      "breakpoints": true
     }
   ]
 }

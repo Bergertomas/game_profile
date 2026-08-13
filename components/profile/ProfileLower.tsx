@@ -8,16 +8,8 @@ import {
   blockHeadings,
 } from "@/lib/profile/vocabulary";
 import { formatDate } from "@/lib/format";
+import { provenanceLabel } from "@/lib/profile/provenance";
 import { creditLineFor, type ProfileArtwork } from "@/lib/profile/artwork";
-
-const PROVENANCE_LABEL: Readonly<
-  Record<ProfileView["evaluation"]["scoreProvenance"], string>
-> = {
-  calibration_round_1: "Calibration round 1",
-  calibration_round_2: "Calibration round 2",
-  derived_pending_round_1_reconciliation:
-    "Derived from the rubric, pending calibration reconciliation",
-};
 
 /**
  * Everything below the profile field.
@@ -146,7 +138,7 @@ export function ProfileLower({
                     CONFIDENCE_LABEL[evaluation.confidence],
                   ],
                   ["Rubric", `v${evaluation.rubricVersion}`],
-                  ["Scores", PROVENANCE_LABEL[evaluation.scoreProvenance]],
+                  ["Scores", provenanceLabel(evaluation.scoreProvenance)],
                   ["Evidence cut-off", formatDate(evaluation.evidenceCutoffAt)],
                   ["Release context", evaluation.releaseContext],
                   [
@@ -190,13 +182,13 @@ export function ProfileLower({
 
               {/* Provenance and revision history. Both say how much weight the
                   published numbers can carry, so neither is optional. */}
-              {evaluation.provenanceNote && (
+              {evaluation.scoreProvenance.note && (
                 <div className="mt-6 max-w-[40rem]">
                   <h3 className="gp__label gp__label--accent">
                     Score provenance
                   </h3>
                   <p className="mt-1.5 text-[0.9375rem] leading-relaxed text-[var(--gp-ink-soft)]">
-                    {evaluation.provenanceNote}
+                    {evaluation.scoreProvenance.note}
                   </p>
                 </div>
               )}

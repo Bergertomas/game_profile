@@ -233,17 +233,10 @@ export interface EvidenceSource {
   readonly note?: string;
 }
 
-/**
- * Where a profile's numbers came from. `calibration_round_1` /
- * `calibration_round_2` mean the totals are published in a calibration report
- * and are authoritative. `derived_pending_round_1_reconciliation` marks scores
- * Claude derived directly from the rubric because the Round 1 report is not in
- * the repository — they are engineering-grade, not editorially signed off.
- */
-export type ScoreProvenance =
-  | "calibration_round_1"
-  | "calibration_round_2"
-  | "derived_pending_round_1_reconciliation";
+export type {
+  ScoreProvenance,
+  ScoreProvenanceKind,
+} from "./provenance";
 
 /**
  * Whether the evidence ledger holds individual source records yet.
@@ -295,9 +288,11 @@ export interface Evaluation {
   readonly tags: readonly EvaluationTag[];
   readonly sources: readonly EvidenceSource[];
   readonly evidenceLedger: EvidenceLedgerState;
-  readonly scoreProvenance: ScoreProvenance;
-  /** Note shown in-product when provenance is not editorially final. */
-  readonly provenanceNote?: string;
+  /**
+   * Where these numbers came from: the durable kind, plus the calibration
+   * round where there is one. See lib/profile/provenance.ts.
+   */
+  readonly scoreProvenance: import("./provenance").ScoreProvenance;
   readonly publishedAt?: string;
   readonly supersedesEvaluationId?: string;
   readonly changeSummary?: string;

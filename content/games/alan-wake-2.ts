@@ -74,7 +74,7 @@ export const alanWake2: GameWithEvaluation = {
     },
     evidenceCutoffAt: "2026-08-06",
     releaseContext: "Post-release",
-    scoreProvenance: "calibration_round_1",
+    scoreProvenance: { kind: "calibration", round: "round_1" },
     evidenceLedger: "pending",
     publishedAt: "2026-08-06",
     oneLineExperience:

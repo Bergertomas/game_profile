@@ -75,7 +75,7 @@ export const redfall: GameWithEvaluation = {
     },
     evidenceCutoffAt: "2026-08-06",
     releaseContext: "Post-release, final build",
-    scoreProvenance: "calibration_round_2",
+    scoreProvenance: { kind: "calibration", round: "round_2" },
     evidenceLedger: "pending",
     publishedAt: "2026-08-06",
     oneLineExperience:
