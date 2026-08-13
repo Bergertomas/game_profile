@@ -651,13 +651,22 @@ export function buildSeedSql(
   }
 
   /*
-   * No evaluation may be stranded on a scope this corpus no longer declares.
+   * No evaluation of a seeded game may sit on a scope this corpus does not
+   * declare.
    *
    * Renaming a scope key in a fixture is the dangerous edit: the seed would
    * create a *new* series, insert version 1 into it, and publish it alongside
    * the original — two live profiles for one experience, neither obviously
-   * wrong. The scope key is identity, so a rename is a migration, not a
-   * content edit, and this refuses to let it pass as one.
+   * wrong, and the immutability triggers would freeze both. The scope key is
+   * identity, so a rename is a migration rather than a content edit.
+   *
+   * The check cannot distinguish that from a scope legitimately added outside
+   * the fixtures, so it names both readings and refuses either way. Failing
+   * loudly is the right default here: the alternative is publishing a second
+   * profile for one experience and finding out later.
+   *
+   * Scoped to games this corpus owns, so an editor adding a new *game* is
+   * unaffected.
    */
   out.push("-- Every seeded evaluation still belongs to a declared scope.");
   for (const [slug, keys] of scopeKeysByGame) {
@@ -666,7 +675,7 @@ export function buildSeedSql(
         slug,
       )} AND ps.key <> ALL (${sqlArray(
         keys,
-      )})) THEN RAISE EXCEPTION 'game % has evaluations on a profile scope this seed no longer declares; a scope key is identity, so renaming one is a migration', ${sqlString(
+      )})) THEN RAISE EXCEPTION 'game % has evaluations on a profile scope this seed does not declare. Either a scope key was renamed in the fixtures — which is a migration, not a content edit, because the key is the series identity — or a scope was added outside them and needs declaring here.', ${sqlString(
         slug,
       )} USING ERRCODE = 'check_violation'; END IF; END $seed$;`,
     );
