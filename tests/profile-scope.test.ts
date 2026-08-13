@@ -38,6 +38,7 @@ const survival: ProfileScope = {
   key: "survival",
   label: "Survival",
   summary: "The open-ended survival sandbox.",
+  isPrimary: true,
   displayOrder: 1,
 };
 
@@ -47,6 +48,7 @@ const wintermute: ProfileScope = {
   key: "wintermute",
   label: "Wintermute",
   summary: "The authored story campaign.",
+  isPrimary: false,
   displayOrder: 2,
 };
 

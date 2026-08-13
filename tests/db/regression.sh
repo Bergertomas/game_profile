@@ -261,7 +261,8 @@ for later_migration in \
   lib/db/migrations/0003_profile_scopes.sql \
   lib/db/migrations/0004_platform_overrides.sql \
   lib/db/migrations/0005_score_provenance.sql \
-  lib/db/migrations/0006_game_artwork.sql
+  lib/db/migrations/0006_game_artwork.sql \
+  lib/db/migrations/0007_primary_scope.sql
 do
   if upgrade_out="$(psql "$UPGRADE_DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -1 \
       -f "$later_migration" 2>&1)"; then
@@ -294,6 +295,12 @@ expect 'upgrade leaves no evaluation without a scope' \
   "SELECT count(*) FROM evaluations WHERE scope_id IS NULL;" '0'
 expect 'upgrade preserves the published status of frozen history' \
   "SELECT count(*) FROM evaluations WHERE status='published';" '3'
+expect 'upgrade gives every game with evaluations exactly one primary scope' \
+  "SELECT concat_ws('/',
+     (SELECT count(*) FROM profile_scopes WHERE is_primary),
+     (SELECT count(DISTINCT game_id) FROM evaluations));" '3/3'
+expect 'upgrade makes the backfilled default scope the primary one' \
+  "SELECT count(*) FROM profile_scopes WHERE is_primary AND key='default';" '3'
 expect 'upgrade moves live-row uniqueness onto the scope' \
   "SELECT count(*) FROM pg_indexes
    WHERE schemaname='public'
@@ -604,6 +611,33 @@ reject 'a scope cannot belong to a different game than its evaluation' \
      'verified','medium','2026-08-06','calibration','round_1'
    );" \
   'evaluations_scope_belongs_to_game'
+
+expect 'exactly one scope of the game owns the canonical URL' \
+  "SELECT count(*) FROM profile_scopes
+   WHERE game_id=$RETURNAL_GAME AND is_primary;" '1'
+expect 'the sibling scope is not primary' \
+  "SELECT is_primary FROM profile_scopes WHERE id=$SECOND_SCOPE;" 'f'
+
+reject 'a game cannot have two primary scopes' \
+  "INSERT INTO profile_scopes (game_id,key,label,is_primary,display_order)
+   VALUES ($RETURNAL_GAME,'third','Third',true,3);" \
+  'profile_scopes_one_primary_per_game'
+
+reject 'primacy cannot move to a scope with nothing published' \
+  "SET CONSTRAINTS ALL DEFERRED;
+   UPDATE profile_scopes SET is_primary=false
+     WHERE game_id=$RETURNAL_GAME AND key='default';
+   UPDATE profile_scopes SET is_primary=true
+     WHERE game_id=$RETURNAL_GAME AND key='second-mode';
+   SET CONSTRAINTS ALL IMMEDIATE;" \
+  'primary scope has none'
+
+accept 'display_order may be reordered without touching primacy' \
+  "UPDATE profile_scopes SET display_order=99
+     WHERE game_id=$RETURNAL_GAME AND key='default';"
+expect 'reordering left the canonical owner unchanged' \
+  "SELECT key FROM profile_scopes
+   WHERE game_id=$RETURNAL_GAME AND is_primary;" 'default'
 
 reject 'a scope key is an identity, not prose' \
   "INSERT INTO profile_scopes (game_id,key,label)

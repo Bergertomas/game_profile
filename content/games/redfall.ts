@@ -40,6 +40,7 @@ export const redfall: GameWithEvaluation = {
     key: "default",
     label: "Main game",
     summary: "The campaign, played solo or in co-op, at the final build.",
+    isPrimary: true,
     displayOrder: 1,
   },
   evaluation: {

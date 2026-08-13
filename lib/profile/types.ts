@@ -138,7 +138,20 @@ export interface ProfileScope {
   readonly label: string;
   /** What this scope covers, and what it deliberately excludes. */
   readonly summary?: string;
-  /** Ordering within the game. Ties break on `key`, so it stays deterministic. */
+  /**
+   * Whether this scope owns the game's canonical URL, `/games/<slug>`.
+   * Siblings are addressed at `/games/<slug>/<key>`.
+   *
+   * Explicit and durable, never derived from `displayOrder`: reordering two
+   * scopes is a presentation change and must not move a canonical URL.
+   * Exactly one scope per game is primary. See ADR 0016.
+   */
+  readonly isPrimary: boolean;
+  /**
+   * Ordering within the game, for listings. Ties break on `key`, so it stays
+   * deterministic. It decides presentation and nothing else — in particular it
+   * has no bearing on which scope is primary.
+   */
   readonly displayOrder: number;
 }
 

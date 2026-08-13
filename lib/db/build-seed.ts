@@ -355,6 +355,8 @@ export function buildSeedSql(
   const scopeIdOwners = new Map<string, string>();
   /** Every scope key declared per game, for the orphan check emitted below. */
   const scopeKeysByGame = new Map<string, string[]>();
+  /** The primary scope key(s) declared per game. Exactly one is legal. */
+  const primaryScopeByGame = new Map<string, string[]>();
 
   // Validate database identities across the whole corpus. Record-local checks
   // cannot detect two games or sources that claim the same global key with
@@ -394,6 +396,12 @@ export function buildSeedSql(
       ...(scopeKeysByGame.get(record.game.slug) ?? []),
       record.scope.key,
     ]);
+    if (record.scope.isPrimary) {
+      primaryScopeByGame.set(record.game.slug, [
+        ...(primaryScopeByGame.get(record.game.slug) ?? []),
+        record.scope.key,
+      ]);
+    }
 
     for (const evaluation of [
       ...(record.history ?? []),
@@ -420,6 +428,24 @@ export function buildSeedSql(
         sourcesByKey.set(source.id, signature);
       }
     }
+  }
+
+  /*
+   * Exactly one primary scope per game.
+   *
+   * The primary scope owns `/games/<slug>`, so two of them means two claims on
+   * one canonical URL and none means the game has no canonical URL at all.
+   * Neither is representable in the database, and catching it here names the
+   * fixture rather than surfacing a constraint violation mid-seed.
+   */
+  for (const [slug, keys] of scopeKeysByGame) {
+    const primaries = primaryScopeByGame.get(slug) ?? [];
+    if (primaries.length === 1) continue;
+    throw new Error(
+      primaries.length === 0
+        ? `Game "${slug}" declares ${keys.length} profile scope(s) and no primary. One scope must own the canonical /games/${slug} URL.`
+        : `Game "${slug}" declares ${primaries.length} primary profile scopes (${primaries.join(", ")}). Only one may own the canonical /games/${slug} URL.`,
+    );
   }
 
   out.push("-- GENERATED FILE — do not edit by hand.");
@@ -608,13 +634,15 @@ export function buildSeedSql(
      * whose scopes were named by migration 0003, onto the authored values.
      */
     out.push(
-      `INSERT INTO profile_scopes (game_id, key, label, summary, display_order) SELECT g.id, ${sqlString(
+      `INSERT INTO profile_scopes (game_id, key, label, summary, is_primary, display_order) SELECT g.id, ${sqlString(
         record.scope.key,
       )}, ${sqlString(record.scope.label)}, ${sqlString(
         record.scope.summary,
-      )}, ${record.scope.displayOrder} FROM games g WHERE g.slug = ${sqlString(
+      )}, ${record.scope.isPrimary}, ${
+        record.scope.displayOrder
+      } FROM games g WHERE g.slug = ${sqlString(
         game.slug,
-      )} ON CONFLICT (game_id, key) DO UPDATE SET label = EXCLUDED.label, summary = EXCLUDED.summary, display_order = EXCLUDED.display_order;`,
+      )} ON CONFLICT (game_id, key) DO UPDATE SET label = EXCLUDED.label, summary = EXCLUDED.summary, is_primary = EXCLUDED.is_primary, display_order = EXCLUDED.display_order;`,
     );
 
     // Oldest first, so each evaluation's predecessor already exists when the

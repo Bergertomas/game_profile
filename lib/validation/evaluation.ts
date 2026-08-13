@@ -52,6 +52,7 @@ export const profileScopeSchema = z.object({
   key: scopeKey,
   label: z.string().min(1),
   summary: z.string().optional(),
+  isPrimary: z.boolean(),
   displayOrder: z.number().int().positive(),
 });
 
