@@ -243,7 +243,7 @@ describe("The primary-scope invariant", () => {
         read,
       ),
     );
-    expect(message).toMatch(/primary scope has none/);
+    expect(message).toMatch(/publishes nothing under that rubric/);
   });
 
   it("refuses two primary scopes for one game", async () => {

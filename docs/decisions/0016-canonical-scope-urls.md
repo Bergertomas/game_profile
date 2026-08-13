@@ -41,19 +41,36 @@ happen, and a test asserts that changing `display_order` leaves primacy alone.
 ### Two invariants, both in the database
 
 1. **At most one primary scope per game** — a partial unique index.
-2. **A game that publishes anything publishes its primary scope** — a deferred
-   constraint trigger.
+2. **Per rubric version, a game that publishes anything publishes its primary
+   scope** — a deferred constraint trigger.
 
-The second is the interesting one, and it is deliberately stronger than "a
-primary scope exists". The weaker rule permits a state the public site cannot
-answer for: primary scope still in draft, a sibling published, and
-`/games/<slug>` therefore 404 while `/games/<slug>/<sibling>` resolves. The bare
-game URL is the one people link, share and search for; it must resolve whenever
-the game has any public content at all.
+The second is the interesting one, and both halves of its strength are load
+bearing.
 
-Editorially this says: publish the primary scope first, or make the scope you
-are publishing the primary one. Both are one-line acts, and the error message
-says so.
+"A primary scope exists" is too weak: it permits primary-in-draft with a sibling
+published, so `/games/<slug>` 404s while `/games/<slug>/<sibling>` resolves. The
+bare game URL is the one people link, share and search for; it must resolve
+whenever the game has any public content.
+
+**Asking it per game is also too weak**, and not hypothetically — public
+resolution selects Published rows for `PUBLIC_RUBRIC_VERSION`, so once a second
+rubric is registered a game-wide question permits:
+
+```
+primary scope Published under rubric 1.0 only
+sibling scope Published under rubric 2.0 only
+PUBLIC_RUBRIC_VERSION moved to 2.0
+→ the sibling URL resolves and the bare game URL is 404
+```
+
+Every row is Published and the game-wide check is satisfied, yet the canonical
+URL has no answer. The trigger therefore keys on `(game, rubric version)`. That
+also makes a rubric cut-over safe by construction: the migration has to reach
+the primary scope before the public selector moves.
+
+Editorially this says: publish the primary scope first, under the same rubric,
+or make the scope you are publishing the primary one. Both are one-line acts,
+and the error message names the rubric.
 
 ### One profile, one indexable address
 
@@ -83,8 +100,9 @@ one product. A sibling gets a three-level breadcrumb under the game.
 - Every seeded game is single-scope, so nothing about the public site changes
   today: three URLs, unchanged. The capability is proved against synthetic
   two-scope corpora.
-- A game cannot publish a sibling before its primary. That is a real editorial
-  constraint and it is the price of the bare URL always resolving.
+- A game cannot publish a sibling before its primary, under any rubric. That is
+  a real editorial constraint and it is the price of the bare URL always
+  resolving.
 - Renaming a scope key changes a sibling's public URL. This is unchanged from
   ADR 0014, where a key is identity and renaming one is a migration.
 
