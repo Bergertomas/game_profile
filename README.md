@@ -14,11 +14,16 @@ the name of the methodology. Internal identifiers (`GameProfile`, `game_profile`
 this repository) keep the original name deliberately — the rename is public-facing
 only. See [Brand, Discoverability & Hosting](docs/Should_I_Play_Brand_and_SEO_Foundation_v0.2.md).
 
-This repository is at **Phase 2A**: the public profile vertical slice is
-complete and its published profiles are read from Postgres at build time.
-The editorial system — admin access, authoring, preview and publish — is
-Phase 2B onward. See the
+This repository is at **Phase 2B**: the public profile vertical slice is
+complete and its published profiles are read from Postgres at build time, and
+the editorial tool now covers games, metadata, rights-aware artwork and profile
+scopes. Evaluation authoring, preview and publish are Phase 2C onward. See the
 [Master Product & Build Plan v0.7](docs/Game_Profile_Master_Product_and_Build_Plan_v0.7.md).
+
+**The editorial tool ships switched off.** `/admin` answers 404 unless a
+deployment carries both an identity provider and a request-time editorial
+database, and it carries neither by default — see
+[Editorial tool](#editorial-tool).
 
 ---
 
@@ -49,19 +54,28 @@ node scripts/screenshots.mjs screenshots http://localhost:3000
 ```
 app/
   globals.css                  the site-wide visual system: tokens and type roles
-  page.tsx                     the library entrance — proposition, shelf, explainer
-  games/[slug]/page.tsx        the game's primary profile, then more games
-  games/[slug]/[scope]/        a sibling profile scope; the primary key 308s
-  games/[slug]/opengraph-image  prerendered share card, silhouette and all
-  methodology/page.tsx         renders itself from the typed rubric
+  layout.tsx                   the html shell only — no surface owns the root
+  (public)/                    the published product. A route group: no URL has it in it
+    layout.tsx                 site chrome, skip link, site-wide structured data
+    page.tsx                   the library entrance — proposition, shelf, explainer
+    games/[slug]/page.tsx      the game's primary profile, then more games
+    games/[slug]/[scope]/      a sibling profile scope; the primary key 308s
+    games/[slug]/opengraph-image  prerendered share card, silhouette and all
+    methodology/page.tsx       renders itself from the typed rubric
+    dev/radar-states/          unknown/range harness, non-production only
+  admin/                       the editorial tool. Authenticated, noindex, never prerendered
+    layout.tsx                 the shell, and the guard every page passes through
+    actions.ts                 every editorial mutation, one transaction each
+    games/[id]/page.tsx        metadata, artwork rights, scopes, evaluation history
   robots.ts / sitemap.ts       generated from the same data the pages read
-  dev/radar-states/            unknown/range harness, non-production only
 components/
   SiteChrome.tsx               header and footer — achromatic, so games carry colour
   GameCard.tsx                 the one card grammar every list of games will use
   profile/radar.tsx            the only radar in the product, at three sizes
   profile/instrument.tsx       score rows, disclosure and hover linking
   profile/GameProfile.tsx      the canonical profile, with profile.css beside it
+  profile/ScopeSwitcher.tsx    sibling navigation, only where a game has siblings
+  admin/                       editorial form plumbing and panels
 lib/
   rubric/                      canonical typed Rubric v1.0 — the source of truth
   scoring/derive.ts            dimension totals, unknowns, ranges
@@ -74,6 +88,11 @@ lib/
   data/fixture-profiles.ts     typed fixtures: tests, harnesses, parity
   db/client.ts                 the build-time Postgres connection
   db/read-profiles.ts          published profiles, assembled from Postgres
+  admin/access.ts              Cloudflare Access assertion verification
+  admin/auth.ts                whether the tool exists here, and who gets in
+  admin/db.ts                  request-scoped editorial connection — no pool
+  admin/games.ts               editorial reads: drafts and history included
+  admin/write.ts               editorial writes, all transaction-scoped
   site.ts                      canonical origin, brand strings, build environment
   seo/                         JSON-LD graphs and share-card geometry
 content/games/                 seeded evaluations
@@ -207,10 +226,63 @@ One profile, one indexable address: a sibling canonicalises to itself, and
 same profile twice. See [ADR 0016](docs/decisions/0016-canonical-scope-urls.md).
 
 **Every seeded game has exactly one scope (`default`), so the public site has the
-same three URLs it always had.** The multi-scope capability is proved against
-synthetic corpora in `tests/profile-scope.test.ts`, `tests/db-read/` and the
-database regression suite; authoring a real two-mode profile is Phase 2
-editorial work.
+same three URLs it always had.** A game with several published scopes shows a
+scope switcher under its title, linking each profile at its own canonical URL
+and marking the one being read; below two scopes it renders nothing at all,
+because a chooser with one option asks a reader to weigh a distinction this game
+does not have.
+
+Since no seeded game has siblings, that branch is proved against a synthetic
+multi-scope corpus (`content/test-corpus.ts`) which the Playwright `multi-scope`
+project builds and drives in a real browser, alongside
+`tests/scope-switcher.test.ts`, `tests/db-read/` and the database regression
+suite. The corpus is opt-in via `PROFILE_TEST_CORPUS=multi-scope`, and a
+production build **refuses** it rather than ignoring it: its scores are not an
+evaluation of anything, and silently dropping the flag would make a
+misconfigured production build look identical to a correct one.
+
+## Editorial tool
+
+`/admin` covers games, alternate titles, platforms, provider IDs, rights-aware
+artwork records, profile scopes, explicit primary-scope management and
+evaluation-history navigation. Evaluation and score authoring is Phase 2C.
+
+**It ships switched off.** Every `/admin` path answers 404 unless the deployment
+carries both halves, and the deployed default carries neither:
+
+| Variable | Meaning |
+|---|---|
+| `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD` | who may sign in — a Cloudflare Access application |
+| `ADMIN_DATABASE_URL` | what there is to edit — a request-time editorial database |
+
+404, not 503 or a login page: a deployment that says "the admin is here but
+switched off" has told an unauthenticated prober where to come back to.
+`npm run cf:verify` asserts that against the real deployed artefact.
+
+`ADMIN_DATABASE_URL` is deliberately **not** `DATABASE_URL`. That one is the
+public read path's *build* variable, so provisioning production Postgres must
+not also switch on a request-time editorial surface in the Worker.
+
+Locally:
+
+```bash
+ADMIN_DATABASE_URL=postgres://…/game_profile \
+ADMIN_DEV_IDENTITY=you@example.com \
+  npm run dev            # /admin is live at http://localhost:3000/admin
+```
+
+The development identity exists only because `next dev` has no Access in front
+of it. `SITE_ENV` folds to a literal at build time, so the branch is unreachable
+in a production bundle — no value of `ADMIN_DEV_IDENTITY` can produce an
+unauthenticated editor there. Where Access *is* configured it is the only
+authority: a missing or invalid assertion refuses rather than falling back.
+
+Authorisation runs in the admin layout and again inside every Server Action.
+That is not belt-and-braces — Next's proxy documentation warns that a refactor
+moving a Server Function to another route can silently remove proxy coverage, so
+the guard travels with the mutation. A `proxy.ts` gate was written and removed:
+Next 16 pins Proxy to the Node.js runtime and `@opennextjs/cloudflare` cannot
+build one. See [ADR 0018](docs/decisions/0018-admin-access.md).
 
 ## Database
 
@@ -337,10 +409,11 @@ not post them anywhere durable. See
 - [0015 — Platform overrides, and provenance that describes ordinary work](docs/decisions/0015-platform-overrides-and-provenance.md)
 - [0016 — A game's primary profile scope owns its canonical URL](docs/decisions/0016-canonical-scope-urls.md)
 - [0017 — Postgres is the read path, and it is a build dependency](docs/decisions/0017-postgres-read-path.md) *(supersedes the fixture half of 0002)*
+- [0018 — Cloudflare Access is the editorial identity, and the admin ships switched off](docs/decisions/0018-admin-access.md) *(supersedes the JWT deferral in 0012)*
 
 ## Not built, deliberately
 
-Search, `/discover`, `/compare`, `/about`, admin auth and the evaluation editor
-are Phases 2–5. Public accounts, reviews, comments, social features, AI chat,
+Search, `/discover`, `/compare`, `/about` and the evaluation editor are
+Phases 2C–5. Public accounts, reviews, comments, social features, AI chat,
 recommendation ML and a public aggregate score are out of scope for the product,
 not merely deferred.
