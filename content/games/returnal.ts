@@ -43,6 +43,7 @@ export const returnal: GameWithEvaluation = {
     label: "Main game",
     summary:
       "The single-player main-game campaign. Co-op and the Tower of Sisyphus are outside this scope.",
+    isPrimary: true,
     displayOrder: 1,
   },
   evaluation: {

@@ -42,6 +42,7 @@ export const alanWake2: GameWithEvaluation = {
     label: "Main game",
     summary:
       "The single-player campaign. Night Springs and The Lake House are expansions and are not covered here.",
+    isPrimary: true,
     displayOrder: 1,
   },
   evaluation: {

@@ -1,6 +1,10 @@
 # ADR 0002 — Data access for the vertical slice
 
-**Status:** Accepted · 2026-08-06
+**Status:** Accepted · 2026-08-06 · **The fixture half is superseded by
+[ADR 0017](0017-postgres-read-path.md), 2026-08-13.** The seam it describes held:
+swapping fixtures for Drizzle queries changed `lib/data/games.ts` and nothing
+above it. Postgres is now the read path; fixtures remain for tests, development
+harnesses and the parity proof.
 **Context:** Master Plan §13, Phase 1 ("No admin UI required yet; seed data is
 acceptable"), Project Context §11
 
@@ -51,4 +55,6 @@ pre-release profile).
 - `lib/data/games.ts` is currently `async` for no reason other than to make the
   swap to real queries a no-op at every call site.
 - Until Postgres is provisioned, the fixtures are authoritative. `seed.sql` is
-  generated output and is marked as such.
+  generated output and is marked as such. *(Phase 2A: Postgres is now
+  authoritative wherever `DATABASE_URL` is set, which is every environment
+  except production until it is provisioned — ADR 0017.)*

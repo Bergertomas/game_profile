@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { listGameProfiles } from "@/lib/data/games";
 import { RUBRIC_V1 } from "@/lib/rubric";
-import { absoluteUrl, gameUrl } from "@/lib/site";
+import { absoluteUrl, profileUrl } from "@/lib/site";
 
 /**
  * Generated from the same data access boundary the pages read, so it scales to
@@ -37,8 +37,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "yearly",
       priority: 0.7,
     },
+    // One entry per publicly current profile, at its own canonical address:
+    // a game's primary scope at /games/<slug>, each sibling at
+    // /games/<slug>/<scope-key>. Never both for one profile (ADR 0016).
     ...profiles.map((profile) => ({
-      url: gameUrl(profile.game.slug),
+      url: profileUrl(profile.game.slug, profile.scope),
       lastModified: profile.evaluation.publishedAt ?? catalogueChangedAt,
       changeFrequency: "monthly" as const,
       priority: 0.9,

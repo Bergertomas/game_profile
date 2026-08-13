@@ -324,6 +324,19 @@ export const profileScopes = pgTable(
     label: text("label").notNull(),
     /** What this scope covers, and what it deliberately excludes. */
     summary: text("summary"),
+    /**
+     * The scope that owns the game's canonical public URL, `/games/<slug>`.
+     * Siblings are addressed at `/games/<slug>/<key>`.
+     *
+     * Explicit and durable, never inferred from `display_order` — reordering
+     * two scopes is a presentation change and must not move a canonical URL,
+     * which is the kind of silent redirect that loses a page its history.
+     *
+     * At most one per game (partial unique index), and a game with any
+     * published profile must have its primary scope published too, so the bare
+     * game URL always resolves. See ADR 0016.
+     */
+    isPrimary: boolean("is_primary").notNull().default(false),
     displayOrder: integer("display_order").notNull().default(1),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

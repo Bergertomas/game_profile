@@ -261,7 +261,8 @@ for later_migration in \
   lib/db/migrations/0003_profile_scopes.sql \
   lib/db/migrations/0004_platform_overrides.sql \
   lib/db/migrations/0005_score_provenance.sql \
-  lib/db/migrations/0006_game_artwork.sql
+  lib/db/migrations/0006_game_artwork.sql \
+  lib/db/migrations/0007_primary_scope.sql
 do
   if upgrade_out="$(psql "$UPGRADE_DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -1 \
       -f "$later_migration" 2>&1)"; then
@@ -294,6 +295,12 @@ expect 'upgrade leaves no evaluation without a scope' \
   "SELECT count(*) FROM evaluations WHERE scope_id IS NULL;" '0'
 expect 'upgrade preserves the published status of frozen history' \
   "SELECT count(*) FROM evaluations WHERE status='published';" '3'
+expect 'upgrade gives every game with evaluations exactly one primary scope' \
+  "SELECT concat_ws('/',
+     (SELECT count(*) FROM profile_scopes WHERE is_primary),
+     (SELECT count(DISTINCT game_id) FROM evaluations));" '3/3'
+expect 'upgrade makes the backfilled default scope the primary one' \
+  "SELECT count(*) FROM profile_scopes WHERE is_primary AND key='default';" '3'
 expect 'upgrade moves live-row uniqueness onto the scope' \
   "SELECT count(*) FROM pg_indexes
    WHERE schemaname='public'
@@ -605,6 +612,33 @@ reject 'a scope cannot belong to a different game than its evaluation' \
    );" \
   'evaluations_scope_belongs_to_game'
 
+expect 'exactly one scope of the game owns the canonical URL' \
+  "SELECT count(*) FROM profile_scopes
+   WHERE game_id=$RETURNAL_GAME AND is_primary;" '1'
+expect 'the sibling scope is not primary' \
+  "SELECT is_primary FROM profile_scopes WHERE id=$SECOND_SCOPE;" 'f'
+
+reject 'a game cannot have two primary scopes' \
+  "INSERT INTO profile_scopes (game_id,key,label,is_primary,display_order)
+   VALUES ($RETURNAL_GAME,'third','Third',true,3);" \
+  'profile_scopes_one_primary_per_game'
+
+reject 'primacy cannot move to a scope with nothing published' \
+  "SET CONSTRAINTS ALL DEFERRED;
+   UPDATE profile_scopes SET is_primary=false
+     WHERE game_id=$RETURNAL_GAME AND key='default';
+   UPDATE profile_scopes SET is_primary=true
+     WHERE game_id=$RETURNAL_GAME AND key='second-mode';
+   SET CONSTRAINTS ALL IMMEDIATE;" \
+  'publishes nothing under that rubric'
+
+accept 'display_order may be reordered without touching primacy' \
+  "UPDATE profile_scopes SET display_order=99
+     WHERE game_id=$RETURNAL_GAME AND key='default';"
+expect 'reordering left the canonical owner unchanged' \
+  "SELECT key FROM profile_scopes
+   WHERE game_id=$RETURNAL_GAME AND is_primary;" 'default'
+
 reject 'a scope key is an identity, not prose' \
   "INSERT INTO profile_scopes (game_id,key,label)
    VALUES ($REDFALL_GAME,'The Long Dark — Survival','Survival');" \
@@ -656,6 +690,81 @@ reject 'a published evaluation cannot be moved into another series' \
 expect 'the first series keeps its own independent history' \
   "SELECT count(*) FROM evaluations
    WHERE scope_id=$RETURNAL_SCOPE AND rubric_version='1.0';" '1'
+
+echo
+echo '== 4c. The canonical URL resolves under every rubric that publishes =='
+#
+# Master Plan v0.7, Appendix A. Asking "does this game have a published primary
+# scope?" is too weak once a second rubric is registered, because public
+# resolution asks a stricter question: is the primary published *under
+# PUBLIC_RUBRIC_VERSION*. The gap it leaves:
+#
+#     primary scope Published under rubric 1.0 only
+#     sibling scope Published under rubric test-2.0 only
+#     public selector moved to test-2.0
+#     -> /games/returnal/second-mode resolves, /games/returnal is 404
+#
+# Every row involved is Published and the game-wide question is satisfied, so
+# only a per-(game, rubric) check refuses it. That is what these assert.
+R2_SIBLING="(SELECT id FROM evaluations WHERE scope_id=$SECOND_SCOPE AND rubric_version='test-2.0' AND version_number=1)"
+R2_PRIMARY="(SELECT id FROM evaluations WHERE scope_id=$RETURNAL_SCOPE AND rubric_version='test-2.0' AND version_number=1)"
+
+# One dimension, one subcriterion: the shape the test-2.0 registry declares.
+r2_evaluation() {
+  printf "%s" "INSERT INTO evaluations (
+     game_id,scope_id,rubric_version,version_number,edition_scope,mode_scope,platform_scope,
+     build_or_patch_scope,status,evidence_status,confidence,evidence_cutoff_at,
+     score_provenance,calibration_round,one_line_experience,primary_pull,primary_risk
+   ) VALUES (
+     $RETURNAL_GAME,$1,'test-2.0',1,'second rubric','second rubric',ARRAY['PC'],
+     'second rubric','draft','verified','medium','2026-08-06','calibration','round_1',
+     'A second-rubric evaluation.','A second-rubric pull.','A second-rubric risk.'
+   );
+   INSERT INTO subcriterion_scores (evaluation_id,subcriterion_id,score,rationale)
+   VALUES ($2,$R2_SUB,1.5,'second-rubric score');
+   INSERT INTO dimension_assessments (evaluation_id,dimension_id,confidence)
+   VALUES ($2,$R2_DIM,'medium');"
+}
+
+fixture 'stage a complete sibling evaluation under the second rubric' \
+  "$(r2_evaluation "$SECOND_SCOPE" "$R2_SIBLING")"
+
+reject 'a sibling cannot publish under a rubric its primary has not published' \
+  "UPDATE evaluations SET status='published', published_at='2026-08-06'
+   WHERE id=$R2_SIBLING;" \
+  'publishes nothing under that rubric'
+
+expect 'the refused sibling is still only a draft' \
+  "SELECT status FROM evaluations WHERE id=$R2_SIBLING;" 'draft'
+
+accept 'the primary may publish under the second rubric first' \
+  "$(r2_evaluation "$RETURNAL_SCOPE" "$R2_PRIMARY")
+   UPDATE evaluations SET status='published', published_at='2026-08-06'
+   WHERE id=$R2_PRIMARY;"
+
+accept 'and then the sibling may publish under it too' \
+  "UPDATE evaluations SET status='published', published_at='2026-08-06'
+   WHERE id=$R2_SIBLING;"
+
+expect 'the bare game URL now resolves under either rubric' \
+  "SELECT count(*) FROM evaluations e
+   JOIN profile_scopes ps ON ps.id=e.scope_id
+   WHERE e.game_id=$RETURNAL_GAME AND e.status='published' AND ps.is_primary;" '2'
+expect 'and so does each sibling' \
+  "SELECT count(*) FROM evaluations
+   WHERE game_id=$RETURNAL_GAME AND status='published';" '4'
+
+reject 'primacy still cannot move to a scope missing a published rubric' \
+  "SET CONSTRAINTS ALL DEFERRED;
+   DELETE FROM profile_scopes WHERE game_id=$RETURNAL_GAME AND key='never-published';
+   INSERT INTO profile_scopes (game_id,key,label,is_primary,display_order)
+   VALUES ($RETURNAL_GAME,'never-published','Never published',false,4);
+   UPDATE profile_scopes SET is_primary=false
+     WHERE game_id=$RETURNAL_GAME AND key='default';
+   UPDATE profile_scopes SET is_primary=true
+     WHERE game_id=$RETURNAL_GAME AND key='never-published';
+   SET CONSTRAINTS ALL IMMEDIATE;" \
+  'publishes nothing under that rubric'
 
 echo
 echo '== 5. Final snapshots and all owned children are immutable =='

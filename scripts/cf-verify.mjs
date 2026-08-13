@@ -68,6 +68,28 @@ const build = spawnSync(process.execPath, [OPEN_NEXT_CLI, "build"], {
 });
 if (build.status !== 0) process.exit(build.status ?? 1);
 
+/*
+ * Populate the static-assets incremental cache.
+ *
+ * `build` does not do this; `deploy` and `upload` do. Skipping it here would
+ * boot a Worker that behaves differently from the one that ships: with no
+ * populated cache the Worker cannot find the prerendered pages and re-renders
+ * every request inside workerd instead of serving the build's output.
+ *
+ * That was invisible while fixtures were the only data source, because both
+ * paths produced identical bytes. It stopped being invisible the moment the
+ * build started reading Postgres and the Worker could not — the Worker served
+ * the fixture corpus while the build had published the database's. Verifying an
+ * artefact assembled differently from the deployed one is not verification.
+ */
+console.log("\nPopulating the static-assets cache…");
+const populate = spawnSync(
+  process.execPath,
+  [OPEN_NEXT_CLI, "populateCache", "local"],
+  { stdio: "inherit", env: { ...process.env } },
+);
+if (populate.status !== 0) process.exit(populate.status ?? 1);
+
 await assertPortAvailable(PORT);
 console.log(`\nStarting the Worker on ${ORIGIN}…`);
 const server = spawn(

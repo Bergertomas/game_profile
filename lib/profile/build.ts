@@ -3,7 +3,12 @@ import {
   getRubric,
   type Dimension,
 } from "@/lib/rubric";
-import { getTag, type TagDefinition, type TagIntensity } from "@/lib/rubric/tags";
+import {
+  getTag,
+  TAGS,
+  type TagDefinition,
+  type TagIntensity,
+} from "@/lib/rubric/tags";
 import {
   deriveDimensionScore,
   formatDimensionScore,
@@ -14,6 +19,7 @@ import {
 import type {
   Confidence,
   Evaluation,
+  EvaluationTag,
   EvidenceSource,
   Game,
   GameWithEvaluation,
@@ -87,6 +93,8 @@ export interface ProfileView {
    */
   readonly scope: ProfileScope;
   readonly evaluation: Evaluation;
+  /** Evidence sources in a canonical order. See `orderSources`. */
+  readonly sources: readonly EvidenceSource[];
   /** Dimensions in fixed radar order — the same order the score rows use. */
   readonly dimensions: readonly DimensionView[];
   readonly radar: readonly RadarPoint[];
@@ -97,6 +105,40 @@ export interface ProfileView {
    * describes distribution, never an overall rating.
    */
   readonly shapeDescription: string;
+}
+
+/**
+ * A stable comparator that does not depend on anything outside this process.
+ *
+ * Deliberately NOT `localeCompare`, and deliberately not left to the database.
+ * `ORDER BY alias` in Postgres sorts under the database's collation: a `C`
+ * database returns "AW2" before "Alan Wake II" (byte order), an `en_US.utf8`
+ * one returns the reverse (case-insensitive first pass). CI runs the second and
+ * a laptop may run the first, so a parity test that passed locally failed there
+ * — and the underlying bug is not the test: a game's `alternateName` list in
+ * JSON-LD would have been ordered by whichever database happened to build the
+ * site.
+ */
+function byCodeUnit(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/**
+ * Aliases and platforms in a canonical order.
+ *
+ * Same class of gap as tags and evidence links: neither `game_aliases` nor
+ * `game_platforms` has an ordering column, so an authored sequence is not
+ * representable and the database's own row order is not a promise — the
+ * platform query has no `ORDER BY` at all, because there is nothing meaningful
+ * to order by. Sorting here gives both readers one answer that no environment
+ * can change.
+ */
+function canonicalGame(game: Game): Game {
+  return {
+    ...game,
+    aliases: [...game.aliases].sort(byCodeUnit),
+    platforms: [...game.platforms].sort((a, b) => byCodeUnit(a.slug, b.slug)),
+  };
 }
 
 export function buildProfileView({
@@ -168,19 +210,81 @@ export function buildProfileView({
   }));
 
   return {
-    game,
+    game: canonicalGame(game),
     scope,
     evaluation,
+    sources: orderSources(evaluation.sources),
     dimensions,
     radar,
-    tags: evaluation.tags.map((tag) => ({
-      definition: getTag(tag.key),
-      intensity: tag.intensity,
-      note: tag.note,
-    })),
+    tags: orderTags(evaluation.tags),
     evidence: summariseEvidence(evaluation.sources),
     shapeDescription: describeShape(dimensions),
   };
+}
+
+
+/**
+ * Tags in the controlled vocabulary's own order.
+ *
+ * WHY ORDER IS DERIVED RATHER THAN STORED. `evaluation_tags` has no ordering
+ * column, so the database cannot reproduce the order a fixture array happens to
+ * carry — and the cutover to Postgres would otherwise have shifted the tag line
+ * on every page for no reason anyone could name. Deriving it from `TAGS` makes
+ * both read paths produce the same page, and produces a better order than
+ * either: the vocabulary is grouped by category, so structure tags sit together,
+ * then narrative, then play, and so on.
+ *
+ * If editorial ordering ever turns out to matter, it becomes an explicit column
+ * and an explicit control in the tag editor (Phase 2C) — not an accident of
+ * insertion order.
+ */
+function orderTags(tags: readonly EvaluationTag[]): TagView[] {
+  const position = new Map(TAGS.map((tag, index) => [tag.key, index]));
+  return [...tags]
+    .sort(
+      (a, b) =>
+        (position.get(a.key) ?? Number.MAX_SAFE_INTEGER) -
+        (position.get(b.key) ?? Number.MAX_SAFE_INTEGER),
+    )
+    .map((tag) => ({
+      definition: getTag(tag.key),
+      intensity: tag.intensity,
+      note: tag.note,
+    }));
+}
+
+/**
+ * Evidence sources by their stable key, and the dimensions each supports in
+ * rubric order.
+ *
+ * Same reasoning as `orderTags`: `evaluation_evidence_links` has no ordering
+ * column either. Sorting on the source key is deliberately mechanical — it
+ * makes no claim that one source matters more than another, which ordering by
+ * tier would. Evidence is counted, never weighted (SOP §6).
+ *
+ * `byCodeUnit` rather than the database's `ORDER BY`, for the reason given on
+ * that comparator: row order under one collation is not row order under
+ * another.
+ */
+function orderSources(
+  sources: readonly EvidenceSource[],
+): readonly EvidenceSource[] {
+  const rubricOrder = new Map(
+    dimensionsInRadarOrder().map((d, index) => [d.key, index]),
+  );
+  return [...sources]
+    .sort((a, b) => byCodeUnit(a.id, b.id))
+    .map((source) =>
+      source.supports
+        ? {
+            ...source,
+            supports: [...source.supports].sort(
+              (a, b) =>
+                (rubricOrder.get(a) ?? 0) - (rubricOrder.get(b) ?? 0),
+            ),
+          }
+        : source,
+    );
 }
 
 export function summariseEvidence(

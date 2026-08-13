@@ -50,6 +50,13 @@
       "when": 1786613617718,
       "tag": "0006_game_artwork",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1786622536426,
+      "tag": "0007_primary_scope",
+      "breakpoints": true
     }
   ]
 }

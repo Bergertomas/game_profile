@@ -187,6 +187,41 @@ test("an unknown game slug is not rendered on demand", async ({ request }) => {
   ).toBe(404);
 });
 
+test("an unknown profile scope is not rendered on demand", async ({
+  request,
+}) => {
+  // A scope key that does not exist, and a real game with no such sibling.
+  expect((await request.get("/games/alan-wake-2/not-a-scope")).status()).toBe(
+    404,
+  );
+  expect((await request.get("/games/not-a-game/survival")).status()).toBe(404);
+});
+
+test("a primary scope has exactly one indexable address", async ({
+  request,
+}) => {
+  // Every seeded game is single-scope, so its scope key is the primary one.
+  // The bare game URL is the page; the keyed URL redirects to it rather than
+  // publishing the same profile at a second address (ADR 0016).
+  for (const slug of SLUGS) {
+    const keyed = await request.get(`/games/${slug}/default`, {
+      maxRedirects: 0,
+    });
+    expect(keyed.status(), `/games/${slug}/default`).toBe(308);
+    expect(keyed.headers()["location"]).toBe(`/games/${slug}`);
+  }
+});
+
+test("every game page canonicalises to its own address", async ({ page }) => {
+  for (const slug of SLUGS) {
+    await page.goto(`/games/${slug}`);
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+      "href",
+      `https://shouldiplay.gg/games/${slug}`,
+    );
+  }
+});
+
 test("keyboard focus reaches every score row and drives the radar", async ({
   page,
 }) => {

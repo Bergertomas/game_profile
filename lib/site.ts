@@ -15,6 +15,8 @@
  * deliberate in every string below.
  */
 
+import type { Route } from "next";
+
 export const SITE_NAME = "Should I Play?";
 
 /** The canonical production origin. No trailing slash. */
@@ -79,9 +81,37 @@ export function absoluteUrl(path = "/"): string {
   return new URL(path, SITE_URL).toString();
 }
 
-/** Canonical public URL for a game profile. The permanent address of a game. */
+/** Canonical public URL for a game. The address of its primary profile. */
 export function gameUrl(slug: string): string {
   return absoluteUrl(`/games/${slug}`);
+}
+
+/**
+ * The canonical public path of one profile.
+ *
+ * A game's primary scope owns the bare game URL; every sibling scope is
+ * addressed by its key. One profile, one address — the primary scope is
+ * deliberately NOT also reachable at `/games/<slug>/<its-key>` as a second
+ * indexable page (ADR 0016).
+ *
+ *   primary   →  /games/returnal
+ *   sibling   →  /games/the-long-dark/wintermute
+ */
+export function profilePath(
+  slug: string,
+  scope: { readonly key: string; readonly isPrimary: boolean },
+): Route {
+  return (
+    scope.isPrimary ? `/games/${slug}` : `/games/${slug}/${scope.key}`
+  ) as Route;
+}
+
+/** Absolute canonical URL for one profile. */
+export function profileUrl(
+  slug: string,
+  scope: { readonly key: string; readonly isPrimary: boolean },
+): string {
+  return absoluteUrl(profilePath(slug, scope));
 }
 
 /**
