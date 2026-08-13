@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ProfileRadar } from "@/components/profile/radar";
 import { MARK } from "@/components/profile/radar-layout";
 import { formatYear } from "@/lib/format";
+import { profilePath } from "@/lib/site";
 import { accentFor } from "@/lib/profile/accent";
 import { coverArtworkFor } from "@/lib/profile/artwork";
 import type { DimensionView, ProfileView } from "@/lib/profile/build";
@@ -69,7 +70,7 @@ export function GameCard({ profile }: { profile: ProfileView }) {
       }
     >
       <Link
-        href={`/games/${game.slug}`}
+        href={profilePath(game.slug, profile.scope)}
         className="after:absolute after:inset-0 after:content-[''] group-hover:underline group-hover:decoration-2 group-hover:underline-offset-[6px]"
         style={{ textDecorationColor: cover ? accent.base : accent.lift }}
       >

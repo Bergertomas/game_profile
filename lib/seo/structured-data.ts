@@ -1,5 +1,5 @@
 import type { ProfileView } from "@/lib/profile/build";
-import { absoluteUrl, gameUrl, SITE_NAME, SITE_URL } from "@/lib/site";
+import { absoluteUrl, gameUrl, profileUrl, SITE_NAME, SITE_URL } from "@/lib/site";
 
 /**
  * JSON-LD emitted by the public pages.
@@ -70,7 +70,10 @@ function breadcrumb(
 }
 
 /**
- * A game profile page.
+ * A game profile page — one evaluated experience of one game.
+ *
+ * A game with several current scopes has several of these pages, each at its
+ * own canonical URL and each describing the same `VideoGame`.
  *
  * The page is a `WebPage` whose `mainEntity` is the `VideoGame` it describes —
  * the honest shape, since we publish an evaluation *about* a game rather than
@@ -78,16 +81,20 @@ function breadcrumb(
  * profile, not the game; the game's own release date is `VideoGame.datePublished`.
  */
 export function gameProfileGraph(profile: ProfileView): JsonLdNode {
-  const { game, evaluation } = profile;
-  const url = gameUrl(game.slug);
-  const gameId = `${url}#game`;
+  const { game, scope, evaluation } = profile;
+  // The page is this profile's own address; the game is one entity that both a
+  // primary and a sibling scope are *about*. Anchoring the VideoGame node on
+  // the game URL keeps that identity shared, so two scopes of one game describe
+  // the same game rather than two.
+  const url = profileUrl(game.slug, scope);
+  const gameId = `${gameUrl(game.slug)}#game`;
 
   const videoGame: JsonLdNode = {
     "@type": "VideoGame",
     "@id": gameId,
     name: game.canonicalTitle,
     description: game.summary,
-    url,
+    url: gameUrl(game.slug),
     datePublished: game.firstReleaseDate,
     gamePlatform: game.platforms.map((platform) => platform.name),
     author: { "@type": "Organization", name: game.developerText },
@@ -99,7 +106,9 @@ export function gameProfileGraph(profile: ProfileView): JsonLdNode {
     "@type": "WebPage",
     "@id": `${url}#webpage`,
     url,
-    name: `Should I Play ${game.canonicalTitle}?`,
+    name: scope.isPrimary
+      ? `Should I Play ${game.canonicalTitle}?`
+      : `Should I Play ${game.canonicalTitle} — ${scope.label}?`,
     description: evaluation.oneLineExperience,
     inLanguage: "en",
     isPartOf: { "@id": WEBSITE_ID },
@@ -114,12 +123,22 @@ export function gameProfileGraph(profile: ProfileView): JsonLdNode {
     "@graph": [
       webPage,
       videoGame,
-      // Two levels only: the home page is the catalogue until a /games index
-      // exists. A breadcrumb must not name a URL that does not resolve.
-      breadcrumb([
-        { name: SITE_NAME, url: SITE_URL },
-        { name: game.canonicalTitle, url },
-      ]),
+      // The home page is the catalogue until a /games index exists, so the
+      // trail is short. A sibling scope adds a third level under the game's own
+      // address; a breadcrumb must not name a URL that does not resolve, and
+      // both of these do.
+      breadcrumb(
+        scope.isPrimary
+          ? [
+              { name: SITE_NAME, url: SITE_URL },
+              { name: game.canonicalTitle, url },
+            ]
+          : [
+              { name: SITE_NAME, url: SITE_URL },
+              { name: game.canonicalTitle, url: gameUrl(game.slug) },
+              { name: scope.label, url },
+            ],
+      ),
     ],
   };
 }
