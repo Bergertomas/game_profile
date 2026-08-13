@@ -101,27 +101,42 @@ deleting one branch in `loadPublishedProfiles`, once a production `DATABASE_URL`
 exists. Fixtures keep three legitimate uses afterwards: unit tests, development
 harnesses (`/dev/radar-states`, the design lab), and the parity fixture.
 
-## Provisioning gap
+## Provisioning gap, and the cutover switch
 
-To make production read Postgres, and nothing more:
+To make production read Postgres (Master Plan v0.7 §9.5):
 
 1. A hosted Postgres 16 instance reachable from Cloudflare Workers Builds.
 2. `DATABASE_URL` set as a **Workers Builds build variable** — not a Worker
    secret, because it is never read at runtime.
 3. `npm run db:migrate && npm run db:seed` run once against it.
+4. A database-backed production build verified under workerd.
+5. `REQUIRE_DATABASE=1` set as a build variable, after which the fallback branch
+   in `loadPublishedProfiles` is deleted.
 
-No code changes. No account is created and no provider is chosen here.
+No account is created and no provider is chosen here.
 
-## What 2D still has to choose
+Step 5 is the one worth naming. The fallback's dangerous failure is quiet:
+production republishing the calibration corpus as though it were the editorial
+corpus, with nothing in the output to say so. `REQUIRE_DATABASE=1` turns a
+missing `DATABASE_URL` into a build error rather than a silent substitution. It
+defaults off, because production has no database yet and the site has to stay
+deployable until it does — so cutover is one variable, not a code change.
 
-With prerendering, publishing from `/admin` cannot make a profile live by
-itself; it needs a deploy hook. The alternative is moving `/games/*` to
-request-time rendering, which does need Hyperdrive or a runtime connection and
-changes the Cloudflare contract this ADR describes.
+## Static rendering is settled — CLOSED by Master Plan v0.7 §9.6
 
-2A forecloses neither — the reader is identical either way, and the change would
-be confined to `lib/db/client.ts` and the route segment config. It is a product
-decision about editorial latency, and it is not made here.
+This ADR originally left static-versus-runtime publication open, because it was
+written before the post-2A product review. **The Plan has since closed it.**
+
+Public `/games/*` routes stay prerendered throughout Phase 2, and publication
+triggers a rebuild and deploy. `/games` must not move to request-time database
+rendering to make an admin Publish button feel instant, and no Hyperdrive
+binding, Worker database secret or runtime connection pool is to be introduced.
+
+So the reasoning below is no longer a trade-off to weigh — it is the contract:
+profiles change infrequently, the editorial team is small, pages stay
+edge-served, and a database outage cannot remove profiles that are already
+deployed. A future ADR records the concrete 2D deployment-trigger
+implementation.
 
 ## Consequences
 

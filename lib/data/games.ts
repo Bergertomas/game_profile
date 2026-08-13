@@ -31,17 +31,33 @@ import { RUBRIC_V1 } from "@/lib/rubric";
 export const PUBLIC_RUBRIC_VERSION = RUBRIC_V1.version;
 
 /**
- * TEMPORARY COMPATIBILITY PATH — the whole of it, in one expression.
+ * The cutover switch (Master Plan v0.7 §9.5, activation step 5).
+ *
+ * Set `REQUIRE_DATABASE=1` as a Workers Builds build variable once production
+ * Postgres is provisioned. From that point a build with no `DATABASE_URL` fails
+ * closed instead of quietly republishing the calibration corpus, which is the
+ * one failure mode a fixture fallback can produce that nobody would notice.
+ *
+ * It defaults off because production has no database yet and the public site
+ * has to stay deployable until it does. Cutover is therefore one variable, not
+ * a code change — and after it, deleting the fallback branch below is the
+ * cleanup.
+ */
+function databaseIsRequired(): boolean {
+  return process.env.REQUIRE_DATABASE === "1";
+}
+
+/**
+ * TEMPORARY COMPATIBILITY PATH — the whole of it, in one function.
  *
  * Postgres is the operational source of editorial truth. Production Postgres is
  * not yet provisioned, and the public site has to stay deployable in the
  * meantime, so a build with no `DATABASE_URL` reads the calibration fixtures
  * instead of failing.
  *
- * This is not a second long-term datastore and must not become one. Removing it
- * is deleting the `else` branch below, once a production `DATABASE_URL` exists.
- * Until then the build says which path it took, because a silent fallback is
- * how a fixture-backed deploy gets mistaken for a database-backed one.
+ * This is not a second long-term datastore and must not become one. The build
+ * always says which path it took, because a silent fallback is how a
+ * fixture-backed deploy gets mistaken for a database-backed one.
  */
 async function loadPublishedProfiles(): Promise<GameWithEvaluation[]> {
   if (isDatabaseConfigured()) {
@@ -52,11 +68,23 @@ async function loadPublishedProfiles(): Promise<GameWithEvaluation[]> {
     return profiles;
   }
 
+  if (databaseIsRequired()) {
+    throw new Error(
+      "REQUIRE_DATABASE is set but DATABASE_URL is not.\n" +
+        "This build would have published the calibration fixtures as though " +
+        "they were the editorial corpus. Refusing: after cutover, Postgres is " +
+        "the only source of published profiles (Master Plan v0.7 §9.5).\n" +
+        "Set DATABASE_URL, or unset REQUIRE_DATABASE if this environment is " +
+        "deliberately fixture-backed.",
+    );
+  }
+
   const profiles = readFixtureProfiles(PUBLIC_RUBRIC_VERSION);
   console.log(
     `[data] DATABASE_URL is not set — reading ${profiles.length} published ` +
       `profile(s) from the calibration fixtures. This is the temporary path ` +
-      `until production Postgres is provisioned (ADR 0017).`,
+      `until production Postgres is provisioned (ADR 0017). Set ` +
+      `REQUIRE_DATABASE=1 at cutover to make this an error.`,
   );
   return profiles;
 }
