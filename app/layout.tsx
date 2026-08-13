@@ -1,8 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { JsonLd } from "@/components/JsonLd";
-import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
-import { siteGraph } from "@/lib/seo/structured-data";
 import {
   IS_INDEXABLE,
   SITE_DESCRIPTION,
@@ -52,6 +49,14 @@ export const viewport: Viewport = {
   colorScheme: "light",
 };
 
+/**
+ * The html shell, and nothing that belongs to one surface.
+ *
+ * The public chrome — header, footer, skip link, site-wide structured data —
+ * lives in `app/(public)/layout.tsx`, because it is part of the published
+ * product rather than of every document this application serves. `/admin` is
+ * the other surface and brings its own shell.
+ */
 export default function RootLayout({
   children,
 }: {
@@ -59,18 +64,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="flex min-h-screen flex-col antialiased">
-        <JsonLd data={siteGraph()} />
-        <a
-          href="#main"
-          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-graphite focus:px-3 focus:py-2 focus:text-sm focus:text-bone focus:outline-signal"
-        >
-          Skip to content
-        </a>
-        <SiteHeader />
-        <main id="main" className="flex-1">{children}</main>
-        <SiteFooter />
-      </body>
+      <body className="flex min-h-screen flex-col antialiased">{children}</body>
     </html>
   );
 }
