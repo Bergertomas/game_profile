@@ -107,6 +107,40 @@ export interface ProfileView {
   readonly shapeDescription: string;
 }
 
+/**
+ * A stable comparator that does not depend on anything outside this process.
+ *
+ * Deliberately NOT `localeCompare`, and deliberately not left to the database.
+ * `ORDER BY alias` in Postgres sorts under the database's collation: a `C`
+ * database returns "AW2" before "Alan Wake II" (byte order), an `en_US.utf8`
+ * one returns the reverse (case-insensitive first pass). CI runs the second and
+ * a laptop may run the first, so a parity test that passed locally failed there
+ * — and the underlying bug is not the test: a game's `alternateName` list in
+ * JSON-LD would have been ordered by whichever database happened to build the
+ * site.
+ */
+function byCodeUnit(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/**
+ * Aliases and platforms in a canonical order.
+ *
+ * Same class of gap as tags and evidence links: neither `game_aliases` nor
+ * `game_platforms` has an ordering column, so an authored sequence is not
+ * representable and the database's own row order is not a promise — the
+ * platform query has no `ORDER BY` at all, because there is nothing meaningful
+ * to order by. Sorting here gives both readers one answer that no environment
+ * can change.
+ */
+function canonicalGame(game: Game): Game {
+  return {
+    ...game,
+    aliases: [...game.aliases].sort(byCodeUnit),
+    platforms: [...game.platforms].sort((a, b) => byCodeUnit(a.slug, b.slug)),
+  };
+}
+
 export function buildProfileView({
   game,
   scope,
@@ -176,7 +210,7 @@ export function buildProfileView({
   }));
 
   return {
-    game,
+    game: canonicalGame(game),
     scope,
     evaluation,
     sources: orderSources(evaluation.sources),
@@ -227,6 +261,10 @@ function orderTags(tags: readonly EvaluationTag[]): TagView[] {
  * column either. Sorting on the source key is deliberately mechanical — it
  * makes no claim that one source matters more than another, which ordering by
  * tier would. Evidence is counted, never weighted (SOP §6).
+ *
+ * `byCodeUnit` rather than the database's `ORDER BY`, for the reason given on
+ * that comparator: row order under one collation is not row order under
+ * another.
  */
 function orderSources(
   sources: readonly EvidenceSource[],
@@ -235,7 +273,7 @@ function orderSources(
     dimensionsInRadarOrder().map((d, index) => [d.key, index]),
   );
   return [...sources]
-    .sort((a, b) => a.id.localeCompare(b.id))
+    .sort((a, b) => byCodeUnit(a.id, b.id))
     .map((source) =>
       source.supports
         ? {
