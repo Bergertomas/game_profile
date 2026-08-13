@@ -29,6 +29,23 @@ export const subcriterionEntrySchema = z.object({
   platformNote: z.string().optional(),
 });
 
+/** Matches the database's `profile_scopes_key_is_a_slug` check. */
+const scopeKey = z
+  .string()
+  .regex(
+    /^[a-z0-9]+(-[a-z0-9]+)*$/,
+    "a scope key is an editorial handle, e.g. \"survival\" — lowercase, hyphen-separated",
+  );
+
+export const profileScopeSchema = z.object({
+  id: z.string().min(1),
+  gameId: z.string().min(1),
+  key: scopeKey,
+  label: z.string().min(1),
+  summary: z.string().optional(),
+  displayOrder: z.number().int().positive(),
+});
+
 export const evaluationScopeSchema = z.object({
   edition: z.string().min(1),
   mode: z.string().min(1),
@@ -44,6 +61,7 @@ const isoDate = z
 export const evaluationSchema = z.object({
   id: z.string().min(1),
   gameId: z.string().min(1),
+  scopeId: z.string().min(1),
   rubricVersion: z.literal("1.0"),
   versionNumber: z.number().int().positive(),
   scope: evaluationScopeSchema,
@@ -386,9 +404,27 @@ export function validateGameRecord(
   const chain = [...history, record.evaluation];
   const selectedRubric = record.evaluation.rubricVersion;
 
+  // The scope is this record's identity, so it has to belong to this game.
+  if (record.scope.gameId !== record.game.id) {
+    issues.push({
+      code: "scope_game_mismatch",
+      message: `Profile scope "${record.scope.key}" belongs to game "${record.scope.gameId}", not "${record.game.id}".`,
+    });
+  }
+
   const ids = new Set<string>();
   const versions = new Set<number>();
   for (const evaluation of chain) {
+    // Every version in this record is a version of THIS series. An evaluation
+    // carrying another scope's id is not history here — it is a different
+    // profile that would silently acquire this one's version numbering.
+    if (evaluation.scopeId !== record.scope.id) {
+      issues.push({
+        code: "evaluation_scope_mismatch",
+        message: `Evaluation "${evaluation.id}" belongs to profile scope "${evaluation.scopeId}", not "${record.scope.id}".`,
+      });
+    }
+
     if (ids.has(evaluation.id)) {
       issues.push({
         code: "duplicate_evaluation_id",
@@ -400,7 +436,7 @@ export function validateGameRecord(
     if (versions.has(evaluation.versionNumber)) {
       issues.push({
         code: "duplicate_version_number",
-        message: `Version ${evaluation.versionNumber} appears more than once for ${record.game.slug} under rubric ${selectedRubric}.`,
+        message: `Version ${evaluation.versionNumber} appears more than once for ${record.game.slug} › ${record.scope.key} under rubric ${selectedRubric}.`,
       });
     }
     versions.add(evaluation.versionNumber);
@@ -420,15 +456,17 @@ export function validateGameRecord(
     }
   }
 
-  // Exactly one live evaluation (Plan §13.2).
-  // A GameWithEvaluation is one selected rubric lineage. The database may keep
-  // one live row for several rubric versions during a migration, but each is a
-  // separate record and the public data boundary chooses one explicitly.
+  // Exactly one live evaluation per scope per rubric (Plan §13.2).
+  //
+  // A GameWithEvaluation is one profile scope under one rubric. A game may
+  // legitimately have several published evaluations at once — one per scope —
+  // and the database permits one live row per (scope, rubric); what neither
+  // permits is two live rows inside this one series.
   const published = chain.filter((e) => e.status === "published");
   if (published.length > 1) {
     issues.push({
       code: "multiple_published_evaluations",
-      message: `${record.game.slug} has ${published.length} published evaluations in the selected rubric lineage; only one may be live.`,
+      message: `${record.game.slug} › ${record.scope.key} has ${published.length} published evaluations in the selected rubric lineage; only one may be live.`,
     });
   }
 
@@ -498,6 +536,17 @@ export function validateGameRecord(
       return;
     }
 
+    // Supersession is scope-local, exactly as it is in the database. Wintermute
+    // v2 replaces Wintermute v1, never Survival v1 — the two series describe
+    // different experiences and neither is a revision of the other.
+    if (target.scopeId !== evaluation.scopeId) {
+      issues.push({
+        code: "cross_scope_supersession",
+        message: `Evaluation "${evaluation.id}" supersedes "${link}", which belongs to a different profile scope.`,
+      });
+      return;
+    }
+
     if (target.rubricVersion !== evaluation.rubricVersion) {
       issues.push({
         code: "cross_rubric_supersession",
@@ -530,6 +579,7 @@ export function validateGameRecord(
 }
 
 export function assertValidGameRecord(record: GameWithEvaluation): void {
+  profileScopeSchema.parse(record.scope);
   for (const evaluation of [...(record.history ?? []), record.evaluation]) {
     evaluationSchema.parse(evaluation);
   }

@@ -28,7 +28,7 @@ describe("Idempotent seeding", () => {
     const unguarded = inserts.filter((line) => !line.includes("ON CONFLICT"));
     expect(unguarded, `unguarded inserts:\n${unguarded.join("\n")}`).toEqual([]);
     expect(seed).toContain(
-      "ON CONFLICT (game_id, rubric_version, version_number) DO NOTHING RETURNING id",
+      "ON CONFLICT (scope_id, rubric_version, version_number) DO NOTHING RETURNING id",
     );
   });
 
@@ -104,10 +104,16 @@ describe("Idempotent seeding", () => {
         slug: "other-game",
         canonicalTitle: "Other Game",
       },
+      scope: {
+        ...alanWake2.scope,
+        id: "scp_other_default",
+        gameId: "gme_other",
+      },
       evaluation: {
         ...alanWake2.evaluation,
         id: "evl_other",
         gameId: "gme_other",
+        scopeId: "scp_other_default",
         confidence: "medium",
         sources: [
           {
@@ -160,6 +166,7 @@ describe("Supersession seeding", () => {
 
   const record: GameWithEvaluation = {
     game: alanWake2.game,
+    scope: alanWake2.scope,
     evaluation: current,
     history: [previous],
   };
@@ -210,17 +217,21 @@ describe("Supersession seeding", () => {
     expect(() => buildSeedSql([broken])).toThrow(/dangling_supersession_link/);
   });
 
-  it("qualifies every evaluation reference by game, rubric version and version", () => {
-    // (game_id, rubric_version, version_number) is the database's uniqueness
-    // contract, so version 1 may exist twice for one game under two rubric
-    // versions. A reference omitting rubric_version becomes ambiguous then.
+  it("qualifies every evaluation reference by scope, rubric version and version", () => {
+    // (scope_id, rubric_version, version_number) is the database's uniqueness
+    // contract. All three qualifiers are load-bearing: version 1 exists once
+    // per profile scope of a game, and again under each rubric version. A
+    // reference resolving on the game alone returns two rows the moment a game
+    // has a second scope, which is the whole point of scopes.
     const sql = buildSeedSql([record]);
-    const refs = sql.match(/SELECT e\.id FROM evaluations e[^)]*/g) ?? [];
+    const refs = sql.match(/SELECT e\.id FROM evaluations e WHERE [^;]*?version_number = \d+/g) ?? [];
     expect(refs.length).toBeGreaterThan(0);
     for (const ref of refs) {
-      expect(ref).toContain("g.slug =");
-      expect(ref).toContain("e.rubric_version =");
-      expect(ref).toContain("e.version_number =");
+      expect(ref).toMatch(
+        /e\.scope_id = \(SELECT ps\.id FROM profile_scopes ps JOIN games g ON g\.id = ps\.game_id WHERE g\.slug = '[^']+' AND ps\.key = '[^']+'\)/,
+      );
+      expect(ref).toMatch(/e\.rubric_version = '[^']+'/);
+      expect(ref).toMatch(/e\.version_number = \d+/);
     }
   });
 
@@ -249,7 +260,12 @@ describe("Supersession seeding", () => {
     };
     expect(() =>
       buildSeedSql([
-        { game: alanWake2.game, evaluation: v3, history: [v1, v2] },
+        {
+          game: alanWake2.game,
+          scope: alanWake2.scope,
+          evaluation: v3,
+          history: [v1, v2],
+        },
       ]),
     ).toThrow(/missing_supersession_link/);
   });
@@ -260,6 +276,7 @@ function withSources(
 ): GameWithEvaluation {
   return {
     game: alanWake2.game,
+    scope: alanWake2.scope,
     evaluation: { ...alanWake2.evaluation, sources },
   };
 }

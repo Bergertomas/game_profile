@@ -17,6 +17,7 @@ import type {
   EvidenceSource,
   Game,
   GameWithEvaluation,
+  ProfileScope,
   SourceCategory,
   SubcriterionEntry,
 } from "./types";
@@ -80,6 +81,11 @@ export interface EvidenceSummary {
 
 export interface ProfileView {
   readonly game: Game;
+  /**
+   * Which evaluated experience this is. A game may publish several at once, so
+   * a view of "the profile for a game" is not well-defined without it.
+   */
+  readonly scope: ProfileScope;
   readonly evaluation: Evaluation;
   /** Dimensions in fixed radar order — the same order the score rows use. */
   readonly dimensions: readonly DimensionView[];
@@ -95,6 +101,7 @@ export interface ProfileView {
 
 export function buildProfileView({
   game,
+  scope,
   evaluation,
 }: GameWithEvaluation): ProfileView {
   // Resolve against the rubric version the evaluation was scored under, not the
@@ -162,6 +169,7 @@ export function buildProfileView({
 
   return {
     game,
+    scope,
     evaluation,
     dimensions,
     radar,

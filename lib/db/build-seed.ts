@@ -38,21 +38,31 @@ function dimensionRef(rubricVersion: string, key: string): string {
   )} AND key = ${sqlString(key)})`;
 }
 
+/** Resolve a profile scope by (game slug, scope key) — its natural key. */
+function scopeRef(slug: string, scopeKey: string): string {
+  return `(SELECT ps.id FROM profile_scopes ps JOIN games g ON g.id = ps.game_id WHERE g.slug = ${sqlString(
+    slug,
+  )} AND ps.key = ${sqlString(scopeKey)})`;
+}
+
 /**
- * Resolve an evaluation by (game, rubric version, version number).
+ * Resolve an evaluation by (game, profile scope, rubric version, version
+ * number).
  *
- * The database's uniqueness contract is `(game_id, rubric_version,
- * version_number)`, so version 1 can legitimately exist twice for one game
- * under two different rubric versions. Omitting rubric_version would make this
- * subquery ambiguous the moment a rubric v2 lands.
+ * The database's uniqueness contract is `(scope_id, rubric_version,
+ * version_number)`. Both qualifiers are load-bearing: version 1 legitimately
+ * exists once per scope of a game, and again for each rubric version. Resolving
+ * on the game alone would return two rows the moment a game has a second scope.
  */
 function evaluationRef(
   slug: string,
+  scopeKey: string,
   rubricVersion: string,
   versionNumber: number,
 ): string {
-  return `(SELECT e.id FROM evaluations e JOIN games g ON g.id = e.game_id WHERE g.slug = ${sqlString(
+  return `(SELECT e.id FROM evaluations e WHERE e.scope_id = ${scopeRef(
     slug,
+    scopeKey,
   )} AND e.rubric_version = ${sqlString(
     rubricVersion,
   )} AND e.version_number = ${versionNumber})`;
@@ -134,6 +144,7 @@ function emitEvaluation(
   out: string[],
   finalizers: SeedFinalizer[],
   slug: string,
+  scopeKey: string,
   evaluation: Evaluation,
   /**
    * The evaluation this one declares it supersedes, already resolved from the
@@ -153,10 +164,18 @@ function emitEvaluation(
   const supersedesRef =
     supersedes === null
       ? "NULL"
-      : evaluationRef(slug, supersedes.rubricVersion, supersedes.versionNumber);
+      : evaluationRef(
+          slug,
+          scopeKey,
+          supersedes.rubricVersion,
+          supersedes.versionNumber,
+        );
 
   out.push(
-    `WITH inserted AS (INSERT INTO evaluations (game_id, rubric_version, version_number, edition_scope, mode_scope, platform_scope, build_or_patch_scope, current_state_cutoff_at, status, evidence_status, evidence_maturity, confidence, evidence_cutoff_at, release_context, one_line_experience, primary_pull, primary_risk, platform_warning, score_provenance, provenance_note, evidence_ledger, published_at, supersedes_evaluation_id, change_summary) SELECT g.id, ${sqlString(
+    `WITH inserted AS (INSERT INTO evaluations (game_id, scope_id, rubric_version, version_number, edition_scope, mode_scope, platform_scope, build_or_patch_scope, current_state_cutoff_at, status, evidence_status, evidence_maturity, confidence, evidence_cutoff_at, release_context, one_line_experience, primary_pull, primary_risk, platform_warning, score_provenance, provenance_note, evidence_ledger, published_at, supersedes_evaluation_id, change_summary) SELECT g.id, ${scopeRef(
+      slug,
+      scopeKey,
+    )}, ${sqlString(
       evaluation.rubricVersion,
     )}, ${evaluation.versionNumber}, ${sqlString(
       evaluation.scope.edition,
@@ -180,11 +199,12 @@ function emitEvaluation(
       evaluation.changeSummary,
     )} FROM games g WHERE g.slug = ${sqlString(
       slug,
-    )} ON CONFLICT (game_id, rubric_version, version_number) DO NOTHING RETURNING id) INSERT INTO _seed_new_evaluations (evaluation_id) SELECT id FROM inserted;`,
+    )} ON CONFLICT (scope_id, rubric_version, version_number) DO NOTHING RETURNING id) INSERT INTO _seed_new_evaluations (evaluation_id) SELECT id FROM inserted;`,
   );
 
   const evalRef = evaluationRef(
     slug,
+    scopeKey,
     evaluation.rubricVersion,
     evaluation.versionNumber,
   );
@@ -202,9 +222,9 @@ function emitEvaluation(
     `DO $seed$ BEGIN IF NOT ${newEvaluationGuard} AND NOT EXISTS (SELECT 1 FROM evaluations WHERE id = ${evalRef} AND ${compatibleStatus} AND ${evaluationSnapshotMatches(
       evaluation,
       supersedesRef,
-    )}) THEN RAISE EXCEPTION 'seed snapshot mismatch for % rubric % version %', ${sqlString(
+    )}) THEN RAISE EXCEPTION 'seed snapshot mismatch for % scope % rubric % version %', ${sqlString(
       slug,
-    )}, ${sqlString(evaluation.rubricVersion)}, ${
+    )}, ${sqlString(scopeKey)}, ${sqlString(evaluation.rubricVersion)}, ${
       evaluation.versionNumber
     } USING ERRCODE = 'check_violation'; END IF; END $seed$;`,
   );
@@ -310,6 +330,12 @@ export function buildSeedSql(
   const gamesBySlug = new Map<string, string>();
   const evaluationsByNaturalKey = new Set<string>();
   const sourcesByKey = new Map<string, string>();
+  /** Scope natural key (`slug\0key`) -> the record that claimed it. */
+  const scopesByNaturalKey = new Set<string>();
+  /** Scope id -> natural key, so one id cannot describe two scopes. */
+  const scopeIdOwners = new Map<string, string>();
+  /** Every scope key declared per game, for the orphan check emitted below. */
+  const scopeKeysByGame = new Map<string, string[]>();
 
   // Validate database identities across the whole corpus. Record-local checks
   // cannot detect two games or sources that claim the same global key with
@@ -326,14 +352,40 @@ export function buildSeedSql(
     }
     gamesBySlug.set(record.game.slug, gameSignature);
 
+    // Scope identity across the whole corpus. A record-local check cannot see
+    // that two records of one game claim the same scope key — which makes them
+    // the same series, silently competing for its one published row — or that
+    // one scope id has been pasted onto two different scopes.
+    const scopeNaturalKey = `${record.game.slug} ${record.scope.key}`;
+    if (scopesByNaturalKey.has(scopeNaturalKey)) {
+      throw new Error(
+        `${record.game.slug}: profile scope "${record.scope.key}" appears in more than one seed record. Two current profiles of one game need two distinct scope keys.`,
+      );
+    }
+    scopesByNaturalKey.add(scopeNaturalKey);
+
+    const scopeIdOwner = scopeIdOwners.get(record.scope.id);
+    if (scopeIdOwner !== undefined && scopeIdOwner !== scopeNaturalKey) {
+      throw new Error(
+        `Profile scope id "${record.scope.id}" is used by two different scopes in the seed corpus.`,
+      );
+    }
+    scopeIdOwners.set(record.scope.id, scopeNaturalKey);
+    scopeKeysByGame.set(record.game.slug, [
+      ...(scopeKeysByGame.get(record.game.slug) ?? []),
+      record.scope.key,
+    ]);
+
     for (const evaluation of [
       ...(record.history ?? []),
       record.evaluation,
     ]) {
-      const naturalKey = `${record.game.slug}\u0000${evaluation.rubricVersion}\u0000${evaluation.versionNumber}`;
+      // Keyed on the scope, not the game: version 1 of Survival and version 1
+      // of Wintermute are different evaluations and must both be seedable.
+      const naturalKey = `${record.scope.id}\u0000${evaluation.rubricVersion}\u0000${evaluation.versionNumber}`;
       if (evaluationsByNaturalKey.has(naturalKey)) {
         throw new Error(
-          `${record.game.slug}: rubric ${evaluation.rubricVersion} version ${evaluation.versionNumber} appears in more than one seed record.`,
+          `${record.game.slug} › ${record.scope.key}: rubric ${evaluation.rubricVersion} version ${evaluation.versionNumber} appears in more than one seed record.`,
         );
       }
       evaluationsByNaturalKey.add(naturalKey);
@@ -472,6 +524,26 @@ export function buildSeedSql(
       );
     }
 
+    /*
+     * The profile scope, upserted rather than inserted-if-absent.
+     *
+     * `key` is identity and is matched on; label, summary and ordering are
+     * ordinary editorial metadata, so the fixture stays authoritative for them.
+     * That is deliberately unlike an evaluation snapshot: renaming a scope from
+     * "Story mode" to "Wintermute" rewrites no published judgement, whereas
+     * changing a published score would. It also converges an upgraded database,
+     * whose scopes were named by migration 0003, onto the authored values.
+     */
+    out.push(
+      `INSERT INTO profile_scopes (game_id, key, label, summary, display_order) SELECT g.id, ${sqlString(
+        record.scope.key,
+      )}, ${sqlString(record.scope.label)}, ${sqlString(
+        record.scope.summary,
+      )}, ${record.scope.displayOrder} FROM games g WHERE g.slug = ${sqlString(
+        game.slug,
+      )} ON CONFLICT (game_id, key) DO UPDATE SET label = EXCLUDED.label, summary = EXCLUDED.summary, display_order = EXCLUDED.display_order;`,
+    );
+
     // Oldest first, so each evaluation's predecessor already exists when the
     // supersedes_evaluation_id subquery resolves. The link itself comes from
     // the declared data, not from position in this list — validation has
@@ -492,11 +564,41 @@ export function buildSeedSql(
           `${game.slug}: evaluation "${link.id}" supersedes unknown "${link.supersedesEvaluationId}".`,
         );
       }
-      emitEvaluation(out, finalizers, game.slug, link, supersedes);
+      emitEvaluation(
+        out,
+        finalizers,
+        game.slug,
+        record.scope.key,
+        link,
+        supersedes,
+      );
     }
 
     out.push("");
   }
+
+  /*
+   * No evaluation may be stranded on a scope this corpus no longer declares.
+   *
+   * Renaming a scope key in a fixture is the dangerous edit: the seed would
+   * create a *new* series, insert version 1 into it, and publish it alongside
+   * the original — two live profiles for one experience, neither obviously
+   * wrong. The scope key is identity, so a rename is a migration, not a
+   * content edit, and this refuses to let it pass as one.
+   */
+  out.push("-- Every seeded evaluation still belongs to a declared scope.");
+  for (const [slug, keys] of scopeKeysByGame) {
+    out.push(
+      `DO $seed$ BEGIN IF EXISTS (SELECT 1 FROM evaluations e JOIN games g ON g.id = e.game_id JOIN profile_scopes ps ON ps.id = e.scope_id WHERE g.slug = ${sqlString(
+        slug,
+      )} AND ps.key <> ALL (${sqlArray(
+        keys,
+      )})) THEN RAISE EXCEPTION 'game % has evaluations on a profile scope this seed no longer declares; a scope key is identity, so renaming one is a migration', ${sqlString(
+        slug,
+      )} USING ERRCODE = 'check_violation'; END IF; END $seed$;`,
+    );
+  }
+  out.push("");
 
   out.push(
     "-- Finalize new rows; an existing published predecessor may make the one allowed transition to superseded.",

@@ -31,9 +31,23 @@ export const alanWake2: GameWithEvaluation = {
     ],
     aliases: ["AW2", "Alan Wake II"],
   },
+  // One evaluated experience. The game has no second mode that materially
+  // changes what it is to play, so it has no second scope — but the identity is
+  // recorded explicitly rather than implied, because a series that acquires a
+  // sibling later must not have to be re-identified to get one.
+  scope: {
+    id: "scp_alan_wake_2_default",
+    gameId: "gme_alan_wake_2",
+    key: "default",
+    label: "Main game",
+    summary:
+      "The single-player campaign. Night Springs and The Lake House are expansions and are not covered here.",
+    displayOrder: 1,
+  },
   evaluation: {
     id: "evl_alan_wake_2_v1",
     gameId: "gme_alan_wake_2",
+    scopeId: "scp_alan_wake_2_default",
     rubricVersion: "1.0",
     versionNumber: 1,
     scope: {

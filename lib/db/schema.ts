@@ -1,6 +1,7 @@
 import {
   boolean,
   date,
+  foreignKey,
   index,
   integer,
   numeric,
@@ -20,6 +21,8 @@ import {
  * Design commitments encoded here:
  *  - Editorial data (evaluations) is separate from third-party metadata
  *    (game_external_ids). §25.11.
+ *  - A game may carry several simultaneously current profiles, one per
+ *    evaluated experience (profile_scopes). Rubric §1.
  *  - Evaluations are versioned and never overwritten; supersession is a link,
  *    not a mutation. §25.12.
  *  - Every evaluation stores its rubric_version. Rubric §18.
@@ -166,6 +169,64 @@ export const gamePlatforms = pgTable(
   (table) => [primaryKey({ columns: [table.gameId, table.platformId] })],
 );
 
+/**
+ * One evaluated experience of a game, and the durable identity of its
+ * evaluation series (Rubric §1: "If different modes materially change the
+ * experience, create separate evaluations rather than averaging them").
+ *
+ *   game
+ *    └── profile scope "survival"    → v1 pre-release → v2 launch → v3 patched
+ *    └── profile scope "wintermute"  → v1 launch      → v2 patched
+ *
+ * Both scopes are simultaneously *current*: each carries its own published row
+ * and its own independent supersession history. That is the whole reason this
+ * table exists — the previous model keyed the live row on the game, so The Long
+ * Dark could publish Survival or Wintermute but never both.
+ *
+ * Identity is this row's `id`, never text. `edition_scope` and `mode_scope`
+ * stay on the evaluation, where they are an immutable snapshot of what that
+ * version declared; matching two evaluations by comparing those strings is
+ * exactly the fragile mechanism this replaces. A re-worded mode is the same
+ * series; a materially different mode is a different scope, and only an editor
+ * can tell those apart.
+ *
+ * `key` is the stable editorial handle ("survival"), `label` the public one
+ * ("Survival"). Ordering is `(display_order, key)` — deterministic without a
+ * uniqueness constraint that would make reordering two scopes a two-step dance.
+ */
+export const profileScopes = pgTable(
+  "profile_scopes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    gameId: uuid("game_id")
+      .notNull()
+      .references(() => games.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    label: text("label").notNull(),
+    /** What this scope covers, and what it deliberately excludes. */
+    summary: text("summary"),
+    displayOrder: integer("display_order").notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    unique("profile_scopes_game_key").on(table.gameId, table.key),
+    /**
+     * Not redundant with the primary key. It is the target of the composite
+     * foreign key on `evaluations`, which is what makes "an evaluation's scope
+     * belongs to the evaluation's game" a real referential constraint rather
+     * than a trigger that has to be remembered.
+     */
+    unique("profile_scopes_game_identity").on(table.id, table.gameId),
+    index("profile_scopes_game_order_idx").on(
+      table.gameId,
+      table.displayOrder,
+      table.key,
+    ),
+  ],
+);
+
 /** Alternate titles for search. Plan §12.4. */
 export const gameAliases = pgTable(
   "game_aliases",
@@ -246,6 +307,14 @@ export const evaluations = pgTable(
     gameId: uuid("game_id")
       .notNull()
       .references(() => games.id, { onDelete: "cascade" }),
+    /**
+     * The evaluation series this version belongs to. Every uniqueness and
+     * supersession rule below is keyed on this rather than on `game_id`, which
+     * is what lets two modes of one game be published at the same time.
+     */
+    scopeId: uuid("scope_id")
+      .notNull()
+      .references(() => profileScopes.id, { onDelete: "restrict" }),
     rubricVersion: text("rubric_version")
       .notNull()
       .references(() => rubricVersions.version, {
@@ -254,7 +323,14 @@ export const evaluations = pgTable(
       }),
     versionNumber: integer("version_number").notNull(),
 
-    // Mandatory evaluation scope. Rubric §1.
+    /**
+     * Mandatory declared scope (Rubric §1), snapshotted per version.
+     *
+     * `profile_scopes` carries the identity; these carry what this particular
+     * evaluation said it covered, and they are frozen with the rest of the
+     * snapshot once it is published. A v3 that re-words its mode still belongs
+     * to the same series, and history keeps the wording it was published under.
+     */
     editionScope: text("edition_scope").notNull(),
     modeScope: text("mode_scope").notNull(),
     platformScope: text("platform_scope").array().notNull(),
@@ -299,12 +375,23 @@ export const evaluations = pgTable(
       .defaultNow(),
   },
   (table) => [
-    unique("evaluations_game_version").on(
-      table.gameId,
+    unique("evaluations_scope_version").on(
+      table.scopeId,
       table.rubricVersion,
       table.versionNumber,
     ),
+    /**
+     * The scope must belong to the same game as the evaluation. A composite
+     * key, so Postgres enforces it: with two independent foreign keys a
+     * Wintermute evaluation could point at a Returnal scope.
+     */
+    foreignKey({
+      name: "evaluations_scope_belongs_to_game",
+      columns: [table.scopeId, table.gameId],
+      foreignColumns: [profileScopes.id, profileScopes.gameId],
+    }).onDelete("restrict"),
     index("evaluations_game_status_idx").on(table.gameId, table.status),
+    index("evaluations_scope_status_idx").on(table.scopeId, table.status),
     index("evaluations_supersedes_idx").on(table.supersedesEvaluationId),
   ],
 );
