@@ -88,6 +88,7 @@ export interface GameArtwork {
   readonly credit?: string;
   /** Human-visitable page the asset belongs to. */
   readonly sourcePage?: string;
+  /** When the asset was retrieved, as an ISO date — it is a record, not prose. */
   readonly retrieved?: string;
 }
 

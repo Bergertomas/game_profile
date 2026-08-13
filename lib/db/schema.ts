@@ -37,6 +37,39 @@ export const releaseStatusEnum = pgEnum("release_status", [
   "early_access",
 ]);
 
+/**
+ * Two image roles, because they are two different jobs, and neither substitutes
+ * for the other (ADR 0011). Cropping 3:4 box art into a 21:9 stage produces the
+ * stretched, subject-clipped banner the design exists to avoid.
+ */
+export const artworkRoleEnum = pgEnum("artwork_role", ["cover", "hero"]);
+
+/**
+ * Whether an asset may render on the public production site.
+ *
+ * An application-level permission, not a legal characterisation — the rendering
+ * layer is not copyright counsel and does not model rights. It models the one
+ * question it has to answer: may this appear on production?
+ */
+export const artworkClearanceEnum = pgEnum("artwork_clearance", [
+  "production",
+  "evaluation",
+]);
+
+/**
+ * The basis an asset is held on: descriptive, auditable, and read by no
+ * rendering code. "Licensed" is a claim about a legal instrument that the
+ * application is in no position to make on a publisher's behalf, so clearance
+ * is named after the permission it governs and the reason is recorded here.
+ */
+export const artworkBasisEnum = pgEnum("artwork_basis", [
+  "licence",
+  "provider-terms",
+  "press-kit",
+  "permission",
+  "internal-evaluation",
+]);
+
 export const evaluationStatusEnum = pgEnum("evaluation_status", [
   "draft",
   "review",
@@ -159,8 +192,6 @@ export const games = pgTable(
     slug: text("slug").notNull().unique(),
     canonicalTitle: text("canonical_title").notNull(),
     summary: text("summary"),
-    coverUrl: text("cover_url"),
-    heroUrl: text("hero_url"),
     developerText: text("developer_text"),
     publisherText: text("publisher_text"),
     firstReleaseDate: date("first_release_date"),
@@ -173,6 +204,53 @@ export const games = pgTable(
       .defaultNow(),
   },
   (table) => [index("games_title_idx").on(table.canonicalTitle)],
+);
+
+/**
+ * A game's artwork, and the rights record that travels with it.
+ *
+ * This replaced bare `games.cover_url` / `games.hero_url` columns. A naked URL
+ * on the game row is the exact failure mode ADR 0011 exists to prevent: it
+ * records that an image is *reachable* and nothing about whether it may be
+ * shown, so anything that can be fetched looks usable. Every asset now arrives
+ * with its clearance and the basis it is held on, or it does not arrive.
+ *
+ * Artwork is optional at the model level and always has been at the product
+ * level. No seeded game carries a record, so the artless composition is what
+ * production renders — a finished state, not a gap.
+ *
+ * `source` is deliberately free-form text rather than an enum: a new provider
+ * must not need a schema change, and no rendering code branches on it. Do not
+ * let the architecture become dependent on one supplier's terms staying as they
+ * are today.
+ */
+export const gameArtwork = pgTable(
+  "game_artwork",
+  {
+    gameId: uuid("game_id")
+      .notNull()
+      .references(() => games.id, { onDelete: "cascade" }),
+    role: artworkRoleEnum("role").notNull(),
+    url: text("url").notNull(),
+    width: integer("width").notNull(),
+    height: integer("height").notNull(),
+    /** Factual description of what the image shows. Never marketing copy. */
+    altText: text("alt_text"),
+    /** `object-position` for a hard crop, e.g. "center 32%". */
+    focus: text("focus"),
+    /** Where it came from: manual, rawg, mobygames, press-kit, … */
+    source: text("source").notNull(),
+    /** The provider's own identifier, so a record can be refreshed later. */
+    externalId: text("external_id"),
+    clearance: artworkClearanceEnum("clearance").notNull(),
+    basis: artworkBasisEnum("basis").notNull(),
+    /** Rights holder to credit. Falls back to the publisher when absent. */
+    credit: text("credit"),
+    /** Human-visitable page the asset belongs to. */
+    sourcePage: text("source_page"),
+    retrievedAt: date("retrieved_at"),
+  },
+  (table) => [primaryKey({ columns: [table.gameId, table.role] })],
 );
 
 /** Third-party provider IDs live here, never on `games`. Plan §12.3. */

@@ -40,7 +40,7 @@ const EVALUATION_ARTWORK: Readonly<Record<string, GameArtwork>> = {
     basis: "internal-evaluation",
     credit: "Remedy Entertainment Plc / Epic Games Publishing",
     sourcePage: "https://alanwake.com",
-    retrieved: "7 August 2026",
+    retrieved: "2026-08-07",
     hero: {
       url: "https://www.alanwake.com/wp-content/uploads/2023/05/Alan_Wake_2_keyart_for_web3-2560x1318.webp",
       width: 2560,
@@ -55,7 +55,7 @@ const EVALUATION_ARTWORK: Readonly<Record<string, GameArtwork>> = {
     basis: "internal-evaluation",
     credit: "Housemarque / Sony Interactive Entertainment",
     sourcePage: "https://store.steampowered.com/app/1649240/Returnal/",
-    retrieved: "7 August 2026",
+    retrieved: "2026-08-07",
     hero: {
       url: "https://cdn.akamai.steamstatic.com/steam/apps/1649240/library_hero.jpg",
       width: 1920,
@@ -77,7 +77,7 @@ const EVALUATION_ARTWORK: Readonly<Record<string, GameArtwork>> = {
     basis: "internal-evaluation",
     credit: "Arkane Austin / Bethesda Softworks",
     sourcePage: "https://store.steampowered.com/app/1294810/Redfall/",
-    retrieved: "7 August 2026",
+    retrieved: "2026-08-07",
     hero: {
       url: "https://cdn.akamai.steamstatic.com/steam/apps/1294810/library_hero.jpg",
       width: 1920,

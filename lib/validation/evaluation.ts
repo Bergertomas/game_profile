@@ -462,6 +462,84 @@ const BANNED_PHRASES: readonly { pattern: RegExp; reason: string }[] = [
 ];
 
 /**
+ * Artwork rights checks (ADR 0011).
+ *
+ * The important one is `uncleared_artwork_on_fixture`, and its reason is
+ * mechanical rather than aesthetic: a game fixture is reachable from every
+ * production page, so nothing inside it can be dead-code-eliminated. An
+ * uncleared URL placed on a game record ships in the production bundle —
+ * unrendered, but present — which `check:containment` has already caught once.
+ * Evaluation-clearance art belongs in the folded overlay
+ * (content/evaluation-artwork.ts), never here.
+ *
+ * These run wherever a record is validated, including in the seed generator, so
+ * the rule holds at the point art would first enter the corpus rather than only
+ * at the point a build is scanned.
+ */
+export function validateGameArtwork(
+  record: GameWithEvaluation,
+): ValidationIssue[] {
+  const artwork = record.game.artwork;
+  if (!artwork) return []; // Artless is a finished state, not a gap.
+
+  const issues: ValidationIssue[] = [];
+
+  if (artwork.clearance !== "production") {
+    issues.push({
+      code: "uncleared_artwork_on_fixture",
+      message: `${record.game.slug} carries "${artwork.clearance}"-clearance artwork on its game record. A fixture ships in the production bundle whether or not anything renders it; hold uncleared art in the evaluation overlay instead.`,
+    });
+  }
+
+  if (artwork.clearance === "production" && artwork.basis === "internal-evaluation") {
+    issues.push({
+      code: "cleared_artwork_internal_basis",
+      message: `${record.game.slug} clears artwork for production while holding it on an internal-evaluation basis. Those cannot both be true.`,
+    });
+  }
+
+  // A production rights position is somebody's decision, so it has to be
+  // auditable: who to credit, and where the asset came from.
+  if (artwork.clearance === "production") {
+    if (!artwork.credit?.trim() && !record.game.publisherText.trim()) {
+      issues.push({
+        code: "artwork_without_credit",
+        message: `${record.game.slug} has production artwork with nobody to credit.`,
+      });
+    }
+    if (!artwork.sourcePage?.trim()) {
+      issues.push({
+        code: "artwork_without_source_page",
+        message: `${record.game.slug} has production artwork with no recorded source page.`,
+      });
+    }
+  }
+
+  for (const [role, image] of [
+    ["cover", artwork.cover],
+    ["hero", artwork.hero],
+  ] as const) {
+    if (!image) continue;
+    if (!/^https:\/\//.test(image.url)) {
+      issues.push({
+        code: "artwork_url_not_https",
+        message: `${record.game.slug} ${role} artwork URL is not an absolute https URL.`,
+      });
+    }
+    // Intrinsic dimensions are how a surface reserves space before the image
+    // loads. A zero collapses the layout the artless composition holds open.
+    if (image.width <= 0 || image.height <= 0) {
+      issues.push({
+        code: "artwork_without_dimensions",
+        message: `${record.game.slug} ${role} artwork does not declare positive intrinsic dimensions.`,
+      });
+    }
+  }
+
+  return issues;
+}
+
+/**
  * Lineage checks that need the whole game record rather than one evaluation
  * (SOP §10.9: preserve the old profile, create a new one, link them).
  */
@@ -472,6 +550,8 @@ export function validateGameRecord(
   const history = record.history ?? [];
   const chain = [...history, record.evaluation];
   const selectedRubric = record.evaluation.rubricVersion;
+
+  issues.push(...validateGameArtwork(record));
 
   // A platform override can only speak about a platform the game ships on.
   // This needs the game, so it cannot live in the per-evaluation checks; the

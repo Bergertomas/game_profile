@@ -43,6 +43,13 @@
       "when": 1786613212133,
       "tag": "0005_score_provenance",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786613617718,
+      "tag": "0006_game_artwork",
+      "breakpoints": true
     }
   ]
 }

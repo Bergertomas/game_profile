@@ -561,6 +561,43 @@ export function buildSeedSql(
     }
 
     /*
+     * Artwork, where the game has any. No seeded game does, so this emits
+     * nothing today and the artless composition is what production renders.
+     *
+     * The record travels with its clearance and basis, never as a bare URL:
+     * a URL alone says an image is reachable and nothing about whether it may
+     * be shown (ADR 0011). Validation has already refused any record that is
+     * not cleared for production, because a fixture ships in the production
+     * bundle whether or not anything renders it.
+     */
+    const artwork = game.artwork;
+    if (artwork) {
+      for (const [role, image] of [
+        ["cover", artwork.cover],
+        ["hero", artwork.hero],
+      ] as const) {
+        if (!image) continue;
+        out.push(
+          `INSERT INTO game_artwork (game_id, role, url, width, height, alt_text, focus, source, external_id, clearance, basis, credit, source_page, retrieved_at) SELECT id, ${sqlString(
+            role,
+          )}, ${sqlString(image.url)}, ${image.width}, ${
+            image.height
+          }, ${sqlString(image.alt)}, ${sqlString(image.focus)}, ${sqlString(
+            artwork.source,
+          )}, ${sqlString(artwork.externalId)}, ${sqlString(
+            artwork.clearance,
+          )}, ${sqlString(artwork.basis)}, ${sqlString(
+            artwork.credit ?? game.publisherText,
+          )}, ${sqlString(artwork.sourcePage)}, ${sqlString(
+            artwork.retrieved,
+          )} FROM games WHERE slug = ${sqlString(
+            game.slug,
+          )} ON CONFLICT (game_id, role) DO UPDATE SET url = EXCLUDED.url, width = EXCLUDED.width, height = EXCLUDED.height, alt_text = EXCLUDED.alt_text, focus = EXCLUDED.focus, source = EXCLUDED.source, external_id = EXCLUDED.external_id, clearance = EXCLUDED.clearance, basis = EXCLUDED.basis, credit = EXCLUDED.credit, source_page = EXCLUDED.source_page, retrieved_at = EXCLUDED.retrieved_at;`,
+        );
+      }
+    }
+
+    /*
      * The profile scope, upserted rather than inserted-if-absent.
      *
      * `key` is identity and is matched on; label, summary and ordering are

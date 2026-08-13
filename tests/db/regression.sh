@@ -260,7 +260,8 @@ fi
 for later_migration in \
   lib/db/migrations/0003_profile_scopes.sql \
   lib/db/migrations/0004_platform_overrides.sql \
-  lib/db/migrations/0005_score_provenance.sql
+  lib/db/migrations/0005_score_provenance.sql \
+  lib/db/migrations/0006_game_artwork.sql
 do
   if upgrade_out="$(psql "$UPGRADE_DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -1 \
       -f "$later_migration" 2>&1)"; then
@@ -937,6 +938,68 @@ reject 'a round cited by final history cannot be relabelled' \
   'cited by final evaluation'
 accept 'a round no final evaluation cites is still editable' \
   "UPDATE calibration_rounds SET label='Calibration round 3 (revised)' WHERE key='round_3';"
+
+echo
+echo '== 6d. Artwork carries its rights record, or it does not exist =='
+#
+# `games` held bare cover_url / hero_url columns: a URL records that an image is
+# reachable and nothing about whether it may be shown, which is the exact
+# failure ADR 0011 exists to prevent. The application model already had
+# clearance and basis; the database is where an import or a future editor
+# writes, so it needs them too.
+expect 'the bare URL columns are gone from games' \
+  "SELECT count(*) FROM information_schema.columns
+   WHERE table_name='games' AND column_name IN ('cover_url','hero_url');" '0'
+expect 'no seeded game carries artwork, so production stays artless' \
+  "SELECT count(*) FROM game_artwork;" '0'
+
+accept 'cleared artwork is stored with its clearance, basis and attribution' \
+  "INSERT INTO game_artwork
+     (game_id,role,url,width,height,alt_text,source,clearance,basis,credit,source_page)
+   VALUES ($REDFALL_GAME,'hero','https://example.com/hero.jpg',1920,1080,
+           'Key art.','press-kit','production','press-kit','Some Publisher',
+           'https://example.com/press');"
+
+reject 'production clearance cannot rest on an internal-evaluation basis' \
+  "INSERT INTO game_artwork
+     (game_id,role,url,width,height,source,clearance,basis,credit,source_page)
+   VALUES ($AW_GAME,'hero','https://example.com/a.jpg',10,10,'manual',
+           'production','internal-evaluation','X','https://example.com');" \
+  'game_artwork_cleared_basis'
+
+reject 'production artwork must say who to credit and where it came from' \
+  "INSERT INTO game_artwork
+     (game_id,role,url,width,height,source,clearance,basis)
+   VALUES ($AW_GAME,'hero','https://example.com/a.jpg',10,10,'manual',
+           'production','press-kit');" \
+  'game_artwork_production_is_attributable'
+
+reject 'artwork must declare positive intrinsic dimensions' \
+  "INSERT INTO game_artwork
+     (game_id,role,url,width,height,source,clearance,basis,credit,source_page)
+   VALUES ($AW_GAME,'hero','https://example.com/a.jpg',0,0,'manual',
+           'production','press-kit','X','https://example.com');" \
+  'game_artwork_dimensions_positive'
+
+reject 'an artwork URL must be absolute https' \
+  "INSERT INTO game_artwork
+     (game_id,role,url,width,height,source,clearance,basis,credit,source_page)
+   VALUES ($AW_GAME,'hero','/local/a.jpg',10,10,'manual',
+           'production','press-kit','X','https://example.com');" \
+  'game_artwork_url_is_absolute'
+
+reject 'one game cannot hold two heroes' \
+  "INSERT INTO game_artwork
+     (game_id,role,url,width,height,source,clearance,basis,credit,source_page)
+   VALUES ($REDFALL_GAME,'hero','https://example.com/other.jpg',10,10,'manual',
+           'production','press-kit','X','https://example.com');" \
+  'game_artwork_game_id_role_pk'
+
+accept 'evaluation-clearance artwork is storable, on the looser rule' \
+  "INSERT INTO game_artwork
+     (game_id,role,url,width,height,source,clearance,basis)
+   VALUES ($AW_GAME,'hero','https://example.com/internal.jpg',10,10,'manual',
+           'evaluation','internal-evaluation');"
 
 echo
 echo '== 7. Bidirectional lineage and atomic supersession =='
