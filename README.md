@@ -14,7 +14,11 @@ the name of the methodology. Internal identifiers (`GameProfile`, `game_profile`
 this repository) keep the original name deliberately — the rename is public-facing
 only. See [Brand, Discoverability & Hosting](docs/Should_I_Play_Brand_and_SEO_Foundation_v0.2.md).
 
-This repository is at **Phase 1**: the public profile vertical slice.
+This repository is at **Phase 2A**: the public profile vertical slice is
+complete and its published profiles are read from Postgres at build time.
+The editorial system — admin access, authoring, preview and publish — is
+Phase 2B onward. See the
+[Master Product & Build Plan v0.7](docs/Game_Profile_Master_Product_and_Build_Plan_v0.7.md).
 
 ---
 
@@ -139,9 +143,12 @@ npm run build                                          # reads the fixtures
 
 The build says which path it took. **Production Postgres is not yet
 provisioned**, so a production build currently falls back to the calibration
-fixtures — the one temporary compatibility path, removed by deleting one branch
-in `loadPublishedProfiles`. See [ADR 0017](docs/decisions/0017-postgres-read-path.md)
-for the exact provisioning steps.
+fixtures — the one temporary compatibility path.
+
+At cutover, `REQUIRE_DATABASE=1` makes a missing `DATABASE_URL` a build error
+instead of a silent substitution, and the fallback branch is then deleted. See
+[ADR 0017](docs/decisions/0017-postgres-read-path.md) for the full provisioning
+sequence.
 
 ```bash
 DATABASE_URL=postgres://…/game_profile_test npm run test:db-read
@@ -209,8 +216,13 @@ editorial work.
 
 The schema targets Postgres 16 and the integration workflow applies every
 migration, loads the seed, runs the real-database contract suite and exercises
-the derived view. The site does not yet read from it; see
-[ADR 0002](docs/decisions/0002-data-access.md).
+the derived view.
+
+**The public site reads its published profiles from this database**, at build
+time, through `lib/data/games.ts` — see [Where the data comes from](#where-the-data-comes-from)
+and [ADR 0017](docs/decisions/0017-postgres-read-path.md). Production Postgres is
+not yet provisioned, so a production build currently takes the temporary fixture
+path and says so; that is the only remaining gap.
 
 One command takes an empty database to a fully constrained, seeded schema:
 
