@@ -1,6 +1,15 @@
 # ADR 0005 — Score provenance, and the missing Calibration Round 1 report
 
-**Status:** Accepted · 2026-08-06 · **Reconciled against Round 1, 2026-08-06**
+**Status:** Accepted · 2026-08-06 · **Reconciled against Round 1, 2026-08-06** ·
+**The three-value enum below is superseded by
+[ADR 0015](0015-platform-overrides-and-provenance.md), 2026-08-13.** The
+decisions this document records are unchanged — where each seed profile's
+numbers came from, and the two rules constraining the work — but the *column*
+generalised. `calibration_round_1|2` became `calibration` plus a registry row
+naming the round; `derived_pending_round_1_reconciliation` became `derived`,
+because a workflow state a profile passes through is not a fact about its
+numbers, and that one outlived its reason the moment the reconciliation below
+happened.
 **Context:** Project Context §11 step 4; Round 1 report §3–§4; Round 2 report §13;
 Master Plan §10.3
 
