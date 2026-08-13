@@ -10,5 +10,9 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts"],
+    // The database-backed suite needs a real Postgres instance and runs under
+    // vitest.db.config.mts (`npm run test:db-read`). This one must stay
+    // runnable on a laptop with no database.
+    exclude: ["node_modules/**", "tests/db-read/**"],
   },
 });
