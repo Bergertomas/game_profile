@@ -91,9 +91,11 @@ describe("robots.txt", () => {
 
     expect(result.sitemap).toBe(`${SITE_URL}/sitemap.xml`);
     expect(result.rules).toMatchObject({ userAgent: "*", allow: "/" });
-    // Every segment that 404s in a production build is kept off the crawl path.
+    // Every segment that 404s in a production build is kept off the crawl
+    // path, plus the editorial tool — which is authenticated and `noindex`
+    // regardless, because robots.txt is a request, not a control.
     expect(result.rules).toMatchObject({
-      disallow: ["/dev/", "/design-lab/"],
+      disallow: ["/admin/", "/dev/", "/design-lab/"],
     });
   });
 

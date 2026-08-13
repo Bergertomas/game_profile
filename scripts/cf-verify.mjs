@@ -177,6 +177,27 @@ try {
     );
   }
 
+  // The editorial tool, in the artefact that actually deploys.
+  //
+  // It ships in every build and is switched on by configuration this deployment
+  // does not have: no Cloudflare Access application, no `ADMIN_DATABASE_URL`
+  // (ADR 0018). Unconfigured, it must be indistinguishable from a path that was
+  // never routed — in BOTH environments, because a preview carries the same
+  // code and unpublished editorial is not preview-appropriate content either.
+  //
+  // Asked of workerd rather than of `next start`, because the whole reason this
+  // script exists is that the two runtimes disagree: the obvious `proxy.ts`
+  // gate passed everywhere else and could not be built for Cloudflare at all.
+  for (const path of ["/admin", "/admin/games", "/admin/games/new"]) {
+    const res = await get(path);
+    check(`${path} is not reachable unconfigured`, res.status === 404, String(res.status));
+    check(
+      `${path} is never indexable`,
+      (res.headers?.get("x-robots-tag") ?? "").includes("noindex"),
+      res.headers?.get("x-robots-tag") ?? "absent",
+    );
+  }
+
   const DESIGN_SURFACES = ["/dev/radar-states", "/design-lab", "/design-lab/d3/alan-wake-2"];
   for (const path of DESIGN_SURFACES) {
     const res = await get(path);
