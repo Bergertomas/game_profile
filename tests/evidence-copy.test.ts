@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { D3Study } from "@/components/design-lab/d3/Study";
+import { GameProfile } from "@/components/profile/GameProfile";
 import { alanWake2 } from "@/content";
 import { buildProfileView } from "@/lib/profile/build";
 import { linkedEvidenceSummary } from "@/lib/profile/vocabulary";
@@ -16,14 +16,22 @@ import { scoreStateFixture } from "@/lib/design-lab/score-states";
  * D3's expanded rows published `N linked sources` off `linkedSources.length`
  * regardless of ledger state, which directly contradicted the evidence section
  * at the foot of the same page ("No source count is published until it does").
- * These tests pin the corrected behaviour on both surfaces.
+ *
+ * These once ran against the design-lab copy of D3. They now run against the
+ * canonical `GameProfile` — the component production actually serves — because
+ * the lab copy is gone: D3 shipped, and a second implementation of the live
+ * design proves nothing except that two files can disagree.
  */
 
 /** Any numeric linked-source claim, in any phrasing we might drift into. */
 const NUMERIC_SOURCE_CLAIM = /\d+\s*(?:linked\s*)?sources?\b/i;
 
-function render(profile: Parameters<typeof D3Study>[0]["profile"]): string {
-  return renderToStaticMarkup(createElement(D3Study, { profile }));
+function render(profile: Parameters<typeof GameProfile>[0]["profile"]): string {
+  // Artless, as production is. The evidence copy does not vary with artwork,
+  // and passing none keeps this a test of the copy rather than of the stage.
+  return renderToStaticMarkup(
+    createElement(GameProfile, { profile, artwork: null }),
+  );
 }
 
 const pendingProfile = buildProfileView(alanWake2);
@@ -61,7 +69,7 @@ describe("linkedEvidenceSummary", () => {
   });
 });
 
-describe("D3 pages on a pending ledger", () => {
+describe("The profile page on a pending ledger", () => {
   it("is the state the seed corpus is actually in", () => {
     // If this ever flips, the assertions below stop proving anything.
     expect(pendingProfile.evaluation.evidenceLedger).toBe("pending");
@@ -101,7 +109,7 @@ describe("D3 pages on a pending ledger", () => {
   });
 });
 
-describe("D3 pages on a populated ledger", () => {
+describe("The profile page on a populated ledger", () => {
   it("does publish a count, so the pending copy is a real branch", () => {
     const html = render(populatedProfile);
     expect(html).toMatch(NUMERIC_SOURCE_CLAIM);
