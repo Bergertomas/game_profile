@@ -12,6 +12,10 @@ const config = [
   {
     ignores: [
       ".next/**",
+      // The Playwright run builds the multi-scope test corpus into its own
+      // dist directory so two concurrent builds cannot overwrite each other's
+      // prerendered pages. Build output, same as `.next`.
+      ".next-*/**",
       "node_modules/**",
       "out/**",
       "coverage/**",

@@ -7,6 +7,7 @@ import type { ProfileArtwork } from "@/lib/profile/artwork";
 import type { ProfileView } from "@/lib/profile/build";
 import { PRE_RELEASE_NOTICE } from "@/lib/profile/vocabulary";
 import { GameStage } from "./GameStage";
+import { ScopeSwitcher, type ScopeLink } from "./ScopeSwitcher";
 import { ScoreRow } from "./instrument";
 import { GRAPHITE_SKIN, ProfileRadar } from "./radar";
 import { ProfileLower } from "./ProfileLower";
@@ -39,9 +40,16 @@ import "./profile.css";
 export function GameProfile({
   profile,
   artwork,
+  scopes = [],
 }: {
   profile: ProfileView;
   artwork: ProfileArtwork | null;
+  /**
+   * Every published profile of this game, for sibling navigation. Empty or
+   * single-entry for the ordinary one-experience game, where the switcher
+   * renders nothing.
+   */
+  scopes?: readonly ScopeLink[];
 }) {
   const [hovered, setHovered] = useState<string | null>(null);
   const [focused, setFocused] = useState<string | null>(null);
@@ -80,6 +88,7 @@ export function GameProfile({
             <p className="gp__label mt-2">
               {game.developerText} · {formatYear(game.firstReleaseDate)}
             </p>
+            <ScopeSwitcher scopes={scopes} gameTitle={game.canonicalTitle} />
           </div>
         </div>
 
