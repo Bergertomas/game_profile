@@ -62,6 +62,7 @@ lib/
   scoring/derive.ts            dimension totals, unknowns, ranges
   radar/geometry.ts            pure, DOM-free chart geometry
   profile/vocabulary.ts        public wording that varies with evidence state
+  profile/provenance.ts        where a profile's numbers came from
   validation/evaluation.ts     the publish gate
   db/                          Drizzle schema, migration, constraints, seed
   data/games.ts                the only data-access boundary
@@ -105,8 +106,52 @@ These are product semantics, not preferences. Most are covered by a test.
 | Pre-release profiles declare evidence maturity and cannot claim High confidence | check constraints, `tests/evidence.test.ts` |
 | Pre-release recommendation blocks avoid verdict language | `lib/profile/vocabulary.ts`, `tests/evidence.test.ts` |
 | Runtime data can never reach the eight dimension scores | `game_time_estimates` hangs off `games`, not `evaluations` |
-| Only one published evaluation per game per rubric version | unique partial index |
+| A game may publish several current profiles, one per evaluated experience | `profile_scopes`, [ADR 0014](docs/decisions/0014-profile-scopes.md) |
+| Only one published evaluation per profile scope per rubric version | unique partial index |
+| Each profile scope versions and supersedes independently of its siblings | scope-local lineage triggers, `tests/profile-scope.test.ts` |
+| A profile scope is identified by a key, never by matching mode text | FK + slug check constraint |
+| Platform overrides are material deviations, and never move a dimension total | `subcriterion_platform_overrides`, [ADR 0015](docs/decisions/0015-platform-overrides-and-provenance.md) |
+| An ordinary editorial profile needs no calibration round and no schema change | `score_provenance` kind + `calibration_rounds` registry |
+| Artwork carries its clearance and basis, never a bare URL | `game_artwork`, [ADR 0011](docs/decisions/0011-production-artwork.md) |
 | All three profiles reproduce their calibration matrix exactly | `tests/calibration.test.ts` — 24 locked totals |
+
+## Profile identity and versioning
+
+A profile is not "a game". It is **one evaluated experience of a game**, and a
+game may have several at once.
+
+```
+game  The Long Dark
+ ├── profile scope "survival"    → v1 pre-release → v2 launch → v3 post-patch
+ └── profile scope "wintermute"  → v1 launch      → v2 post-patch
+```
+
+Rubric §1 requires separate evaluations where modes materially change the
+experience, so both scopes are **simultaneously current**: each has its own
+published row, its own version numbering starting at 1, and its own supersession
+chain. Wintermute v2 replaces Wintermute v1 and never touches Survival.
+
+Identity is the `profile_scopes` row, never text. Each evaluation still declares
+its own `edition`, `mode`, `platforms` and `build` — that is the immutable
+snapshot of what *that version* covered — but two versions belong to the same
+series because they share a scope, not because their mode strings happen to
+match. A re-worded mode is the same series; a materially different mode is a
+different scope; only an editor can tell those apart.
+
+| | identity | public label | per version |
+|---|---|---|---|
+| `profile_scopes` | `key` (`survival`) | `label` (`Survival`) | — |
+| `evaluations` | `scope_id` + `version_number` | — | edition, mode, platforms, build |
+
+Live-row uniqueness is `(scope, rubric version)`. Superseded versions are
+preserved and linked, never overwritten.
+
+**Every seeded game has exactly one scope (`default`), so nothing on the public
+site changes yet.** The multi-scope capability is proved against synthetic
+corpora in `tests/profile-scope.test.ts` and the database regression suite;
+authoring a real two-mode profile is Phase 2 editorial work. The public URL for
+a game with two current scopes is a deliberately open product decision — see
+[ADR 0014](docs/decisions/0014-profile-scopes.md).
 
 ## Database
 
@@ -125,8 +170,17 @@ That is `db:migrate` followed by `db:seed`, and it is the canonical path — the
 is no second step to remember. `0000_schema.sql` creates the tables,
 `0001_contract.sql` installs the first checks and derived `dimension_scores`
 view, and `0002_contract_hardening.sql` registers rubric identity and freezes
-final history. Drizzle applies every pending migration transactionally, so the
-schema is never left half-built.
+final history. `0003`–`0006` add profile scopes, platform overrides, general
+score provenance and the artwork rights record. Drizzle applies every pending
+migration transactionally, so the schema is never left half-built.
+
+`0003`, `0005` and `0006` restructure columns beneath rows the `0002`
+immutability triggers have frozen. Each disables user triggers for the
+structural rewrite only, changes no score, status or judgement, and re-runs the
+completeness and lineage assertions over every row before committing. The
+regression suite applies them to a *populated* database built from
+`tests/db/fixtures/seed-pre-0003.sql`, because a migration that only builds a
+correct empty schema has not been shown to upgrade anything.
 
 ```bash
 npm run db:migrate                     # schema only
@@ -215,6 +269,8 @@ not post them anywhere durable. See
 - [0011 — Artwork is game metadata, and clearance decides where it renders](docs/decisions/0011-production-artwork.md)
 - [0012 — `noindex` is not access control](docs/decisions/0012-preview-access-and-artwork-exposure.md)
 - [0013 — One Should I Play? visual system](docs/decisions/0013-visual-system.md)
+- [0014 — A game has profile scopes, and each one has its own history](docs/decisions/0014-profile-scopes.md)
+- [0015 — Platform overrides, and provenance that describes ordinary work](docs/decisions/0015-platform-overrides-and-provenance.md)
 
 ## Not built, deliberately
 

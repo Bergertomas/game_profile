@@ -37,6 +37,7 @@ export function scoreStateFixture(directionName: string): GameWithEvaluation {
       developerText: "Rendering harness",
       publisherText: "Design lab",
     },
+    scope: alanWake2.scope,
     evaluation: {
       ...source,
       evidenceStatus: "pre_release",

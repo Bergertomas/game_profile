@@ -27,6 +27,7 @@ export default function RadarStatesPage() {
 
   const withUnknowns: GameWithEvaluation = {
     game: { ...alanWake2.game, canonicalTitle: "Unknown-handling harness" },
+    scope: alanWake2.scope,
     evaluation: {
       ...alanWake2.evaluation,
       evidenceStatus: "pre_release",

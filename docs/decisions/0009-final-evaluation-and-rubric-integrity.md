@@ -1,6 +1,8 @@
 # ADR 0009 — Final evaluation and rubric integrity
 
-**Status:** Accepted · 2026-08-08
+**Status:** Accepted · 2026-08-08 · **Points 3 and 6 superseded by
+[ADR 0014](0014-profile-scopes.md); the open platform question closed by
+[ADR 0015](0015-platform-overrides-and-provenance.md)**
 
 ## Context
 
@@ -26,7 +28,8 @@ an explicit cut-over choice.
    owned children, existing revision events, linked evidence-source metadata and
    linked tag definitions cannot be rewritten. Corrections create a new version
    (and, when source metadata itself changed, a new source identity).
-3. Supersession is rubric-local and bidirectional. A final successor requires a
+3. Supersession is rubric-local and bidirectional. *(Now also scope-local —
+   ADR 0014.)* A final successor requires a
    superseded predecessor; a superseded row has exactly one final successor.
    The transition is checked at transaction commit so predecessor and successor
    can be finalized atomically.
@@ -46,6 +49,11 @@ an explicit cut-over choice.
 6. The partial unique index remains one published evaluation per
    `(game_id, rubric_version)`. `PUBLIC_RUBRIC_VERSION` is the application-level
    selector for the single rubric rendered on public pages.
+
+   **Superseded by [ADR 0014](0014-profile-scopes.md).** The boundary is now
+   `(scope_id, rubric_version)`. Keyed on the game it contradicted Rubric §1:
+   a game whose modes materially differ needs two current evaluations, and this
+   index permitted one. `PUBLIC_RUBRIC_VERSION` is unchanged.
 
 ## Consequences
 
@@ -67,6 +75,8 @@ an explicit cut-over choice.
   verifies its own patches and aborts rather than freezing uncorrected data.
 - Platform-specific score overrides remain a separate product/schema decision;
   this ADR does not make the currently non-authoritative column look functional.
+  **Decided in [ADR 0015](0015-platform-overrides-and-provenance.md):** the
+  non-functional column is dropped and overrides live in their own table.
 
 ## Rejected alternatives
 

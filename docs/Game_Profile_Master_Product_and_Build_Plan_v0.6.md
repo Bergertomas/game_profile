@@ -1008,14 +1008,25 @@ The schema must support versioned editorial evaluations.
 - slug
 - canonical_title
 - summary
-- cover_url
-- hero_url
 - developer_text
 - publisher_text
 - first_release_date
 - release_status
 - created_at
 - updated_at
+
+### `game_artwork`
+*Amended 2026-08-13. `games.cover_url` / `games.hero_url` were bare URL columns:
+they record that an image is reachable and nothing about whether it may be
+shown, which contradicts the clearance model in ADR 0011. Artwork now carries
+its rights record or does not exist.*
+- game_id
+- role (`cover` | `hero`)
+- url, width, height, alt_text, focus
+- source (free-form provider), external_id
+- clearance (`production` | `evaluation`) — decides where it may render
+- basis (`licence` | `provider-terms` | `press-kit` | `permission` | `internal-evaluation`)
+- credit, source_page, retrieved_at
 
 ### `game_external_ids`
 - game_id
@@ -1098,11 +1109,25 @@ One editorial version of one scoped game experience.
 - evaluation_id
 - subcriterion_id
 - score numeric nullable
-- platform_id nullable (used for material platform-specific overrides, especially Technical Stability)
+- platform_note (prose context on the canonical score)
 - low_estimate nullable
 - high_estimate nullable
 - rationale
 - evidence_confidence
+
+### `subcriterion_platform_overrides`
+*Amended 2026-08-13. A nullable `platform_id` on `subcriterion_scores` could not
+work: that row's primary key is (evaluation, subcriterion), so it can name at
+most one platform — the single shape Rubric §3 cannot use. Overrides are their
+own table. See ADR 0015.*
+- evaluation_id, subcriterion_id, platform_id  (composite primary key)
+- score numeric nullable — must differ materially from the base score
+- rationale (required)
+- evidence_confidence
+
+The base score remains canonical and is the only value reaching a dimension
+total. `subcriterion_platform_readings` resolves a platform-specific reading,
+falling back to the base where no override exists.
 
 ### `dimension_scores`
 Prefer a database view/derived value where possible rather than duplicated manual numbers.
@@ -1164,7 +1189,12 @@ Optional if normal evaluation versioning does not capture field-level history.
 
 ## 13.2 Important constraints
 
-- Only one current published evaluation per game/rubric version.
+- Only one current published evaluation per **profile scope**/rubric version.
+  *Amended 2026-08-13. Keyed on the game, this contradicted Rubric §1 ("if
+  different modes materially change the experience, create separate
+  evaluations"): The Long Dark could publish Survival or Wintermute, never both.
+  A profile scope is one evaluated experience of a game, and each has its own
+  independent version and supersession history. See ADR 0014.*
 - Scores must be 0–2 in 0.5 increments at subcriterion level.
 - Published evaluation must have:
   - evidence status,

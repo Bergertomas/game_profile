@@ -39,6 +39,7 @@ const postRelease: Evaluation = {
 
 const validChain: GameWithEvaluation = {
   game: alanWake2.game,
+  scope: alanWake2.scope,
   evaluation: postRelease,
   history: [preRelease],
 };
@@ -79,7 +80,11 @@ describe("Invalid supersession", () => {
     // A lone evaluation is the oldest in its own chain, so claiming to
     // supersede anything is the more precise diagnosis than "dangling".
     expect(
-      codes({ game: alanWake2.game, evaluation: postRelease }),
+      codes({
+        game: alanWake2.game,
+        scope: alanWake2.scope,
+        evaluation: postRelease,
+      }),
     ).toContain("oldest_evaluation_supersedes");
   });
 
@@ -191,7 +196,12 @@ describe("Multi-version chains", () => {
   const chain = (
     history: Evaluation[],
     current: Evaluation,
-  ): GameWithEvaluation => ({ game: alanWake2.game, evaluation: current, history });
+  ): GameWithEvaluation => ({
+    game: alanWake2.game,
+    scope: alanWake2.scope,
+    evaluation: current,
+    history,
+  });
 
   it("accepts a valid three-version chain", () => {
     expect(validateGameRecord(chain([v1, v2], v3))).toEqual([]);

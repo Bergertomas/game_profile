@@ -4,6 +4,7 @@ import { alanWake2 } from "@/content/games/alan-wake-2";
 import { redfall } from "@/content/games/redfall";
 import { returnal } from "@/content/games/returnal";
 import { buildProfileView } from "@/lib/profile/build";
+import { getCalibrationRound } from "@/lib/profile/provenance";
 import type { GameWithEvaluation, ScoreProvenance } from "@/lib/profile/types";
 import type { DimensionKey } from "@/lib/rubric";
 import { assertValidEvaluation, validateEvaluation } from "@/lib/validation/evaluation";
@@ -28,7 +29,7 @@ const CANONICAL: readonly {
   {
     record: alanWake2,
     source: "Calibration Round 1 §3",
-    provenance: "calibration_round_1",
+    provenance: { kind: "calibration", round: "round_1" },
     matrix: {
       story: 9.5,
       execution: 9.0,
@@ -43,7 +44,7 @@ const CANONICAL: readonly {
   {
     record: returnal,
     source: "Calibration Round 1 §3",
-    provenance: "calibration_round_1",
+    provenance: { kind: "calibration", round: "round_1" },
     matrix: {
       story: 7.5,
       execution: 9.5,
@@ -58,7 +59,7 @@ const CANONICAL: readonly {
   {
     record: redfall,
     source: "Calibration Round 2 §3",
-    provenance: "calibration_round_2",
+    provenance: { kind: "calibration", round: "round_2" },
     matrix: {
       story: 4.5,
       execution: 5.5,
@@ -87,18 +88,23 @@ for (const { record, source, provenance, matrix } of CANONICAL) {
     }
 
     it("records where its numbers came from", () => {
-      expect(record.evaluation.scoreProvenance).toBe(provenance);
+      expect(record.evaluation.scoreProvenance).toEqual(provenance);
     });
   });
 }
 
 describe("No seed profile still carries unreconciled derived scores", () => {
   it("all three are traceable to a calibration report", () => {
+    // Both halves matter. `calibration` alone is an unfalsifiable claim — the
+    // round it names is what makes the totals checkable against a report.
     for (const record of SEED_PROFILES) {
+      const provenance = record.evaluation.scoreProvenance;
+      expect(provenance.kind, record.game.canonicalTitle).toBe("calibration");
+      expect(provenance.round, record.game.canonicalTitle).toBeDefined();
       expect(
-        record.evaluation.scoreProvenance,
+        getCalibrationRound(provenance.round!).reportReference,
         record.game.canonicalTitle,
-      ).not.toBe("derived_pending_round_1_reconciliation");
+      ).toMatch(/Calibration_Round_[12]_Report/);
     }
   });
 });

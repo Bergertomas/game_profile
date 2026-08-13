@@ -1,14 +1,19 @@
 import { notFound } from "next/navigation";
-import { D3Study } from "@/components/design-lab/d3/Study";
+import { GameProfile } from "@/components/profile/GameProfile";
+import { heroArtworkFor } from "@/lib/profile/artwork";
 import { designLabProfileFor, designLabSlugs } from "@/lib/design-lab/profile";
 
 /**
- * D3 against every seeded profile.
+ * The canonical profile against every seeded game, with evaluation artwork.
  *
- * The point of the route is the proof: one grammar, three games that look
- * different because their artwork, accent and profile data differ — not because
- * the layout changed. Redfall in particular has to hold up at 4.0–5.5 without
- * the small polygon looking broken or the artwork implying a verdict.
+ * The proof the route exists for: one grammar, three games that look different
+ * because their artwork, accent and profile data differ — not because the
+ * layout changed. Redfall in particular has to hold up at 4.0–5.5 without the
+ * small polygon looking broken or the artwork implying a verdict.
+ *
+ * It renders the production component, so what is reviewed here is what ships.
+ * The only difference from /games/<slug> is the artwork, which is cleared for
+ * internal review and nothing else.
  */
 export function generateStaticParams() {
   return designLabSlugs().map((slug) => ({ slug }));
@@ -34,5 +39,7 @@ export default async function Page({
   const { slug } = await params;
   const profile = designLabProfileFor(slug);
   if (!profile) notFound();
-  return <D3Study profile={profile} />;
+  return (
+    <GameProfile profile={profile} artwork={heroArtworkFor(profile.game)} />
+  );
 }

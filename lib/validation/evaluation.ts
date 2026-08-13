@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isCalibrationRoundKey } from "@/lib/profile/provenance";
 import { getRubric, UNKNOWN, type DimensionKey } from "@/lib/rubric";
 import { isTagKey } from "@/lib/rubric/tags";
 import { deriveDimensionScore } from "@/lib/scoring/derive";
@@ -23,10 +24,35 @@ const subcriterionValue = z.union([
   z.literal(UNKNOWN),
 ]);
 
+export const subcriterionPlatformOverrideSchema = z.object({
+  platform: z.string().min(1),
+  value: subcriterionValue,
+  rationale: z.string().min(1),
+  confidence: z.enum(["low", "medium", "high"]).optional(),
+});
+
 export const subcriterionEntrySchema = z.object({
   value: subcriterionValue,
   rationale: z.string().min(1),
   platformNote: z.string().optional(),
+  platformOverrides: z.array(subcriterionPlatformOverrideSchema).optional(),
+});
+
+/** Matches the database's `profile_scopes_key_is_a_slug` check. */
+const scopeKey = z
+  .string()
+  .regex(
+    /^[a-z0-9]+(-[a-z0-9]+)*$/,
+    "a scope key is an editorial handle, e.g. \"survival\" — lowercase, hyphen-separated",
+  );
+
+export const profileScopeSchema = z.object({
+  id: z.string().min(1),
+  gameId: z.string().min(1),
+  key: scopeKey,
+  label: z.string().min(1),
+  summary: z.string().optional(),
+  displayOrder: z.number().int().positive(),
 });
 
 export const evaluationScopeSchema = z.object({
@@ -44,6 +70,7 @@ const isoDate = z
 export const evaluationSchema = z.object({
   id: z.string().min(1),
   gameId: z.string().min(1),
+  scopeId: z.string().min(1),
   rubricVersion: z.literal("1.0"),
   versionNumber: z.number().int().positive(),
   scope: evaluationScopeSchema,
@@ -98,12 +125,11 @@ export const evaluationSchema = z.object({
     }),
   ),
   evidenceLedger: z.enum(["populated", "pending"]),
-  scoreProvenance: z.enum([
-    "calibration_round_1",
-    "calibration_round_2",
-    "derived_pending_round_1_reconciliation",
-  ]),
-  provenanceNote: z.string().optional(),
+  scoreProvenance: z.object({
+    kind: z.enum(["editorial", "calibration", "derived"]),
+    round: z.string().min(1).optional(),
+    note: z.string().min(1).optional(),
+  }),
   publishedAt: isoDate.optional(),
   supersedesEvaluationId: z.string().optional(),
   changeSummary: z.string().optional(),
@@ -183,6 +209,33 @@ export function validateEvaluation(evaluation: Evaluation): ValidationIssue[] {
           code: "missing_rationale",
           message: `${dimension.name} › ${key} is scored but has no rationale.`,
         });
+      }
+
+      // Rubric §3 — platform overrides record material deviations from the
+      // canonical value, one per platform.
+      const seenPlatforms = new Set<string>();
+      for (const override of entry.platformOverrides ?? []) {
+        if (seenPlatforms.has(override.platform)) {
+          issues.push({
+            code: "duplicate_platform_override",
+            message: `${dimension.name} › ${key} has two overrides for platform "${override.platform}".`,
+          });
+        }
+        seenPlatforms.add(override.platform);
+
+        if (override.value === entry.value) {
+          issues.push({
+            code: "immaterial_platform_override",
+            message: `${dimension.name} › ${key} records a "${override.platform}" override equal to the base value. An override states a material deviation, not agreement.`,
+          });
+        }
+
+        if (override.rationale.trim().length === 0) {
+          issues.push({
+            code: "missing_override_rationale",
+            message: `${dimension.name} › ${key} has a "${override.platform}" override with no rationale. An unexplained divergence is what the platform rule exists to prevent.`,
+          });
+        }
       }
     }
   }
@@ -322,6 +375,40 @@ export function validateEvaluation(evaluation: Evaluation): ValidationIssue[] {
     });
   }
 
+  // Score provenance. The same biconditional the database enforces: a
+  // calibration profile names its round, and a profile that is not from a
+  // round does not get to borrow one's authority.
+  const provenance = evaluation.scoreProvenance;
+  if (provenance.kind === "calibration") {
+    if (!provenance.round) {
+      issues.push({
+        code: "calibration_without_round",
+        message:
+          'Provenance "calibration" must name the round whose report publishes the approved totals.',
+      });
+    } else if (!isCalibrationRoundKey(provenance.round)) {
+      issues.push({
+        code: "unknown_calibration_round",
+        message: `Calibration round "${provenance.round}" is not registered.`,
+      });
+    }
+  } else if (provenance.round) {
+    issues.push({
+      code: "unexpected_calibration_round",
+      message: `Provenance "${provenance.kind}" names calibration round "${provenance.round}". Only a calibration profile has one.`,
+    });
+  }
+
+  // Derived numbers have not been through editorial review, and the page says
+  // so. Silence would present them exactly like signed-off ones.
+  if (provenance.kind === "derived" && !provenance.note?.trim()) {
+    issues.push({
+      code: "derived_without_note",
+      message:
+        'Provenance "derived" must carry a note: these numbers have not been editorially signed off, and the profile has to say so.',
+    });
+  }
+
   // Supersession must point somewhere real and forward (SOP §10.9).
   if (evaluation.supersedesEvaluationId === evaluation.id) {
     issues.push({
@@ -375,6 +462,84 @@ const BANNED_PHRASES: readonly { pattern: RegExp; reason: string }[] = [
 ];
 
 /**
+ * Artwork rights checks (ADR 0011).
+ *
+ * The important one is `uncleared_artwork_on_fixture`, and its reason is
+ * mechanical rather than aesthetic: a game fixture is reachable from every
+ * production page, so nothing inside it can be dead-code-eliminated. An
+ * uncleared URL placed on a game record ships in the production bundle —
+ * unrendered, but present — which `check:containment` has already caught once.
+ * Evaluation-clearance art belongs in the folded overlay
+ * (content/evaluation-artwork.ts), never here.
+ *
+ * These run wherever a record is validated, including in the seed generator, so
+ * the rule holds at the point art would first enter the corpus rather than only
+ * at the point a build is scanned.
+ */
+export function validateGameArtwork(
+  record: GameWithEvaluation,
+): ValidationIssue[] {
+  const artwork = record.game.artwork;
+  if (!artwork) return []; // Artless is a finished state, not a gap.
+
+  const issues: ValidationIssue[] = [];
+
+  if (artwork.clearance !== "production") {
+    issues.push({
+      code: "uncleared_artwork_on_fixture",
+      message: `${record.game.slug} carries "${artwork.clearance}"-clearance artwork on its game record. A fixture ships in the production bundle whether or not anything renders it; hold uncleared art in the evaluation overlay instead.`,
+    });
+  }
+
+  if (artwork.clearance === "production" && artwork.basis === "internal-evaluation") {
+    issues.push({
+      code: "cleared_artwork_internal_basis",
+      message: `${record.game.slug} clears artwork for production while holding it on an internal-evaluation basis. Those cannot both be true.`,
+    });
+  }
+
+  // A production rights position is somebody's decision, so it has to be
+  // auditable: who to credit, and where the asset came from.
+  if (artwork.clearance === "production") {
+    if (!artwork.credit?.trim() && !record.game.publisherText.trim()) {
+      issues.push({
+        code: "artwork_without_credit",
+        message: `${record.game.slug} has production artwork with nobody to credit.`,
+      });
+    }
+    if (!artwork.sourcePage?.trim()) {
+      issues.push({
+        code: "artwork_without_source_page",
+        message: `${record.game.slug} has production artwork with no recorded source page.`,
+      });
+    }
+  }
+
+  for (const [role, image] of [
+    ["cover", artwork.cover],
+    ["hero", artwork.hero],
+  ] as const) {
+    if (!image) continue;
+    if (!/^https:\/\//.test(image.url)) {
+      issues.push({
+        code: "artwork_url_not_https",
+        message: `${record.game.slug} ${role} artwork URL is not an absolute https URL.`,
+      });
+    }
+    // Intrinsic dimensions are how a surface reserves space before the image
+    // loads. A zero collapses the layout the artless composition holds open.
+    if (image.width <= 0 || image.height <= 0) {
+      issues.push({
+        code: "artwork_without_dimensions",
+        message: `${record.game.slug} ${role} artwork does not declare positive intrinsic dimensions.`,
+      });
+    }
+  }
+
+  return issues;
+}
+
+/**
  * Lineage checks that need the whole game record rather than one evaluation
  * (SOP §10.9: preserve the old profile, create a new one, link them).
  */
@@ -386,9 +551,48 @@ export function validateGameRecord(
   const chain = [...history, record.evaluation];
   const selectedRubric = record.evaluation.rubricVersion;
 
+  issues.push(...validateGameArtwork(record));
+
+  // A platform override can only speak about a platform the game ships on.
+  // This needs the game, so it cannot live in the per-evaluation checks; the
+  // database enforces the same rule against `game_platforms`.
+  const shipsOn = new Set(record.game.platforms.map((p) => p.slug));
+  for (const evaluation of [...history, record.evaluation]) {
+    for (const [dimensionKey, entries] of Object.entries(evaluation.dimensions)) {
+      for (const [subKey, entry] of Object.entries(entries)) {
+        for (const override of entry.platformOverrides ?? []) {
+          if (!shipsOn.has(override.platform)) {
+            issues.push({
+              code: "override_platform_not_on_game",
+              message: `${dimensionKey} › ${subKey} overrides platform "${override.platform}", which ${record.game.slug} does not ship on.`,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // The scope is this record's identity, so it has to belong to this game.
+  if (record.scope.gameId !== record.game.id) {
+    issues.push({
+      code: "scope_game_mismatch",
+      message: `Profile scope "${record.scope.key}" belongs to game "${record.scope.gameId}", not "${record.game.id}".`,
+    });
+  }
+
   const ids = new Set<string>();
   const versions = new Set<number>();
   for (const evaluation of chain) {
+    // Every version in this record is a version of THIS series. An evaluation
+    // carrying another scope's id is not history here — it is a different
+    // profile that would silently acquire this one's version numbering.
+    if (evaluation.scopeId !== record.scope.id) {
+      issues.push({
+        code: "evaluation_scope_mismatch",
+        message: `Evaluation "${evaluation.id}" belongs to profile scope "${evaluation.scopeId}", not "${record.scope.id}".`,
+      });
+    }
+
     if (ids.has(evaluation.id)) {
       issues.push({
         code: "duplicate_evaluation_id",
@@ -400,7 +604,7 @@ export function validateGameRecord(
     if (versions.has(evaluation.versionNumber)) {
       issues.push({
         code: "duplicate_version_number",
-        message: `Version ${evaluation.versionNumber} appears more than once for ${record.game.slug} under rubric ${selectedRubric}.`,
+        message: `Version ${evaluation.versionNumber} appears more than once for ${record.game.slug} › ${record.scope.key} under rubric ${selectedRubric}.`,
       });
     }
     versions.add(evaluation.versionNumber);
@@ -420,15 +624,17 @@ export function validateGameRecord(
     }
   }
 
-  // Exactly one live evaluation (Plan §13.2).
-  // A GameWithEvaluation is one selected rubric lineage. The database may keep
-  // one live row for several rubric versions during a migration, but each is a
-  // separate record and the public data boundary chooses one explicitly.
+  // Exactly one live evaluation per scope per rubric (Plan §13.2).
+  //
+  // A GameWithEvaluation is one profile scope under one rubric. A game may
+  // legitimately have several published evaluations at once — one per scope —
+  // and the database permits one live row per (scope, rubric); what neither
+  // permits is two live rows inside this one series.
   const published = chain.filter((e) => e.status === "published");
   if (published.length > 1) {
     issues.push({
       code: "multiple_published_evaluations",
-      message: `${record.game.slug} has ${published.length} published evaluations in the selected rubric lineage; only one may be live.`,
+      message: `${record.game.slug} › ${record.scope.key} has ${published.length} published evaluations in the selected rubric lineage; only one may be live.`,
     });
   }
 
@@ -498,6 +704,17 @@ export function validateGameRecord(
       return;
     }
 
+    // Supersession is scope-local, exactly as it is in the database. Wintermute
+    // v2 replaces Wintermute v1, never Survival v1 — the two series describe
+    // different experiences and neither is a revision of the other.
+    if (target.scopeId !== evaluation.scopeId) {
+      issues.push({
+        code: "cross_scope_supersession",
+        message: `Evaluation "${evaluation.id}" supersedes "${link}", which belongs to a different profile scope.`,
+      });
+      return;
+    }
+
     if (target.rubricVersion !== evaluation.rubricVersion) {
       issues.push({
         code: "cross_rubric_supersession",
@@ -530,6 +747,7 @@ export function validateGameRecord(
 }
 
 export function assertValidGameRecord(record: GameWithEvaluation): void {
+  profileScopeSchema.parse(record.scope);
   for (const evaluation of [...(record.history ?? []), record.evaluation]) {
     evaluationSchema.parse(evaluation);
   }

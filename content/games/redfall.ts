@@ -31,9 +31,21 @@ export const redfall: GameWithEvaluation = {
     ],
     aliases: [],
   },
+  // Solo and co-op are the same campaign played differently rather than two
+  // materially different experiences, so they share one scope — Round 2 scored
+  // them together and the profile says so in its mode declaration.
+  scope: {
+    id: "scp_redfall_default",
+    gameId: "gme_redfall",
+    key: "default",
+    label: "Main game",
+    summary: "The campaign, played solo or in co-op, at the final build.",
+    displayOrder: 1,
+  },
   evaluation: {
     id: "evl_redfall_v1",
     gameId: "gme_redfall",
+    scopeId: "scp_redfall_default",
     rubricVersion: "1.0",
     versionNumber: 1,
     scope: {
@@ -63,7 +75,7 @@ export const redfall: GameWithEvaluation = {
     },
     evidenceCutoffAt: "2026-08-06",
     releaseContext: "Post-release, final build",
-    scoreProvenance: "calibration_round_2",
+    scoreProvenance: { kind: "calibration", round: "round_2" },
     evidenceLedger: "pending",
     publishedAt: "2026-08-06",
     oneLineExperience:

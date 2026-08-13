@@ -20,6 +20,7 @@ import { RUBRIC_V1, UNKNOWN } from "@/lib/rubric";
 function withEvaluation(patch: Partial<Evaluation>): GameWithEvaluation {
   return {
     game: alanWake2.game,
+    scope: alanWake2.scope,
     evaluation: { ...alanWake2.evaluation, ...patch },
   };
 }

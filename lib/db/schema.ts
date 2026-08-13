@@ -1,6 +1,7 @@
 import {
   boolean,
   date,
+  foreignKey,
   index,
   integer,
   numeric,
@@ -20,6 +21,8 @@ import {
  * Design commitments encoded here:
  *  - Editorial data (evaluations) is separate from third-party metadata
  *    (game_external_ids). §25.11.
+ *  - A game may carry several simultaneously current profiles, one per
+ *    evaluated experience (profile_scopes). Rubric §1.
  *  - Evaluations are versioned and never overwritten; supersession is a link,
  *    not a mutation. §25.12.
  *  - Every evaluation stores its rubric_version. Rubric §18.
@@ -32,6 +35,39 @@ export const releaseStatusEnum = pgEnum("release_status", [
   "released",
   "upcoming",
   "early_access",
+]);
+
+/**
+ * Two image roles, because they are two different jobs, and neither substitutes
+ * for the other (ADR 0011). Cropping 3:4 box art into a 21:9 stage produces the
+ * stretched, subject-clipped banner the design exists to avoid.
+ */
+export const artworkRoleEnum = pgEnum("artwork_role", ["cover", "hero"]);
+
+/**
+ * Whether an asset may render on the public production site.
+ *
+ * An application-level permission, not a legal characterisation — the rendering
+ * layer is not copyright counsel and does not model rights. It models the one
+ * question it has to answer: may this appear on production?
+ */
+export const artworkClearanceEnum = pgEnum("artwork_clearance", [
+  "production",
+  "evaluation",
+]);
+
+/**
+ * The basis an asset is held on: descriptive, auditable, and read by no
+ * rendering code. "Licensed" is a claim about a legal instrument that the
+ * application is in no position to make on a publisher's behalf, so clearance
+ * is named after the permission it governs and the reason is recorded here.
+ */
+export const artworkBasisEnum = pgEnum("artwork_basis", [
+  "licence",
+  "provider-terms",
+  "press-kit",
+  "permission",
+  "internal-evaluation",
 ]);
 
 export const evaluationStatusEnum = pgEnum("evaluation_status", [
@@ -89,11 +125,52 @@ export const tagIntensityEnum = pgEnum("tag_intensity", [
   "high",
 ]);
 
+/**
+ * How an evaluation's numbers came to exist — the durable kind, not the
+ * workflow event that produced them.
+ *
+ * The first version of this enum listed `calibration_round_1`,
+ * `calibration_round_2` and `derived_pending_round_1_reconciliation`. That was
+ * right for a three-profile calibration corpus and wrong for everything after
+ * it: an ordinary authored profile had no value to carry, a fourth round would
+ * need a schema migration, and "pending reconciliation" is a state a profile
+ * passes through rather than a fact about where its numbers came from.
+ *
+ *   editorial   — authored against the rubric and editorially signed off. The
+ *                 normal case, and the one Phase 2 will use for every game.
+ *   calibration — scored in a calibration round whose report publishes the
+ *                 approved totals. Which round is data: see calibration_rounds.
+ *   derived     — produced against the rubric without editorial sign-off, e.g.
+ *                 by tooling. Requires a note, because a reader is entitled to
+ *                 know the numbers have not been through review.
+ *
+ * Three kinds is the whole vocabulary. A new round is a row; a new workflow
+ * state is not this column's business.
+ */
 export const scoreProvenanceEnum = pgEnum("score_provenance", [
-  "calibration_round_1",
-  "calibration_round_2",
-  "derived_pending_round_1_reconciliation",
+  "editorial",
+  "calibration",
+  "derived",
 ]);
+
+/**
+ * The calibration rounds themselves.
+ *
+ * A registry rather than enum values, so conducting Round 3 inserts a row
+ * instead of migrating a type — and so the round can carry its date and the
+ * report that published its approved totals, which an enum label cannot.
+ *
+ * Frozen once a final evaluation cites it, exactly as evidence sources and tag
+ * definitions are (ADR 0009): the round's label appears on the published page,
+ * so rewriting it would rewrite that page's explanation of itself.
+ */
+export const calibrationRounds = pgTable("calibration_rounds", {
+  key: text("key").primaryKey(),
+  label: text("label").notNull(),
+  conductedAt: date("conducted_at"),
+  /** Where the approved totals are published, e.g. the round's report. */
+  reportReference: text("report_reference"),
+});
 
 /**
  * Whether the evidence ledger holds individual source records or only the broad
@@ -115,8 +192,6 @@ export const games = pgTable(
     slug: text("slug").notNull().unique(),
     canonicalTitle: text("canonical_title").notNull(),
     summary: text("summary"),
-    coverUrl: text("cover_url"),
-    heroUrl: text("hero_url"),
     developerText: text("developer_text"),
     publisherText: text("publisher_text"),
     firstReleaseDate: date("first_release_date"),
@@ -129,6 +204,53 @@ export const games = pgTable(
       .defaultNow(),
   },
   (table) => [index("games_title_idx").on(table.canonicalTitle)],
+);
+
+/**
+ * A game's artwork, and the rights record that travels with it.
+ *
+ * This replaced bare `games.cover_url` / `games.hero_url` columns. A naked URL
+ * on the game row is the exact failure mode ADR 0011 exists to prevent: it
+ * records that an image is *reachable* and nothing about whether it may be
+ * shown, so anything that can be fetched looks usable. Every asset now arrives
+ * with its clearance and the basis it is held on, or it does not arrive.
+ *
+ * Artwork is optional at the model level and always has been at the product
+ * level. No seeded game carries a record, so the artless composition is what
+ * production renders — a finished state, not a gap.
+ *
+ * `source` is deliberately free-form text rather than an enum: a new provider
+ * must not need a schema change, and no rendering code branches on it. Do not
+ * let the architecture become dependent on one supplier's terms staying as they
+ * are today.
+ */
+export const gameArtwork = pgTable(
+  "game_artwork",
+  {
+    gameId: uuid("game_id")
+      .notNull()
+      .references(() => games.id, { onDelete: "cascade" }),
+    role: artworkRoleEnum("role").notNull(),
+    url: text("url").notNull(),
+    width: integer("width").notNull(),
+    height: integer("height").notNull(),
+    /** Factual description of what the image shows. Never marketing copy. */
+    altText: text("alt_text"),
+    /** `object-position` for a hard crop, e.g. "center 32%". */
+    focus: text("focus"),
+    /** Where it came from: manual, rawg, mobygames, press-kit, … */
+    source: text("source").notNull(),
+    /** The provider's own identifier, so a record can be refreshed later. */
+    externalId: text("external_id"),
+    clearance: artworkClearanceEnum("clearance").notNull(),
+    basis: artworkBasisEnum("basis").notNull(),
+    /** Rights holder to credit. Falls back to the publisher when absent. */
+    credit: text("credit"),
+    /** Human-visitable page the asset belongs to. */
+    sourcePage: text("source_page"),
+    retrievedAt: date("retrieved_at"),
+  },
+  (table) => [primaryKey({ columns: [table.gameId, table.role] })],
 );
 
 /** Third-party provider IDs live here, never on `games`. Plan §12.3. */
@@ -164,6 +286,64 @@ export const gamePlatforms = pgTable(
     performanceNotes: text("performance_notes"),
   },
   (table) => [primaryKey({ columns: [table.gameId, table.platformId] })],
+);
+
+/**
+ * One evaluated experience of a game, and the durable identity of its
+ * evaluation series (Rubric §1: "If different modes materially change the
+ * experience, create separate evaluations rather than averaging them").
+ *
+ *   game
+ *    └── profile scope "survival"    → v1 pre-release → v2 launch → v3 patched
+ *    └── profile scope "wintermute"  → v1 launch      → v2 patched
+ *
+ * Both scopes are simultaneously *current*: each carries its own published row
+ * and its own independent supersession history. That is the whole reason this
+ * table exists — the previous model keyed the live row on the game, so The Long
+ * Dark could publish Survival or Wintermute but never both.
+ *
+ * Identity is this row's `id`, never text. `edition_scope` and `mode_scope`
+ * stay on the evaluation, where they are an immutable snapshot of what that
+ * version declared; matching two evaluations by comparing those strings is
+ * exactly the fragile mechanism this replaces. A re-worded mode is the same
+ * series; a materially different mode is a different scope, and only an editor
+ * can tell those apart.
+ *
+ * `key` is the stable editorial handle ("survival"), `label` the public one
+ * ("Survival"). Ordering is `(display_order, key)` — deterministic without a
+ * uniqueness constraint that would make reordering two scopes a two-step dance.
+ */
+export const profileScopes = pgTable(
+  "profile_scopes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    gameId: uuid("game_id")
+      .notNull()
+      .references(() => games.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    label: text("label").notNull(),
+    /** What this scope covers, and what it deliberately excludes. */
+    summary: text("summary"),
+    displayOrder: integer("display_order").notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    unique("profile_scopes_game_key").on(table.gameId, table.key),
+    /**
+     * Not redundant with the primary key. It is the target of the composite
+     * foreign key on `evaluations`, which is what makes "an evaluation's scope
+     * belongs to the evaluation's game" a real referential constraint rather
+     * than a trigger that has to be remembered.
+     */
+    unique("profile_scopes_game_identity").on(table.id, table.gameId),
+    index("profile_scopes_game_order_idx").on(
+      table.gameId,
+      table.displayOrder,
+      table.key,
+    ),
+  ],
 );
 
 /** Alternate titles for search. Plan §12.4. */
@@ -246,6 +426,14 @@ export const evaluations = pgTable(
     gameId: uuid("game_id")
       .notNull()
       .references(() => games.id, { onDelete: "cascade" }),
+    /**
+     * The evaluation series this version belongs to. Every uniqueness and
+     * supersession rule below is keyed on this rather than on `game_id`, which
+     * is what lets two modes of one game be published at the same time.
+     */
+    scopeId: uuid("scope_id")
+      .notNull()
+      .references(() => profileScopes.id, { onDelete: "restrict" }),
     rubricVersion: text("rubric_version")
       .notNull()
       .references(() => rubricVersions.version, {
@@ -254,7 +442,14 @@ export const evaluations = pgTable(
       }),
     versionNumber: integer("version_number").notNull(),
 
-    // Mandatory evaluation scope. Rubric §1.
+    /**
+     * Mandatory declared scope (Rubric §1), snapshotted per version.
+     *
+     * `profile_scopes` carries the identity; these carry what this particular
+     * evaluation said it covered, and they are frozen with the rest of the
+     * snapshot once it is published. A v3 that re-words its mode still belongs
+     * to the same series, and history keeps the wording it was published under.
+     */
     editionScope: text("edition_scope").notNull(),
     modeScope: text("mode_scope").notNull(),
     platformScope: text("platform_scope").array().notNull(),
@@ -275,6 +470,16 @@ export const evaluations = pgTable(
     platformWarning: text("platform_warning"),
 
     scoreProvenance: scoreProvenanceEnum("score_provenance").notNull(),
+    /**
+     * Required when provenance is `calibration`, and meaningless otherwise —
+     * a check constraint enforces the biconditional, so a profile can neither
+     * claim a round it does not have nor cite one it is not from.
+     */
+    calibrationRound: text("calibration_round").references(
+      () => calibrationRounds.key,
+      { onDelete: "restrict", onUpdate: "restrict" },
+    ),
+    /** Required when provenance is `derived`. Shown in-product. */
     provenanceNote: text("provenance_note"),
     evidenceLedger: evidenceLedgerStateEnum("evidence_ledger")
       .notNull()
@@ -299,12 +504,23 @@ export const evaluations = pgTable(
       .defaultNow(),
   },
   (table) => [
-    unique("evaluations_game_version").on(
-      table.gameId,
+    unique("evaluations_scope_version").on(
+      table.scopeId,
       table.rubricVersion,
       table.versionNumber,
     ),
+    /**
+     * The scope must belong to the same game as the evaluation. A composite
+     * key, so Postgres enforces it: with two independent foreign keys a
+     * Wintermute evaluation could point at a Returnal scope.
+     */
+    foreignKey({
+      name: "evaluations_scope_belongs_to_game",
+      columns: [table.scopeId, table.gameId],
+      foreignColumns: [profileScopes.id, profileScopes.gameId],
+    }).onDelete("restrict"),
     index("evaluations_game_status_idx").on(table.gameId, table.status),
+    index("evaluations_scope_status_idx").on(table.scopeId, table.status),
     index("evaluations_supersedes_idx").on(table.supersedesEvaluationId),
   ],
 );
@@ -324,14 +540,80 @@ export const subcriterionScores = pgTable(
       .notNull()
       .references(() => subcriteria.id, { onDelete: "restrict" }),
     score: numeric("score", { precision: 2, scale: 1 }),
-    /** Platform-specific override, chiefly for Technical Stability. Rubric §3. */
-    platformId: uuid("platform_id").references(() => platforms.id),
     rationale: text("rationale"),
+    /**
+     * Platform *context* on the canonical score, e.g. "PC is demanding at
+     * ray-traced presets". Prose, not a deviation — a materially different
+     * value on a platform is an override row, not a note.
+     */
     platformNote: text("platform_note"),
     evidenceConfidence: confidenceEnum("evidence_confidence"),
   },
   (table) => [
     primaryKey({ columns: [table.evaluationId, table.subcriterionId] }),
+  ],
+);
+
+/**
+ * A materially different value for one subcriterion on one platform.
+ * Rubric §3: "If platform performance differs materially, store
+ * platform-specific Technical Stability overrides/notes. Do not hide severe
+ * PC/console differences inside a single unexplained number."
+ *
+ * A separate table rather than a nullable column on the score row, because the
+ * score row's primary key is (evaluation, subcriterion): it can hold at most
+ * one platform, which is the one shape this feature cannot use. The old
+ * `platform_id` column there was therefore never functional and is dropped.
+ *
+ * ── What the numbers mean ───────────────────────────────────────────────────
+ *
+ * The base `subcriterion_scores.score` remains canonical. It is what the
+ * profile publishes, what `dimension_scores` derives from, and what a reader
+ * sees; an override never enters a dimension total. Overrides are the exception
+ * layer — "on this platform, this specific reading differs and here is why" —
+ * so that a severe divergence is recorded rather than averaged into the base or
+ * duplicated into a whole parallel evaluation per platform.
+ *
+ * Enforced, not merely intended:
+ *  - one row per (evaluation, subcriterion, platform), by primary key, so a
+ *    conflicting duplicate cannot exist;
+ *  - a base score row must exist, by composite foreign key;
+ *  - the value must actually differ from the base — an override equal to the
+ *    base is not a material deviation, it is noise;
+ *  - the platform must be one the game ships on;
+ *  - the rationale is required, because an unexplained divergence is exactly
+ *    the "single unexplained number" the rubric forbids;
+ *  - overrides on a final evaluation are frozen with the rest of its children.
+ *
+ * A consumer reads a platform-specific value through the
+ * `subcriterion_platform_readings` view, which falls back to the base wherever
+ * no override exists.
+ */
+export const subcriterionPlatformOverrides = pgTable(
+  "subcriterion_platform_overrides",
+  {
+    evaluationId: uuid("evaluation_id").notNull(),
+    subcriterionId: uuid("subcriterion_id").notNull(),
+    platformId: uuid("platform_id")
+      .notNull()
+      .references(() => platforms.id, { onDelete: "restrict" }),
+    /** NULL means unknown on this platform — never zero, as everywhere else. */
+    score: numeric("score", { precision: 2, scale: 1 }),
+    rationale: text("rationale").notNull(),
+    evidenceConfidence: confidenceEnum("evidence_confidence"),
+  },
+  (table) => [
+    primaryKey({
+      columns: [table.evaluationId, table.subcriterionId, table.platformId],
+    }),
+    foreignKey({
+      name: "subcriterion_platform_overrides_base_fk",
+      columns: [table.evaluationId, table.subcriterionId],
+      foreignColumns: [
+        subcriterionScores.evaluationId,
+        subcriterionScores.subcriterionId,
+      ],
+    }).onDelete("cascade"),
   ],
 );
 

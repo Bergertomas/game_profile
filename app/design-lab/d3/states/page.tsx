@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { D3Study } from "@/components/design-lab/d3/Study";
+import { GameProfile } from "@/components/profile/GameProfile";
+import { heroArtworkFor } from "@/lib/profile/artwork";
 import { buildProfileView } from "@/lib/profile/build";
 import { scoreStateFixture } from "@/lib/design-lab/score-states";
 import { DESIGN_SURFACES_ENABLED } from "@/lib/site";
@@ -9,6 +10,11 @@ export const metadata = { title: "D3 — score-state proof" };
 /**
  * Development-only proof that D3 renders every published score state, not only
  * the exact values the seed corpus happens to contain.
+ *
+ * It renders the PRODUCTION component, so this proves the shipped code rather
+ * than a lab copy of it. The equivalent artless proof lives at
+ * /dev/radar-states; this one is the same states carrying key art, which is the
+ * only thing production cannot show.
  *
  * Uses the same fixture as Direction D's proof
  * (lib/design-lab/score-states.ts), so the two directions are measured against
@@ -54,7 +60,10 @@ export default function Page() {
           Open any row for how the derivation reads in each state.
         </p>
       </div>
-      <D3Study profile={buildProfileView(harness)} />
+      <GameProfile
+        profile={buildProfileView(harness)}
+        artwork={heroArtworkFor(harness.game)}
+      />
     </>
   );
 }

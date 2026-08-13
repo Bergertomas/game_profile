@@ -33,9 +33,22 @@ export const returnal: GameWithEvaluation = {
     ],
     aliases: [],
   },
+  // The main-game campaign. The Tower of Sisyphus is a separate endless mode
+  // and co-op is a separate way to play; if either is ever profiled it becomes
+  // its own scope with its own version history, not a revision of this one.
+  scope: {
+    id: "scp_returnal_default",
+    gameId: "gme_returnal",
+    key: "default",
+    label: "Main game",
+    summary:
+      "The single-player main-game campaign. Co-op and the Tower of Sisyphus are outside this scope.",
+    displayOrder: 1,
+  },
   evaluation: {
     id: "evl_returnal_v1",
     gameId: "gme_returnal",
+    scopeId: "scp_returnal_default",
     rubricVersion: "1.0",
     versionNumber: 1,
     scope: {
@@ -65,7 +78,7 @@ export const returnal: GameWithEvaluation = {
     },
     evidenceCutoffAt: "2026-08-06",
     releaseContext: "Post-release",
-    scoreProvenance: "calibration_round_1",
+    scoreProvenance: { kind: "calibration", round: "round_1" },
     evidenceLedger: "pending",
     publishedAt: "2026-08-06",
     oneLineExperience:

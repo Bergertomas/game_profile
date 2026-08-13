@@ -88,6 +88,7 @@ export interface GameArtwork {
   readonly credit?: string;
   /** Human-visitable page the asset belongs to. */
   readonly sourcePage?: string;
+  /** When the asset was retrieved, as an ISO date — it is a record, not prose. */
   readonly retrieved?: string;
 }
 
@@ -111,9 +112,43 @@ export interface Game {
 }
 
 /**
+ * One evaluated experience of a game, and the durable identity of its
+ * evaluation series (Rubric §1: separate evaluations where modes materially
+ * change the experience).
+ *
+ *   The Long Dark
+ *    ├── scope "survival"    → v1 → v2 → v3
+ *    └── scope "wintermute"  → v1 → v2
+ *
+ * Both are current at the same time and version independently. `key` is the
+ * stable editorial handle and the identity every version hangs off; `label` is
+ * the public name and is ordinary editable metadata, because renaming a scope
+ * rewrites no published judgement.
+ *
+ * Matching versions by comparing `EvaluationScope.mode` strings is exactly what
+ * this replaces: a re-worded mode is the same series, and only an editor can
+ * tell a re-wording from a materially different mode.
+ */
+export interface ProfileScope {
+  readonly id: string;
+  readonly gameId: string;
+  /** Stable, lowercase-hyphenated, unique within the game. */
+  readonly key: string;
+  /** Public name, e.g. "Survival" or "Wintermute". */
+  readonly label: string;
+  /** What this scope covers, and what it deliberately excludes. */
+  readonly summary?: string;
+  /** Ordering within the game. Ties break on `key`, so it stays deterministic. */
+  readonly displayOrder: number;
+}
+
+/**
  * Mandatory evaluation scope (Rubric §1 "Required evaluation scope").
  * An unscoped score is not a valid score: modes, editions, platforms and patch
  * levels materially change the product being described.
+ *
+ * Snapshotted per version and frozen on publication. `ProfileScope` says which
+ * series a version belongs to; this says what that version declared it covered.
  */
 export interface EvaluationScope {
   /** Product/edition, e.g. "Base game" or "Deluxe Edition". */
@@ -128,12 +163,42 @@ export interface EvaluationScope {
   readonly currentStateCutoff?: string;
 }
 
+/**
+ * A materially different value for this subcriterion on one platform
+ * (Rubric §3, chiefly Technical Stability).
+ *
+ * The base `SubcriterionEntry.value` stays canonical: it is what the profile
+ * publishes and the only value that reaches a dimension total. An override is
+ * the exception layer, so a severe PC/console divergence is recorded rather
+ * than averaged into one unexplained number — and so a platform difference does
+ * not force an entire duplicate evaluation per platform.
+ *
+ * An override must differ from the base. A row repeating the base value is not
+ * a deviation, and would make "this game diverges here" true of every platform
+ * anybody bothered to mention.
+ */
+export interface SubcriterionPlatformOverride {
+  /** Platform slug, which must be one the game ships on. */
+  readonly platform: string;
+  /** The value on this platform. `unknown` is allowed; it is never zero. */
+  readonly value: SubcriterionValue;
+  /** Required. An unexplained divergence is what the rubric forbids. */
+  readonly rationale: string;
+  readonly confidence?: Confidence;
+}
+
 export interface SubcriterionEntry {
   readonly value: SubcriterionValue;
   /** Why this value. Required for every scored subcriterion (Plan §14.3). */
   readonly rationale: string;
-  /** Platform-specific override note, chiefly for Technical Stability. */
+  /**
+   * Platform *context* on the canonical value, e.g. "PC is demanding at
+   * ray-traced presets". Prose, not a deviation — a materially different value
+   * on a platform is a `platformOverrides` entry.
+   */
   readonly platformNote?: string;
+  /** Material per-platform deviations, where any exist. */
+  readonly platformOverrides?: readonly SubcriterionPlatformOverride[];
 }
 
 export type DimensionEntry = Readonly<Record<string, SubcriterionEntry>>;
@@ -169,17 +234,10 @@ export interface EvidenceSource {
   readonly note?: string;
 }
 
-/**
- * Where a profile's numbers came from. `calibration_round_1` /
- * `calibration_round_2` mean the totals are published in a calibration report
- * and are authoritative. `derived_pending_round_1_reconciliation` marks scores
- * Claude derived directly from the rubric because the Round 1 report is not in
- * the repository — they are engineering-grade, not editorially signed off.
- */
-export type ScoreProvenance =
-  | "calibration_round_1"
-  | "calibration_round_2"
-  | "derived_pending_round_1_reconciliation";
+export type {
+  ScoreProvenance,
+  ScoreProvenanceKind,
+} from "./provenance";
 
 /**
  * Whether the evidence ledger holds individual source records yet.
@@ -196,6 +254,12 @@ export type EvidenceLedgerState = "populated" | "pending";
 export interface Evaluation {
   readonly id: string;
   readonly gameId: string;
+  /**
+   * The evaluation series this version belongs to. Every uniqueness and
+   * supersession rule is keyed on this rather than on the game, which is what
+   * lets two modes of one game be published simultaneously.
+   */
+  readonly scopeId: string;
   readonly rubricVersion: RubricVersion;
   readonly versionNumber: number;
   readonly scope: EvaluationScope;
@@ -225,9 +289,11 @@ export interface Evaluation {
   readonly tags: readonly EvaluationTag[];
   readonly sources: readonly EvidenceSource[];
   readonly evidenceLedger: EvidenceLedgerState;
-  readonly scoreProvenance: ScoreProvenance;
-  /** Note shown in-product when provenance is not editorially final. */
-  readonly provenanceNote?: string;
+  /**
+   * Where these numbers came from: the durable kind, plus the calibration
+   * round where there is one. See lib/profile/provenance.ts.
+   */
+  readonly scoreProvenance: import("./provenance").ScoreProvenance;
   readonly publishedAt?: string;
   readonly supersedesEvaluationId?: string;
   readonly changeSummary?: string;
@@ -235,8 +301,18 @@ export interface Evaluation {
   readonly platformWarning?: string;
 }
 
+/**
+ * One profile: a game, one of its evaluated experiences, and that experience's
+ * current evaluation plus its history.
+ *
+ * A game with two current scopes is two of these records. They share a `game`
+ * and nothing else — separate version numbering, separate supersession chains,
+ * separate published rows.
+ */
 export interface GameWithEvaluation {
   readonly game: Game;
+  /** Which evaluated experience this record profiles. */
+  readonly scope: ProfileScope;
   /** The current published evaluation. This is what the public page renders. */
   readonly evaluation: Evaluation;
   /**
@@ -246,6 +322,8 @@ export interface GameWithEvaluation {
    * survives launch as a superseded row, and `evaluation.supersedesEvaluationId`
    * points back at the most recent of these. Seeded and validated, but not
    * rendered — revision history is a later ticket (Plan §6.7).
+   *
+   * Scoped to this series. The other scopes of the same game have their own.
    */
   readonly history?: readonly Evaluation[];
 }

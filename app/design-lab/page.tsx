@@ -1,12 +1,13 @@
 import Link from "next/link";
 import {
+  D3,
   DIRECTIONS,
   DIRECTION_D,
   designLabProfile,
   designLabProfiles,
 } from "@/lib/design-lab/profile";
 
-export const metadata = { title: "Design lab — D0 and Direction D" };
+export const metadata = { title: "Design lab — the record, and the live design" };
 
 export default function DesignLabIndex() {
   const profile = designLabProfile();
@@ -17,18 +18,61 @@ export default function DesignLabIndex() {
         Design lab · development only
       </p>
       <h1 className="mt-3 text-3xl font-semibold text-[#ece7dd]">
-        D0 exploration, and the direction it resolved into
+        The exploration, and the design it resolved into
       </h1>
       <p className="mt-4 max-w-2xl text-sm leading-relaxed text-[#9a978f]">
-        A, B and C are the D0 exploration and are kept intact as review
-        artifacts. D is the consolidated direction chosen after that review.
-        Every route renders real published evaluations — identical scores, tags,
-        evidence and recommendation text — so differences are compositional
-        only. Nothing here is production UI.
+        A, B and C are the D0 exploration and D is the consolidated direction
+        after it; all four are historical review artifacts with components of
+        their own. D3 is different — it won, and it is the live game page, so
+        its routes render the production component rather than a copy of it.
+        Every route renders real published evaluations, so differences between
+        the directions are compositional only.
       </p>
 
-      {/* Direction D ------------------------------------------------------ */}
+      {/* D3 — the shipped design ------------------------------------------ */}
       <div className="mt-10 border-t-2 border-[#b4321e] pt-5">
+        <div className="flex items-baseline gap-3">
+          <span className="text-lg font-semibold text-[#b4321e]">
+            {D3.letter}
+          </span>
+          <h2 className="text-lg font-medium text-[#ece7dd]">{D3.name}</h2>
+          <span className="ml-auto text-xs uppercase tracking-[0.14em] text-[#6d6b64]">
+            Live on /games
+          </span>
+        </div>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#9a978f]">
+          {D3.thesis}
+        </p>
+        <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-[#6d6b64]">
+          These routes render the canonical <code>GameProfile</code>. The only
+          difference from the public page is the key art, which is cleared for
+          internal review and resolves to null on production — which is the one
+          thing worth a lab route once a design has shipped.
+        </p>
+        <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+          {designLabProfiles().map((view) => (
+            <li key={view.game.slug}>
+              <Link
+                href={`/design-lab/d3/${view.game.slug}`}
+                className="text-[#ece7dd] underline underline-offset-4"
+              >
+                {view.game.canonicalTitle}
+              </Link>
+            </li>
+          ))}
+          <li>
+            <Link
+              href="/design-lab/d3/states"
+              className="text-[#ece7dd] underline underline-offset-4"
+            >
+              Score-state proof
+            </Link>
+          </li>
+        </ul>
+      </div>
+
+      {/* Direction D — superseded by D3 ----------------------------------- */}
+      <div className="mt-10 border-t border-[#242a32] pt-5">
         <div className="flex items-baseline gap-3">
           <span className="text-lg font-semibold text-[#b4321e]">
             {DIRECTION_D.letter}

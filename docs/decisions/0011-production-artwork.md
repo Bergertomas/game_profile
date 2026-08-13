@@ -1,6 +1,6 @@
 # ADR 0011 — Production artwork comes from the game record, or not at all
 
-**Status:** Accepted · 2026-08-07
+**Status:** Accepted · 2026-08-07 · **Extended into the schema, 2026-08-13**
 **Context:** Design direction D3 is artwork-led and is now the public game page.
 The artwork D3 was designed against is evaluation-only and uncleared
 ([ADR 0010](0010-design-surfaces-and-site-environment.md)).
@@ -145,3 +145,40 @@ overlay entry is deleted, and nothing that renders it changes.
    does for the evaluation set.
 
 Until then the artless composition is the product, and it is a finished one.
+
+## Extension — the database, 2026-08-13
+
+This ADR described the application model. The database did not implement it:
+`games` held plain `cover_url` and `hero_url` columns, which record that an
+image is *reachable* and nothing about whether it may be shown. That is the
+failure this document exists to prevent, sitting in the schema — and the schema
+is the layer an import, a migration or a future editor writes to, none of which
+pass through `lib/profile/artwork.ts`.
+
+`game_artwork` replaces those columns and carries the model above verbatim: one
+row per (game, role), with `source`, `external_id`, `clearance`, `basis`,
+`credit`, `source_page` and `retrieved_at`. Enforced there rather than assumed:
+
+- production clearance cannot rest on an `internal-evaluation` basis —
+  the database half of `assertClearedBasis`;
+- production artwork must name who to credit and where it came from, because a
+  production rights position is a decision somebody took and has to be auditable;
+- URLs are absolute `https`, and intrinsic dimensions are positive — which is
+  how a surface reserves space before the image loads, and a zero would collapse
+  the layout the artless composition holds open.
+
+Validation now also refuses evaluation-clearance artwork on a **game fixture**,
+for the mechanical reason stated above: a fixture is reachable from every
+production page, so an uncleared URL there ships in the bundle unrendered but
+present. That was a comment in this document and in the overlay; it is a rule
+enforced where art would first enter the corpus, rather than only where a build
+is later scanned.
+
+Nothing about containment weakens. No seeded game carries artwork, the overlay
+stays behind its folded literal, `check:containment` still passes against the
+built production artefact, and production still renders the artless composition.
+
+**The open question at the top of this section is unchanged and is the only
+thing still blocking real artwork: the basis each publisher's art is held on.**
+That is a product and legal decision. Everything structural is now in place, and
+enabling a game is a data change on one row.
