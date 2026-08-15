@@ -65,9 +65,36 @@ export function adminDatabaseUrl(
 export function developmentIdentity(
   env: Readonly<Record<string, string | undefined>> = process.env,
 ): EditorIdentity | null {
-  if (SITE_ENV === "production") return null;
+  if (!isLocalDevelopmentRuntime(env)) return null;
   const email = env.ADMIN_DEV_IDENTITY?.trim();
   return email ? { email, source: "development" } : null;
+}
+
+/**
+ * Whether this process is a developer's own `next dev`, rather than any
+ * deployed artefact.
+ *
+ * BOTH HALVES ARE LOAD-BEARING, and getting this wrong is the difference
+ * between a local convenience and an open door.
+ *
+ * `SITE_ENV !== "production"` alone is NOT enough, which is the bug this
+ * replaces. A Cloudflare branch preview is a non-production site environment —
+ * and also a production-compiled build on a publicly reachable hostname. A
+ * preview configured with `ADMIN_DEV_IDENTITY` and `ADMIN_DATABASE_URL` but no
+ * Access application would have authenticated *every* request as that named
+ * editor without authenticating the requester at all. A remote deployment must
+ * require Cloudflare Access whether or not it is the production one.
+ *
+ * `NODE_ENV === "development"` is the half that says "a dev server": `next dev`
+ * sets it, and `next build` sets `production` even on a laptop, so no deployed
+ * artefact can carry it. `SITE_ENV` is kept as the second half because it folds
+ * to a literal at build time, which makes the whole branch unreachable in a
+ * production bundle rather than merely false at runtime.
+ */
+function isLocalDevelopmentRuntime(
+  env: Readonly<Record<string, string | undefined>>,
+): boolean {
+  return SITE_ENV !== "production" && env.NODE_ENV === "development";
 }
 
 /**

@@ -82,24 +82,60 @@ describe("The request-time database", () => {
 });
 
 describe("The development identity", () => {
-  it("works in a non-production build", async () => {
+  const DEV = { NODE_ENV: "development", ADMIN_DEV_IDENTITY: "tomas@example.com" };
+
+  it("works under a developer's own next dev", async () => {
     const { developmentIdentity } = await loadAuth("preview");
-    expect(developmentIdentity({ ADMIN_DEV_IDENTITY: "tomas@example.com" })).toEqual(
-      { email: "tomas@example.com", source: "development" },
-    );
+    expect(developmentIdentity(DEV)).toEqual({
+      email: "tomas@example.com",
+      source: "development",
+    });
   });
 
   /**
-   * The guard that carries the weight. `SITE_ENV` is substituted textually at
-   * build time, so in a production bundle this branch is unreachable — no value
-   * of `ADMIN_DEV_IDENTITY` can conjure an unauthenticated editor.
+   * `SITE_ENV` is substituted textually at build time, so in a production
+   * bundle this branch is unreachable — no value of `ADMIN_DEV_IDENTITY` can
+   * conjure an unauthenticated editor.
    */
   it("cannot exist in a production build, whatever the environment says", async () => {
     const { developmentIdentity, adminAvailability } = await loadAuth("production");
-    expect(developmentIdentity({ ADMIN_DEV_IDENTITY: "attacker@example.com" })).toBeNull();
+    expect(developmentIdentity({ ...DEV, ADMIN_DEV_IDENTITY: "attacker@example.com" })).toBeNull();
     expect(
-      adminAvailability({ ADMIN_DEV_IDENTITY: "attacker@example.com", ...DATABASE }),
+      adminAvailability({ ...DEV, ADMIN_DEV_IDENTITY: "attacker@example.com", ...DATABASE }),
     ).toEqual({ available: false, reason: "no-identity-provider" });
+  });
+
+  /**
+   * THE ONE THAT MATTERS MOST HERE.
+   *
+   * A Cloudflare branch preview is a non-production site environment AND a
+   * production-compiled build on a publicly reachable hostname. Keying the
+   * development identity on "not production" alone would mean a preview
+   * carrying `ADMIN_DEV_IDENTITY` and a database authenticated every request as
+   * that named editor — without authenticating the requester at all. A remote
+   * deployment must require Cloudflare Access whether or not it is production.
+   */
+  it("cannot exist on a deployed preview, which is remotely reachable", async () => {
+    const { developmentIdentity, adminAvailability } = await loadAuth("preview");
+    // A preview is built with `next build`, so NODE_ENV is production.
+    const previewEnv = {
+      NODE_ENV: "production",
+      ADMIN_DEV_IDENTITY: "anyone@example.com",
+      ...DATABASE,
+    };
+
+    expect(developmentIdentity(previewEnv)).toBeNull();
+    expect(adminAvailability(previewEnv)).toEqual({
+      available: false,
+      reason: "no-identity-provider",
+    });
+  });
+
+  it("still lets a preview run the admin, but only behind Access", async () => {
+    const { adminAvailability } = await loadAuth("preview");
+    expect(
+      adminAvailability({ NODE_ENV: "production", ...ACCESS, ...DATABASE }),
+    ).toEqual({ available: true });
   });
 });
 
@@ -107,7 +143,11 @@ describe("Resolving the editor for a request", () => {
   it("uses the development identity only where Access is not configured", async () => {
     const { resolveEditor } = await loadAuth("preview");
     await expect(
-      resolveEditor(new Headers(), { ...DATABASE, ADMIN_DEV_IDENTITY: "dev@example.com" }),
+      resolveEditor(new Headers(), {
+        ...DATABASE,
+        NODE_ENV: "development",
+        ADMIN_DEV_IDENTITY: "dev@example.com",
+      }),
     ).resolves.toEqual({ email: "dev@example.com", source: "development" });
   });
 
@@ -123,6 +163,7 @@ describe("Resolving the editor for a request", () => {
       resolveEditor(new Headers(), {
         ...ACCESS,
         ...DATABASE,
+        NODE_ENV: "development",
         ADMIN_DEV_IDENTITY: "dev@example.com",
       }),
     ).resolves.toBeNull();
