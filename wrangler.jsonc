@@ -39,25 +39,23 @@
   // starts using ISR or on-demand revalidation, by which time the Worker will
   // long since have deployed.
 
-  // Version preview URLs are how every non-production branch and pull request
-  // becomes reviewable in a browser. Workers Builds uploads a version (rather
-  // than deploying) for any branch that is not the production branch, so a
-  // preview can never take over production traffic.
+  // Non-production branches use Cloudflare version preview URLs.
+  // Production is served only through the canonical custom domain below.
   "preview_urls": true,
 
-  // Kept on so there is a working URL before shouldiplay.gg is attached to this
-  // Worker. Once the custom domain is live, set this to false: a production
-  // build answering on <worker>.workers.dev is a second host serving canonical
-  // content, and there is no reason to leave it addressable.
-  "workers_dev": true,
+  // Production routing is declared here so Wrangler is the source of truth.
+  // Do not manage this route only in the Cloudflare dashboard: `wrangler deploy`
+  // reconciles remote configuration against this file.
+  "workers_dev": false,
+
+  "routes": [
+    {
+      "pattern": "shouldiplay.gg",
+      "custom_domain": true
+    }
+  ],
 
   "observability": {
     "enabled": true
   }
-
-  // The production custom domain is attached in the Cloudflare dashboard
-  // (Workers > shouldiplay > Settings > Domains & Routes), not here, because the
-  // zone must already exist in the account for a `routes` entry to validate.
-  // Target state: shouldiplay.gg as a custom domain, www.shouldiplay.gg as a
-  // redirect rule to the apex. See docs/decisions/0008-cloudflare-hosting.md.
 }

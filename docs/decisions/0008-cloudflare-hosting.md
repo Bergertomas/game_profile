@@ -120,10 +120,17 @@ branch, and `scripts/cf-preview-deploy.mjs` attaches a `--preview-alias` derived
 from the branch name, so each branch keeps one stable, readable review URL that
 follows its newest commit rather than minting a new hostname per push.
 
-`workers_dev` is currently on so there is a working URL before `shouldiplay.gg`
-is attached. Turn it off once the custom domain is live: a production build
-answering on `<worker>.workers.dev` is a second host serving canonical content,
-and there is no reason to leave it addressable.
+`workers_dev` is off, as this ADR always intended once `shouldiplay.gg` was
+live: a production build answering on `<worker>.workers.dev` is a second host
+serving canonical content, and there is no reason to leave it addressable. It
+was on only to provide a working URL before the custom domain was attached.
+
+The custom domain is declared in `wrangler.jsonc` as a `routes` entry with
+`custom_domain: true`, not managed in the dashboard. `wrangler deploy`
+reconciles remote configuration against the file, so a dashboard-only route
+reads to Wrangler as remote drift and is warned about on every deploy;
+declaring it here makes the repository the source of truth for production
+routing, the same way it already is for the Worker's name and bindings.
 
 ## Worker identity is `should-i-play`, in three places
 
@@ -172,7 +179,7 @@ version problem.
 
 | File | Role |
 |---|---|
-| `wrangler.jsonc` | Worker name, `nodejs_compat`, assets and self-reference bindings, preview settings |
+| `wrangler.jsonc` | Worker name, `nodejs_compat`, assets and self-reference bindings, preview settings, production custom-domain route |
 | `open-next.config.ts` | Adapter config (bare; see above) |
 | `lib/site-env.ts` | Build-time environment resolution, importable from `next.config.ts` |
 | `scripts/cf-verify.mjs` | Pre-deploy gate: asserts what the Worker serves as production |
