@@ -40,6 +40,35 @@ export default async function NewEvaluationPage({
     (evaluation) => evaluation.status === "draft" || evaluation.status === "review",
   );
 
+  // One working evaluation per scope. The form is not disabled here, it is
+  // absent: a disabled control that posts anyway on a stale tab is a suggestion,
+  // and the editor's next move is to continue the open draft, not to look at a
+  // greyed-out copy of a form they cannot use. `createDraft` refuses this
+  // independently — this is the part that stops it being offered.
+  if (open) {
+    return (
+      <>
+        <h1 className="sip-display mb-2 text-[1.5rem]">
+          New evaluation — {history.gameTitle}, {history.scopeLabel}
+        </h1>
+        <Notice tone="blocked">
+          This scope already has an evaluation in progress (v{open.versionNumber},{" "}
+          {open.status}), so a new one cannot be started.{" "}
+          <AdminLink href={`/admin/evaluations/${open.id}`}>
+            Continue that evaluation
+          </AdminLink>{" "}
+          — two open evaluations of one experience is two answers to the same
+          question. Its published versions are unaffected.
+        </Notice>
+        <p className="mt-4 text-[0.85rem] text-ink-soft">
+          To start a different version instead, finish or discard v
+          {open.versionNumber} first.{" "}
+          <AdminLink href={`/admin/games/${game.id}`}>Back to the game</AdminLink>
+        </p>
+      </>
+    );
+  }
+
   return (
     <>
       <h1 className="sip-display mb-2 text-[1.5rem]">
@@ -49,18 +78,6 @@ export default async function NewEvaluationPage({
         This starts version {history.evaluations.length + 1} of this scope&rsquo;s
         evaluation series. Existing versions are untouched.
       </p>
-
-      {open ? (
-        <Notice tone="blocked">
-          This scope already has an evaluation in progress (v{open.versionNumber},{" "}
-          {open.status}).{" "}
-          <AdminLink href={`/admin/evaluations/${open.id}`}>
-            Continue that draft
-          </AdminLink>{" "}
-          rather than starting a second — two open drafts for one evaluated
-          experience is two answers to the same question.
-        </Notice>
-      ) : null}
 
       <Panel
         title="Declared scope"

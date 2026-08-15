@@ -63,6 +63,51 @@ function storedScore(value: SubcriterionValue): string | null {
 }
 
 /**
+ * One working evaluation per profile scope, and no more.
+ *
+ * A scope may hold at most one evaluation whose status is `draft` or `review`.
+ * The reason is editorial rather than technical: a profile scope names one
+ * evaluated experience, so two open evaluations of it are two answers to the
+ * same question, and nothing in the model says which one an editor is meant to
+ * finish. Published and superseded rows are untouched by this — a scope's
+ * history is as long as it needs to be; it is the *working* end that is single.
+ *
+ * Enforced here rather than in the pages, because a rule that lives in a form is
+ * a rule that a second tab, a stale render or a direct Server Action POST does
+ * not have. Both creation paths — a fresh Draft and a revision of published
+ * history — pass through it.
+ *
+ * `review` counts as open. In 2C it is a working readiness marker rather than
+ * formal approval, but an evaluation in it is still the one being worked on.
+ */
+async function assertScopeHasNoOpenEvaluation(
+  tx: AdminTransaction,
+  scopeId: string,
+): Promise<void> {
+  const [open] = await tx
+    .select({
+      versionNumber: t.evaluations.versionNumber,
+      status: t.evaluations.status,
+    })
+    .from(t.evaluations)
+    .where(
+      and(
+        eq(t.evaluations.scopeId, scopeId),
+        inArray(t.evaluations.status, ["draft", "review"]),
+      ),
+    )
+    .limit(1);
+  if (!open) return;
+
+  throw new EditorialRuleError(
+    `This scope already has an evaluation in progress (v${open.versionNumber}, ${open.status}). ` +
+      "Finish or discard it before starting another — two open evaluations of one " +
+      "experience is two answers to the same question. Published versions are " +
+      "unaffected.",
+  );
+}
+
+/**
  * Start a Draft for a scope.
  *
  * The version number is scope-local and per rubric (ADR 0014): a scope's series
@@ -82,6 +127,8 @@ export async function createDraft(
     .where(eq(t.profileScopes.id, scopeId))
     .limit(1);
   if (!scope) throw new EditorialRuleError("That profile scope does not exist.");
+
+  await assertScopeHasNoOpenEvaluation(tx, scopeId);
 
   const [highest] = await tx
     .select({ value: sql<number>`coalesce(max(version_number), 0)` })
@@ -518,21 +565,7 @@ export async function createRevision(
     .limit(1);
   if (!source) throw new EditorialRuleError("That evaluation does not exist.");
 
-  const [open] = await tx
-    .select({ id: t.evaluations.id })
-    .from(t.evaluations)
-    .where(
-      and(
-        eq(t.evaluations.scopeId, source.scopeId),
-        inArray(t.evaluations.status, ["draft", "review"]),
-      ),
-    )
-    .limit(1);
-  if (open) {
-    throw new EditorialRuleError(
-      "This scope already has an evaluation in progress. Finish or discard it before starting another revision — two open drafts for one evaluated experience is two answers to the same question.",
-    );
-  }
+  await assertScopeHasNoOpenEvaluation(tx, source.scopeId);
 
   const [highest] = await tx
     .select({ value: sql<number>`coalesce(max(version_number), 0)` })

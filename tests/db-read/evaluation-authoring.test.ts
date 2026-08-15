@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, it } from "vitest";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { closeDatabase, getDatabase } from "@/lib/db/client";
 import * as t from "@/lib/db/schema";
 import type { AdminTransaction } from "@/lib/admin/db";
@@ -138,6 +138,57 @@ describe("Starting a draft", () => {
     });
     // Returnal's seeded scope is a different series, so this one starts at 1.
     expect(versions).toBe(1);
+  });
+
+  /**
+   * One working evaluation per scope, proved on the ordinary path.
+   *
+   * `createRevision` has refused a second open evaluation since it was written,
+   * which made it easy to believe the rule was enforced. It was not: a plain
+   * second Draft went straight through, and the only thing standing in front of
+   * it was a page that rendered a notice above a working form.
+   */
+  it("refuses a second draft while one is already open", async () => {
+    const message = await refusalOf(() =>
+      inRolledBackTransaction(async (tx) => {
+        const scopeId = await newScope(tx);
+        await write.createDraft(tx, scopeId, CONTEXT, "e@example.com");
+        await write.createDraft(tx, scopeId, CONTEXT, "e@example.com");
+      }),
+    );
+    expect(message).toMatch(/already has an evaluation in progress/i);
+  });
+
+  it("counts an evaluation in review as open", async () => {
+    // `review` is a working readiness marker in 2C, not approval — an
+    // evaluation sitting in it is still the one being worked on.
+    const message = await refusalOf(() =>
+      inRolledBackTransaction(async (tx) => {
+        const scopeId = await newScope(tx);
+        const first = await write.createDraft(tx, scopeId, CONTEXT, "e@example.com");
+        await write.setWorkingStatus(tx, first, "review");
+        await write.createDraft(tx, scopeId, CONTEXT, "e@example.com");
+      }),
+    );
+    expect(message).toMatch(/already has an evaluation in progress/i);
+  });
+
+  it("still starts a draft on a scope whose history is entirely published", async () => {
+    // The rule is about the *working* end of the series. Published and
+    // superseded rows are history, however many there are, and a scope that has
+    // published before must still be able to start its next version.
+    const status = await inRolledBackTransaction(async (tx) => {
+      const [published] = await tx
+        .select({ scopeId: t.evaluations.scopeId })
+        .from(t.evaluations)
+        .innerJoin(t.games, eq(t.games.id, t.evaluations.gameId))
+        .where(and(eq(t.games.slug, "alan-wake-2"), eq(t.evaluations.status, "published")))
+        .limit(1);
+      const id = await write.createDraft(tx, published!.scopeId, CONTEXT, "e@example.com");
+      const view = await readEvaluationEditor(tx as never, id);
+      return view?.status;
+    });
+    expect(status).toBe("draft");
   });
 });
 
