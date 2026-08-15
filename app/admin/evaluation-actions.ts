@@ -370,6 +370,27 @@ export async function setTagsAction(
   return result;
 }
 
+/**
+ * One tag, one place up or down the reader's list.
+ *
+ * Separate from `setTagsAction` because they answer different questions. That
+ * one writes membership — which tags, with what intensity and note — from a
+ * checkbox list whose DOM order is the current order. This one changes that
+ * order, which a checkbox cannot express.
+ */
+export async function moveTagAction(
+  evaluationId: string,
+  tagKey: string,
+  direction: "up" | "down",
+): Promise<ActionResult> {
+  await requireEditor();
+  const result = await guarded(() =>
+    withAdminTransaction((tx) => write.moveTag(tx, evaluationId, tagKey, direction)),
+  );
+  refresh(evaluationId);
+  return result;
+}
+
 export async function saveInterpretationAction(
   evaluationId: string,
   _previous: ActionResult | null,

@@ -635,6 +635,89 @@ describe("Tags", () => {
     expect(view!.tags[0]!.note).toBe("Persistent.");
     expect(view!.tags[2]!.intensity).toBe("high");
   });
+
+  /**
+   * Order an editor can actually change.
+   *
+   * `setTags` has always written whatever order it was handed, which made the
+   * write layer look finished. It was not reachable: the only way to select a
+   * tag was a checkbox list, and ticking boxes says which tags and nothing
+   * about which comes first. So the stored order could only ever be the
+   * vocabulary's. These prove the arrows author it instead.
+   */
+  it("can be rearranged away from the controlled vocabulary's order", async () => {
+    // Selected in vocabulary order on purpose — linear is 1st in the
+    // vocabulary, horror 31st, melancholy 35th — so any authored order this
+    // produces is one nothing could have derived.
+    const keys = await inRolledBackTransaction(async (tx) => {
+      const scopeId = await newScope(tx);
+      const id = await write.createDraft(tx, scopeId, CONTEXT, "e@example.com");
+      await write.setTags(tx, id, [
+        { key: "linear", intensity: undefined, note: undefined },
+        { key: "horror", intensity: undefined, note: undefined },
+        { key: "melancholy", intensity: undefined, note: undefined },
+      ]);
+      await write.moveTag(tx, id, "melancholy", "up");
+      await write.moveTag(tx, id, "melancholy", "up");
+      const view = await readEvaluationEditor(tx as never, id);
+      return view?.tags.map((tag) => tag.key);
+    });
+
+    expect(keys).toEqual(["melancholy", "linear", "horror"]);
+    // Not the vocabulary's order, and not alphabetical either — the two orders
+    // something could have produced without an editor.
+    expect(keys).not.toEqual(["linear", "horror", "melancholy"]);
+    expect(keys).not.toEqual([...keys!].sort());
+  });
+
+  it("survives a later save of the selection", async () => {
+    // The round trip that makes the arrows worth having. The chooser renders
+    // selected tags first in their authored order and submits in document
+    // order, so re-saving — here, ticking a fourth tag — must not undo the
+    // arrangement.
+    const keys = await inRolledBackTransaction(async (tx) => {
+      const scopeId = await newScope(tx);
+      const id = await write.createDraft(tx, scopeId, CONTEXT, "e@example.com");
+      await write.setTags(tx, id, [
+        { key: "linear", intensity: undefined, note: undefined },
+        { key: "horror", intensity: undefined, note: undefined },
+        { key: "melancholy", intensity: undefined, note: undefined },
+      ]);
+      await write.moveTag(tx, id, "melancholy", "up");
+
+      const arranged = await readEvaluationEditor(tx as never, id);
+      await write.setTags(tx, id, [
+        ...arranged!.tags.map((tag) => ({
+          key: tag.key,
+          intensity: tag.intensity ?? undefined,
+          note: tag.note ?? undefined,
+        })),
+        { key: "cozy", intensity: undefined, note: undefined },
+      ]);
+
+      const view = await readEvaluationEditor(tx as never, id);
+      return view?.tags.map((tag) => tag.key);
+    });
+
+    expect(keys).toEqual(["linear", "melancholy", "horror", "cozy"]);
+  });
+
+  it("does not move the first tag up, or the last one down", async () => {
+    const keys = await inRolledBackTransaction(async (tx) => {
+      const scopeId = await newScope(tx);
+      const id = await write.createDraft(tx, scopeId, CONTEXT, "e@example.com");
+      await write.setTags(tx, id, [
+        { key: "linear", intensity: undefined, note: undefined },
+        { key: "horror", intensity: undefined, note: undefined },
+      ]);
+      await write.moveTag(tx, id, "linear", "up");
+      await write.moveTag(tx, id, "horror", "down");
+      const view = await readEvaluationEditor(tx as never, id);
+      return view?.tags.map((tag) => tag.key);
+    });
+
+    expect(keys).toEqual(["linear", "horror"]);
+  });
 });
 
 describe("Interpretation", () => {

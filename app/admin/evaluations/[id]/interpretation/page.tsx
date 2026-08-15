@@ -1,10 +1,17 @@
 import { notFound } from "next/navigation";
 import {
+  moveTagAction,
   saveInterpretationAction,
   setTagsAction,
 } from "@/app/admin/evaluation-actions";
-import { ActionForm, Field, TextArea, TextInput } from "@/components/admin/forms";
-import { Notice, Panel } from "@/components/admin/ui";
+import {
+  ActionButton,
+  ActionForm,
+  Field,
+  TextArea,
+  TextInput,
+} from "@/components/admin/forms";
+import { Empty, Notice, Panel, Pill } from "@/components/admin/ui";
 import { readEvaluationPage } from "@/lib/admin/evaluations";
 import { BLOCK_HEADINGS } from "@/lib/admin/evaluation-validation";
 import { TAGS } from "@/lib/rubric/tags";
@@ -21,12 +28,15 @@ import { TAGS } from "@/lib/rubric/tags";
  * evidence status rather than chosen by the editor, because they are a
  * consequence of that status and not an independent decision.
  *
- * ── Tag order is the payload ────────────────────────────────────────────────
+ * ── Membership and order are two different acts ─────────────────────────────
  *
- * Migration 0008 gave `evaluation_tags` a `display_order`, so the sequence
- * below is the sequence a reader sees. The form submits the whole selection in
- * document order and the write replaces the list, because reconciling per-row
- * edits with a reordering would be more machinery for the same result.
+ * Migration 0008 gave `evaluation_tags` a `display_order`, so the sequence a
+ * reader meets is authored rather than derived. A checkbox list cannot author
+ * it: ticking forty-four boxes says which tags, and says nothing about which
+ * comes first. So the panels are split the way the evidence step splits — an
+ * ordered list with Up/Down at the top, the chooser below — and `setTags`
+ * preserves the order the arrows established, because the chooser renders
+ * selected tags first, in that order, and submits in document order.
  */
 export default async function InterpretationPage({
   params,
@@ -54,16 +64,55 @@ export default async function InterpretationPage({
   return (
     <>
       <Panel
-        title="Experience tags"
-        description="The controlled vocabulary, in the order you put them. Tags describe what playing this is like — they are not genres and they are not scores."
+        title={`Experience tags (${view.tags.length})`}
+        description="What a reader sees, in the order they see it. Tags describe what playing this is like — they are not genres and they are not scores."
       >
-        {view.editable ? (
+        {view.tags.length === 0 ? (
+          <Empty>No tags selected yet.</Empty>
+        ) : (
+          <ol className="m-0 list-none p-0">
+            {view.tags.map((tag, index) => (
+              <li
+                key={tag.key}
+                className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-rule py-1.5 last:border-b-0"
+              >
+                <span className="w-6 shrink-0 tabular-nums text-ink-quiet">
+                  {index + 1}
+                </span>
+                <span className="text-[0.9rem]">{tag.label}</span>
+                {tag.intensity ? <Pill tone="past">{tag.intensity}</Pill> : null}
+                {tag.note ? (
+                  <span className="text-[0.82rem] text-ink-soft">{tag.note}</span>
+                ) : null}
+                {view.editable ? (
+                  <span className="ml-auto flex gap-1">
+                    <ActionButton
+                      action={moveTagAction.bind(null, view.id, tag.key, "up")}
+                      label="↑"
+                    />
+                    <ActionButton
+                      action={moveTagAction.bind(null, view.id, tag.key, "down")}
+                      label="↓"
+                    />
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ol>
+        )}
+      </Panel>
+
+      {view.editable ? (
+        <Panel
+          title="Choose tags"
+          description="Tick a tag to include it. Order is set above — a new tag joins the end of the list."
+        >
           <ActionForm action={setTagsAction.bind(null, view.id)} submitLabel="Save tags">
             <>
               <Notice>
-                Order matters: the first tags are the ones a reader sees first.
-                Tick a tag to include it; the sequence below is the sequence that
-                is stored.
+                Saving keeps the order set above; newly ticked tags append. The
+                vocabulary is closed (Rubric §20) — a tag that does not exist here
+                is a tag this profile does not claim.
               </Notice>
               <ul className="m-0 list-none p-0">
                 {ordered.map((tag) => {
@@ -115,18 +164,8 @@ export default async function InterpretationPage({
               </ul>
             </>
           </ActionForm>
-        ) : (
-          <ol className="m-0 list-none p-0">
-            {view.tags.map((tag) => (
-              <li key={tag.key} className="border-b border-rule py-1 last:border-b-0">
-                {tag.label}
-                {tag.intensity ? ` · ${tag.intensity}` : ""}
-                {tag.note ? ` — ${tag.note}` : ""}
-              </li>
-            ))}
-          </ol>
-        )}
-      </Panel>
+        </Panel>
+      ) : null}
 
       <Panel
         title="Interpretation"

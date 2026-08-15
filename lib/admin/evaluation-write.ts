@@ -503,6 +503,62 @@ export async function setTags(
 }
 
 /**
+ * Move one selected tag up or down the reader's list.
+ *
+ * `setTags` alone could not express this. It writes the selection in the order
+ * the form submits it, and a checkbox list submits in DOM order — so ticking a
+ * box could choose membership but nothing could choose sequence. Migration 0008
+ * stores an authored order; this is what authors it.
+ *
+ * It renumbers the whole list rather than swapping two positions, which is the
+ * one place it deliberately differs from `moveEvidenceLink`. 0008 declines to
+ * make `display_order` unique, on purpose, so two rows may legitimately share a
+ * position — and swapping two equal numbers is a no-op that reads to an editor
+ * as a dead button. Renumbering 1..n has no such case, and matches what
+ * `setTags` already does on every save.
+ */
+export async function moveTag(
+  tx: AdminTransaction,
+  evaluationId: string,
+  tagKey: string,
+  direction: "up" | "down",
+): Promise<void> {
+  await assertEvaluationEditable(tx as never, evaluationId);
+
+  const rows = await tx
+    .select({
+      tagId: t.evaluationTags.tagId,
+      key: t.tags.key,
+    })
+    .from(t.evaluationTags)
+    .innerJoin(t.tags, eq(t.tags.id, t.evaluationTags.tagId))
+    .where(eq(t.evaluationTags.evaluationId, evaluationId))
+    // The reader's order exactly: the stored position, then the key as the
+    // tiebreaker, which is what lib/db/read-profiles.ts sorts by.
+    .orderBy(t.evaluationTags.displayOrder, t.tags.key);
+
+  const index = rows.findIndex((row) => row.key === tagKey);
+  const target = direction === "up" ? index - 1 : index + 1;
+  if (index === -1 || target < 0 || target >= rows.length) return;
+
+  const reordered = [...rows];
+  const [moved] = reordered.splice(index, 1);
+  reordered.splice(target, 0, moved!);
+
+  for (const [position, row] of reordered.entries()) {
+    await tx
+      .update(t.evaluationTags)
+      .set({ displayOrder: position + 1 })
+      .where(
+        and(
+          eq(t.evaluationTags.evaluationId, evaluationId),
+          eq(t.evaluationTags.tagId, row.tagId),
+        ),
+      );
+  }
+}
+
+/**
  * The interpretation an editor writes for a reader.
  *
  * Blocks are replaced wholesale for the same reason tags are: their order is
