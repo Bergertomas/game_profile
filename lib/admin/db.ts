@@ -41,7 +41,7 @@ export type AdminTransaction = Parameters<
 /**
  * Run one unit of editorial work against Postgres, **for a verified editor**.
  *
- * THIS IS THE ONE TO USE FROM A PAGE OR AN ACTION. The unauthorised
+ * THIS IS THE ONE TO USE FROM A page OR an action. The unauthorised
  * `withAdminDatabase` below opens a connection to a database full of
  * unpublished drafts, superseded history and uncleared artwork; it exists for
  * tests and for internal composition, and reaching for it from a route is how
@@ -94,6 +94,29 @@ export async function withAdminDatabase<T>(
 
   try {
     return await run(drizzle(client, { schema }));
+  } catch (error) {
+    const cause =
+      error instanceof Error && "cause" in error
+        ? (error as Error & { cause?: unknown }).cause
+        : undefined;
+
+    console.error("[admin-db] request-time database failure", {
+      name: error instanceof Error ? error.name : typeof error,
+      message: error instanceof Error ? error.message : String(error),
+      cause:
+        cause instanceof Error
+          ? {
+              name: cause.name,
+              message: cause.message,
+              code:
+                "code" in cause
+                  ? (cause as Error & { code?: unknown }).code
+                  : undefined,
+            }
+          : cause,
+    });
+
+    throw error;
   } finally {
     await client.end({ timeout: 5 });
   }
