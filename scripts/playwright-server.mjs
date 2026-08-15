@@ -34,7 +34,15 @@ const nextCli = join(root, "node_modules", "next", "dist", "bin", "next");
 const env = {
   ...process.env,
   ...(corpus
-    ? { PROFILE_TEST_CORPUS: corpus, NEXT_DIST_DIR: `.next-${corpus}` }
+    ? {
+        PROFILE_TEST_CORPUS: corpus,
+        NEXT_DIST_DIR: `.next-${corpus}`,
+        // A named corpus is fixture-backed by definition. CI supplies these
+        // variables for the ordinary server; empty values also prevent a local
+        // .env file from making this build silently bypass its synthetic corpus.
+        DATABASE_URL: "",
+        REQUIRE_DATABASE: "",
+      }
     : {}),
 };
 

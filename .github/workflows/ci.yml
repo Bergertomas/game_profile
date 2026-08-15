@@ -105,6 +105,8 @@ jobs:
 
       - name: Run browser integration tests
         run: npm run test:e2e
+        # The ordinary server exercises Postgres. Named synthetic-corpus servers
+        # clear both database switches in scripts/playwright-server.mjs.
         env:
           DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/game_profile_read_ci
 
