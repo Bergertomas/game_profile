@@ -262,7 +262,8 @@ for later_migration in \
   lib/db/migrations/0004_platform_overrides.sql \
   lib/db/migrations/0005_score_provenance.sql \
   lib/db/migrations/0006_game_artwork.sql \
-  lib/db/migrations/0007_primary_scope.sql
+  lib/db/migrations/0007_primary_scope.sql \
+  lib/db/migrations/0008_authored_ordering.sql
 do
   if upgrade_out="$(psql "$UPGRADE_DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -1 \
       -f "$later_migration" 2>&1)"; then
@@ -306,6 +307,22 @@ expect 'upgrade moves live-row uniqueness onto the scope' \
    WHERE schemaname='public'
      AND indexname='evaluations_one_published_per_scope_rubric'
      AND indexdef LIKE '%(scope_id, rubric_version)%';" '1'
+
+# 0008 numbers tags and evidence links beneath evaluations 0002 has already
+# frozen, so it is the first migration whose backfill the child-immutability
+# trigger refuses outright. The first version of it did exactly that, and every
+# database this repository builds from scratch migrated while empty and never
+# noticed — which is what this whole section exists to prevent. The three checks
+# are: it ran, it produced values, and it gave the guarantee back.
+expect 'upgrade numbers every existing tag row, not just the ones it could see' \
+  "SELECT count(*) FROM evaluation_tags WHERE display_order = 0;" '0'
+expect 'upgrade numbers every existing evidence link' \
+  "SELECT count(*) FROM evaluation_evidence_links WHERE display_order = 0;" '0'
+expect 'upgrade leaves both child-immutability triggers armed' \
+  "SELECT count(*) FROM pg_trigger
+   WHERE tgname IN ('evaluation_tags_snapshot_immutable',
+                    'evaluation_evidence_links_snapshot_immutable')
+     AND tgenabled = 'O';" '2'
 expect 'upgrade corrects Returnal mode scope' \
   "SELECT evaluation.mode_scope
    FROM evaluations AS evaluation

@@ -20,12 +20,49 @@
 -- surrogate. Each existing row is numbered by the order the public site is
 -- currently putting it in, so no published page changes when the readers start
 -- honouring the column.
+--
+-- ── Why the immutability triggers are switched off, and only here ──────────
+--
+-- `evaluation_tags` and `evaluation_evidence_links` carry
+-- `trg_evaluation_child_immutable`, which refuses any INSERT, UPDATE or DELETE
+-- against a child of a `published` or `superseded` evaluation. That is the rule
+-- the whole editorial model rests on, and the backfill below is an UPDATE of
+-- exactly those rows, so on any database holding a published profile the first
+-- version of this migration died on:
+--
+--     children of final evaluation 05668920-… are immutable; create a new version
+--
+-- It ran green everywhere anyway, because every database this repository builds
+-- from scratch — CI, the local harnesses, the regression suite — migrates while
+-- empty and seeds afterwards. The only databases with published rows at
+-- migration time are the real ones.
+--
+-- Adding a presentation column to history is migration-level work, which is the
+-- one thing the trigger is not there to stop: it exists so that *editorial*
+-- writes cannot revise a final evaluation, and the answer it gives — "create a
+-- new version" — is not available to a schema change. The alternative is worse
+-- and silent: leave every published row at the column default and the public
+-- pages re-order themselves the moment the readers start honouring it.
+--
+-- So the two triggers come off, for two statements, and go straight back on.
+-- Drizzle runs a migration inside one transaction, so a failure anywhere below
+-- rolls the re-enable back with everything else — the triggers cannot be left
+-- off by a half-applied migration. Nothing else is disabled: the tag-definition
+-- and rubric-coherence triggers fire only on columns this migration never
+-- touches, and they stay armed throughout.
 
 ALTER TABLE evaluation_tags
   ADD COLUMN display_order integer NOT NULL DEFAULT 0;
 --> statement-breakpoint
 ALTER TABLE evaluation_evidence_links
   ADD COLUMN display_order integer NOT NULL DEFAULT 0;
+--> statement-breakpoint
+
+ALTER TABLE evaluation_tags
+  DISABLE TRIGGER evaluation_tags_snapshot_immutable;
+--> statement-breakpoint
+ALTER TABLE evaluation_evidence_links
+  DISABLE TRIGGER evaluation_evidence_links_snapshot_immutable;
 --> statement-breakpoint
 
 -- ---------------------------------------------------------------------------
@@ -124,6 +161,15 @@ UPDATE evaluation_evidence_links AS l
 SET display_order = numbered.authored_order
 FROM numbered
 WHERE numbered.id = l.id;
+--> statement-breakpoint
+
+-- Immutability restored. Every write after this migration commits — editorial,
+-- scripted or by hand — faces the same refusal it faced before.
+ALTER TABLE evaluation_tags
+  ENABLE TRIGGER evaluation_tags_snapshot_immutable;
+--> statement-breakpoint
+ALTER TABLE evaluation_evidence_links
+  ENABLE TRIGGER evaluation_evidence_links_snapshot_immutable;
 --> statement-breakpoint
 
 -- ---------------------------------------------------------------------------

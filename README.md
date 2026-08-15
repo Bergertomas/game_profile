@@ -315,17 +315,20 @@ That is `db:migrate` followed by `db:seed`, and it is the canonical path — the
 is no second step to remember. `0000_schema.sql` creates the tables,
 `0001_contract.sql` installs the first checks and derived `dimension_scores`
 view, and `0002_contract_hardening.sql` registers rubric identity and freezes
-final history. `0003`–`0006` add profile scopes, platform overrides, general
-score provenance and the artwork rights record. Drizzle applies every pending
-migration transactionally, so the schema is never left half-built.
+final history. `0003`–`0008` add profile scopes, platform overrides, general
+score provenance, the artwork rights record, explicit primary scopes and
+authored ordering for tags and evidence. Drizzle applies every pending migration
+transactionally, so the schema is never left half-built.
 
-`0003`, `0005` and `0006` restructure columns beneath rows the `0002`
-immutability triggers have frozen. Each disables user triggers for the
-structural rewrite only, changes no score, status or judgement, and re-runs the
-completeness and lineage assertions over every row before committing. The
-regression suite applies them to a *populated* database built from
-`tests/db/fixtures/seed-pre-0003.sql`, because a migration that only builds a
-correct empty schema has not been shown to upgrade anything.
+`0003`, `0005`, `0006` and `0008` write beneath rows the `0002` immutability
+triggers have frozen. Each disables the relevant user triggers for that work
+only, changes no score, status or judgement, and re-arms them before committing;
+because Drizzle runs a migration in one transaction, a failure cannot leave a
+trigger off. The regression suite applies every one of them to a *populated*
+database built from `tests/db/fixtures/seed-pre-0003.sql`, because a migration
+that only builds a correct empty schema has not been shown to upgrade anything —
+`0008` shipped without that check and was refused by the very trigger the section
+exists to catch, on the only databases that have published rows: the real ones.
 
 ```bash
 npm run db:migrate                     # schema only
