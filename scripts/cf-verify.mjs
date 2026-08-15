@@ -160,8 +160,43 @@ try {
   // they are reachable, which is exactly when it would be easy to list them.
   check("sitemap omits dev surfaces", !sitemap.includes("/dev/") && !sitemap.includes("/design-lab"));
 
-  const og = await head("/games/returnal/opengraph-image");
-  check("share card renders", og.status === 200 && (og.type ?? "").includes("image/png"), `${og.status} ${og.type}`);
+  // Followed from the page's own `og:image` rather than hard-coded. Next
+  // appends a cache-busting hash to a generated image route, derived from that
+  // route's module path — so it moves whenever the file moves, as it did when
+  // the public routes went into a route group. The address a crawler is
+  // actually handed is the one worth verifying.
+  const shareCardUrl = page.match(/property="og:image"\s+content="([^"]+)"/)?.[1];
+  check("game page publishes a share-card URL", Boolean(shareCardUrl), shareCardUrl ?? "none");
+  if (shareCardUrl) {
+    const { pathname, search } = new URL(shareCardUrl);
+    const og = await head(`${pathname}${search}`);
+    check(
+      "share card renders",
+      og.status === 200 && (og.type ?? "").includes("image/png"),
+      `${og.status} ${og.type}`,
+    );
+  }
+
+  // The editorial tool, in the artefact that actually deploys.
+  //
+  // It ships in every build and is switched on by configuration this deployment
+  // does not have: no Cloudflare Access application, no `ADMIN_DATABASE_URL`
+  // (ADR 0018). Unconfigured, it must be indistinguishable from a path that was
+  // never routed — in BOTH environments, because a preview carries the same
+  // code and unpublished editorial is not preview-appropriate content either.
+  //
+  // Asked of workerd rather than of `next start`, because the whole reason this
+  // script exists is that the two runtimes disagree: the obvious `proxy.ts`
+  // gate passed everywhere else and could not be built for Cloudflare at all.
+  for (const path of ["/admin", "/admin/games", "/admin/games/new"]) {
+    const res = await get(path);
+    check(`${path} is not reachable unconfigured`, res.status === 404, String(res.status));
+    check(
+      `${path} is never indexable`,
+      (res.headers?.get("x-robots-tag") ?? "").includes("noindex"),
+      res.headers?.get("x-robots-tag") ?? "absent",
+    );
+  }
 
   const DESIGN_SURFACES = ["/dev/radar-states", "/design-lab", "/design-lab/d3/alan-wake-2"];
   for (const path of DESIGN_SURFACES) {
@@ -266,7 +301,14 @@ async function get(path) {
   const response = await fetch(`${ORIGIN}${path}`, {
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
-  return { status: response.status, body: await response.text() };
+  // Headers as well as the body: the admin checks assert on `x-robots-tag`,
+  // which is routing configuration rather than page content and so cannot be
+  // read out of the HTML.
+  return {
+    status: response.status,
+    headers: response.headers,
+    body: await response.text(),
+  };
 }
 
 async function head(path) {

@@ -100,8 +100,20 @@ test.describe("game page discoverability", () => {
   }
 });
 
-test("the share card renders as a real PNG", async ({ request }) => {
-  const response = await request.get("/games/alan-wake-2/opengraph-image");
+test("the share card renders as a real PNG", async ({ page, request }) => {
+  // Followed from the page's own `og:image` rather than hard-coded. Next
+  // appends a cache-busting hash to a generated image route, and that hash is
+  // derived from the route's module path — so it moves whenever the file does,
+  // as it did when the public routes went into a route group. Reading the URL
+  // the crawler is actually given tests the contract that matters: the address
+  // published in the metadata resolves to a real image.
+  await page.goto("/games/alan-wake-2");
+  const url = await page
+    .locator('meta[property="og:image"]')
+    .getAttribute("content");
+  expect(url).toBeTruthy();
+
+  const response = await request.get(new URL(url!).pathname + new URL(url!).search);
   expect(response.status()).toBe(200);
   expect(response.headers()["content-type"]).toContain("image/png");
   expect((await response.body()).byteLength).toBeGreaterThan(10_000);

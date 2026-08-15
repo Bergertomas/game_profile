@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { GameCard } from "@/components/GameCard";
 import { GameProfile } from "@/components/profile/GameProfile";
+import type { ScopeLink } from "@/components/profile/ScopeSwitcher";
 import { JsonLd } from "@/components/JsonLd";
 import { heroArtworkFor } from "@/lib/profile/artwork";
 import type { ProfileView } from "@/lib/profile/build";
-import { listGameProfiles } from "@/lib/data/games";
+import { listGameProfiles, listProfileScopes } from "@/lib/data/games";
 import { gameProfileGraph } from "@/lib/seo/structured-data";
 import { gameTitle, profilePath, profileUrl } from "@/lib/site";
 
@@ -20,14 +21,44 @@ import { gameTitle, profilePath, profileUrl } from "@/lib/site";
  * width, the profile answers it on a graphite field attached to the stage, and
  * everything about how the evaluation was made is collected below.
  */
-export function ProfilePageBody({ profile }: { profile: ProfileView }) {
+export async function ProfilePageBody({ profile }: { profile: ProfileView }) {
   return (
     <>
       <JsonLd data={gameProfileGraph(profile)} />
-      <GameProfile profile={profile} artwork={heroArtworkFor(profile.game)} />
+      <GameProfile
+        profile={profile}
+        artwork={heroArtworkFor(profile.game)}
+        scopes={await siblingScopes(profile)}
+      />
       <MoreInTheLibrary current={profile} />
     </>
   );
+}
+
+/**
+ * Every published profile of this game, for the scope switcher.
+ *
+ * Resolved here rather than inside `GameProfile` because that component is a
+ * client component: it cannot read the data layer, and passing it a ready list
+ * of links keeps the switcher's markup static.
+ *
+ * Each entry carries that profile's own canonical address — the primary scope's
+ * is the bare game URL, a sibling's is its scoped path. Never a query parameter
+ * and never a client-side swap: two evaluations on one address makes one of
+ * them unlinkable and invisible to a crawler (ADR 0016).
+ */
+async function siblingScopes(profile: ProfileView): Promise<ScopeLink[]> {
+  const scopes = await listProfileScopes(profile.game.slug);
+  // The ordinary case. Nothing is rendered for it, so nothing is computed.
+  if (scopes.length < 2) return [];
+
+  return scopes.map((other) => ({
+    key: other.scope.key,
+    label: other.scope.label,
+    summary: other.scope.summary,
+    href: profilePath(other.game.slug, other.scope),
+    isCurrent: other.scope.key === profile.scope.key,
+  }));
 }
 
 /**
