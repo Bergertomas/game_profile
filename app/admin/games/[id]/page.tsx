@@ -51,6 +51,11 @@ export default async function AdminGamePage({
   const attached = new Set(
     game.platforms.map((platform) => platform.platformId),
   );
+  // A slug is a working title until something publishes at it; after that it is
+  // an address people hold. Same reasoning as a scope key, one level up.
+  const slugIsFixed = game.scopes.some(
+    (scope) => scope.publishedRubricVersions.length > 0,
+  );
   const available = platforms.filter((platform) => !attached.has(platform.id));
 
   return (
@@ -78,13 +83,31 @@ export default async function AdminGamePage({
                 required
               />
             </Field>
-            <Field
-              name="slug"
-              label="Slug"
-              hint="Changing this changes every public address for this game, including ones already shared and indexed."
-            >
-              <TextInput name="slug" defaultValue={game.slug} required />
-            </Field>
+            {slugIsFixed ? (
+              // Submitted unchanged so the form still validates, and refused
+              // server-side if it ever arrives altered.
+              <div className="mb-3">
+                <p className="mb-1 mt-0 text-[0.78rem] uppercase tracking-wide text-ink-quiet">
+                  Slug
+                </p>
+                <input type="hidden" name="slug" value={game.slug} />
+                <code className="text-[0.9rem] text-ink-soft">{game.slug}</code>
+                <p className="mb-0 mt-1 text-[0.78rem] text-ink-soft">
+                  Fixed: this game publishes a profile at{" "}
+                  <code>/games/{game.slug}</code>. Changing it would break every
+                  link and search result pointing there, and nothing would
+                  redirect them. Renaming a published game is migration work.
+                </p>
+              </div>
+            ) : (
+              <Field
+                name="slug"
+                label="Slug"
+                hint="Still editable because nothing is published at this address yet. It is fixed once a profile publishes."
+              >
+                <TextInput name="slug" defaultValue={game.slug} required />
+              </Field>
+            )}
             <Field
               name="summary"
               label="Summary"

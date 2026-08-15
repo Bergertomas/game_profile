@@ -570,3 +570,142 @@ describe("The editorial dashboard", () => {
     expect(primary?.publishedRubricVersions).toEqual(["1.0"]);
   });
 });
+
+describe("Identity is not an ordinary content edit", () => {
+  /**
+   * Master Plan §8.3 requires the editor to "treat a scope-key rename as
+   * migration-level identity work". A warning next to a Save button does not do
+   * that, so the key is frozen once the scope has history — enforced here
+   * rather than only hidden in the form, because a hidden field can be forged.
+   */
+  it("refuses a scope-key rename once the scope has evaluations", async () => {
+    const message = await inRolledBackTransaction(async (tx) => {
+      const [scope] = await tx
+        .select({ id: t.profileScopes.id, gameId: t.profileScopes.gameId })
+        .from(t.profileScopes)
+        .innerJoin(t.games, eq(t.games.id, t.profileScopes.gameId))
+        .where(eq(t.games.slug, "returnal"))
+        .limit(1);
+
+      try {
+        await write.updateScope(tx, scope!.gameId, scope!.id, {
+          key: "renamed",
+          label: "Main game",
+          summary: undefined,
+          displayOrder: 1,
+        });
+      } catch (error) {
+        return error instanceof Error ? error.message : String(error);
+      }
+      return "";
+    });
+
+    expect(message).toMatch(/scope key .* is fixed/i);
+    expect(message).toMatch(/evaluation history/i);
+  });
+
+  it("still allows everything that is presentation", async () => {
+    const view = await inRolledBackTransaction(async (tx) => {
+      const [scope] = await tx
+        .select({ id: t.profileScopes.id, gameId: t.profileScopes.gameId, key: t.profileScopes.key })
+        .from(t.profileScopes)
+        .innerJoin(t.games, eq(t.games.id, t.profileScopes.gameId))
+        .where(eq(t.games.slug, "returnal"))
+        .limit(1);
+
+      await write.updateScope(tx, scope!.gameId, scope!.id, {
+        key: scope!.key,
+        label: "The campaign",
+        summary: "Reworded.",
+        displayOrder: 4,
+      });
+      await tx.execute(sql.raw("SET CONSTRAINTS ALL IMMEDIATE"));
+      return getGameForAdmin(tx as never, scope!.gameId);
+    });
+
+    const scope = view?.scopes[0];
+    expect(scope?.label).toBe("The campaign");
+    expect(scope?.displayOrder).toBe(4);
+    expect(scope?.key).toBe("default");
+  });
+
+  it("allows a scope key to be corrected while it has no history", async () => {
+    const view = await inRolledBackTransaction(async (tx) => {
+      const gameId = await write.createGame(tx, NEW_GAME);
+      const scopeId = await write.createScope(tx, gameId, {
+        key: "typpo",
+        label: "Main game",
+        summary: undefined,
+        displayOrder: 1,
+      });
+      await write.updateScope(tx, gameId, scopeId, {
+        key: "typo",
+        label: "Main game",
+        summary: undefined,
+        displayOrder: 1,
+      });
+      await tx.execute(sql.raw("SET CONSTRAINTS ALL IMMEDIATE"));
+      return getGameForAdmin(tx as never, gameId);
+    });
+    expect(view?.scopes[0]?.key).toBe("typo");
+  });
+
+  /**
+   * The same reasoning one level up. Before publication a slug is a working
+   * title; after it, /games/<slug> is an address that has been crawled, linked
+   * and shared, and nothing here would redirect it.
+   */
+  it("refuses a slug change once the game publishes a profile", async () => {
+    const message = await inRolledBackTransaction(async (tx) => {
+      const [game] = await tx
+        .select({ id: t.games.id })
+        .from(t.games)
+        .where(eq(t.games.slug, "returnal"))
+        .limit(1);
+
+      try {
+        await write.updateGame(tx, game!.id, {
+          ...NEW_GAME,
+          slug: "returnal-renamed",
+          canonicalTitle: "Returnal",
+        });
+      } catch (error) {
+        return error instanceof Error ? error.message : String(error);
+      }
+      return "";
+    });
+
+    expect(message).toMatch(/slug is fixed/i);
+    expect(message).toMatch(/\/games\/returnal/);
+  });
+
+  it("allows a slug to be corrected before anything publishes", async () => {
+    const view = await inRolledBackTransaction(async (tx) => {
+      const gameId = await write.createGame(tx, NEW_GAME);
+      await write.updateGame(tx, gameId, { ...NEW_GAME, slug: "a-better-slug" });
+      return getGameForAdmin(tx as never, gameId);
+    });
+    expect(view?.slug).toBe("a-better-slug");
+  });
+
+  it("does not object when the slug is submitted unchanged", async () => {
+    // The published game's form still posts its slug in a hidden field, so an
+    // unchanged value must not be mistaken for a rename attempt.
+    const view = await inRolledBackTransaction(async (tx) => {
+      const [game] = await tx
+        .select({ id: t.games.id })
+        .from(t.games)
+        .where(eq(t.games.slug, "returnal"))
+        .limit(1);
+
+      await write.updateGame(tx, game!.id, {
+        ...NEW_GAME,
+        slug: "returnal",
+        canonicalTitle: "Returnal (edited)",
+      });
+      return getGameForAdmin(tx as never, game!.id);
+    });
+    expect(view?.canonicalTitle).toBe("Returnal (edited)");
+    expect(view?.slug).toBe("returnal");
+  });
+});

@@ -141,6 +141,10 @@ function ScopeRow({
   game: GameAdminView;
   scope: ScopeAdminView;
 }) {
+  // Any evaluation freezes the key, not only a published one: a draft is what
+  // an editor is about to publish, and renaming underneath it is the same
+  // mistake arriving a day earlier.
+  const locked = scope.evaluations.length > 0;
   const published = scope.evaluations.filter((e) => e.status === "published");
   const inProgress = scope.evaluations.filter(
     (e) => e.status === "draft" || e.status === "review",
@@ -197,19 +201,42 @@ function ScopeRow({
 
       <Disclosure summary="Edit this scope">
         <div className="border-l-2 border-rule pl-4">
-          <Notice tone="warning">
-            Changing the key changes this scope&rsquo;s public URL. A key is
-            identity, so treat a rename as migration-level work: the old address
-            stops resolving.
-          </Notice>
+          {locked ? (
+            <Notice>
+              The key <code>{scope.key}</code> is fixed: this scope has
+              evaluation history, and the key is both the identity that history
+              hangs from and part of the profile&rsquo;s public address.
+              Renaming it is migration work rather than an edit. Everything else
+              here can still be changed freely.
+            </Notice>
+          ) : (
+            <Notice tone="warning">
+              The key is part of this scope&rsquo;s public URL and can still be
+              corrected, because no evaluation has been written against it yet.
+              It stops being editable as soon as one is.
+            </Notice>
+          )}
           <ActionForm
             action={updateScopeAction.bind(null, game.id, scope.id)}
             submitLabel="Save scope"
           >
             <div className="grid gap-x-5 sm:grid-cols-2">
-              <Field name="key" label="Key">
-                <TextInput name="key" defaultValue={scope.key} required />
-              </Field>
+              {locked ? (
+                // Submitted unchanged so the form still validates, and refused
+                // server-side if it ever arrives altered — an absent input is a
+                // courtesy, not a control.
+                <div className="mb-3">
+                  <p className="mb-1 mt-0 text-[0.78rem] uppercase tracking-wide text-ink-quiet">
+                    Key
+                  </p>
+                  <input type="hidden" name="key" value={scope.key} />
+                  <code className="text-[0.9rem] text-ink-soft">{scope.key}</code>
+                </div>
+              ) : (
+                <Field name="key" label="Key">
+                  <TextInput name="key" defaultValue={scope.key} required />
+                </Field>
+              )}
               <Field name="label" label="Public label">
                 <TextInput name="label" defaultValue={scope.label} required />
               </Field>

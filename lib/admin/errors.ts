@@ -13,6 +13,21 @@
  * being smoothed over into a plausible-sounding guess.
  */
 
+/**
+ * An editorial rule this application enforces, rather than Postgres.
+ *
+ * Used sparingly and only where the rule is about *identity* rather than about
+ * data integrity — a published URL is a promise to the outside world, and the
+ * database has no opinion about promises. Everything expressible as a
+ * constraint stays a constraint.
+ */
+export class EditorialRuleError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "EditorialRuleError";
+  }
+}
+
 interface DatabaseFailure {
   readonly code?: string;
   readonly constraint_name?: string;
@@ -123,6 +138,9 @@ export async function reportingFailures(
     await run();
     return { ok: true };
   } catch (error) {
+    if (error instanceof EditorialRuleError) {
+      return { ok: false, message: error.message, values };
+    }
     const message = describeDatabaseFailure(error);
     if (message === null) throw error;
     return { ok: false, message, values };

@@ -1,5 +1,6 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, count, eq, sql } from "drizzle-orm";
 import type { AdminTransaction } from "@/lib/admin/db";
+import { EditorialRuleError } from "@/lib/admin/errors";
 import type {
   AliasInput,
   ArtworkInput,
@@ -42,11 +43,51 @@ export async function createGame(
   return row.id;
 }
 
+/**
+ * A game's slug is frozen once anything about it is published.
+ *
+ * Before publication a slug is a working title and a typo should be cheap to
+ * fix. After it, `/games/<slug>` is an address that has been crawled, linked
+ * and shared, and changing it here would break every one of those with no
+ * redirect behind it — an ordinary content edit quietly performing an identity
+ * migration. Renaming a published game is real work (a redirect, and a decision
+ * about history) and belongs to whoever builds that, not to this form.
+ */
+async function assertSlugMayChange(
+  tx: AdminTransaction,
+  gameId: string,
+  nextSlug: string,
+): Promise<void> {
+  const [game] = await tx
+    .select({ slug: t.games.slug })
+    .from(t.games)
+    .where(eq(t.games.id, gameId))
+    .limit(1);
+  if (!game || game.slug === nextSlug) return;
+
+  const [published] = await tx
+    .select({ value: count() })
+    .from(t.evaluations)
+    .where(
+      and(eq(t.evaluations.gameId, gameId), eq(t.evaluations.status, "published")),
+    );
+
+  if ((published?.value ?? 0) > 0) {
+    throw new EditorialRuleError(
+      `This game publishes a profile at /games/${game.slug}, so its slug is fixed. ` +
+        "Changing it would break every link and search result pointing at that " +
+        "address, and nothing here would redirect them. Renaming a published game " +
+        "is migration work, not an edit.",
+    );
+  }
+}
+
 export async function updateGame(
   tx: AdminTransaction,
   gameId: string,
   input: GameInput,
 ): Promise<void> {
+  await assertSlugMayChange(tx, gameId, input.slug);
   await tx
     .update(t.games)
     .set({
@@ -257,15 +298,55 @@ export async function createScope(
 }
 
 /**
+ * A scope key is frozen once the scope has any evaluation history.
+ *
+ * Master Plan §8.3 requires the editor to "treat a scope-key rename as
+ * migration-level identity work". Warning next to a Save button does not do
+ * that — it makes breaking a canonical sibling URL one careless click inside an
+ * ordinary content edit, alongside relabelling and reordering.
+ *
+ * So the line is drawn where the key stops being provisional: a scope with no
+ * evaluations has never addressed anything, and correcting a typo there costs
+ * nothing. The moment a version exists, the key is the identity that version
+ * hangs from and the address a reader may already hold (ADR 0014).
+ *
+ * ANY evaluation counts, not only a published one. A draft is what an editor is
+ * about to publish, and renaming underneath it is the same mistake arriving a
+ * day earlier.
+ */
+async function assertScopeKeyMayChange(
+  tx: AdminTransaction,
+  scopeId: string,
+  nextKey: string,
+): Promise<void> {
+  const [scope] = await tx
+    .select({ key: t.profileScopes.key })
+    .from(t.profileScopes)
+    .where(eq(t.profileScopes.id, scopeId))
+    .limit(1);
+  if (!scope || scope.key === nextKey) return;
+
+  const [evaluations] = await tx
+    .select({ value: count() })
+    .from(t.evaluations)
+    .where(eq(t.evaluations.scopeId, scopeId));
+
+  if ((evaluations?.value ?? 0) > 0) {
+    throw new EditorialRuleError(
+      `The scope key “${scope.key}” is fixed: this scope has evaluation history, ` +
+        "and the key is both the identity that history hangs from and part of the " +
+        "profile's public address. Renaming it is migration work rather than an " +
+        "edit. Label, summary and order can still be changed freely.",
+    );
+  }
+}
+
+/**
  * Edit a scope's presentation.
  *
  * `isPrimary` is deliberately not settable here. Reordering and relabelling are
  * presentation; moving a canonical URL is not, and routing them through one
  * "save" is how the two become the same act (ADR 0016). See `setPrimaryScope`.
- *
- * `key` is settable and is identity work: it changes the sibling URL. The
- * interface warns; the model does not forbid it, because a genuine correction
- * has to be possible.
  */
 export async function updateScope(
   tx: AdminTransaction,
@@ -273,6 +354,7 @@ export async function updateScope(
   scopeId: string,
   input: ProfileScopeInput,
 ): Promise<void> {
+  await assertScopeKeyMayChange(tx, scopeId, input.key);
   await tx
     .update(t.profileScopes)
     .set({
