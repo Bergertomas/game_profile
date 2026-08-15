@@ -25,6 +25,16 @@
     "binding": "ASSETS"
   },
 
+  // The request-time editorial database path. Hyperdrive owns the database
+  // credentials and connection pooling; the public site remains build-time DB
+  // only. Local `next dev` still uses ADMIN_DATABASE_URL directly.
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "6129a6b891fc4783a3c6f17b19b7e216"
+    }
+  ],
+
   // NO `services` BINDING, DELIBERATELY.
   //
   // @opennextjs/cloudflare uses a `WORKER_SELF_REFERENCE` service binding for
