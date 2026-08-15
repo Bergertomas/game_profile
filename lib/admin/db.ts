@@ -1,6 +1,7 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { adminDatabaseUrl } from "@/lib/admin/auth";
+import { requireEditor } from "@/lib/admin/guard";
 import * as schema from "@/lib/db/schema";
 
 /**
@@ -38,7 +39,30 @@ export type AdminTransaction = Parameters<
 >[0];
 
 /**
+ * Run one unit of editorial work against Postgres, **for a verified editor**.
+ *
+ * THIS IS THE ONE TO USE FROM A PAGE OR AN ACTION. The unauthorised
+ * `withAdminDatabase` below opens a connection to a database full of
+ * unpublished drafts, superseded history and uncleared artwork; it exists for
+ * tests and for internal composition, and reaching for it from a route is how
+ * that data escapes a missing guard.
+ *
+ * Authorisation happens here, next to the data, rather than only in the parent
+ * layout — see the reasoning on `requireEditor`. The check is memoised per
+ * request, so several guarded reads on one page verify once.
+ */
+export async function withAuthorizedAdminDatabase<T>(
+  run: (db: AdminDatabase) => Promise<T>,
+): Promise<T> {
+  await requireEditor();
+  return withAdminDatabase(run);
+}
+
+/**
  * Run one unit of editorial work against Postgres.
+ *
+ * UNAUTHORISED. Callers are responsible for having established that the request
+ * may see editorial data; prefer `withAuthorizedAdminDatabase`.
  *
  * The connection does not outlive the callback. Nothing may retain the handed
  * `db` — it is closed by the time this resolves.
@@ -89,5 +113,8 @@ export async function withAdminDatabase<T>(
 export async function withAdminTransaction<T>(
   run: (tx: AdminTransaction) => Promise<T>,
 ): Promise<T> {
-  return withAdminDatabase((db) => db.transaction((tx) => run(tx)));
+  // Authorised, like every read entrypoint. Each Server Action also calls
+  // `requireEditor()` itself before it validates input — belt and braces that
+  // costs nothing, because the check is memoised for the request.
+  return withAuthorizedAdminDatabase((db) => db.transaction((tx) => run(tx)));
 }

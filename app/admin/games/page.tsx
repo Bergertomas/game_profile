@@ -1,10 +1,9 @@
-import { withAdminDatabase } from "@/lib/admin/db";
-import { listGamesForAdmin } from "@/lib/admin/games";
+import { readGamesPage } from "@/lib/admin/games";
 import { AdminLink, Empty, Panel, Pill } from "@/components/admin/ui";
 
 /** The whole catalogue, in title order. */
 export default async function AdminGamesPage() {
-  const games = await withAdminDatabase(listGamesForAdmin);
+  const games = await readGamesPage();
 
   return (
     <>

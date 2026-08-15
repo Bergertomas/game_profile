@@ -1,5 +1,5 @@
 import { asc, count, desc, eq, inArray, sql } from "drizzle-orm";
-import { withAdminDatabase, type AdminDatabase } from "@/lib/admin/db";
+import { withAuthorizedAdminDatabase, type AdminDatabase } from "@/lib/admin/db";
 import * as t from "@/lib/db/schema";
 
 /**
@@ -12,10 +12,16 @@ import * as t from "@/lib/db/schema";
  * a flag on the other — a public reader that could be asked for draft rows is
  * one refactor away from publishing one.
  *
- * These run while an editor waits, so they are scoped to one game rather than
- * loading a corpus. `withAdminDatabase` opens and closes a connection around
- * each call (see lib/admin/db.ts), so a page that needs several reads should
- * take one `db` and pass it down rather than calling several exported helpers.
+ * ── Two kinds of function here, and the distinction is the security boundary ─
+ *
+ * The `read*Page` functions at the bottom are the ENTRYPOINTS. They authorise
+ * before they open a connection, so unpublished editorial is guarded next to
+ * the data rather than by a parent layout that Partial Rendering may not
+ * re-run. Pages call these and nothing else.
+ *
+ * Everything above them takes an already-open `db` handle and does not
+ * authorise. They are composition units — one connection, several queries —
+ * and are not reachable from a route without going through an entrypoint.
  */
 
 export interface GameListEntry {
@@ -431,13 +437,32 @@ export function primaryPublicationBlockers(
   );
 }
 
-/** Convenience for pages that need one read and no shared connection. */
+/**
+ * ENTRYPOINT — one game's editor, for a verified editor.
+ *
+ * Both reads share one connection, which is the reason this exists rather than
+ * a page calling `getGameForAdmin` and `listPlatforms` separately: each call to
+ * the database helper opens and closes its own connection.
+ */
 export async function readGamePage(gameId: string) {
-  return withAdminDatabase(async (db) => {
+  return withAuthorizedAdminDatabase(async (db) => {
     const [game, platforms] = await Promise.all([
       getGameForAdmin(db, gameId),
       listPlatforms(db),
     ]);
     return { game, platforms };
   });
+}
+
+/** ENTRYPOINT — the dashboard, for a verified editor. */
+export async function readDashboardPage() {
+  return withAuthorizedAdminDatabase(async (db) => ({
+    summary: await readDashboard(db),
+    games: await listGamesForAdmin(db),
+  }));
+}
+
+/** ENTRYPOINT — the catalogue listing, for a verified editor. */
+export async function readGamesPage() {
+  return withAuthorizedAdminDatabase(listGamesForAdmin);
 }

@@ -1,5 +1,4 @@
-import { withAdminDatabase } from "@/lib/admin/db";
-import { listGamesForAdmin, readDashboard } from "@/lib/admin/games";
+import { readDashboardPage } from "@/lib/admin/games";
 import { AdminLink, Empty, Notice, Panel, Pill } from "@/components/admin/ui";
 
 /**
@@ -16,10 +15,7 @@ import { AdminLink, Empty, Notice, Panel, Pill } from "@/components/admin/ui";
  * catalogue, and the two conditions an editor can act on today.
  */
 export default async function AdminDashboard() {
-  const { summary, games } = await withAdminDatabase(async (db) => ({
-    summary: await readDashboard(db),
-    games: await listGamesForAdmin(db),
-  }));
+  const { summary, games } = await readDashboardPage();
 
   const recent = games.slice(0, 8);
 
