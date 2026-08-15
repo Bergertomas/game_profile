@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, it } from "vitest";
-import { SEED_PROFILES } from "@/content";
+import { readFixtureProfiles } from "@/lib/data/fixture-profiles";
 import { closeDatabase } from "@/lib/db/client";
 import { readPublishedProfiles } from "@/lib/db/read-profiles";
 import { buildProfileView, type ProfileView } from "@/lib/profile/build";
@@ -89,7 +89,7 @@ const dbBySlug = new Map(
   fromDatabase.map((record) => [record.game.slug, buildProfileView(record)]),
 );
 const fixtureBySlug = new Map(
-  (SEED_PROFILES as readonly GameWithEvaluation[]).map((record) => [
+  (readFixtureProfiles(RUBRIC_V1.version) as readonly GameWithEvaluation[]).map((record) => [
     record.game.slug,
     buildProfileView(record),
   ]),

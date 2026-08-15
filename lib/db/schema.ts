@@ -690,8 +690,21 @@ export const evaluationTags = pgTable(
       .references(() => tags.id, { onDelete: "restrict" }),
     intensity: tagIntensityEnum("intensity"),
     note: text("note"),
+    /**
+     * The order the editor put these in (Plan §8.7, migration 0008).
+     *
+     * Before this column an authored sequence was not representable, and the
+     * public builder imposed the controlled vocabulary's order to keep the two
+     * read paths agreeing. Deriving an order is not the same as preserving one:
+     * an editor who leads with the tag that matters most for this game was
+     * silently overruled.
+     */
+    displayOrder: integer("display_order").notNull().default(0),
   },
-  (table) => [primaryKey({ columns: [table.evaluationId, table.tagId] })],
+  (table) => [
+    primaryKey({ columns: [table.evaluationId, table.tagId] }),
+    index("evaluation_tags_order_idx").on(table.evaluationId, table.displayOrder),
+  ],
 );
 
 export const evidenceSources = pgTable("evidence_sources", {
@@ -743,11 +756,21 @@ export const evaluationEvidenceLinks = pgTable(
     platformScope: text("platform_scope").array(),
     note: text("note"),
     spoilerSensitive: boolean("spoiler_sensitive").notNull().default(false),
+    /**
+     * The order the editor put these in (Plan §8.7, migration 0008). Same
+     * reasoning as `evaluation_tags.display_order`: the builder used to order
+     * by source key, which is deterministic and is not an editorial decision.
+     */
+    displayOrder: integer("display_order").notNull().default(0),
   },
   (table) => [
     index("evaluation_evidence_links_eval_idx").on(
       table.evaluationId,
       table.dimensionId,
+    ),
+    index("evaluation_evidence_links_order_idx").on(
+      table.evaluationId,
+      table.displayOrder,
     ),
   ],
 );

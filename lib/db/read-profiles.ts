@@ -170,7 +170,7 @@ export async function readPublishedProfiles(
       .from(t.evaluationTags)
       .innerJoin(t.tags, eq(t.tags.id, t.evaluationTags.tagId))
       .where(inArray(t.evaluationTags.evaluationId, evaluationIds))
-      .orderBy(asc(t.tags.key)),
+      .orderBy(asc(t.evaluationTags.displayOrder), asc(t.tags.key)),
 
     db
       .select({
@@ -191,7 +191,11 @@ export async function readPublishedProfiles(
         eq(t.dimensions.id, t.evaluationEvidenceLinks.dimensionId),
       )
       .where(inArray(t.evaluationEvidenceLinks.evaluationId, evaluationIds))
-      .orderBy(asc(t.evidenceSources.sourceKey), asc(t.dimensions.displayOrder)),
+      .orderBy(
+        asc(t.evaluationEvidenceLinks.displayOrder),
+        asc(t.evidenceSources.sourceKey),
+        asc(t.dimensions.displayOrder),
+      ),
 
     db
       .select({
