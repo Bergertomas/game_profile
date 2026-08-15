@@ -1,3 +1,4 @@
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { adminDatabaseUrl } from "@/lib/admin/auth";
@@ -13,22 +14,20 @@ import * as schema from "@/lib/db/schema";
  * This one runs while an editor is waiting, and must therefore hold nothing
  * across requests.
  *
- * ── No pool, by construction ────────────────────────────────────────────────
+ * Production reaches Postgres through the Worker's HYPERDRIVE binding. Local
+ * `next dev` retains the direct ADMIN_DATABASE_URL path so editorial work does
+ * not depend on a Cloudflare runtime. The direct path is also a temporary
+ * deployment fallback while the Hyperdrive cutover is being verified.
  *
- * Master Plan §9.4 rules out a request-time connection pool, and a
- * module-scoped client kept alive between requests is a pool of one however it
- * is described. So every call opens a connection and closes it in `finally`.
+ * ── No Worker-side pool, by construction ───────────────────────────────────
  *
- * That is a real cost — a TCP and TLS handshake per editorial request — and it
- * is the right trade at this size. The editorial team is a handful of people
- * making a handful of writes a day (§8.2); the alternative buys latency nobody
- * is measuring in exchange for the one thing the architecture says not to
- * introduce. If editorial volume ever makes this inadequate, that is a measured
- * decision with an ADR, not a default that crept in.
+ * Master Plan §9.4 rules out a request-time connection pool inside the Worker,
+ * and a module-scoped client kept alive between requests is a pool of one
+ * however it is described. So every call creates a client and closes it in
+ * `finally`. Hyperdrive owns its own managed connection pool outside the Worker.
  *
- * `max: 1` on top of that is not pooling either: it is what makes a transaction
- * safe, since postgres.js rejects a bare `BEGIN` on a pooled client whose next
- * query may land on a different connection.
+ * `max: 1` is deliberate: editorial requests do not need concurrent database
+ * connections, and it keeps transaction behaviour deterministic.
  */
 
 export type AdminDatabase = ReturnType<typeof drizzle<typeof schema>>;
@@ -37,6 +36,41 @@ export type AdminDatabase = ReturnType<typeof drizzle<typeof schema>>;
 export type AdminTransaction = Parameters<
   Parameters<AdminDatabase["transaction"]>[0]
 >[0];
+
+type AdminDatabaseConnection = {
+  readonly url: string;
+  readonly viaHyperdrive: boolean;
+};
+
+/**
+ * Resolve the request-time connection without ever exposing credentials.
+ *
+ * Local development deliberately prefers ADMIN_DATABASE_URL. A production
+ * Worker prefers Hyperdrive when the binding exists, then falls back to the
+ * direct URL only during the cutover window. `getCloudflareContext()` throws
+ * outside the Workers/OpenNext runtime, so the lookup is intentionally guarded.
+ */
+function adminDatabaseConnection(): AdminDatabaseConnection | null {
+  const directUrl = adminDatabaseUrl();
+
+  if (process.env.NODE_ENV === "development" && directUrl) {
+    return { url: directUrl, viaHyperdrive: false };
+  }
+
+  try {
+    const env = getCloudflareContext().env as unknown as {
+      HYPERDRIVE?: { connectionString?: string };
+    };
+    const hyperdriveUrl = env.HYPERDRIVE?.connectionString?.trim();
+    if (hyperdriveUrl) {
+      return { url: hyperdriveUrl, viaHyperdrive: true };
+    }
+  } catch {
+    // Node tests and local tools do not necessarily have a Cloudflare context.
+  }
+
+  return directUrl ? { url: directUrl, viaHyperdrive: false } : null;
+}
 
 /**
  * Run one unit of editorial work against Postgres, **for a verified editor**.
@@ -70,18 +104,20 @@ export async function withAuthorizedAdminDatabase<T>(
 export async function withAdminDatabase<T>(
   run: (db: AdminDatabase) => Promise<T>,
 ): Promise<T> {
-  const url = adminDatabaseUrl();
-  if (!url) {
+  const connection = adminDatabaseConnection();
+  if (!connection) {
     throw new Error(
-      "ADMIN_DATABASE_URL is not set. The editorial tool has no request-time " +
-        "database in this deployment, which is the default — see " +
-        "docs/decisions/0018-admin-access.md. `adminAvailability()` should have " +
-        "refused this request before it reached a query.",
+      "No editorial database connection is configured. Set ADMIN_DATABASE_URL " +
+        "for local development or bind HYPERDRIVE for a deployed Worker. See " +
+        "docs/decisions/0018-admin-access.md.",
     );
   }
 
-  const client = postgres(url, {
+  const client = postgres(connection.url, {
     max: 1,
+    // Hyperdrive terminates the Worker-side database transport. A direct Neon
+    // connection still requires TLS explicitly.
+    ...(connection.viaHyperdrive ? {} : { ssl: "require" as const }),
     // Short, because the connection is closed explicitly anyway; this only
     // bounds a socket left behind by an error path.
     idle_timeout: 5,
@@ -94,6 +130,30 @@ export async function withAdminDatabase<T>(
 
   try {
     return await run(drizzle(client, { schema }));
+  } catch (error) {
+    const cause =
+      error instanceof Error && "cause" in error
+        ? (error as Error & { cause?: unknown }).cause
+        : undefined;
+
+    console.error("[admin-db] request-time database failure", {
+      transport: connection.viaHyperdrive ? "hyperdrive" : "direct",
+      name: error instanceof Error ? error.name : typeof error,
+      message: error instanceof Error ? error.message : String(error),
+      cause:
+        cause instanceof Error
+          ? {
+              name: cause.name,
+              message: cause.message,
+              code:
+                "code" in cause
+                  ? (cause as Error & { code?: unknown }).code
+                  : undefined,
+            }
+          : cause,
+    });
+
+    throw error;
   } finally {
     await client.end({ timeout: 5 });
   }

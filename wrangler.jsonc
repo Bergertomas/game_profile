@@ -12,12 +12,38 @@
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-08-07",
   // Required by @opennextjs/cloudflare: the Next.js server needs Node built-ins.
-  "compatibility_flags": ["nodejs_compat"],
+  // Postgres.js also passes Node TLS options that Workers does not implement.
+  // Since 2026-06-16 Workers throws on those unsupported options by default;
+  // disabling that throw lets the supported TLS connection proceed instead.
+  "compatibility_flags": [
+    "nodejs_compat",
+    "no_throw_on_not_implemented_tls_options"
+  ],
 
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+
+  // The request-time editorial database path. Hyperdrive owns the database
+  // credentials and connection pooling; the public site remains build-time DB
+  // only. Local `next dev` still uses ADMIN_DATABASE_URL directly.
+  //
+  // Wrangler requires a local connection string whenever a Hyperdrive binding
+  // is present under local `wrangler dev` / OpenNext cache population. Our
+  // production verifier deliberately asserts that /admin is unavailable, so it
+  // must never query this binding. Point the local emulation at a closed local
+  // endpoint: Wrangler can construct the binding, while any accidental DB use
+  // fails closed instead of touching the production database. Developers who
+  // intentionally exercise Hyperdrive locally can override this with
+  // CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE.
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "6129a6b891fc4783a3c6f17b19b7e216",
+      "localConnectionString": "postgres://unused:unused@127.0.0.1:1/unused"
+    }
+  ],
 
   // NO `services` BINDING, DELIBERATELY.
   //
