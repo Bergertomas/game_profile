@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getRubric, SUBCRITERION_SCALE, UNKNOWN } from "@/lib/rubric";
+import { getDimension, getRubric, SUBCRITERION_SCALE, UNKNOWN } from "@/lib/rubric";
 import { TAGS } from "@/lib/rubric/tags";
 import { CURRENT_RUBRIC_VERSION } from "@/lib/rubric";
 import type { DimensionKey, SubcriterionValue } from "@/lib/rubric";
@@ -272,12 +272,32 @@ export const evidenceLinkSchema = z
     spoilerSensitive: z.boolean().default(false),
   })
   .superRefine((value, ctx) => {
-    if (value.subcriterionKey && !value.dimensionKey) {
+    if (!value.subcriterionKey) return;
+
+    if (!value.dimensionKey) {
       ctx.addIssue({
         code: "custom",
         path: ["subcriterionKey"],
         message:
           "A subcriterion-level mapping has to say which dimension it belongs to.",
+      });
+      return;
+    }
+
+    // The pair has to be one the rubric actually contains. The form offers the
+    // forty subcriteria grouped under their own dimensions, so an incoherent
+    // pair is not reachable by picking — which is exactly why it is checked
+    // here as well: a Server Action is a POST, and the grouping is a courtesy
+    // to the editor rather than a guarantee about the request.
+    const dimension = getDimension(value.dimensionKey);
+    const belongs = dimension.subcriteria.some(
+      (subcriterion) => subcriterion.key === value.subcriterionKey,
+    );
+    if (!belongs) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["subcriterionKey"],
+        message: `That subcriterion does not belong to ${dimension.name}. Choose one of its own five, or clear the dimension.`,
       });
     }
   });

@@ -10,6 +10,7 @@ import {
   ActionForm,
   Disclosure,
   Field,
+  GroupedSelect,
   Select,
   TextArea,
   TextInput,
@@ -51,6 +52,18 @@ export default async function EvidencePage({
   const dimensionOptions = dimensionsInRadarOrder().map((dimension) => ({
     value: dimension.key,
     label: dimension.name,
+  }));
+
+  // The forty subcriteria, under the dimension each belongs to. Read from the
+  // rubric module rather than listed here — nothing in the UI may hardcode
+  // rubric labels or ordering (Master Plan §25.10), and this is the control that
+  // would otherwise be most tempted to.
+  const subcriterionGroups = dimensionsInRadarOrder().map((dimension) => ({
+    label: dimension.name,
+    options: dimension.subcriteria.map((subcriterion) => ({
+      value: subcriterion.key,
+      label: subcriterion.name,
+    })),
   }));
 
   return (
@@ -156,9 +169,13 @@ export default async function EvidencePage({
                 <Field
                   name="subcriterionKey"
                   label="Subcriterion"
-                  hint="Optional, and only alongside a dimension."
+                  hint="Optional. Narrows the mapping to one of the dimension's five — it must be one of that dimension's own."
                 >
-                  <TextInput name="subcriterionKey" />
+                  <GroupedSelect
+                    name="subcriterionKey"
+                    placeholder="No single subcriterion"
+                    groups={subcriterionGroups}
+                  />
                 </Field>
                 <Field
                   name="platformScope"
