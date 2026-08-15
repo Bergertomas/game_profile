@@ -41,7 +41,7 @@ export type AdminTransaction = Parameters<
 /**
  * Run one unit of editorial work against Postgres, **for a verified editor**.
  *
- * THIS IS THE ONE TO USE FROM A page OR an action. The unauthorised
+ * THIS IS THE ONE TO USE FROM A PAGE OR AN ACTION. The unauthorised
  * `withAdminDatabase` below opens a connection to a database full of
  * unpublished drafts, superseded history and uncleared artwork; it exists for
  * tests and for internal composition, and reaching for it from a route is how
@@ -82,6 +82,9 @@ export async function withAdminDatabase<T>(
 
   const client = postgres(url, {
     max: 1,
+    // Neon rejects insecure PostgreSQL connections. Postgres.js requires this
+    // explicit option in Workers even when the URL itself is otherwise valid.
+    ssl: "require",
     // Short, because the connection is closed explicitly anyway; this only
     // bounds a socket left behind by an error path.
     idle_timeout: 5,
