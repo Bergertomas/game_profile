@@ -4,6 +4,7 @@ import { readPublishedProfiles } from "@/lib/db/read-profiles";
 import { buildProfileView, type ProfileView } from "@/lib/profile/build";
 import type { GameWithEvaluation } from "@/lib/profile/types";
 import { RUBRIC_V1 } from "@/lib/rubric";
+import { SITE_ENV } from "@/lib/site";
 
 /**
  * The single data-access boundary for the public site.
@@ -44,7 +45,21 @@ export const PUBLIC_RUBRIC_VERSION = RUBRIC_V1.version;
  * cleanup.
  */
 function databaseIsRequired(): boolean {
-  return process.env.REQUIRE_DATABASE === "1";
+  // A PRODUCTION BUILD REQUIRES THE DATABASE WHATEVER THE ENVIRONMENT SAYS.
+  //
+  // `REQUIRE_DATABASE=1` is set for production and is the operational switch,
+  // but a switch is a thing that can be unset — by an edited build variable, a
+  // new Workers Builds environment, or a local `next build` somebody deploys.
+  // `SITE_ENV` folds to a literal at build time, so this half is not a runtime
+  // check that could be missing: in a production bundle the fallback branch
+  // below is unreachable code.
+  //
+  // Which means production cannot substitute the calibration corpus for the
+  // editorial one even if every variable is wrong. That is the failure worth
+  // making structurally impossible: it is silent, it looks exactly like a
+  // successful deploy, and what it publishes is three profiles nobody authored
+  // today wearing the clothes of the real catalogue.
+  return SITE_ENV === "production" || process.env.REQUIRE_DATABASE === "1";
 }
 
 /**
@@ -70,21 +85,28 @@ async function loadPublishedProfiles(): Promise<GameWithEvaluation[]> {
 
   if (databaseIsRequired()) {
     throw new Error(
-      "REQUIRE_DATABASE is set but DATABASE_URL is not.\n" +
+      `DATABASE_URL is not set${
+        SITE_ENV === "production"
+          ? ", and this is a production build"
+          : " and REQUIRE_DATABASE is"
+      }.\n` +
         "This build would have published the calibration fixtures as though " +
-        "they were the editorial corpus. Refusing: after cutover, Postgres is " +
-        "the only source of published profiles (Master Plan v0.7 §9.5).\n" +
-        "Set DATABASE_URL, or unset REQUIRE_DATABASE if this environment is " +
-        "deliberately fixture-backed.",
+        "they were the editorial corpus. Refusing: Postgres is the only source " +
+        "of published profiles (Master Plan v0.8 §9.2).\n" +
+        (SITE_ENV === "production"
+          ? "A production build has no fixture fallback at all. Set DATABASE_URL."
+          : "Set DATABASE_URL, or unset REQUIRE_DATABASE if this environment is " +
+            "deliberately fixture-backed."),
     );
   }
 
   const profiles = readFixtureProfiles(PUBLIC_RUBRIC_VERSION);
   console.log(
     `[data] DATABASE_URL is not set — reading ${profiles.length} published ` +
-      `profile(s) from the calibration fixtures. This is the temporary path ` +
-      `until production Postgres is provisioned (ADR 0017). Set ` +
-      `REQUIRE_DATABASE=1 at cutover to make this an error.`,
+      `profile(s) from the calibration fixtures. This build is NOT production; ` +
+      `a production build refuses outright. Fixtures remain valid for unit ` +
+      `tests, parity, development harnesses and named synthetic Playwright ` +
+      `corpora (ADR 0017, Master Plan v0.8 §9.2).`,
   );
   return profiles;
 }

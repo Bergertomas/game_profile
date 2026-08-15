@@ -278,3 +278,38 @@ export function parseForm<T extends z.ZodType>(
 
 /** One message per field — the first. A field with three problems has one fix. */
 export type FieldErrors = Record<string, string>;
+
+/**
+ * Validate an object an action assembled itself.
+ *
+ * `parseForm` flattens `FormData` into a string record, which is right for a
+ * form of scalars and wrong for the evaluation forms: platform scope, tag
+ * selections and interpretation blocks are repeated fields that have to be read
+ * with `getAll` and rebuilt before a schema can see them. This shares the error
+ * shape so both kinds of form report failures the same way.
+ */
+export function parseObject<T extends z.ZodType>(
+  schema: T,
+  value: unknown,
+  values: Record<string, string> = {},
+): { ok: true; value: z.infer<T>; values: Record<string, string> }
+  | { ok: false; errors: FieldErrors; values: Record<string, string> } {
+  const result = schema.safeParse(value);
+  if (result.success) return { ok: true, value: result.data, values };
+
+  const errors: FieldErrors = {};
+  for (const issue of result.error.issues) {
+    const field = issue.path.map(String).join(".") || "_";
+    errors[field] ??= issue.message;
+  }
+  return { ok: false, errors, values };
+}
+
+/** Every scalar field of a form, for echoing a rejected submission back. */
+export function formValues(form: FormData): Record<string, string> {
+  const values: Record<string, string> = {};
+  for (const [key, value] of form.entries()) {
+    if (typeof value === "string") values[key] = value;
+  }
+  return values;
+}

@@ -4,6 +4,7 @@ import {
   setPrimaryScopeAction,
   updateScopeAction,
 } from "@/app/admin/actions";
+import { createRevisionAction } from "@/app/admin/evaluation-actions";
 import {
   ActionButton,
   ActionForm,
@@ -13,6 +14,7 @@ import {
   TextInput,
 } from "@/components/admin/forms";
 import {
+  AdminLink,
   DefinitionRow,
   Empty,
   Notice,
@@ -194,6 +196,7 @@ function ScopeRow({
       </dl>
 
       <EvaluationHistory
+        scopeId={scope.id}
         published={published}
         inProgress={inProgress}
         all={scope.evaluations}
@@ -276,29 +279,34 @@ function ScopeRow({
 }
 
 /**
- * Evaluation history for one scope.
+ * Evaluation history for one scope, and the three ways into authoring.
  *
- * Read-only in Phase 2B: authoring is 2C and publication is 2D. It is here now
- * because §8.3 requires an editor to understand Game → Profile Scope →
- * Evaluation History, and a scope with invisible history is one whose purpose
- * is invisible too.
+ * The distinction the interface has to make plain (Master Plan §4.2):
+ *
+ *   Edit a draft      — continue work that is not published. Ordinary editing.
+ *   Start a new draft — a first evaluation for a scope that has none.
+ *   Create a revision — begin a NEW version from a published one. The
+ *                       predecessor is copied and left exactly as it is;
+ *                       supersession happens at publication, in Phase 2D.
+ *
+ * Collapsing the third into "edit" is the mistake the whole versioning model
+ * exists to prevent, so it is a separate action with its own change summary.
  */
 function EvaluationHistory({
+  scopeId,
   published,
   inProgress,
   all,
 }: {
+  scopeId: string;
   published: readonly { id: string }[];
   inProgress: readonly { id: string }[];
   all: ScopeAdminView["evaluations"];
 }) {
-  if (all.length === 0) {
-    return (
-      <Empty>
-        No evaluations yet. Authoring arrives with the evaluation editor.
-      </Empty>
-    );
-  }
+  const openDraft = all.find(
+    (evaluation) => evaluation.status === "draft" || evaluation.status === "review",
+  );
+  const latestPublished = all.find((evaluation) => evaluation.status === "published");
 
   return (
     <div>
@@ -306,48 +314,93 @@ function EvaluationHistory({
         Evaluation history — {all.length} version{all.length === 1 ? "" : "s"},{" "}
         {published.length} published, {inProgress.length} in progress
       </h4>
-      <ol className="m-0 list-none p-0">
-        {all.map((evaluation) => (
-          <li
-            key={evaluation.id}
-            className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-rule py-1.5 text-[0.85rem] last:border-b-0"
-          >
-            <span className="tabular-nums text-ink-soft">
-              v{evaluation.versionNumber}
-            </span>
-            <span className="text-ink-quiet">
-              rubric {evaluation.rubricVersion}
-            </span>
-            <Pill
-              tone={
-                evaluation.status === "published"
-                  ? "live"
-                  : evaluation.status === "superseded"
-                    ? "past"
-                    : "draft"
-              }
+
+      {all.length === 0 ? (
+        <Empty>No evaluations yet.</Empty>
+      ) : (
+        <ol className="m-0 list-none p-0">
+          {all.map((evaluation) => (
+            <li
+              key={evaluation.id}
+              className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-rule py-1.5 text-[0.85rem] last:border-b-0"
             >
-              {evaluation.status}
-            </Pill>
-            <span className="text-ink-soft">{evaluation.modeScope}</span>
-            {evaluation.publishedAt ? (
-              <span className="text-ink-quiet">
-                published {evaluation.publishedAt.slice(0, 10)}
+              <span className="tabular-nums text-ink-soft">v{evaluation.versionNumber}</span>
+              <span className="text-ink-quiet">rubric {evaluation.rubricVersion}</span>
+              <Pill
+                tone={
+                  evaluation.status === "published"
+                    ? "live"
+                    : evaluation.status === "superseded"
+                      ? "past"
+                      : "draft"
+                }
+              >
+                {evaluation.status}
+              </Pill>
+              <span className="text-ink-soft">{evaluation.modeScope}</span>
+              {evaluation.publishedAt ? (
+                <span className="text-ink-quiet">
+                  published {evaluation.publishedAt.slice(0, 10)}
+                </span>
+              ) : null}
+              <span className="ml-auto">
+                <AdminLink href={`/admin/evaluations/${evaluation.id}`}>
+                  {evaluation.status === "draft" || evaluation.status === "review"
+                    ? "Continue authoring"
+                    : "Open (read-only)"}
+                </AdminLink>
               </span>
-            ) : null}
-            {evaluation.supersedesEvaluationId ? (
-              <span className="text-ink-quiet">
-                replaces an earlier version
-              </span>
-            ) : null}
-            {evaluation.changeSummary ? (
-              <span className="w-full text-ink-soft">
-                {evaluation.changeSummary}
-              </span>
-            ) : null}
-          </li>
-        ))}
-      </ol>
+              {evaluation.changeSummary ? (
+                <span className="w-full text-ink-soft">{evaluation.changeSummary}</span>
+              ) : null}
+            </li>
+          ))}
+        </ol>
+      )}
+
+      <div className="mt-3 flex flex-wrap items-start gap-x-6 gap-y-3">
+        {openDraft ? (
+          <p className="m-0 text-[0.82rem] text-ink-soft">
+            An evaluation is already in progress (v{openDraft.versionNumber}).
+            Finish or discard it before starting another.
+          </p>
+        ) : (
+          <p className="m-0 text-[0.82rem]">
+            <AdminLink href={`/admin/scopes/${scopeId}/evaluations/new`}>
+              Start a new draft
+            </AdminLink>{" "}
+            <span className="text-ink-quiet">
+              — a fresh evaluation for this scope.
+            </span>
+          </p>
+        )}
+
+        {latestPublished && !openDraft ? (
+          <Disclosure summary="Create a revision from the published version">
+            <p className="m-0 mb-3 max-w-[46rem] text-[0.82rem] text-ink-soft">
+              This copies v{latestPublished.versionNumber} into a new draft —
+              context, all forty scores and rationales, confidence, overrides,
+              tags, evidence and interpretation — and <strong>leaves the
+              published version exactly as it is</strong>. It stays live and
+              unchanged while the revision is authored beside it. Supersession
+              happens when the revision is published, which is Phase 2D.
+            </p>
+            <ActionForm
+              action={createRevisionAction.bind(null, latestPublished.id)}
+              submitLabel="Create revision"
+            >
+              <Field
+                name="changeSummary"
+                label="What is changing, and why"
+                hint="This is the note that explains the new version to a reader and to the next editor."
+              >
+                <TextArea name="changeSummary" rows={2} />
+              </Field>
+            </ActionForm>
+          </Disclosure>
+        ) : null}
+      </div>
+
     </div>
   );
 }
