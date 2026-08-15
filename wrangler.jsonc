@@ -28,10 +28,20 @@
   // The request-time editorial database path. Hyperdrive owns the database
   // credentials and connection pooling; the public site remains build-time DB
   // only. Local `next dev` still uses ADMIN_DATABASE_URL directly.
+  //
+  // Wrangler requires a local connection string whenever a Hyperdrive binding
+  // is present under local `wrangler dev` / OpenNext cache population. Our
+  // production verifier deliberately asserts that /admin is unavailable, so it
+  // must never query this binding. Point the local emulation at a closed local
+  // endpoint: Wrangler can construct the binding, while any accidental DB use
+  // fails closed instead of touching the production database. Developers who
+  // intentionally exercise Hyperdrive locally can override this with
+  // CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE.
   "hyperdrive": [
     {
       "binding": "HYPERDRIVE",
-      "id": "6129a6b891fc4783a3c6f17b19b7e216"
+      "id": "6129a6b891fc4783a3c6f17b19b7e216",
+      "localConnectionString": "postgres://unused:unused@127.0.0.1:1/unused"
     }
   ],
 
