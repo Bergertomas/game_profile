@@ -14,8 +14,9 @@ editorial tool at all.**
 
 ```
 Cloudflare Access          stops an unauthenticated request at the edge
-requireEditor()            verifies the signed assertion in the admin layout
-requireEditor()            …and again inside every Server Action
+requireEditor()            in the admin layout — UX and defence in depth
+requireEditor()            in every read entrypoint, before a connection opens
+requireEditor()            in every Server Action, before anything is written
 ```
 
 No password store, no session table, no reset flow, no user table. §8.2 says
@@ -46,7 +47,7 @@ how `none` and HMAC forgeries work), issuer and audience matched exactly,
 expiry and not-before enforced, and an unreachable JWKS is a refusal rather than
 a pass.
 
-## The gate is the layout, because a proxy cannot deploy
+## The guard sits next to the data, because a proxy cannot deploy
 
 The obvious design was a `proxy.ts` route gate. **It cannot run on this stack.**
 Next 16 renamed middleware to Proxy and pins it to the Node.js runtime — the
@@ -63,13 +64,29 @@ suite and `next start`. It failed only at `cf:verify`, which is the one gate
 that asks the real runtime — the same class of failure as `dynamicParams = false`
 in ADR 0017, and the second time that script has earned its keep.
 
-So authorisation lives where it has to anyway: in the admin layout, and inside
-every Server Action. The per-action guard is not belt-and-braces. Next's own
-proxy documentation states that Server Functions are POSTs to the route that
-uses them, that a matcher excluding a path also skips Server Function calls on
-it, and that *"a matcher change or a refactor that moves a Server Function to a
-different route can silently remove Proxy coverage."* A guard that travels with
-the mutation cannot be refactored away from it.
+So authorisation lives where it has to anyway: **next to the data**.
+
+- Every Server Action calls `requireEditor()` before it does anything. Next's
+  proxy documentation states that Server Functions are POSTs to the route that
+  uses them, that a matcher excluding a path also skips Server Function calls on
+  it, and that *"a matcher change or a refactor that moves a Server Function to
+  a different route can silently remove Proxy coverage."* A guard that travels
+  with the mutation cannot be refactored away from it.
+- Every exported **read** entrypoint authorises before it opens a connection.
+  The admin layout still guards, but only as UX and defence in depth: Next's
+  authentication guidance warns that layouts do not re-render on every
+  navigation under Partial Rendering and that a segment may be entered by more
+  than one path, so a layout check is a thing that usually runs rather than one
+  that always runs. The editorial reader deliberately sees drafts, review rows,
+  superseded history and artwork of every clearance — precisely the data that
+  must not depend on a parent segment having rendered.
+
+`withAuthorizedAdminDatabase` is the boundary; the unauthorised
+`withAdminDatabase` remains for tests and internal composition and is not
+reachable from a route. The verified identity is memoised with React `cache()`,
+which is request-scoped — one Access verification per render however many
+guarded reads a page performs, and no auth state anywhere that outlives a
+request.
 
 `noindex`, `no-store` and `same-origin` referrer headers moved to
 `next.config.ts`, where they are static routing metadata needing no runtime.
@@ -112,13 +129,28 @@ whatsoever. Deploying it means accepting a request-time database path for
 opened and closed in a `finally`. That is a trade for the product owner, not a
 default that creeps in.
 
-### The local-development identity
+### The local-development identity is local, not merely non-production
 
 `next dev` has no Access in front of it, so `ADMIN_DEV_IDENTITY` names an editor
-directly. The guard is the build environment rather than the variable:
-`SITE_ENV` folds to a literal at build time, so in a production bundle the
-branch is unreachable and no value of that variable can conjure an
-unauthenticated editor.
+directly. Two conditions gate it, and the second was added after review caught
+the first being insufficient on its own:
+
+- `SITE_ENV !== "production"` — folds to a literal at build time, so the branch
+  is unreachable in a production bundle rather than merely false at runtime;
+- `NODE_ENV === "development"` — true under `next dev` and false in every
+  `next build` artefact, including one built on a laptop.
+
+**`SITE_ENV` alone was wrong, and not theoretically.** A Cloudflare branch
+preview is a non-production site environment *and* a production-compiled build
+on a publicly reachable hostname. A preview configured with `ADMIN_DEV_IDENTITY`
+and `ADMIN_DATABASE_URL` but no Access application would have authenticated
+every request as that named editor while authenticating the requester not at
+all — the editorial tool, open, on a URL that is deliberately shared for review.
+
+A remote deployment requires Cloudflare Access whether or not it is the
+production one. `tests/admin/auth.test.ts` pins that directly, and it was also
+confirmed against a real production-compiled preview build serving `/admin` as
+404 with both variables set.
 
 Where Access **is** configured, it is the only authority. A missing or invalid
 assertion refuses rather than falling through to a development identity that
@@ -142,6 +174,26 @@ violation after a form was filled in:
 Moving primacy is a separate action from editing a scope, with its own
 confirmation naming both URLs. Combining them into one "save" is precisely how
 reordering a listing silently moves a canonical URL.
+
+### Identity is frozen once it is public
+
+Master Plan §8.3 requires the editor to "treat a scope-key rename as
+migration-level identity work". A warning beside an ordinary Save button does
+not do that — it makes breaking a canonical sibling URL one careless click,
+sitting between relabelling and reordering. So:
+
+- **A scope key is fixed once the scope has any evaluation**, published or not.
+  A draft is what an editor is about to publish, and renaming underneath it is
+  the same mistake arriving a day earlier. Before that the scope has never
+  addressed anything and a typo is free to fix.
+- **A game slug is fixed once the game publishes a profile.** Before
+  publication it is a working title; after, `/games/<slug>` has been crawled,
+  linked and shared, and nothing here would redirect it.
+
+Both are enforced in the write layer, not only hidden in the form — a hidden
+field can be forged, and the interface is a courtesy rather than a control. A
+genuine rename after publication needs a redirect and a decision about history,
+and belongs to whoever builds that.
 
 ## Consequences
 

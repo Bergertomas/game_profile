@@ -271,18 +271,27 @@ ADMIN_DEV_IDENTITY=you@example.com \
   npm run dev            # /admin is live at http://localhost:3000/admin
 ```
 
-The development identity exists only because `next dev` has no Access in front
-of it. `SITE_ENV` folds to a literal at build time, so the branch is unreachable
-in a production bundle — no value of `ADMIN_DEV_IDENTITY` can produce an
-unauthenticated editor there. Where Access *is* configured it is the only
-authority: a missing or invalid assertion refuses rather than falling back.
+The development identity works **only under a real `next dev`** — it needs both
+a non-production `SITE_ENV` and `NODE_ENV=development`, so no built artefact can
+carry it. A Cloudflare preview is a non-production site *and* a
+production-compiled build on a reachable hostname, so it requires Access like
+any other deployment. Where Access is configured it is the only authority: a
+missing or invalid assertion refuses rather than falling back.
 
-Authorisation runs in the admin layout and again inside every Server Action.
-That is not belt-and-braces — Next's proxy documentation warns that a refactor
-moving a Server Function to another route can silently remove proxy coverage, so
-the guard travels with the mutation. A `proxy.ts` gate was written and removed:
-Next 16 pins Proxy to the Node.js runtime and `@opennextjs/cloudflare` cannot
-build one. See [ADR 0018](docs/decisions/0018-admin-access.md).
+Authorisation runs next to the data — inside every Server Action, and inside
+every exported read entrypoint before it opens a connection. The layout guard
+stays as UX and defence in depth, but is not what protects draft data: layouts
+do not re-render on every navigation under Partial Rendering. The verified
+identity is memoised per request, so a page with several panels verifies once.
+
+A `proxy.ts` gate was written and removed: Next 16 pins Proxy to the Node.js
+runtime and `@opennextjs/cloudflare` cannot build one. See
+[ADR 0018](docs/decisions/0018-admin-access.md).
+
+Two identity rules are enforced in the write layer, not just the form: a scope
+key is fixed once the scope has any evaluation, and a game slug is fixed once
+the game publishes a profile. Both are public addresses by then, and nothing
+here redirects an old one.
 
 ## Database
 
