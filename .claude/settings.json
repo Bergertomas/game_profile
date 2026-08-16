@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__github__pull_request_read",
+      "mcp__Claude_Code_Remote__list_triggers",
+      "mcp__github__get_job_logs",
+      "Bash(npm run typecheck)",
+      "Bash(npm run lint)",
+      "Bash(npm run test)",
+      "Bash(npm test)",
+      "Bash(npm run check:containment)",
+      "Bash(pg_isready *)"
+    ]
+  }
+}
