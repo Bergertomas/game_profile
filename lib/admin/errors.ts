@@ -67,10 +67,23 @@ export function describeDatabaseFailure(error: unknown): string | null {
       if (constraint.includes("one_primary_per_game")) {
         return "That would leave the game with two primary scopes. Move primacy instead of setting it directly.";
       }
+      if (constraint.includes("one_published_per_game_rubric")) {
+        return "This scope already has a published evaluation under this rubric. Publish a revision of it instead — a revision supersedes the current version in the same transaction, which is what keeps the scope from having two live profiles.";
+      }
+      if (constraint.includes("one_final_successor")) {
+        return "Another version has already superseded that one. Two revisions were started from the same predecessor and one of them has published; base this work on the current published version instead.";
+      }
       return "That value is already in use.";
 
     case "23503":
       return "Something else still refers to this record, so it cannot be removed yet. Detach the things that reference it first.";
+
+    // Raised by `lock_rubric_contract` when a rubric definition edit and a
+    // publication overlap. Deliberately a fail-fast rather than a wait: both
+    // sides hold row locks already, so waiting can deadlock. Retrying is the
+    // whole remedy, and it is genuinely likely to work.
+    case "40001":
+      return "Someone was editing or publishing under this rubric at the same moment. Nothing was changed — try publishing again.";
 
     case "23502":
       return "A required field was empty.";
