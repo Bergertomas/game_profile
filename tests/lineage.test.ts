@@ -364,3 +364,49 @@ describe("Published evaluations require complete per-dimension confidence", () =
     ).toEqual([]);
   });
 });
+
+/**
+ * Master Plan §8.8 — a Game Profile publishes no aggregate score.
+ *
+ * The data model has no field for one, so prose is the only way a verdict
+ * number can get in. These lock both halves of that: the forms that must be
+ * refused, and the ones that must not be, because a dimension total is a real
+ * publishable number and a rule that objected to discussing one would be worse
+ * than no rule.
+ */
+describe("No aggregate score", () => {
+  const withProse = (text: string): Evaluation => ({
+    ...alanWake2.evaluation,
+    oneLineExperience: text,
+  });
+
+  it.each([
+    "A tense survival horror that lands an 8/10 overall.",
+    "Worth 7 out of 10 for most players.",
+    "Its overall score is held back by the combat.",
+    "A rating of 9 for atmosphere-first players.",
+  ])("rejects %j", (text) => {
+    expect(validateEvaluation(withProse(text)).map((i) => i.code)).toContain(
+      "aggregate_score",
+    );
+  });
+
+  it.each([
+    "Combat scores 6 on our scale, which is the weakest of the eight.",
+    "Story is a 9.5 dimension total; friction is where it costs you.",
+    "Two of the five subcriteria are Unknown, so the total is a range.",
+    "A tense survival horror with exceptional atmosphere.",
+  ])("accepts %j", (text) => {
+    expect(
+      validateEvaluation(withProse(text)).map((i) => i.code),
+    ).not.toContain("aggregate_score");
+  });
+
+  it("leaves the approved corpus alone", () => {
+    for (const record of SEED_PROFILES) {
+      expect(
+        validateGameRecord(record).map((i) => i.code),
+      ).not.toContain("aggregate_score");
+    }
+  });
+});
