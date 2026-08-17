@@ -1,6 +1,7 @@
 import { CALIBRATION_ROUND_LIST } from "@/lib/profile/provenance";
 import { RUBRIC_V1, UNKNOWN } from "@/lib/rubric";
 import { TAGS } from "@/lib/rubric/tags";
+import { canonicallyOrdered } from "@/lib/profile/canonical-order";
 import type {
   Evaluation,
   EvidenceSource,
@@ -288,16 +289,28 @@ function emitEvaluation(
     });
   }
 
-  for (const tag of evaluation.tags) {
+  /*
+   * Authored order is written explicitly (migration 0008).
+   *
+   * The seed is generated from typed fixtures, which have no ordering column,
+   * so the position emitted here is the canonical one — the same rule the
+   * migration used to backfill and the same rule `readFixtureProfiles` applies.
+   * That is what keeps fixture/Postgres parity exact now that the reader orders
+   * by `display_order` rather than by tag key.
+   */
+  evaluation.tags.forEach((tag, index) => {
     out.push(
-      `INSERT INTO evaluation_tags (evaluation_id, tag_id, intensity, note) SELECT ${evalRef}, t.id, ${sqlString(
+      `INSERT INTO evaluation_tags (evaluation_id, tag_id, intensity, note, display_order) SELECT ${evalRef}, t.id, ${sqlString(
         tag.intensity,
-      )}, ${sqlString(tag.note)} FROM tags t WHERE t.key = ${sqlString(
+      )}, ${sqlString(tag.note)}, ${index + 1} FROM tags t WHERE t.key = ${sqlString(
         tag.key,
       )} AND ${newEvaluationGuard} ON CONFLICT DO NOTHING;`,
     );
-  }
+  });
 
+  // Runs across every link of every source, so the position is unique within
+  // the evaluation, which the deferrable uniqueness constraint requires.
+  let linkOrder = 0;
   for (const source of evaluation.sources) {
     out.push(
       `INSERT INTO evidence_sources (source_key, title, url, publisher, author, published_at, evidence_tier, source_category) SELECT ${sqlString(
@@ -330,20 +343,31 @@ function emitEvaluation(
       ? source.supports.map((key) => dimensionRef(evaluation.rubricVersion, key))
       : ["NULL"];
     for (const target of targets) {
+      linkOrder += 1;
       out.push(
-        `INSERT INTO evaluation_evidence_links (evaluation_id, evidence_source_id, dimension_id, platform_scope, note) SELECT ${evalRef}, ${sourceRef(
+        `INSERT INTO evaluation_evidence_links (evaluation_id, evidence_source_id, dimension_id, platform_scope, note, display_order) SELECT ${evalRef}, ${sourceRef(
           source.id,
         )}, ${target}, ${platformScope}, ${sqlString(
           source.note,
-        )} WHERE ${newEvaluationGuard} ON CONFLICT DO NOTHING;`,
+        )}, ${linkOrder} WHERE ${newEvaluationGuard} ON CONFLICT DO NOTHING;`,
       );
     }
   }
 }
 
 export function buildSeedSql(
-  profiles: readonly GameWithEvaluation[],
+  input: readonly GameWithEvaluation[],
 ): string {
+  /*
+   * Canonicalised before anything is emitted.
+   *
+   * Tag and evidence positions are written as explicit `display_order` values
+   * (migration 0008), and they have to match what `readFixtureProfiles` returns
+   * or fixture/Postgres parity becomes a coincidence. Ordering here rather than
+   * trusting the order a fixture file happens to list things in means the two
+   * paths agree by construction.
+   */
+  const profiles = input.map(canonicallyOrdered);
   const out: string[] = [];
   const finalizers: SeedFinalizer[] = [];
   const gamesBySlug = new Map<string, string>();

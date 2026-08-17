@@ -5,7 +5,6 @@ import {
 } from "@/lib/rubric";
 import {
   getTag,
-  TAGS,
   type TagDefinition,
   type TagIntensity,
 } from "@/lib/rubric/tags";
@@ -213,10 +212,10 @@ export function buildProfileView({
     game: canonicalGame(game),
     scope,
     evaluation,
-    sources: orderSources(evaluation.sources),
+    sources: evaluation.sources.map(orderSupports),
     dimensions,
     radar,
-    tags: orderTags(evaluation.tags),
+    tags: evaluation.tags.map(toTagView),
     evidence: summariseEvidence(evaluation.sources),
     shapeDescription: describeShape(dimensions),
   };
@@ -224,67 +223,51 @@ export function buildProfileView({
 
 
 /**
- * Tags in the controlled vocabulary's own order.
+ * The dimensions one source bears on, in rubric order.
  *
- * WHY ORDER IS DERIVED RATHER THAN STORED. `evaluation_tags` has no ordering
- * column, so the database cannot reproduce the order a fixture array happens to
- * carry — and the cutover to Postgres would otherwise have shifted the tag line
- * on every page for no reason anyone could name. Deriving it from `TAGS` makes
- * both read paths produce the same page, and produces a better order than
- * either: the vocabulary is grouped by category, so structure tags sit together,
- * then narrative, then play, and so on.
+ * NOT an authored sequence, and so not covered by migration 0008's ordering
+ * columns. `supports` is a SET reconstructed from the evidence links a source
+ * has — "this article speaks to structure and pacing" — and a set has no
+ * editorial order to preserve. Rubric order is the only presentation of it that
+ * reads the same way as the score rows above it.
  *
- * If editorial ordering ever turns out to matter, it becomes an explicit column
- * and an explicit control in the tag editor (Phase 2C) — not an accident of
- * insertion order.
+ * Which *sources* appear in which order is the authored decision, and that one
+ * the builder no longer touches.
  */
-function orderTags(tags: readonly EvaluationTag[]): TagView[] {
-  const position = new Map(TAGS.map((tag, index) => [tag.key, index]));
-  return [...tags]
-    .sort(
-      (a, b) =>
-        (position.get(a.key) ?? Number.MAX_SAFE_INTEGER) -
-        (position.get(b.key) ?? Number.MAX_SAFE_INTEGER),
-    )
-    .map((tag) => ({
-      definition: getTag(tag.key),
-      intensity: tag.intensity,
-      note: tag.note,
-    }));
-}
 
 /**
- * Evidence sources by their stable key, and the dimensions each supports in
- * rubric order.
+ * A tag row as the page renders it, in the order it arrived.
  *
- * Same reasoning as `orderTags`: `evaluation_evidence_links` has no ordering
- * column either. Sorting on the source key is deliberately mechanical — it
- * makes no claim that one source matters more than another, which ordering by
- * tier would. Evidence is counted, never weighted (SOP §6).
+ * ORDER IS NO LONGER DECIDED HERE. `evaluation_tags` and
+ * `evaluation_evidence_links` carry an authored `display_order` (migration
+ * 0008), so the Postgres reader returns the sequence an editor chose and this
+ * builder must not overrule it — which is exactly what the previous
+ * vocabulary-order sort did.
  *
- * `byCodeUnit` rather than the database's `ORDER BY`, for the reason given on
- * that comparator: row order under one collation is not row order under
- * another.
+ * The fixture path has no such column and is ordered canonically on the way out
+ * of `readFixtureProfiles`, by the same rule migration 0008 used to backfill.
+ * See lib/profile/canonical-order.ts.
  */
-function orderSources(
-  sources: readonly EvidenceSource[],
-): readonly EvidenceSource[] {
-  const rubricOrder = new Map(
-    dimensionsInRadarOrder().map((d, index) => [d.key, index]),
-  );
-  return [...sources]
-    .sort((a, b) => byCodeUnit(a.id, b.id))
-    .map((source) =>
-      source.supports
-        ? {
-            ...source,
-            supports: [...source.supports].sort(
-              (a, b) =>
-                (rubricOrder.get(a) ?? 0) - (rubricOrder.get(b) ?? 0),
-            ),
-          }
-        : source,
-    );
+function orderSupports(source: EvidenceSource): EvidenceSource {
+  if (!source.supports) return source;
+  return {
+    ...source,
+    supports: [...source.supports].sort(
+      (a, b) => (RUBRIC_ORDER.get(a) ?? 0) - (RUBRIC_ORDER.get(b) ?? 0),
+    ),
+  };
+}
+
+const RUBRIC_ORDER = new Map(
+  dimensionsInRadarOrder().map((dimension, index) => [dimension.key, index]),
+);
+
+function toTagView(tag: EvaluationTag): TagView {
+  return {
+    definition: getTag(tag.key),
+    intensity: tag.intensity,
+    note: tag.note,
+  };
 }
 
 export function summariseEvidence(

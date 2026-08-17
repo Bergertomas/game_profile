@@ -160,14 +160,31 @@ DATABASE_URL=postgres://…/game_profile npm run build   # reads Postgres
 npm run build                                          # reads the fixtures
 ```
 
-The build says which path it took. **Production Postgres is not yet
-provisioned**, so a production build currently falls back to the calibration
-fixtures — the one temporary compatibility path.
+The build says which path it took. **Production Postgres is provisioned** —
+Neon, Frankfurt, [ADR 0019](docs/decisions/0019-hosted-postgres-and-admin-activation.md) —
+and a production build has no fixture fallback at all: `SITE_ENV === "production"`
+folds to a literal, so the fallback branch is unreachable code in a production
+bundle rather than a switch that could be left off. `REQUIRE_DATABASE=1` says the
+same thing for any other environment that must not substitute fixtures. Fixtures
+remain the source for unit tests, parity, the development harnesses and the named
+synthetic Playwright corpora.
 
-At cutover, `REQUIRE_DATABASE=1` makes a missing `DATABASE_URL` a build error
-instead of a silent substitution, and the fallback branch is then deleted. See
-[ADR 0017](docs/decisions/0017-postgres-read-path.md) for the full provisioning
-sequence.
+### Migrations go out before the code that needs them
+
+There is one authoritative database and the build reads it, so a branch that adds
+a migration cannot build — anywhere, including its Cloudflare preview — until that
+migration is applied to the database it will read. Apply it first:
+
+```bash
+DATABASE_URL=postgres://…/game_profile npm run db:migrate
+```
+
+This ordering is safe in the other direction, which is why it is the ordering:
+migrations are additive, so `main` keeps building against a database that is one
+ahead of it. `lib/db/schema-version.ts` states the precondition at the top of the
+read, because the alternative is what actually happened — a driver-level
+`column … does not exist`, two minutes into a build, blaming an unrelated
+opengraph route.
 
 ```bash
 DATABASE_URL=postgres://…/game_profile_test npm run test:db-read
@@ -301,9 +318,9 @@ the derived view.
 
 **The public site reads its published profiles from this database**, at build
 time, through `lib/data/games.ts` — see [Where the data comes from](#where-the-data-comes-from)
-and [ADR 0017](docs/decisions/0017-postgres-read-path.md). Production Postgres is
-not yet provisioned, so a production build currently takes the temporary fixture
-path and says so; that is the only remaining gap.
+and [ADR 0017](docs/decisions/0017-postgres-read-path.md). A migration must reach
+this database *before* the branch that needs it is built — see
+[Migrations go out before the code that needs them](#migrations-go-out-before-the-code-that-needs-them).
 
 One command takes an empty database to a fully constrained, seeded schema:
 
@@ -315,17 +332,20 @@ That is `db:migrate` followed by `db:seed`, and it is the canonical path — the
 is no second step to remember. `0000_schema.sql` creates the tables,
 `0001_contract.sql` installs the first checks and derived `dimension_scores`
 view, and `0002_contract_hardening.sql` registers rubric identity and freezes
-final history. `0003`–`0006` add profile scopes, platform overrides, general
-score provenance and the artwork rights record. Drizzle applies every pending
-migration transactionally, so the schema is never left half-built.
+final history. `0003`–`0008` add profile scopes, platform overrides, general
+score provenance, the artwork rights record, explicit primary scopes and
+authored ordering for tags and evidence. Drizzle applies every pending migration
+transactionally, so the schema is never left half-built.
 
-`0003`, `0005` and `0006` restructure columns beneath rows the `0002`
-immutability triggers have frozen. Each disables user triggers for the
-structural rewrite only, changes no score, status or judgement, and re-runs the
-completeness and lineage assertions over every row before committing. The
-regression suite applies them to a *populated* database built from
-`tests/db/fixtures/seed-pre-0003.sql`, because a migration that only builds a
-correct empty schema has not been shown to upgrade anything.
+`0003`, `0005`, `0006` and `0008` write beneath rows the `0002` immutability
+triggers have frozen. Each disables the relevant user triggers for that work
+only, changes no score, status or judgement, and re-arms them before committing;
+because Drizzle runs a migration in one transaction, a failure cannot leave a
+trigger off. The regression suite applies every one of them to a *populated*
+database built from `tests/db/fixtures/seed-pre-0003.sql`, because a migration
+that only builds a correct empty schema has not been shown to upgrade anything —
+`0008` shipped without that check and was refused by the very trigger the section
+exists to catch, on the only databases that have published rows: the real ones.
 
 ```bash
 npm run db:migrate                     # schema only

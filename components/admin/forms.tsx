@@ -359,3 +359,53 @@ export function Select({
     </select>
   );
 }
+
+/**
+ * A `Select` whose options are grouped under headings.
+ *
+ * Exists for the one shape a flat list cannot express honestly: a choice from
+ * forty subcriteria, which mean nothing without the dimension they belong to.
+ * `<optgroup>` puts the dimension name above its own five, so the editor reads
+ * "Story & Character Investment → Narrative Coherence" and never has to know
+ * that the stored key is `narrative_coherence`.
+ *
+ * The empty option is selectable rather than disabled, because the fields that
+ * need grouping here are optional — an evidence mapping that names no
+ * subcriterion is profile- or dimension-level, not an unfinished one.
+ */
+export function GroupedSelect({
+  name,
+  defaultValue,
+  groups,
+  placeholder = "None",
+}: {
+  name: string;
+  defaultValue?: string | null;
+  groups: readonly {
+    label: string;
+    options: readonly { value: string; label: string }[];
+  }[];
+  placeholder?: string;
+}) {
+  const control = useControl(name, defaultValue);
+  return (
+    <select
+      key={control.defaultValue}
+      id={control.id}
+      name={name}
+      defaultValue={control.defaultValue ?? ""}
+      className={CONTROL}
+    >
+      <option value="">{placeholder}</option>
+      {groups.map((group) => (
+        <optgroup key={group.label} label={group.label}>
+          {group.options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </optgroup>
+      ))}
+    </select>
+  );
+}

@@ -1,4 +1,5 @@
 import { SEED_PROFILES } from "@/content";
+import { canonicallyOrdered } from "@/lib/profile/canonical-order";
 import { multiScopeAdditions, TEST_CORPUS_NAME } from "@/content/test-corpus";
 import type { GameWithEvaluation } from "@/lib/profile/types";
 import type { RubricVersion } from "@/lib/rubric";
@@ -33,10 +34,20 @@ export function readFixtureProfiles(
         record.evaluation.rubricVersion === rubricVersion,
     );
 
+  /*
+   * Ordered canonically on the way out.
+   *
+   * `evaluation_tags` and `evaluation_evidence_links` now carry an authored
+   * `display_order` (migration 0008), and the Postgres reader honours it. A
+   * fixture is a TypeScript array with no such column, so the two paths would
+   * otherwise agree only by luck. Applying the same rule the migration used to
+   * backfill keeps fixture/Postgres parity exact and keeps `buildProfileView`
+   * free of an ordering opinion it should no longer hold.
+   */
   return [
     ...published(SEED_PROFILES),
     ...(testCorpusRequested() ? published(multiScopeAdditions()) : []),
-  ];
+  ].map(canonicallyOrdered);
 }
 
 /**

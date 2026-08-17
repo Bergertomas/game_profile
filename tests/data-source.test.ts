@@ -26,8 +26,44 @@ async function loadGames() {
   return import("@/lib/data/games");
 }
 
+/** A fresh module graph, because `SITE_ENV` folds at import time. */
+async function loadGamesFor(siteEnv: "production" | "preview") {
+  vi.stubEnv("NEXT_PUBLIC_SITE_ENV", siteEnv);
+  vi.resetModules();
+  return import("@/lib/data/games");
+}
+
+describe("A production build", () => {
+  /**
+   * The cleanup Phase 2C makes: production has NO fixture fallback, whatever
+   * the environment says. `REQUIRE_DATABASE=1` is the operational switch and a
+   * switch can be unset — by an edited build variable, a new Workers Builds
+   * environment, or a local `next build` somebody deploys. `SITE_ENV` folds to
+   * a literal at build time, so the fallback is unreachable code in a
+   * production bundle rather than a check that might be skipped.
+   */
+  it("refuses to build without a database, even with REQUIRE_DATABASE unset", async () => {
+    vi.stubEnv("DATABASE_URL", "");
+    vi.stubEnv("REQUIRE_DATABASE", "");
+    const { listGameProfiles } = await loadGamesFor("production");
+    await expect(listGameProfiles()).rejects.toThrow(
+      /this is a production build/i,
+    );
+  });
+
+  it("says what it refused to publish", async () => {
+    vi.stubEnv("DATABASE_URL", "");
+    vi.stubEnv("REQUIRE_DATABASE", "");
+    const { listGameProfiles } = await loadGamesFor("production");
+    await expect(listGameProfiles()).rejects.toThrow(
+      /would have published the calibration fixtures/,
+    );
+  });
+});
+
 describe("Without a database", () => {
   it("falls back to the calibration fixtures", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SITE_ENV", "preview");
     vi.stubEnv("DATABASE_URL", "");
     vi.stubEnv("REQUIRE_DATABASE", "");
     const { listGameProfiles } = await loadGames();
@@ -40,6 +76,7 @@ describe("Without a database", () => {
   });
 
   it("says so, so a fixture-backed deploy is not mistaken for a real one", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SITE_ENV", "preview");
     vi.stubEnv("DATABASE_URL", "");
     vi.stubEnv("REQUIRE_DATABASE", "");
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -54,23 +91,56 @@ describe("Without a database", () => {
 
 describe("After cutover", () => {
   it("fails closed rather than republishing the fixtures", async () => {
-    // The whole point: once production has a database, a build that cannot
-    // reach it must stop, not fall back to a corpus nobody authored today.
+    // Still meaningful for a NON-production build: a preview pointed at the
+    // editorial database should fail loudly rather than quietly showing the
+    // calibration corpus to a reviewer.
+    vi.stubEnv("NEXT_PUBLIC_SITE_ENV", "preview");
     vi.stubEnv("DATABASE_URL", "");
     vi.stubEnv("REQUIRE_DATABASE", "1");
     const { listGameProfiles } = await loadGames();
     await expect(listGameProfiles()).rejects.toThrow(
-      /REQUIRE_DATABASE is set but DATABASE_URL is not/,
+      /DATABASE_URL is not set and REQUIRE_DATABASE is/,
     );
   });
 
   it("explains what it refused to do", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SITE_ENV", "preview");
     vi.stubEnv("DATABASE_URL", "");
     vi.stubEnv("REQUIRE_DATABASE", "1");
     const { listGameProfiles } = await loadGames();
     await expect(listGameProfiles()).rejects.toThrow(
       /would have published the calibration fixtures/,
     );
+  });
+});
+
+describe("Named synthetic corpora", () => {
+  /**
+   * Preserved from the CI isolation work: the ordinary browser server is
+   * DB-backed, while an explicitly named synthetic corpus clears DATABASE_URL
+   * and REQUIRE_DATABASE. That has to keep working now that production requires
+   * Postgres — and it does, because the production rule is keyed on SITE_ENV,
+   * which a Playwright build is not.
+   */
+  it("still work fixture-backed while production requires Postgres", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SITE_ENV", "preview");
+    vi.stubEnv("PROFILE_TEST_CORPUS", "multi-scope");
+    vi.stubEnv("DATABASE_URL", "");
+    vi.stubEnv("REQUIRE_DATABASE", "");
+    const { listProfileScopes } = await loadGamesFor("preview");
+    expect(await listProfileScopes("returnal")).toHaveLength(2);
+  });
+
+  it("cannot be requested by a production build", async () => {
+    vi.stubEnv("PROFILE_TEST_CORPUS", "multi-scope");
+    vi.stubEnv("DATABASE_URL", "");
+    vi.resetModules();
+    const { readFixtureProfiles } = await import("@/lib/data/fixture-profiles");
+    vi.stubEnv("NEXT_PUBLIC_SITE_ENV", "production");
+    vi.resetModules();
+    const production = await import("@/lib/data/fixture-profiles");
+    expect(() => production.readFixtureProfiles("1.0")).toThrow(/production build/i);
+    expect(readFixtureProfiles).toBeDefined();
   });
 });
 
