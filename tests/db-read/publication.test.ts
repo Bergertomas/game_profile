@@ -1,8 +1,9 @@
 import { afterAll, describe, expect, it } from "vitest";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { closeDatabase, getDatabase } from "@/lib/db/client";
 import * as t from "@/lib/db/schema";
 import type { AdminTransaction } from "@/lib/admin/db";
+import { describeDatabaseFailure } from "@/lib/admin/errors";
 import * as write from "@/lib/admin/evaluation-write";
 import {
   checkPublishReadiness,
@@ -118,14 +119,14 @@ describe("Preview renders what ships", () => {
         );
 
         const record = await readEvaluationProfile(tx, draftId);
-        const live = await tx
+        const publishedRows = await tx
           .select({ id: t.evaluations.id })
           .from(t.evaluations)
           .where(eq(t.evaluations.status, "published"));
 
         return {
           status: record?.evaluation.status,
-          publishedIds: live.map((row) => row.id),
+          publishedIds: publishedRows.map((row) => row.id),
           draftId,
         };
       },
@@ -243,8 +244,8 @@ describe("Publication", () => {
     const byStatus = new Map(rows.map((row) => [row.status, row]));
     expect(byStatus.get("published")).toBeDefined();
     expect(byStatus.get("superseded")).toBeDefined();
-    // Exactly one of each: the scope is never without a live profile and never
-    // has two.
+    // Exactly one of each: the scope is never without a published version and
+    // never has two.
     expect(rows.filter((r) => r.status === "published").length).toBe(1);
     expect(byStatus.get("published")!.publishedAt).not.toBeNull();
   });
@@ -370,3 +371,42 @@ async function newScope(tx: AdminTransaction, key = "publication"): Promise<stri
     .returning({ id: t.profileScopes.id });
   return scope!.id;
 }
+
+/**
+ * The constraint names `lib/admin/errors.ts` matches on.
+ *
+ * Not pedantry. `evaluations_one_published_per_scope_rubric` has been renamed
+ * twice — `..._per_game` in migration 0001, `..._per_game_rubric` in 0002, then
+ * dropped and recreated scope-local in 0003 once profile scopes existed. A
+ * message mapping keyed to a stale name does not fail loudly; it stops matching,
+ * and the editor gets a raw Postgres error where a sentence used to be. That
+ * exact regression shipped in this branch and was caught by a concurrency test
+ * rather than by anything checking the mapping.
+ *
+ * So this asserts the two directions that matter: the indexes exist under names
+ * the mapping recognises, and the mapping actually produces a sentence for them.
+ */
+describe("Refusal messages stay attached to their constraints", () => {
+  it("matches the publication indexes that actually exist", async () => {
+    const rows = await db.execute<{ indexname: string }>(
+      sql`SELECT indexname FROM pg_indexes
+          WHERE indexname IN ('evaluations_one_published_per_scope_rubric',
+                              'evaluations_one_final_successor')`,
+    );
+    const names = rows.map((row) => row.indexname).sort();
+    expect(names).toEqual([
+      "evaluations_one_final_successor",
+      "evaluations_one_published_per_scope_rubric",
+    ]);
+
+    for (const indexname of names) {
+      const message = describeDatabaseFailure({
+        code: "23505",
+        constraint_name: indexname,
+      });
+      expect(message).not.toBeNull();
+      // The generic fallback means the specific branch stopped matching.
+      expect(message).not.toBe("That value is already in use.");
+    }
+  });
+});

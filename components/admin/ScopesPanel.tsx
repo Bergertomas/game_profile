@@ -390,8 +390,9 @@ function EvaluationHistory({
               This copies v{latestPublished.versionNumber} into a new draft —
               context, all forty scores and rationales, confidence, overrides,
               tags, evidence and interpretation — and <strong>leaves the
-              published version exactly as it is</strong>. It stays live and
-              unchanged while the revision is authored beside it. Supersession
+              published version exactly as it is</strong>. It stays the
+              published version, unchanged, while the revision is authored
+              beside it. Supersession
               happens in the same transaction that publishes the revision, so
               this scope is never without a published version and never has two.
             </p>

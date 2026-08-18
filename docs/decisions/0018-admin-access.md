@@ -129,6 +129,14 @@ whatsoever. Deploying it means accepting a request-time database path for
 opened and closed in a `finally`. That is a trade for the product owner, not a
 default that creeps in.
 
+> **Amended by [ADR 0021](0021-hyperdrive-is-the-deployed-admin-transport.md),
+> 2026-08-18.** The deployed admin path *does* use a Hyperdrive binding, as its
+> database transport. A direct `postgres.js` → Neon TLS connection from inside
+> the Workers runtime depends on Node TLS options Workers does not implement.
+> The rest of this paragraph stands: no Worker-side pool, one short-lived
+> connection per request, opened and closed in a `finally`, and local `next dev`
+> still connects directly. Every security decision in this ADR is unchanged.
+
 ### The local-development identity is local, not merely non-production
 
 `next dev` has no Access in front of it, so `ADMIN_DEV_IDENTITY` names an editor

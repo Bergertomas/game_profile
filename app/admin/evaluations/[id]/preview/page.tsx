@@ -1,17 +1,11 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Notice } from "@/components/admin/ui";
 import { GameProfile } from "@/components/profile/GameProfile";
-import type { ScopeLink } from "@/components/profile/ScopeSwitcher";
 import { withAuthorizedAdminDatabase } from "@/lib/admin/db";
-import { PUBLIC_RUBRIC_VERSION } from "@/lib/data/games";
-import {
-  readEvaluationProfile,
-  readPublishedProfilesForGame,
-} from "@/lib/db/read-profiles";
-import { buildProfileView } from "@/lib/profile/build";
+import { readPreview } from "@/lib/admin/preview";
 import { heroArtworkFor } from "@/lib/profile/artwork";
-import { profilePath } from "@/lib/site";
 
 /**
  * The profile as it will ship — Phase 2D's preview.
@@ -41,10 +35,10 @@ import { profilePath } from "@/lib/site";
  * arriving through the back door of a component that looked safe to reuse.
  *
  * The scope switcher is different: it belongs to the profile, so a multi-scope
- * game must show it or the preview is not faithful. Its data therefore comes
- * from `readPublishedProfilesForGame` on the editorial connection — the same
- * projection and the same published-only rule as the public page, read through
- * the handle this request actually has.
+ * game must show it or the preview is not faithful. `readPreview` assembles it
+ * on the editorial connection, in the state publication would leave — see
+ * lib/admin/preview.ts for why the *current* published set is the wrong answer
+ * for the first draft of a second scope.
  *
  * ── Artwork ────────────────────────────────────────────────────────────────
  *
@@ -66,49 +60,58 @@ export default async function PreviewPage({
 }) {
   const { id } = await params;
 
-  const { record, siblings } = await withAuthorizedAdminDatabase(async (db) => {
-    const found = await readEvaluationProfile(db, id);
-    if (!found) return { record: null, siblings: [] };
-    return {
-      record: found,
-      siblings: await readPublishedProfilesForGame(
-        db,
-        found.game.id,
-        PUBLIC_RUBRIC_VERSION,
-      ),
-    };
-  });
+  const preview = await withAuthorizedAdminDatabase((db) => readPreview(db, id));
+  if (!preview) notFound();
 
-  if (!record) notFound();
+  const { canonicalPath, record } = preview;
+  const status = record.evaluation.status;
+  const isWorking = status === "draft" || status === "review";
 
-  const profile = buildProfileView(record);
+  /*
+   * A draft that cannot yet be a page says so, rather than 500ing.
+   *
+   * The public renderer requires a complete profile, and an editor opens
+   * Preview long before one exists. Reporting that plainly — and pointing at
+   * the Publish page, which already enumerates every gap — is more useful than
+   * either an error boundary or a half-rendered profile that would misrepresent
+   * what publishing produces.
+   */
+  if (preview.kind === "incomplete") {
+    return (
+      <>
+        <Notice tone="warning">
+          This {status} evaluation cannot be rendered as a public page yet:{" "}
+          <strong>{preview.reason}</strong>
+        </Notice>
+        <p className="mt-4 text-[0.85rem] leading-relaxed text-ink-soft">
+          The public profile needs every dimension scored before it can be
+          drawn, so there is nothing faithful to show until then. The{" "}
+          <Link
+            href={`/admin/evaluations/${record.evaluation.id}/publish`}
+            className="text-ink underline"
+          >
+            Publish page
+          </Link>{" "}
+          lists everything still outstanding. When published, this profile would
+          answer at <code>{canonicalPath}</code>.
+        </p>
+      </>
+    );
+  }
 
-  // Mirrors `siblingScopes` in components/profile/ProfilePage.tsx: the switcher
-  // renders nothing below two scopes, so nothing is computed for the ordinary
-  // one-experience game.
-  const published = siblings.map(buildProfileView);
-  const scopes: ScopeLink[] =
-    published.length < 2
-      ? []
-      : published.map((other) => ({
-          key: other.scope.key,
-          label: other.scope.label,
-          summary: other.scope.summary,
-          href: profilePath(other.game.slug, other.scope),
-          isCurrent: other.scope.key === profile.scope.key,
-        }));
+  const { profile, scopes } = preview;
 
   return (
     <>
       <Notice
-        tone={record.evaluation.status === "published" ? "info" : "warning"}
+        tone={isWorking ? "warning" : "info"}
       >
         This is the public profile, rendered by the public renderer, from this{" "}
-        <strong>{record.evaluation.status}</strong> evaluation — not a mock-up
-        and not the derived review. It is what <code>/games/{record.game.slug}</code>{" "}
-        would serve if this version were the published one.
-        {record.evaluation.status === "draft" ||
-        record.evaluation.status === "review" ? (
+        <strong>{status}</strong> evaluation — not a mock-up and not the derived
+        review. It is what <code>{canonicalPath}</code> would serve if this
+        version were the published one, including the scope switcher as
+        publishing this version would leave it.
+        {isWorking ? (
           <>
             {" "}
             Nothing here is public: the public reader selects published

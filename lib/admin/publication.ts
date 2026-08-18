@@ -19,13 +19,31 @@ import {
 /**
  * The publish gate, and the publication itself (Master Plan §8.8, Phase 2D).
  *
+ * ── Three words, and they are not synonyms (Master Plan §9.8) ──────────────
+ *
+ *   Published   this evaluation is the scope's current editorial version. A
+ *               database fact, true the moment the transaction below commits.
+ *   Superseded  preserved editorial history: published once, since replaced.
+ *   Live        the deployed production artifact actually serves this version.
+ *
+ * Nothing in this file can make a profile Live, and nothing in it should say
+ * otherwise. Public pages are prerendered, so what production serves is decided
+ * by the last successful build — which may predate this publication, and may
+ * fail after it. A publication that commits while the next build fails leaves
+ * the new version Published and the previous one Live, and the product must not
+ * claim otherwise in the meantime.
+ *
+ * Tracking and displaying that gap is Phase 2D-2. Until it exists, the honest
+ * position is that this code knows only about Published, so "live" must not
+ * appear in copy or comments here meaning "published".
+ *
  * ── This is not where the rules live ───────────────────────────────────────
  *
  * Postgres already refuses to publish a broken profile, and it refuses it
  * against this application, a migration and a psql session alike:
  * `assert_published_evaluation_complete` rejects a grid with gaps,
- * `evaluations_one_published_per_game_rubric` rejects a second published row in
- * a scope, `trg_evaluation_snapshot_immutable` permits exactly
+ * `evaluations_one_published_per_scope_rubric` rejects a second published row
+ * in a scope, `trg_evaluation_snapshot_immutable` permits exactly
  * `draft|review -> published` and `published -> superseded`, and ADR 0016's
  * trigger rejects a sibling that publishes before its primary scope.
  *
@@ -208,7 +226,7 @@ export async function checkPublishReadiness(
  *
  * Two changes, and both are exactly what `publishEvaluation` is about to do in
  * one transaction: this evaluation becomes `published` and carries a
- * publication date, and the version it supersedes stops being live.
+ * publication date, and the version it supersedes becomes `superseded`.
  *
  * This is a projection for the validator and nothing else — it is never
  * written, never rendered, and never returned to the caller, who gets the real
@@ -326,6 +344,51 @@ export async function publishEvaluation(
   evaluationId: string,
   attestations: PublishAttestations,
 ): Promise<void> {
+  /*
+   * Lock the target BEFORE reading it, not as a side effect of updating it.
+   *
+   * This is the difference between validating a snapshot and validating a
+   * moving target. `trg_evaluation_child_immutable` takes `FOR SHARE` on the
+   * owning evaluation row before it allows any score, assessment, block, tag or
+   * evidence-link write. `FOR UPDATE` here conflicts with that share lock, so
+   * from this statement onward no child mutation of this evaluation can commit
+   * until this transaction ends.
+   *
+   * Without it the window is real and not theoretical: the readiness reads take
+   * no locks at all, so an editor clearing a score in another tab could commit
+   * between "the gate passed" and the UPDATE below, and publication would
+   * finalize a snapshot nobody validated. The database would still catch the
+   * subset it enforces — `assert_published_evaluation_complete` re-reads the
+   * children and would reject a newly-created gap — but the app-level rules it
+   * does not know about (banned phrasing, aggregate scores, evidence maturity,
+   * confidence coherence) would sail through.
+   *
+   * The existing design already assumes this lock is held: `lock_rubric_contract`
+   * explains its fail-fast choice with "publication has already locked its
+   * evaluation row". Until now that was only true from the UPDATE onward.
+   *
+   * Ordering is also what makes two simultaneous Publish submissions safe. The
+   * second blocks here, and when the first commits it re-reads the row, finds
+   * `published`, and stops at `already_published` rather than racing the partial
+   * unique index. A child write that was already waiting behaves the same way:
+   * it resumes, sees the finalized status, and gets the immutability refusal it
+   * would have got had it arrived a moment later.
+   *
+   * The predecessor is deliberately NOT locked here. It is reached only by the
+   * status-only UPDATE below, which takes its own row lock in a fixed order
+   * (target, then predecessor) — and a second publication cannot be inside this
+   * section concurrently to take them the other way round.
+   */
+  const [locked] = await tx
+    .select({ id: t.evaluations.id })
+    .from(t.evaluations)
+    .where(eq(t.evaluations.id, evaluationId))
+    .for("update");
+
+  if (!locked) {
+    throw new EditorialRuleError("There is no evaluation with that id.");
+  }
+
   const readiness = await checkPublishReadiness(tx, evaluationId);
 
   if (!readiness.record) {

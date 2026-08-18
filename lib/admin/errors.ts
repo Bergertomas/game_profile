@@ -67,8 +67,14 @@ export function describeDatabaseFailure(error: unknown): string | null {
       if (constraint.includes("one_primary_per_game")) {
         return "That would leave the game with two primary scopes. Move primacy instead of setting it directly.";
       }
-      if (constraint.includes("one_published_per_game_rubric")) {
-        return "This scope already has a published evaluation under this rubric. Publish a revision of it instead — a revision supersedes the current version in the same transaction, which is what keeps the scope from having two live profiles.";
+      // Matched on the stable part of the name, deliberately. This index has
+      // been renamed twice already — `..._per_game` in 0001, `..._per_game_
+      // rubric` in 0002, `..._per_scope_rubric` in 0003 once scopes existed —
+      // and a mapping keyed to the full name silently stops matching on the
+      // next rename, degrading a written sentence back into a raw constraint
+      // error. `tests/db-read/publication.test.ts` pins the real names.
+      if (constraint.includes("one_published_per")) {
+        return "This scope already has a published evaluation under this rubric. Publish a revision of it instead — a revision supersedes the current version in the same transaction, which is what keeps the scope from having two published profiles at once.";
       }
       if (constraint.includes("one_final_successor")) {
         return "Another version has already superseded that one. Two revisions were started from the same predecessor and one of them has published; base this work on the current published version instead.";

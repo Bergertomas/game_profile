@@ -19,8 +19,9 @@ import { readScopeHistoryPage } from "@/lib/admin/evaluations";
  *
  * Because it can. `readEvaluationProfile` loads any evaluation by id whatever
  * its status, so a superseded version renders through the same public renderer
- * as a draft or the live profile. That makes "what did this profile say in
- * March" answerable by looking at it, rather than by reading a diff of rows —
+ * as a draft or the currently published version. That makes "what did this
+ * profile say in March" answerable by looking at it, rather than by reading a
+ * diff of rows —
  * and it costs nothing, because it is the same code path the preview already
  * needed.
  *

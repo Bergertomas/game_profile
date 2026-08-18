@@ -89,9 +89,10 @@ export default async function AdminLayout({
 
       <footer className="mx-auto w-full max-w-[78rem] px-5 pb-10 text-[0.75rem] text-ink-quiet sm:px-8">
         <p className="m-0">
-          Editing here changes the database. Published profiles become live only
-          after a rebuild and deploy — see the Master Plan on editorial
-          publication versus live deployment.
+          Editing here changes the database, not the site. A Published profile
+          becomes Live only after a rebuild and deploy succeeds — until then
+          production still serves the previous version. See the Master Plan on
+          editorial publication versus live deployment.
         </p>
       </footer>
     </div>

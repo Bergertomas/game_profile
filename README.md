@@ -225,8 +225,9 @@ different scope; only an editor can tell those apart.
 | `profile_scopes` | `key` (`survival`) | `label` (`Survival`) | — |
 | `evaluations` | `scope_id` + `version_number` | — | edition, mode, platforms, build |
 
-Live-row uniqueness is `(scope, rubric version)`. Superseded versions are
-preserved and linked, never overwritten.
+Published-row uniqueness is `(scope, rubric version)` — one published
+evaluation per scope per rubric, enforced by a partial unique index. Superseded
+versions are preserved and linked, never overwritten.
 
 ### Public addresses
 
@@ -275,7 +276,7 @@ sentences, and on success publishes this version and supersedes the one it
 replaces in a single transaction.
 
 Publishing changes the database, not the site: public pages are prerendered, so
-a published profile becomes live at the next production build. Triggering that
+a published profile becomes Live at the next production build. Triggering that
 build from the tool is Phase 2D-2 — see
 [ADR 0020](docs/decisions/0020-publication-preview-and-deploy-trigger.md).
 

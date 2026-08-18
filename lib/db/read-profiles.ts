@@ -163,14 +163,17 @@ export async function readEvaluationProfile(
   await assertSchemaIsCurrent(db);
 
   const [target] = await db
-    .select({ scopeId: t.evaluations.scopeId })
+    .select({
+      scopeId: t.evaluations.scopeId,
+      rubricVersion: t.evaluations.rubricVersion,
+    })
     .from(t.evaluations)
     .where(eq(t.evaluations.id, evaluationId))
     .limit(1);
   if (!target) return null;
 
   /*
-   * The whole series for this scope, not just the requested row.
+   * This evaluation's series: same scope, SAME RUBRIC.
    *
    * `history` is what makes the supersession rules checkable. Loaded with only
    * the one evaluation, `validateGameRecord` sees a chain of length one, and
@@ -178,16 +181,40 @@ export async function readEvaluationProfile(
    * "the oldest in the chain but claims to supersede X". The gate would then
    * block the single most common publication there is.
    *
+   * ── Why the rubric filter is not optional ─────────────────────────────────
+   *
+   * Version numbering and supersession are both rubric-local: the database's
+   * uniqueness is per (scope, rubric), and a scope re-evaluated under a later
+   * rubric starts a NEW series at version 1 rather than continuing the old one.
+   * A rubric-1.0 evaluation is therefore not history for a rubric-2.0 one; it
+   * is a different lineage describing the same experience under different
+   * rules.
+   *
+   * Without this filter, the first evaluation authored under a second rubric
+   * would be handed the entire earlier generation as its history, and the gate
+   * would refuse it with a pile of true-sounding nonsense —
+   * `history_rubric_mismatch` for every earlier row, `duplicate_version_number`
+   * where the two generations both have a v1, and a broken supersession chain
+   * because the new v1 correctly supersedes nothing.
+   *
+   * The admin revision-history page deliberately shows every rubric generation;
+   * that is a different question ("what has this scope ever said") from the one
+   * asked here ("what lineage is this evaluation part of").
+   *
    * Nothing rendered changes: `buildProfileView` never reads `history`, so the
-   * preview is byte-identical either way. This is loaded for the validator, and
-   * for the revision-history view.
+   * preview is byte-identical either way. This is loaded for the validator.
    */
   const seriesRows = await db
     .select(PROFILE_SELECTION)
     .from(t.evaluations)
     .innerJoin(t.profileScopes, eq(t.profileScopes.id, t.evaluations.scopeId))
     .innerJoin(t.games, eq(t.games.id, t.evaluations.gameId))
-    .where(eq(t.evaluations.scopeId, target.scopeId))
+    .where(
+      and(
+        eq(t.evaluations.scopeId, target.scopeId),
+        eq(t.evaluations.rubricVersion, target.rubricVersion),
+      ),
+    )
     .orderBy(asc(t.evaluations.versionNumber));
 
   const series = await buildProfiles(db, seriesRows);
