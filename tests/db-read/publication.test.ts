@@ -66,14 +66,16 @@ async function refusalOf(run: () => Promise<unknown>): Promise<string> {
 /** A seeded published evaluation — the corpus the calibration rounds approved. */
 async function aPublishedEvaluation(
   tx: AdminTransaction,
-): Promise<{ id: string; scopeId: string; gameId: string }> {
+): Promise<{ id: string; scopeId: string; gameId: string; scopeLabel: string }> {
   const [row] = await tx
     .select({
       id: t.evaluations.id,
       scopeId: t.evaluations.scopeId,
       gameId: t.evaluations.gameId,
+      scopeLabel: t.profileScopes.label,
     })
     .from(t.evaluations)
+    .innerJoin(t.profileScopes, eq(t.profileScopes.id, t.evaluations.scopeId))
     .where(eq(t.evaluations.status, "published"))
     .limit(1);
   return row!;
@@ -229,7 +231,10 @@ describe("Publication", () => {
         "Publication test",
       );
 
-      await publishEvaluation(tx, revisionId, { spoilerReviewed: true });
+      await publishEvaluation(tx, revisionId, {
+        spoilerReviewed: true,
+        scopeConfirmation: published.scopeLabel,
+      });
 
       return tx
         .select({
@@ -260,7 +265,10 @@ describe("Publication", () => {
         "Attestation test",
       );
       return refusalOf(() =>
-        publishEvaluation(tx, revisionId, { spoilerReviewed: false }),
+        publishEvaluation(tx, revisionId, {
+          spoilerReviewed: false,
+          scopeConfirmation: published.scopeLabel,
+        }),
       );
     });
 
@@ -277,7 +285,10 @@ describe("Publication", () => {
         "editor@example.com",
       );
       return refusalOf(() =>
-        publishEvaluation(tx, id, { spoilerReviewed: true }),
+        publishEvaluation(tx, id, {
+          spoilerReviewed: true,
+          scopeConfirmation: "Publication fixture",
+        }),
       );
     });
 
@@ -310,7 +321,10 @@ describe("Publication", () => {
       );
     });
 
-    expect(message).toMatch(/one_published_per_game_rubric|duplicate key/i);
+    // The real index name, not the one it was called before migration 0003
+    // dropped and recreated it scope-local. `Refusal messages stay attached to
+    // their constraints` below pins both names this codebase depends on.
+    expect(message).toMatch(/one_published_per_scope_rubric/i);
   });
 
   it("is refused by the database when a draft skips straight to superseded", async () => {
@@ -408,5 +422,79 @@ describe("Refusal messages stay attached to their constraints", () => {
       // The generic fallback means the specific branch stopped matching.
       expect(message).not.toBe("That value is already in use.");
     }
+  });
+});
+
+/**
+ * The typed scope confirmation, enforced where it counts.
+ *
+ * `PublishPanel` disables its button until the editor types the scope label,
+ * but a disabled button is a client-side courtesy: the field is submitted, and
+ * the server re-derives what it should contain from the record the publication
+ * transaction has already locked. A confirmation the browser both prompts for
+ * and validates confirms nothing against a crafted or scripted submission.
+ *
+ * This is an accidental-action safeguard, not authorization. `requireEditor()`
+ * and the transactional gate remain the things that decide whether a
+ * publication may happen at all; this decides whether *this* scope was meant.
+ */
+describe("Publishing requires the scope to be confirmed", () => {
+  async function publishWith(confirmation: string): Promise<string> {
+    return inRolledBackTransaction(async (tx) => {
+      const published = await aPublishedEvaluation(tx);
+      const revisionId = await write.createRevision(
+        tx,
+        published.id,
+        "editor@example.com",
+        "Confirmation test",
+      );
+      return refusalOf(() =>
+        publishEvaluation(tx, revisionId, {
+          spoilerReviewed: true,
+          scopeConfirmation: confirmation,
+        }),
+      );
+    });
+  }
+
+  it("refuses an empty confirmation", async () => {
+    expect(await publishWith("")).toMatch(/Type the scope being published/);
+  });
+
+  it("refuses the wrong scope name", async () => {
+    // The mistake this exists to catch: the right game, the wrong experience.
+    expect(await publishWith("Some Other Scope")).toMatch(
+      /Type the scope being published/,
+    );
+  });
+
+  it("accepts the scope label, ignoring case and surrounding space", async () => {
+    const outcome = await inRolledBackTransaction(async (tx) => {
+      const published = await aPublishedEvaluation(tx);
+      const revisionId = await write.createRevision(
+        tx,
+        published.id,
+        "editor@example.com",
+        "Confirmation test",
+      );
+      await publishEvaluation(tx, revisionId, {
+        spoilerReviewed: true,
+        // Deliberately sloppy: a deliberateness check that failed on a capital
+        // letter would only teach an editor to paste.
+        scopeConfirmation: `  ${published.scopeLabel.toUpperCase()}  `,
+      });
+      const [row] = await tx
+        .select({ status: t.evaluations.status })
+        .from(t.evaluations)
+        .where(eq(t.evaluations.id, revisionId));
+      return row!.status;
+    });
+
+    expect(outcome).toBe("published");
+  });
+
+  it("is not satisfied by the spoiler attestation alone", async () => {
+    // Both are required, and neither substitutes for the other.
+    expect(await publishWith("")).not.toMatch(/spoilers/);
   });
 });

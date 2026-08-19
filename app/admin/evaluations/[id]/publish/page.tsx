@@ -127,8 +127,12 @@ export default async function PublishPage({
           the profile on the site has been misled by the interface.
         */}
         <Notice tone="info">
-          Publishing changes the database, not the site. The public pages are
-          prerendered, so this profile becomes Live at the next production build.
+          Publishing changes the database, not the site. This version becomes
+          Live only if a later production build reads it, verification succeeds,
+          and that artifact deploys successfully — none of which this action
+          starts or waits for. Until then production keeps serving whatever the
+          last successful deployment contained, and a version can even be
+          published and later superseded without ever having been served.
           Triggering that build from here, and showing the gap while it is
           pending, is the next slice of Phase 2D.
         </Notice>

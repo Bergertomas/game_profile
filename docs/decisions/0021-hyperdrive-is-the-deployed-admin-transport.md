@@ -9,10 +9,17 @@ deliberately used a `HYPERDRIVE` binding for that path since 2026-08-15. This
 records why, and narrows the earlier statements rather than leaving the
 constitution contradicting the implementation.
 
-## What actually happened
+## What the history shows
 
-Reconstructed from the commits, in order, on the day remote admin was first
-wired against hosted Neon:
+**This section is a reconstruction from the commit record, not a report of a
+diagnosed incident.** No failure log, error report or written post-mortem exists
+in the repository. What follows is the best-supported reading of the sequence,
+and it is labelled as such because the difference matters: a future reader
+deciding whether to remove the binding should know they are weighing an
+inference, not a recorded finding.
+
+The commits, in order, on the day remote admin was first wired against hosted
+Neon:
 
 | Commit | Change |
 |---|---|
@@ -23,35 +30,41 @@ wired against hosted Neon:
 | `6409655` | Route deployed admin database through Hyperdrive |
 | `9deacb9` | Give local Hyperdrive verification a fail-closed connection string |
 
-The sequence is the argument. Sanitized failure logging came first because the
-deployed admin path was failing and the failures were unreadable. TLS was then
-made explicit, because Neon requires it. Then `wrangler.jsonc` acquired a
+The sequence is the argument, and it reads consistently in one direction:
+sanitized failure logging first — which is what one adds while diagnosing
+something — then explicit TLS, because Neon requires it, then a Workers
 compatibility flag whose committed rationale is precise:
 
 > Postgres.js also passes Node TLS options that Workers does not implement.
 > Since 2026-06-16 Workers throws on those unsupported options by default;
 > disabling that throw lets the supported TLS connection proceed instead.
 
-Only after that did Hyperdrive appear.
+Only after that did Hyperdrive appear. That ordering is evidence, though not
+proof: the commits do not state that the direct path had been observed failing
+in a deployed Worker, and nobody wrote it down.
 
 ## Decision
 
 **The deployed Worker reaches the editorial database through Hyperdrive.** The
 binding is the admin path's transport.
 
-The reason is transport, not pooling. A direct `postgres.js` → Neon TLS
-connection from inside the Workers runtime depends on Node TLS options the
-runtime does not implement, and survives only behind a compatibility flag that
-suppresses the resulting throw. Hyperdrive terminates the database transport
-outside the Worker, so the Worker is no longer the thing negotiating a Postgres
-TLS session with primitives it only partly has.
+The best-supported reason is transport rather than pooling. A direct
+`postgres.js` → Neon TLS connection from inside the Workers runtime demonstrably
+depends on Node TLS options the runtime does not implement — that part is not an
+inference, it is the committed rationale of `1baf9cb` — and survives only behind
+a compatibility flag that suppresses the resulting throw. Hyperdrive terminates
+the database transport outside the Worker, so the Worker stops negotiating a
+Postgres TLS session with primitives it only partly has.
+
+What is *inferred* is that this constraint is why Hyperdrive was adopted rather
+than some other motivation. The commit ordering supports it and nothing
+contradicts it, but it was not written down at the time.
 
 That distinction matters for reading v0.8 §9.5. The prohibition there is against
 **pooling as a performance optimisation absent measured need**, and that
 prohibition still stands: nothing about this change is motivated by throughput,
-and the editorial team is still one person. What was encountered is a runtime
-constraint, met in practice, with a commit trail — which is what "measured need"
-has to mean when the measurement is "the deployed path did not work".
+and the editorial team is still one person. The constraint that was met is a
+runtime one, and the commit trail is the evidence for it.
 
 ## What is unchanged, and must stay unchanged
 

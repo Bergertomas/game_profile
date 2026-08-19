@@ -7,7 +7,7 @@
 **Product and project orchestration:** ChatGPT  
 **Engineering and product design:** Claude  
 **Status:** Current product and roadmap constitution — Phase 2 active  
-**Current checkpoint:** Phase 2C complete and merged; authoritative Neon Postgres provisioned, migrated and serving production builds; Phase 2D active, with slice 2D-1 (preview, publish gate, transactional publication, revision history) implemented and 2D-2 (deploy trigger, Published/awaiting-deployment/Live reconciliation, failure/retry/audit) still pending  
+**Current checkpoint:** Phase 2C complete and merged; authoritative Neon Postgres provisioned, migrated and serving production builds; Phase 2D active — slice 2D-1 (preview, publish gate, transactional publication, revision history) implemented and pending merge, slice 2D-2 (deploy trigger, Published/awaiting-deployment/Live reconciliation, failure/retry/audit) still pending. The tool currently knows Published state only.\
 **Date:** 2026-08-15 · checkpoint refreshed 2026-08-18
 
 ---

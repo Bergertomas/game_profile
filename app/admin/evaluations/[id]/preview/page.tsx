@@ -92,8 +92,10 @@ export default async function PreviewPage({
           >
             Publish page
           </Link>{" "}
-          lists everything still outstanding. When published, this profile would
-          answer at <code>{canonicalPath}</code>.
+          lists everything still outstanding. Once published, this profile owns
+          the address <code>{canonicalPath}</code> — which production serves only
+          from a later successful build and deployment, not from publication
+          itself.
         </p>
       </>
     );
@@ -108,9 +110,11 @@ export default async function PreviewPage({
       >
         This is the public profile, rendered by the public renderer, from this{" "}
         <strong>{status}</strong> evaluation — not a mock-up and not the derived
-        review. It is what <code>{canonicalPath}</code> would serve if this
-        version were the published one, including the scope switcher as
-        publishing this version would leave it.
+        review. It is what a production build would render at{" "}
+        <code>{canonicalPath}</code> from the corpus this version would leave,
+        including the scope switcher publishing it would produce. Publication
+        alone does not change what production serves: that needs a later build,
+        successful verification, and a successful deployment.
         {isWorking ? (
           <>
             {" "}

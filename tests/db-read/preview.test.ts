@@ -6,6 +6,9 @@ import type { AdminTransaction } from "@/lib/admin/db";
 import { readPreview } from "@/lib/admin/preview";
 import * as write from "@/lib/admin/evaluation-write";
 import { readEvaluationProfile } from "@/lib/db/read-profiles";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { ScopeSwitcher } from "@/components/profile/ScopeSwitcher";
 
 /**
  * The preview shows the page publication would produce.
@@ -109,11 +112,9 @@ describe("Prospective scope switcher", () => {
     });
 
     expect(preview).not.toBeNull();
-    // A freshly created draft has no scores, so the public renderer cannot draw
-    // it — the switcher is still assembled, because that is what this asserts.
-    // A freshly created draft has no scores, so the public renderer cannot draw
-    // it yet. The prospective switcher is knowable regardless, which is what
-    // this test is about.
+    // A bare draft has no scores, so the public renderer cannot draw it yet.
+    // The prospective switcher is knowable regardless — the sibling test below
+    // covers the case where the draft is complete and actually renders.
     expect(preview!.kind).toBe("incomplete");
     const { scopes, canonicalPath } = preview!;
 
@@ -271,5 +272,151 @@ describe("A lineage is rubric-local", () => {
         (entry) => (entry.rubricVersion as string) === "9.9-test",
       ),
     ).toBe(false);
+  });
+});
+
+/**
+ * A complete working evaluation for a brand-new sibling scope.
+ *
+ * `createRevision` copies an approved profile wholesale but stays inside its
+ * own scope, which is exactly what a revision should do — and leaves no way to
+ * produce a *second scope* whose draft is complete enough to render. So this
+ * does the same copy against a different scope. Test fixture only: nothing in
+ * the product moves an evaluation between scopes, and nothing should.
+ */
+async function completeDraftInNewScope(
+  tx: AdminTransaction,
+  sourceEvaluationId: string,
+  scope: { key: string; label: string; displayOrder: number },
+): Promise<{ evaluationId: string; scopeId: string }> {
+  const [source] = await tx
+    .select()
+    .from(t.evaluations)
+    .where(eq(t.evaluations.id, sourceEvaluationId))
+    .limit(1);
+
+  const [created] = await tx
+    .insert(t.profileScopes)
+    .values({
+      gameId: source!.gameId,
+      key: scope.key,
+      label: scope.label,
+      summary: `What ${scope.label} covers, and what it leaves out.`,
+      isPrimary: false,
+      displayOrder: scope.displayOrder,
+    })
+    .returning({ id: t.profileScopes.id });
+
+  const [evaluation] = await tx
+    .insert(t.evaluations)
+    .values({
+      gameId: source!.gameId,
+      scopeId: created!.id,
+      rubricVersion: source!.rubricVersion,
+      versionNumber: 1,
+      editionScope: source!.editionScope,
+      modeScope: `${scope.label} mode`,
+      platformScope: source!.platformScope,
+      buildOrPatchScope: source!.buildOrPatchScope,
+      currentStateCutoffAt: source!.currentStateCutoffAt,
+      evidenceCutoffAt: source!.evidenceCutoffAt,
+      releaseContext: source!.releaseContext,
+      status: "draft",
+      evidenceStatus: source!.evidenceStatus,
+      evidenceMaturity: source!.evidenceMaturity,
+      confidence: source!.confidence,
+      evidenceLedger: source!.evidenceLedger,
+      scoreProvenance: "editorial",
+      oneLineExperience: source!.oneLineExperience,
+      primaryPull: source!.primaryPull,
+      primaryRisk: source!.primaryRisk,
+      platformWarning: source!.platformWarning,
+      createdBy: "editor@example.com",
+    })
+    .returning({ id: t.evaluations.id });
+
+  const target = evaluation!.id;
+  for (const copy of [
+    sql`INSERT INTO subcriterion_scores (evaluation_id, subcriterion_id, score, rationale, platform_note, evidence_confidence)
+        SELECT ${target}, subcriterion_id, score, rationale, platform_note, evidence_confidence
+          FROM subcriterion_scores WHERE evaluation_id = ${sourceEvaluationId}`,
+    sql`INSERT INTO dimension_assessments (evaluation_id, dimension_id, confidence, note)
+        SELECT ${target}, dimension_id, confidence, note
+          FROM dimension_assessments WHERE evaluation_id = ${sourceEvaluationId}`,
+    sql`INSERT INTO profile_blocks (evaluation_id, block_type, item_order, text)
+        SELECT ${target}, block_type, item_order, text
+          FROM profile_blocks WHERE evaluation_id = ${sourceEvaluationId}`,
+    sql`INSERT INTO evaluation_tags (evaluation_id, tag_id, intensity, note, display_order)
+        SELECT ${target}, tag_id, intensity, note, display_order
+          FROM evaluation_tags WHERE evaluation_id = ${sourceEvaluationId}`,
+    sql`INSERT INTO evaluation_evidence_links
+          (evaluation_id, evidence_source_id, dimension_id, subcriterion_id, platform_scope, note, spoiler_sensitive, display_order)
+        SELECT ${target}, evidence_source_id, dimension_id, subcriterion_id, platform_scope, note, spoiler_sensitive, display_order
+          FROM evaluation_evidence_links WHERE evaluation_id = ${sourceEvaluationId}`,
+  ]) {
+    await tx.execute(copy);
+  }
+
+  return { evaluationId: target, scopeId: created!.id };
+}
+
+describe("A second scope previews the switcher it will create", () => {
+  /**
+   * The case the prospective model exists for, end to end.
+   *
+   * The earlier version of this test used a bare draft, so `readPreview`
+   * returned `kind: "incomplete"` and the page never reached `GameProfile`. It
+   * proved an internal array had two entries — not that the editor is shown the
+   * switcher they are being asked to approve. This one renders.
+   */
+  it("renders both scope links, with the working sibling marked current", async () => {
+    const preview = await inRolledBackTransaction(async (tx) => {
+      const primary = await publishedPrimary(tx);
+      const { evaluationId } = await completeDraftInNewScope(
+        tx,
+        primary.evaluationId,
+        { key: "wintermute", label: "Wintermute", displayOrder: 2 },
+      );
+      return readPreview(tx, evaluationId);
+    });
+
+    // The draft is complete, so the public renderer can draw it — which is what
+    // makes the rest of this test about the page rather than about an array.
+    expect(preview!.kind).toBe("renderable");
+    const { scopes, canonicalPath, profile } = preview as Extract<
+      typeof preview,
+      { kind: "renderable" }
+    >;
+
+    // Each scope exactly once, the working sibling current.
+    expect(scopes.map((s) => s.key).sort()).toEqual(["default", "wintermute"]);
+    expect(scopes.filter((s) => s.isCurrent).map((s) => s.key)).toEqual([
+      "wintermute",
+    ]);
+
+    // ADR 0016 addresses: the primary owns the bare game URL.
+    const byKey = new Map(scopes.map((s) => [s.key, s.href]));
+    expect(byKey.get("default")).toMatch(/^\/games\/[a-z0-9-]+$/);
+    expect(byKey.get("wintermute")).toBe(`${byKey.get("default")}/wintermute`);
+    expect(canonicalPath).toBe(byKey.get("wintermute"));
+
+    // ── The rendering itself, through the real component ──────────────────
+    const html = renderToStaticMarkup(
+      createElement(ScopeSwitcher, {
+        scopes,
+        gameTitle: profile.game.canonicalTitle,
+      }),
+    );
+
+    // It renders at all: below two scopes `ScopeSwitcher` returns null, so this
+    // would be empty if the prospective set had not included the sibling.
+    expect(html).not.toBe("");
+    expect(html).toContain("2 evaluated experiences");
+
+    // The published sibling is a link to its own address; the scope being
+    // previewed is the current one and is not a link to itself.
+    expect(html).toContain(`href="${byKey.get("default")}"`);
+    expect(html).not.toContain(`href="${byKey.get("wintermute")}"`);
+    expect(html).toMatch(/aria-current="page"[^>]*>[^<]*Wintermute/);
   });
 });

@@ -23,9 +23,15 @@ import { profilePath } from "@/lib/site";
  *
  * The public page renders a scope switcher only when a game has two or more
  * published profiles. Built from the *current* published set, B's preview shows
- * no switcher at all — and then the switcher appears on the live site the
- * moment B publishes, on a page nobody approved with it. Built prospectively,
- * the editor sees the two-scope page they are actually creating.
+ * no switcher at all — and then the next successful production artifact built
+ * from the post-publication corpus renders one, on a page nobody approved with
+ * it. Built prospectively, the editor sees the two-scope page they are actually
+ * creating.
+ *
+ * Note what "prospective" is measured against: the **database corpus** a
+ * successful publication would leave, not production. Publishing changes what a
+ * later build would read; it does not change what production serves, which
+ * moves only when a build reads that corpus, verifies, and deploys.
  *
  * The same reasoning runs the other way for a revision: a revision of scope A
  * replaces A's published version rather than joining it, so the scope must

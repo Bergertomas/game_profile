@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AdminLink, Empty, Notice, Panel, Pill } from "@/components/admin/ui";
-import { readScopeHistoryPage } from "@/lib/admin/evaluations";
+import {
+  groupByRubricGeneration,
+  readScopeHistoryPage,
+} from "@/lib/admin/evaluations";
+import { PUBLIC_RUBRIC_VERSION } from "@/lib/data/games";
 
 /**
  * One scope's evaluation series — Phase 2D revision history.
@@ -40,13 +44,31 @@ export default async function ScopeHistoryPage({
   const history = await readScopeHistoryPage(scopeId);
   if (!history) notFound();
 
-  // Newest first: the current answer is the one an editor is usually here for,
-  // and history reads downward into the past.
-  const versions = [...history.evaluations].sort(
-    (a, b) => b.versionNumber - a.versionNumber,
+  /*
+   * Grouped by rubric generation, because a flat list cannot be ordered.
+   *
+   * Version numbers are per `(scope, rubric)` — the database says so in
+   * `evaluations_scope_version` — so they restart at 1 for every generation.
+   * Sorting the whole series by version number therefore puts a later rubric's
+   * v1 *below* an earlier rubric's v3 and labels the result "newest first",
+   * which is precisely backwards for the generation an editor is here for.
+   *
+   * Generations are ordered by `rubric_versions.locked_at`, which is real
+   * chronology recorded in the database, with the version string as a
+   * deterministic tiebreak. Never by comparing version numbers across
+   * generations: those numbers are not comparable.
+   */
+  const generations = groupByRubricGeneration(history.evaluations).map(
+    (generation) => ({
+      ...generation,
+      isPublicRubric: generation.rubricVersion === PUBLIC_RUBRIC_VERSION,
+    }),
   );
-  const byId = new Map(versions.map((version) => [version.id, version]));
-  const published = versions.filter((v) => v.status === "published");
+
+  // Predecessor lookup stays within a lineage: supersession never crosses one.
+  const byId = new Map(history.evaluations.map((row) => [row.id, row]));
+  const published = history.evaluations.filter((v) => v.status === "published");
+  const total = history.evaluations.length;
 
   return (
     <>
@@ -67,8 +89,11 @@ export default async function ScopeHistoryPage({
       </h1>
       <p className="mb-6 text-[0.85rem] leading-relaxed text-ink-soft">
         Every version of this scope&rsquo;s evaluation. Published and superseded
-        versions are immutable snapshots — they are the record of what was
-        public, so nothing here can be edited.
+        versions are immutable snapshots — they are the editorial publication
+        record, so nothing here can be edited. Being published is not the same
+        as having been served: whether any particular version reached production
+        depends on a later build and deployment, which this tool does not yet
+        track.
       </p>
 
       {published.length === 0 ? (
@@ -77,15 +102,27 @@ export default async function ScopeHistoryPage({
         </Notice>
       ) : null}
 
-      <Panel
-        title={`${versions.length} ${versions.length === 1 ? "version" : "versions"}`}
-        description="Newest first. Each links to the profile as that version renders it."
-      >
-        {versions.length === 0 ? (
-          <Empty>No evaluations have been started for this scope.</Empty>
-        ) : (
+      {total === 0 ? (
+        <Empty>No evaluations have been started for this scope.</Empty>
+      ) : null}
+
+      {generations.map((generation) => (
+        <Panel
+          key={generation.rubricVersion}
+          title={`Rubric ${generation.rubricVersion}${
+            generation.isPublicRubric ? " — current" : ""
+          }`}
+          description={
+            `${generation.versions.length} ${
+              generation.versions.length === 1 ? "version" : "versions"
+            }, newest first. ` +
+            (generation.isPublicRubric
+              ? "This is the rubric the public site reads."
+              : "An earlier rubric generation. Its version numbers are its own — they do not continue into, or from, any other generation.")
+          }
+        >
           <ol className="m-0 list-none space-y-4 p-0">
-            {versions.map((version) => {
+            {generation.versions.map((version) => {
               const predecessor = version.supersedesEvaluationId
                 ? byId.get(version.supersedesEvaluationId)
                 : undefined;
@@ -100,9 +137,6 @@ export default async function ScopeHistoryPage({
                       Version {version.versionNumber}
                     </span>
                     <Pill>{version.status}</Pill>
-                    <span className="text-[0.8rem] text-ink-quiet">
-                      rubric {version.rubricVersion}
-                    </span>
                     {version.publishedAt ? (
                       <span className="text-[0.8rem] text-ink-quiet">
                         published {version.publishedAt.slice(0, 10)}
@@ -122,14 +156,13 @@ export default async function ScopeHistoryPage({
 
                   {predecessor ? (
                     <p className="m-0 mt-1 text-[0.8rem] text-ink-quiet">
-                      Supersedes version {predecessor.versionNumber}.
+                      Supersedes version {predecessor.versionNumber} of rubric{" "}
+                      {predecessor.rubricVersion}.
                     </p>
                   ) : null}
 
                   <p className="m-0 mt-2 flex flex-wrap gap-x-4 text-[0.82rem]">
-                    <AdminLink
-                      href={`/admin/evaluations/${version.id}/preview`}
-                    >
+                    <AdminLink href={`/admin/evaluations/${version.id}/preview`}>
                       Preview this version
                     </AdminLink>
                     <AdminLink href={`/admin/evaluations/${version.id}`}>
@@ -142,8 +175,8 @@ export default async function ScopeHistoryPage({
               );
             })}
           </ol>
-        )}
-      </Panel>
+        </Panel>
+      ))}
     </>
   );
 }

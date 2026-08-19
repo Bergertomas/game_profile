@@ -95,6 +95,20 @@ export interface PublishAttestations {
    * program can perform it. See `spoilerAdvisories`.
    */
   readonly spoilerReviewed: boolean;
+  /**
+   * The scope label, typed by the editor, checked against the locked record.
+   *
+   * An accidental-action safeguard, not an authorization mechanism — authorization
+   * is `requireEditor()` and the guard on every entrypoint, and neither is
+   * replaced by anything here. What this catches is the plausible mistake: a
+   * multi-scope game's Publish pages look alike, and the tab that is open is not
+   * always the tab that is being read.
+   *
+   * Checked on the server against the record this transaction already locked,
+   * never against an expected value supplied by the form. A confirmation the
+   * client both prompts for and defines confirms nothing.
+   */
+  readonly scopeConfirmation: string;
 }
 
 /**
@@ -315,13 +329,43 @@ export async function readPublishReadiness(
 /**
  * Publish this evaluation, superseding the version it replaces.
  *
- * ── Why the order is fixed ─────────────────────────────────────────────────
+ * ── Concurrency: the row lock is the mechanism ─────────────────────────────
  *
- * `evaluations_one_published_per_game_rubric` is a partial unique index over
- * published rows, so the predecessor must leave `published` before this row
- * enters it. Both statements are in one transaction, and the index is checked
- * per statement, so superseding first is not a race — it is the only order
- * that is ever legal.
+ * The target evaluation row is locked `FOR UPDATE` **before** the gate reads
+ * anything, and the lock is held until this transaction ends. Everything below
+ * follows from that:
+ *
+ *  - **Child writes cannot interleave.** `trg_evaluation_child_immutable` takes
+ *    `FOR SHARE` on the owning evaluation before permitting any score,
+ *    assessment, block, tag or evidence-link write. That conflicts with the
+ *    `FOR UPDATE` held here, so a concurrent editorial write either committed
+ *    before this transaction took the lock — in which case the gate reads it —
+ *    or waits, resumes after finalization, observes `published`, and is refused
+ *    as immutable. There is no third order in which a validated snapshot can
+ *    change before it is finalized.
+ *
+ *  - **A second Publish submission waits rather than races.** It blocks on the
+ *    same lock, and when this transaction commits it re-reads the now-finalized
+ *    row and stops at `already_published` — a sentence, produced by the gate,
+ *    rather than a constraint violation produced at COMMIT.
+ *
+ *  - **`evaluations_one_published_per_scope_rubric` remains a backstop, not the
+ *    mechanism.** It is the database's own guarantee, and it holds against a
+ *    migration or a psql session that never took this lock. Relying on it as
+ *    the application's concurrency control would mean routinely discovering
+ *    conflicts at COMMIT, after validating a snapshot that was never eligible.
+ *
+ *  - The finalization trigger additionally takes a *shared* advisory lock on the
+ *    rubric contract, which is what stops a concurrent rubric definition edit
+ *    from redefining the shape mid-publication. Two publications do not conflict
+ *    with each other there — only a definition edit does.
+ *
+ * ── Why the statement order is fixed ───────────────────────────────────────
+ *
+ * `evaluations_one_published_per_scope_rubric` is a partial unique index over
+ * published rows, and a unique index is checked per statement. So the
+ * predecessor must leave `published` before this row enters it: superseding
+ * first is not a preference, it is the only legal order.
  *
  * ── Why the predecessor update sets one column ─────────────────────────────
  *
@@ -330,14 +374,6 @@ export async function readPublishReadiness(
  * that statement — a timestamp, a "superseded_at" convenience — makes the whole
  * publication fail on an immutable-snapshot error. History keeps the wording it
  * was published under, and that includes its metadata.
- *
- * ── Concurrency ────────────────────────────────────────────────────────────
- *
- * Two editors publishing into one scope do not need a lock here. The gate reads
- * inside the transaction, and the unique index rejects the loser at COMMIT with
- * a message `describeDatabaseFailure` turns into a sentence. The finalization
- * trigger also takes a shared advisory lock on the rubric contract, which is
- * what keeps a concurrent rubric edit from redefining the shape mid-publication.
  */
 export async function publishEvaluation(
   tx: AdminTransaction,
@@ -409,6 +445,22 @@ export async function publishEvaluation(
   if (!attestations.spoilerReviewed) {
     throw new EditorialRuleError(
       "Confirm the profile has been read for spoilers before publishing.",
+    );
+  }
+
+  // The expected value comes from the record locked above, not from the form.
+  // Trimmed and case-insensitive: this is a deliberateness check, and failing an
+  // editor for a capital letter would only teach them to paste.
+  const expected = readiness.record.scope.label;
+  if (
+    attestations.scopeConfirmation.trim().toLowerCase() !==
+    expected.trim().toLowerCase()
+  ) {
+    throw new EditorialRuleError(
+      `Type the scope being published — "${expected}" — to confirm. ` +
+        "Publishing the wrong scope of a multi-scope game is the mistake this " +
+        "catches, and it is not undoable: the version it supersedes becomes " +
+        "immutable history.",
     );
   }
 

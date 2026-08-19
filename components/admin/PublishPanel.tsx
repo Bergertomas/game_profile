@@ -82,6 +82,11 @@ export function PublishPanel({
       </label>
       <input
         id={confirmId}
+        // Submitted, not merely held in client state. The server re-derives the
+        // expected value from the locked record and refuses a mismatch — a
+        // confirmation that never leaves the browser confirms nothing against a
+        // crafted or scripted submission.
+        name="scopeConfirmation"
         type="text"
         value={typed}
         autoComplete="off"

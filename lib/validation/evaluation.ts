@@ -660,17 +660,17 @@ export function validateGameRecord(
     }
   }
 
-  // Exactly one live evaluation per scope per rubric (Plan §13.2).
+  // Exactly one Published evaluation per scope per rubric (Plan §13.2).
   //
   // A GameWithEvaluation is one profile scope under one rubric. A game may
   // legitimately have several published evaluations at once — one per scope —
-  // and the database permits one live row per (scope, rubric); what neither
-  // permits is two live rows inside this one series.
+  // and the database permits one Published row per (scope, rubric); what
+  // neither permits is two Published rows inside this one series.
   const published = chain.filter((e) => e.status === "published");
   if (published.length > 1) {
     issues.push({
       code: "multiple_published_evaluations",
-      message: `${record.game.slug} › ${record.scope.key} has ${published.length} published evaluations in the selected rubric lineage; only one may be live.`,
+      message: `${record.game.slug} › ${record.scope.key} has ${published.length} published evaluations in the selected rubric lineage; only one may be Published.`,
     });
   }
 

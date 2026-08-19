@@ -47,12 +47,15 @@ The JSON-LD graph and the "more in the library" strip are not reproduced, for
 the same reason: both read the public data layer. They are page furniture rather
 than the profile being approved.
 
-**The preview is prospective.** It shows the page as publishing *this*
-evaluation would leave it, not as the catalogue stands. The case that forces
+**The preview is prospective**, with respect to the *database corpus* a
+successful publication would leave — not with respect to production. It shows
+what a later build reading that corpus would render, not as the catalogue
+stands. The case that forces
 this: a game with a published primary scope and a first draft of a second scope.
 Built from the currently published set, that draft previews with no scope
-switcher — and the switcher then appears on the public site the moment it
-publishes, on a page nobody approved. So the switcher is assembled from the
+switcher — and then the next successful production artifact, built from the
+post-publication corpus, renders one on a page nobody approved. So the switcher
+is assembled from the
 published siblings with this evaluation's scope replaced-or-added, which also
 makes a revision replace the version it supersedes rather than appearing beside
 it. Only this evaluation moves; other scopes' drafts are not included, because
@@ -176,8 +179,11 @@ know what shape that promise should take.
 
 - Phase 2D-1 requires **no schema migration**. `status`, `published_at`,
   `version_number` and `supersedes_evaluation_id` already exist.
-- Publishing changes the database, not the site. Until 2D-2, a published profile
-  becomes Live at the next production build.
+- Publishing changes the database, not the site. A published version becomes
+  Live only once a later production build reads it, verification succeeds, and
+  that artifact deploys — so a version can be Published, and even later
+  Superseded, without ever having been served. Until 2D-2 the tool tracks only
+  Published and says so.
 - The publish gate and the fixture corpus are validated by the same function,
   so neither can drift from the other without a test failing.
 - `validateGameRecord` now also validates the evaluation's history at publish

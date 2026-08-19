@@ -539,6 +539,7 @@ export async function publishEvaluationAction(
     withAdminTransaction((tx) =>
       publishEvaluation(tx, evaluationId, {
         spoilerReviewed: form.get("spoilerReviewed") === "on",
+        scopeConfirmation: String(form.get("scopeConfirmation") ?? ""),
       }),
     ),
   );

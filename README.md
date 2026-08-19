@@ -276,8 +276,9 @@ sentences, and on success publishes this version and supersedes the one it
 replaces in a single transaction.
 
 Publishing changes the database, not the site: public pages are prerendered, so
-a published profile becomes Live at the next production build. Triggering that
-build from the tool is Phase 2D-2 — see
+a published profile becomes Live only once a later production build reads it,
+verification succeeds, and that artifact deploys. Until then production serves
+the previous version. Triggering that build from the tool is Phase 2D-2 — see
 [ADR 0020](docs/decisions/0020-publication-preview-and-deploy-trigger.md).
 
 **It ships switched off.** Every `/admin` path answers 404 unless the deployment
@@ -301,7 +302,7 @@ Locally:
 ```bash
 ADMIN_DATABASE_URL=postgres://…/game_profile \
 ADMIN_DEV_IDENTITY=you@example.com \
-  npm run dev            # /admin is live at http://localhost:3000/admin
+  npm run dev            # /admin is served at http://localhost:3000/admin
 ```
 
 The development identity works **only under a real `next dev`** — it needs both

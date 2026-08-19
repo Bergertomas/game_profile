@@ -560,6 +560,16 @@ export interface ScopeEvaluationHistory {
     publishedAt: string | null;
     supersedesEvaluationId: string | null;
     changeSummary: string | null;
+    /**
+     * `rubric_versions.locked_at` — when this evaluation's rubric generation was
+     * fixed.
+     *
+     * Carried so the history view can order generations by real chronology.
+     * Version numbers cannot do that job: they are per `(scope, rubric)`, so a
+     * later rubric's v1 is genuinely newer than an earlier rubric's v3 while
+     * sorting below it.
+     */
+    rubricLockedAt: string;
   }[];
 }
 
@@ -584,8 +594,15 @@ export async function readScopeHistory(
   if (!scope) return null;
 
   const evaluations = await db
-    .select()
+    .select({
+      evaluation: t.evaluations,
+      rubricLockedAt: t.rubricVersions.lockedAt,
+    })
     .from(t.evaluations)
+    .innerJoin(
+      t.rubricVersions,
+      eq(t.rubricVersions.version, t.evaluations.rubricVersion),
+    )
     .where(eq(t.evaluations.scopeId, scopeId))
     .orderBy(asc(t.evaluations.rubricVersion), asc(t.evaluations.versionNumber));
 
@@ -597,7 +614,7 @@ export async function readScopeHistory(
     gameTitle: scope.gameTitle,
     gameSlug: scope.gameSlug,
     evaluations: evaluations
-      .map((row) => ({
+      .map(({ evaluation: row, rubricLockedAt }) => ({
         id: row.id,
         versionNumber: row.versionNumber,
         rubricVersion: row.rubricVersion,
@@ -605,6 +622,7 @@ export async function readScopeHistory(
         modeScope: row.modeScope,
         publishedAt: row.publishedAt?.toISOString() ?? null,
         supersedesEvaluationId: row.supersedesEvaluationId,
+        rubricLockedAt,
         changeSummary: row.changeSummary,
       }))
       .reverse(),
@@ -618,6 +636,58 @@ export async function readEvaluationPage(evaluationId: string) {
     if (!view) return { view: null, sources: [] as EvidenceSourceRow[] };
     return { view, sources: await listEvidenceSources(db) };
   });
+}
+
+export interface RubricGeneration {
+  readonly rubricVersion: string;
+  /** `rubric_versions.locked_at` for this generation. */
+  readonly lockedAt: string;
+  /** This lineage's versions, newest first. */
+  readonly versions: ScopeEvaluationHistory["evaluations"];
+}
+
+/**
+ * One scope's history, split into rubric generations and ordered.
+ *
+ * ── Why a flat list cannot be ordered ──────────────────────────────────────
+ *
+ * Version numbers are per `(scope, rubric)` — `evaluations_scope_version` makes
+ * that a uniqueness rule, not a convention — so every rubric generation starts
+ * again at 1. Sorting the whole series by version number therefore places a
+ * later rubric's v1 *below* an earlier rubric's v3, and any label reading
+ * "newest first" over that list is wrong for the generation an editor came for.
+ *
+ * ── What orders the generations ────────────────────────────────────────────
+ *
+ * `rubric_versions.locked_at`: real chronology, recorded in the database when
+ * the rubric was fixed. The version string breaks ties deterministically.
+ *
+ * Deliberately NOT the version numbers inside each generation, and not a
+ * lexical comparison of rubric versions alone — "10.0" sorts before "2.0" as a
+ * string, and a rubric numbering scheme is not this function's business.
+ */
+export function groupByRubricGeneration(
+  evaluations: ScopeEvaluationHistory["evaluations"],
+): RubricGeneration[] {
+  const byRubric = new Map<string, ScopeEvaluationHistory["evaluations"][number][]>();
+  for (const row of evaluations) {
+    const bucket = byRubric.get(row.rubricVersion);
+    if (bucket) bucket.push(row);
+    else byRubric.set(row.rubricVersion, [row]);
+  }
+
+  return [...byRubric.entries()]
+    .map(([rubricVersion, rows]) => ({
+      rubricVersion,
+      lockedAt: rows[0]!.rubricLockedAt,
+      // Within one lineage, the version number IS the order.
+      versions: [...rows].sort((a, b) => b.versionNumber - a.versionNumber),
+    }))
+    .sort(
+      (a, b) =>
+        b.lockedAt.localeCompare(a.lockedAt) ||
+        b.rubricVersion.localeCompare(a.rubricVersion),
+    );
 }
 
 /** ENTRYPOINT — one scope's evaluation history, for a verified editor. */
