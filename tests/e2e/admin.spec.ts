@@ -35,6 +35,14 @@ const ADMIN_PATHS = [
   `/admin/evaluations/${EVALUATION_ID}/preview`,
   `/admin/evaluations/${EVALUATION_ID}/publish`,
   `/admin/scopes/${EVALUATION_ID}/history`,
+  /*
+   * Phase 2D-2. It reads no editorial prose, so the exposure is smaller than
+   * `preview`'s — but it enumerates the deployment history and the Cloudflare
+   * build ids of this account's production builds, and its buttons ask
+   * Cloudflare for a production deploy. Reachable without a verified editor,
+   * that last part is the interesting one.
+   */
+  "/admin/deployments",
 ];
 
 for (const path of ADMIN_PATHS) {

@@ -7,8 +7,8 @@
 **Product and project orchestration:** ChatGPT  
 **Engineering and product design:** Claude  
 **Status:** Current product and roadmap constitution — Phase 2 active  
-**Current checkpoint:** Phase 2C complete and merged; authoritative Neon Postgres provisioned, migrated and serving production builds; Phase 2D active — slice 2D-1 (preview, publish gate, transactional publication, revision history) implemented and pending merge, slice 2D-2 (deploy trigger, Published/awaiting-deployment/Live reconciliation, failure/retry/audit) still pending. The tool currently knows Published state only.\
-**Date:** 2026-08-15 · checkpoint refreshed 2026-08-18
+**Current checkpoint:** Phase 2C complete and merged; authoritative Neon Postgres provisioned, migrated and serving production builds; Phase 2D active — slice 2D-1 (preview, publish gate, transactional publication, revision history) complete and merged, slice 2D-2 (deploy trigger, Published/awaiting-deployment/Live reconciliation, failure/retry/audit) implemented and pending merge. The tool now derives Live from evidence read back from the deployed artifact, and migration `0009_deployment_tracking` must be applied to the authoritative database before 2D-2 is built against it.\
+**Date:** 2026-08-15 · checkpoint refreshed 2026-08-19
 
 ---
 
@@ -768,7 +768,14 @@ If build/deploy fails:
 - retry is possible;
 - the product does not falsely claim the new version is live.
 
-Exact hook authentication, persistence, retry/audit model remain Phase-2D implementation decisions.
+Hook authentication, persistence, retry and audit model are settled by [ADR 0022](decisions/0022-deployment-requests-and-proof-of-live.md).
+
+**What proves the last step is the artifact, not the build.** A dispatch
+acknowledgement, a successful build report and a successful deploy report are
+facts about a request; only the deployed artifact's own manifest, read back from
+the production origin, is a fact about what production serves. Live is derived
+from that and from nothing else, and where it cannot be established the tool
+reports *not proven* rather than guessing in either direction.
 
 ### 9.9 Cloudflare/OpenNext contract
 
@@ -962,16 +969,36 @@ Requires no schema migration.
 
 ##### 2D-2 — deployment, and the Published/Live distinction
 
-**PENDING**
+**IMPLEMENTED — pending merge**
 
-Deliver the secure Cloudflare Workers Builds rebuild trigger, deployment-state
+Delivered the Cloudflare Workers Builds rebuild trigger, deployment-state
 persistence, Published/awaiting-deployment/Live reconciliation, and
-failure/retry/audit behavior.
+failure/retry/audit behavior. Recorded in
+[ADR 0022](decisions/0022-deployment-requests-and-proof-of-live.md).
 
-Until it lands, the editorial tool knows only that a profile is **Published**.
-It says so explicitly rather than implying a publication reached production —
-see §9.8, [ADR 0020](decisions/0020-publication-preview-and-deploy-trigger.md),
-and the wording guard in `tests/published-vs-live.test.ts`.
+The central decision is what counts as proof. A dispatch acknowledgement, a
+build reported successful and a deploy step reporting success are all facts
+about a *request*; none of them is a fact about what production serves. So the
+deployed artifact publishes its own inventory at `/deployment-manifest`,
+generated in the same build that renders the pages, and **Live is derived from
+reading that back and from nothing else**. Build status is recorded and shown,
+and is advisory: it answers "why has this not deployed", never "has this
+deployed".
+
+Three states, because two would lie: Live, awaiting deployment, and **not
+proven** — the last for when production has not been verified recently enough to
+say either way. `Live` is not an evaluation status and must not become one;
+`tests/published-vs-live.test.ts` now checks that structurally as well as in
+prose.
+
+Reconciliation is editor-triggered. There is no cron, queue or background
+service — §9.10, and a background poller would be the first thing here to touch
+production with nobody present.
+
+**Not yet exercised against the real Cloudflare API**: no credential exists in
+the repository, no test may call it, and no production deployment has been
+triggered through this path. That belongs with remote-admin activation, next to
+the Hyperdrive path ADR 0021 records as equally unexercised.
 
 #### 2E — Real editorial trial
 
@@ -1019,9 +1046,9 @@ than deleted so the sequence stays legible against the roadmap above.
 9. Configure and verify remote admin with Cloudflare Access + `ADMIN_DATABASE_URL`; enable during Phase 2 and no later than pre-2E editorial operations. **OPEN** — now also the point at which the deployed Hyperdrive admin path is exercised end to end (ADR 0021).
 10. ~~Build 2D public-faithful preview and complete publish validation.~~ **DONE** (2D-1)
 11. ~~Implement transactional publication/revision/supersession.~~ **DONE** (2D-1)
-12. Implement secure Cloudflare rebuild/deploy trigger. **OPEN** — 2D-2.
-13. Expose Published / awaiting deployment / Live. **OPEN** — 2D-2. 2D-1 states the distinction in words but tracks only Published.
-14. Add deployment failure/retry/audit behavior. **OPEN** — 2D-2.
+12. ~~Implement secure Cloudflare rebuild/deploy trigger.~~ **DONE** (2D-2, ADR 0022) — server-only user-scoped token, no deploy hook. Not yet exercised against the real API.
+13. ~~Expose Published / awaiting deployment / Live.~~ **DONE** (2D-2) — plus a third state, *not proven*, for when production cannot currently be verified.
+14. ~~Add deployment failure/retry/audit behavior.~~ **DONE** (2D-2) — append-only trail, coalescing on identical intent, and no automatic retry of an unestablished dispatch.
 15. ~~Add revision-history reads/UI.~~ **DONE** (2D-1, admin-only)
 16. Run 3–5 profile editorial trial. **OPEN** — 2E.
 17. Establish production artwork sourcing/clearance policy. **OPEN**
@@ -1256,7 +1283,7 @@ Implementation details that do not affect user experience, methodology, data int
 1. ~~Exact 2C admin information design and interaction model for efficient 40-subcriterion authoring.~~ **CLOSED** by the shipped 2C editor; revisit in the dedicated admin UI/UX pass.
 2. ~~Authored ordering representation for tags/evidence links.~~ **CLOSED** by migration 0008.
 3. Exact remote-admin Cloudflare Access operational configuration and enabled-path verification runbook. **OPEN**
-4. Exact publish/deploy trigger authentication, persistence, retries, and audit model. **PARTLY CLOSED** — the mechanism is decided (Cloudflare Workers Builds API, rebuilding `main`; [ADR 0020](decisions/0020-publication-preview-and-deploy-trigger.md)). Authentication, persistence, retries and the audit model remain open and are 2D-2's subject.
+4. ~~Exact publish/deploy trigger authentication, persistence, retries, and audit model.~~ **CLOSED** — mechanism by [ADR 0020](decisions/0020-publication-preview-and-deploy-trigger.md) (Cloudflare Workers Builds API, rebuilding `main`); authentication, persistence, proof of Live, retry and audit by [ADR 0022](decisions/0022-deployment-requests-and-proof-of-live.md). Operational activation — issuing the token and exercising the path against the real API — is part of open decision 3.
 5. ~~Revision-history public presentation and how much history is exposed.~~ **CLOSED for now** — admin-only, public reader unchanged (ADR 0020). Reopen when there is enough real history to know what a public view should promise.
 6. Production artwork sourcing policy: legal basis, provider/publisher source, storage/refresh/clearance process. **OPEN**
 7. Canonical-domain operational confirmation: apex/www and eventual `workers.dev` disablement. **OPEN**

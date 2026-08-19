@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
+import { evaluationStatusEnum } from "@/lib/db/schema";
 
 /**
  * Published is not Live, and nothing anyone reads may say otherwise.
@@ -15,18 +16,34 @@ import { describe, expect, it } from "vitest";
  * version becomes Live only if a later build reads it, verification succeeds,
  * AND that artifact deploys. Any of those can fail or simply not happen — a
  * build that runs and fails changes nothing, and a version can be Published and
- * later Superseded without ever having been served. Phase 2D-1 ships without
- * Live tracking, which makes the wording the only thing standing between an
- * editor and a false belief.
+ * later Superseded without ever having been served.
  *
- * ── Two layers, because a word scan is not enough ──────────────────────────
+ * ── What Phase 2D-2 changed about this guard ──────────────────────────────
  *
- * The **word scan** catches new uses of "live" in the editorial application and
- * forces each one to be looked at. It cannot judge meaning, so on its own it
- * would happily approve a fluent sentence that is wrong — which is exactly what
- * happened: an earlier version of this file allowlisted
- * `/appears on the live site/`, blessing a claim that publishing changes
- * production immediately.
+ * 2D-1 tracked only Published, so ANY use of "live" in the editorial
+ * application was suspicious and the word scan could cover all of it. 2D-2
+ * added deployment tracking, and those modules are *about* Live: they read it
+ * back from the deployed artifact, derive it, and display it. Holding them to a
+ * word allowlist would mean forty entries that bless nothing in particular,
+ * which is an allowlist that has stopped meaning anything.
+ *
+ * So the scan was split rather than widened:
+ *
+ *   publication surfaces   word-scanned. Here "live" still must not appear
+ *                          meaning "published"; these modules have no business
+ *                          with deployment at all.
+ *   deployment surfaces    exempt from the word scan, and held instead to the
+ *                          false-claim layer plus the structural assertions at
+ *                          the foot of this file — which are stronger, because
+ *                          they check what the code DOES, not how it reads.
+ *
+ * ── Three layers ──────────────────────────────────────────────────────────
+ *
+ * The **word scan** forces each new "live" in a publication surface to be
+ * looked at. It cannot judge meaning, so on its own it would happily approve a
+ * fluent sentence that is wrong — which is exactly what happened: an earlier
+ * version of this file allowlisted `/appears on the live site/`, blessing a
+ * claim that publishing changes production immediately.
  *
  * The **false-claim layer** names specific wrong sentences as phrases. It runs
  * over a much wider surface — application code, active tests, README, the
@@ -36,8 +53,14 @@ import { describe, expect, it } from "vitest";
  * "Live-row uniqueness" sat unnoticed in ADR 0014 and "two live published
  * evaluations" in a test name.
  *
- * Whole-file matching, not line-by-line: several of these were line-wrapped in
- * the prose that carried them.
+ * The **structural layer** is new with 2D-2 and does not read prose at all. It
+ * asserts that `live` never becomes an evaluation status, and that exactly one
+ * function in the codebase can record production as verified. Wording can be
+ * corrected in a commit; a second writer of that event would be a design that
+ * had quietly decided a build report is proof.
+ *
+ * Whole-file matching for the phrases, not line-by-line: several of these were
+ * line-wrapped in the prose that carried them.
  */
 
 const ROOT = join(__dirname, "..");
@@ -52,8 +75,35 @@ const ROOT = join(__dirname, "..");
 const EDITORIAL_SOURCES = [
   "lib/admin",
   "lib/validation",
+  "lib/deploy",
   "app/admin",
   "components/admin",
+] as const;
+
+/**
+ * The surfaces that legitimately talk about Live, exempt from the WORD scan.
+ *
+ * Exempt from that scan only. Every one of these is still read by the
+ * false-claim layer and by the structural assertions, which is where the real
+ * guarantees live — the word scan was never able to tell "Live is derived from
+ * the artifact's manifest" from "the build succeeded, so it is Live", and those
+ * two sentences are the entire question.
+ *
+ * Adding a file here is a decision that the file's subject IS deployment. It is
+ * not a way to quieten a publication surface that has started making claims
+ * about production.
+ */
+const DEPLOYMENT_SOURCES = [
+  "lib/admin/deployments.ts",
+  "lib/deploy/manifest.ts",
+  "lib/deploy/build-manifest.ts",
+  "lib/deploy/verify.ts",
+  "lib/deploy/cloudflare.ts",
+  "lib/deploy/config.ts",
+  "lib/deploy/transport.ts",
+  "app/admin/deployments/page.tsx",
+  "app/admin/deployment-actions.ts",
+  "components/admin/DeploymentControls.tsx",
 ] as const;
 
 /**
@@ -74,6 +124,7 @@ const NORMATIVE_DOCS = [
   "docs/decisions/0018-admin-access.md",
   "docs/decisions/0020-publication-preview-and-deploy-trigger.md",
   "docs/decisions/0021-hyperdrive-is-the-deployed-admin-transport.md",
+  "docs/decisions/0022-deployment-requests-and-proof-of-live.md",
 ] as const;
 
 /** This file. Its regexes read as the very prose it forbids. */
@@ -180,8 +231,16 @@ const ALLOWED = [
   /Live\s+the deployed production artifact/,
   /the new version Published and the previous one Live/,
   /Nothing in this file can make a profile Live/,
-  /"live" must not/,
+  /"live" must (still )?not/,
   /publication versus live deployment/,
+
+  // ── Added with 2D-2, each drawing the distinction rather than blurring it ─
+  // publication.ts, saying where Live comes from and that it is not here.
+  /Live is derived from evidence read back/,
+  // The publish page, explaining why it does not ask about an unpublished row.
+  /a draft cannot be Live/,
+  // The same page reading the derived status token, not asserting anything.
+  /deployment\.status === "live"/,
 ];
 
 function walk(dir: string): string[] {
@@ -199,6 +258,12 @@ function editorialFiles(): string[] {
   return EDITORIAL_SOURCES.flatMap((source) =>
     walk(join(ROOT, source)).filter((file) => /\.(ts|tsx)$/.test(file)),
   );
+}
+
+/** Editorial files whose subject is publication rather than deployment. */
+function publicationFiles(): string[] {
+  const exempt = new Set<string>(DEPLOYMENT_SOURCES);
+  return editorialFiles().filter((file) => !exempt.has(rel(file)));
 }
 
 /**
@@ -232,7 +297,7 @@ function read(file: string): string {
 describe("Published is not Live", () => {
   it("uses no unreviewed 'live' wording anywhere an editor reads", () => {
     const offenders: string[] = [];
-    for (const file of editorialFiles()) {
+    for (const file of publicationFiles()) {
       read(file)
         .split("\n")
         .forEach((line, index) => {
@@ -335,5 +400,103 @@ describe("A non-public rubric generation is not called earlier", () => {
     // explanation above, which is why only the page is read here.
     expect(history).not.toMatch(/An earlier rubric generation/);
     expect(history).not.toMatch(/A later rubric generation/);
+  });
+});
+
+/**
+ * The structural layer: what the code does, not how it reads.
+ *
+ * Prose can be corrected in a commit. These two properties cannot drift without
+ * the design having changed, and each of them is a locked decision rather than
+ * a preference.
+ */
+describe("Live is derived, and cannot become a status", () => {
+  /**
+   * Master Plan §9.8 and the 2D-2 brief both lock this: `Live` must not become
+   * another evaluation status.
+   *
+   * It is the tempting shape and it is wrong three times over —
+   * `trg_evaluation_snapshot_immutable` permits exactly two transitions and a
+   * third value would need a hole in it; published snapshots are immutable
+   * while Live changes without the evaluation changing at all (a rollback, a
+   * later build); and Published is a fact this database owns while Live is a
+   * fact about a remote artifact that can stop being provable. One column
+   * asserting they are the same kind of thing is the error.
+   */
+  it("keeps 'live' out of the evaluation status vocabulary", () => {
+    expect(evaluationStatusEnum.enumValues).toEqual([
+      "draft",
+      "review",
+      "published",
+      "superseded",
+    ]);
+  });
+
+  /**
+   * Exactly one function may record production as verified.
+   *
+   * `production_verified` is the event the Live derivation reads, so whatever
+   * writes it decides what Live means. `verifyProduction` writes it, and only
+   * after `readProductionManifest` has fetched the artifact's own manifest,
+   * parsed it, recomputed its digest and confirmed it is a production build.
+   *
+   * A second writer would almost certainly be a build-status handler, because
+   * that is where the temptation is: Cloudflare says the build succeeded, so
+   * mark it deployed. That inference is the exact failure §9.8 exists to
+   * prevent — a build can succeed and have its upload fail, be superseded by a
+   * later build, or be rolled back afterwards. So the count is pinned.
+   */
+  it("has exactly one writer of production_verified", () => {
+    const sources = walk(join(ROOT, "lib"))
+      .concat(walk(join(ROOT, "app")))
+      .filter((file) => /\.(ts|tsx)$/.test(file));
+
+    const writers = sources.filter((file) =>
+      /kind:\s*"production_verified"/.test(read(file)),
+    );
+
+    expect(writers.map(rel)).toEqual(["lib/admin/deployments.ts"]);
+
+    const deployments = read(join(ROOT, "lib/admin/deployments.ts"));
+    expect(
+      deployments.match(/kind:\s*"production_verified"/g) ?? [],
+    ).toHaveLength(1);
+  });
+
+  /** The one place that fetches the artifact's manifest is the one that proves Live. */
+  it("proves Live only from the artifact's own manifest", () => {
+    const sources = walk(join(ROOT, "lib"))
+      .concat(walk(join(ROOT, "app")))
+      .filter((file) => /\.(ts|tsx)$/.test(file))
+      .filter((file) => rel(file) !== "lib/deploy/verify.ts");
+
+    const callers = sources.filter((file) =>
+      /readProductionManifest\(/.test(read(file)),
+    );
+
+    // The import in deployments.ts and its single call, and nothing else.
+    expect(callers.map(rel)).toEqual(["lib/admin/deployments.ts"]);
+  });
+});
+
+describe("The deployment page reports absence of evidence as such", () => {
+  /**
+   * A tool that cannot reach production must not say "awaiting deployment".
+   * That sentence asserts production does NOT have the version — which it does
+   * not know, and which may be false. The third state is what makes the other
+   * two honest.
+   */
+  it("carries a state for 'we cannot currently tell'", () => {
+    const page = read(join(ROOT, "app/admin/deployments/page.tsx"));
+    expect(page).toContain("Not proven");
+    expect(page).toMatch(/absence of evidence is displayed as the absence of evidence/);
+  });
+
+  it("says plainly that a build report is not proof", () => {
+    const deployments = read(join(ROOT, "lib/admin/deployments.ts"));
+    expect(deployments).toMatch(/a build process exited 0/);
+    expect(deployments).toMatch(
+      /THE ONLY evidence about what production/,
+    );
   });
 });

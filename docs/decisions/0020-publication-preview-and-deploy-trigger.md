@@ -159,11 +159,17 @@ Rebuilding `main` keeps every existing guard in force: the branch guard in
 `cf-deploy.mjs`, `cf:verify` under workerd, and the containment check, none of
 which a bespoke deploy path would inherit for free.
 
-**This is decided but not yet implemented.** Phase 2D-1 publishes to the database
-only; the trigger, the Published/awaiting-deployment/Live reconciliation, and the
-failure/retry/audit model are Phase 2D-2, which needs a scoped Cloudflare API
-token the repository does not yet hold. 2D-1 states the gap in the interface
-rather than implying Publish put the profile on the site.
+**Implemented in Phase 2D-2** ([ADR 0022](0022-deployment-requests-and-proof-of-live.md)),
+which answers the four questions this ADR left open: how the call is
+authenticated, what is persisted, what counts as proof that a version is Live,
+and how failure and retry behave. Phase 2D-1 published to the database only and
+said so in the interface; a publication now also *requests* a build, and 2D-2's
+central decision is that requesting one proves nothing — Live is established by
+reading the deployed artifact's own manifest and by nothing else.
+
+Still unexercised against the real Cloudflare API: no credential exists in this
+repository, no test may call it, and no production deployment has been triggered
+through this path. That belongs with remote-admin activation.
 
 ### 6. Revision history is admin-only for now
 
@@ -182,8 +188,9 @@ know what shape that promise should take.
 - Publishing changes the database, not the site. A published version becomes
   Live only once a later production build reads it, verification succeeds, and
   that artifact deploys — so a version can be Published, and even later
-  Superseded, without ever having been served. Until 2D-2 the tool tracks only
-  Published and says so.
+  Superseded, without ever having been served. 2D-1 tracked only Published and
+  said so; 2D-2 tracks the gap without collapsing it, because asking for a build
+  is not the same as one arriving.
 - The publish gate and the fixture corpus are validated by the same function,
   so neither can drift from the other without a test failing.
 - `validateGameRecord` now also validates the evaluation's history at publish
@@ -194,8 +201,10 @@ know what shape that promise should take.
   a long gate blocks editorial writes to *that one evaluation* while it runs.
   That is the intended trade: the alternative is publishing something nobody
   validated. Nothing else in the scope, game or rubric is blocked.
-- **Published is not Live, and 2D-1 tracks only Published.** Every surface says
-  so, and `tests/published-vs-live.test.ts` holds the wording to a reviewed set
-  so the tool cannot drift back into implying that pressing Publish changed the
-  site.
+- **Published is not Live.** Every surface says so, and
+  `tests/published-vs-live.test.ts` holds the wording to a reviewed set so the
+  tool cannot drift back into implying that pressing Publish changed the site.
+  From 2D-2 that guard also checks structure rather than only prose: `live`
+  cannot become an evaluation status, and exactly one function may record
+  production as verified.
 - A later decision to expose history publicly is additive: the reads exist.

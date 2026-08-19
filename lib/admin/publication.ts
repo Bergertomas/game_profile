@@ -33,9 +33,11 @@ import {
  * the new version Published and the previous one Live, and the product must not
  * claim otherwise in the meantime.
  *
- * Tracking and displaying that gap is Phase 2D-2. Until it exists, the honest
- * position is that this code knows only about Published, so "live" must not
- * appear in copy or comments here meaning "published".
+ * Phase 2D-2 tracks and displays that gap, in `lib/admin/deployments.ts`, and
+ * changes nothing here: this module still knows only about Published, and
+ * "live" must still not appear in its copy or comments meaning "published".
+ * Live is derived from evidence read back from the deployed artifact, and a
+ * publication is not evidence of anything about production.
  *
  * ── This is not where the rules live ───────────────────────────────────────
  *

@@ -28,7 +28,12 @@
  */
 import { spawn, spawnSync } from "node:child_process";
 import { setTimeout as sleep } from "node:timers/promises";
-import { OPEN_NEXT_CLI, PRODUCTION_BRANCH, WRANGLER_CLI } from "./cf-common.mjs";
+import {
+  MANIFEST_PATH,
+  OPEN_NEXT_CLI,
+  PRODUCTION_BRANCH,
+  WRANGLER_CLI,
+} from "./cf-common.mjs";
 import {
   assertPortAvailable,
   parseVerifyPort,
@@ -159,6 +164,84 @@ try {
   // Design surfaces stay out of the sitemap in EVERY environment. In preview
   // they are reachable, which is exactly when it would be easy to list them.
   check("sitemap omits dev surfaces", !sitemap.includes("/dev/") && !sitemap.includes("/design-lab"));
+
+  // ── The artifact's inventory of itself ──────────────────────────────────
+  //
+  // Phase 2D-2 derives Live from this document and nothing else, so a build
+  // that ships it broken does not report a broken manifest — it reports that
+  // nothing is Live, forever, while the site serves perfectly. That failure is
+  // silent everywhere except here.
+  const manifestResponse = await get(MANIFEST_PATH);
+  check(
+    "deployment manifest is served",
+    manifestResponse.status === 200,
+    `got ${manifestResponse.status}`,
+  );
+  check(
+    "deployment manifest is JSON",
+    (manifestResponse.headers?.get("content-type") ?? "").includes("application/json"),
+    manifestResponse.headers?.get("content-type") ?? "absent",
+  );
+
+  let manifest = null;
+  try {
+    manifest = JSON.parse(manifestResponse.body);
+  } catch (error) {
+    check("deployment manifest parses", false, String(error));
+  }
+
+  if (manifest) {
+    check(
+      "deployment manifest declares the expected schema",
+      manifest.schema === "should-i-play/deployment-manifest@1",
+      String(manifest.schema),
+    );
+    check(
+      `deployment manifest reports siteEnv "${SITE_ENV}"`,
+      manifest.siteEnv === SITE_ENV,
+      String(manifest.siteEnv),
+    );
+    check(
+      "deployment manifest carries a digest",
+      /^[0-9a-f]{64}$/.test(String(manifest.digest)),
+      String(manifest.digest),
+    );
+
+    // Every profile the manifest claims must be a profile the sitemap lists.
+    // Two independent surfaces built from one corpus read: if they disagree,
+    // the manifest is describing something the artifact does not serve, which
+    // is the one way a *self*-reported inventory can still lie.
+    const missing = (manifest.entries ?? [])
+      .map((entry) => entry.path)
+      .filter((path) => !sitemap.includes(`<loc>https://shouldiplay.gg${path}</loc>`));
+    check(
+      "every manifest entry is a profile the sitemap lists",
+      missing.length === 0,
+      missing.join(", ") || "none missing",
+    );
+
+    // PRERENDERED, NOT EVALUATED PER REQUEST.
+    //
+    // `force-static` is what makes this a record of the build. Without it the
+    // Worker would run the handler per request — no database, no build
+    // variables — and answer with an empty corpus that looks like a manifest.
+    // A second request proves which happened: a prerendered body is byte-
+    // identical, a re-evaluated one carries a fresh `generatedAt`.
+    const second = await get(MANIFEST_PATH);
+    check(
+      "deployment manifest is prerendered, not re-evaluated per request",
+      second.body === manifestResponse.body,
+      `first generatedAt ${manifest.generatedAt}, second ${
+        (() => {
+          try {
+            return JSON.parse(second.body).generatedAt;
+          } catch {
+            return "unparseable";
+          }
+        })()
+      }`,
+    );
+  }
 
   // Followed from the page's own `og:image` rather than hard-coded. Next
   // appends a cache-busting hash to a generated image route, derived from that

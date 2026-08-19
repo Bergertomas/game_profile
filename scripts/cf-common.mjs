@@ -29,6 +29,16 @@ const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
  * asserts the two agree.
  */
 export const PRODUCTION_BRANCH = "main";
+
+/**
+ * Where the deployed artifact publishes its own inventory.
+ *
+ * Duplicated from `lib/deploy/manifest.ts` because this file is plain `.mjs`
+ * and cannot import TypeScript. `tests/cf-command-paths.test.ts` asserts the
+ * two agree — a constant that exists twice needs a test, not a comment asking
+ * people to be careful.
+ */
+export const MANIFEST_PATH = "/deployment-manifest";
 export const OPEN_NEXT_CLI = join(
   ROOT,
   "node_modules",

@@ -76,6 +76,12 @@ export default async function AdminLayout({
             >
               Games
             </Link>
+            <Link
+              href="/admin/deployments"
+              className="text-bone-soft no-underline hover:text-bone"
+            >
+              Deployment
+            </Link>
           </nav>
           <p className="ml-auto text-[0.78rem] text-bone-quiet">
             {editorEmail}

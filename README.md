@@ -69,6 +69,8 @@ app/
     layout.tsx                 the shell, and the guard every page passes through
     actions.ts                 every editorial mutation, one transaction each
     games/[id]/page.tsx        metadata, artwork rights, scopes, evaluation history
+    deployments/page.tsx       Published vs what production actually serves
+  deployment-manifest/         the artifact's inventory of itself, prerendered
   robots.ts / sitemap.ts       generated from the same data the pages read
 components/
   SiteChrome.tsx               header and footer — achromatic, so games carry colour
@@ -95,6 +97,11 @@ lib/
   admin/db.ts                  request-scoped editorial connection — no pool
   admin/games.ts               editorial reads: drafts and history included
   admin/write.ts               editorial writes, all transaction-scoped
+  admin/deployments.ts         deployment requests, the audit trail, and Live
+  deploy/manifest.ts           what the deployed artifact says about itself
+  deploy/verify.ts             reads that back from production — the only proof
+  deploy/cloudflare.ts         the only code that talks to the Cloudflare API
+  deploy/config.ts             the credential boundary; nothing else reads it
   site.ts                      canonical origin, brand strings, build environment
   seo/                         JSON-LD graphs and share-card geometry
 content/games/                 seeded evaluations
@@ -277,9 +284,77 @@ replaces in a single transaction.
 
 Publishing changes the database, not the site: public pages are prerendered, so
 a published profile becomes Live only once a later production build reads it,
-verification succeeds, and that artifact deploys. Until then production serves
-the previous version. Triggering that build from the tool is Phase 2D-2 — see
-[ADR 0020](docs/decisions/0020-publication-preview-and-deploy-trigger.md).
+verification succeeds, and that artifact deploys. Publishing does *request* that
+build, and the request is recorded — but a request is not an arrival, and the
+tool never treats one as the other.
+
+### Published, awaiting deployment, and Live
+
+`/admin/deployments` compares what the database publishes against what
+production actually serves, and the second half of that sentence is the hard
+part. Everything available on the requesting side describes a request:
+
+| Evidence | What it proves |
+|---|---|
+| the dispatch was accepted | a POST was accepted |
+| Cloudflare reports the build succeeded | a build process exited 0 |
+| the deploy step reported success | an upload was accepted |
+| **the origin serves a manifest naming version V** | **production serves V** |
+
+So the deployed artifact publishes its own inventory at `/deployment-manifest`,
+generated during the same `next build` that renders the pages, from the same
+corpus read. Verification fetches it, re-derives its digest, and only then
+records what production serves. Build status is recorded and shown, and it is
+advisory — it answers "why has this not deployed", never "has this deployed".
+
+Three states, because two would lie:
+
+| State | Meaning |
+|---|---|
+| **Live** | the verified artifact contains this version |
+| **Awaiting deployment** | production was verified, and serves something else |
+| **Not proven** | production has not been verified recently enough to say |
+
+The third is not hedging. A tool that cannot reach production and reports
+"awaiting deployment" is asserting production does *not* have the version, which
+it does not know.
+
+`Live` is derived, never stored: it is not a value of `evaluation_status` and
+must not become one. A rollback changes what is Live without changing any
+evaluation, and published snapshots are immutable.
+
+Reconciliation is **editor-triggered**. There is no cron, queue or background
+service: the stack has no scheduler, and a background poller would be the first
+thing here to touch production with nobody present. "Awaiting deployment"
+therefore persists until someone presses Check — which is honest, because until
+someone looks, nobody knows.
+
+Requesting a build needs three server-only variables, and with any of them unset
+publication is unaffected and the tool says which is missing:
+
+| Variable | Meaning |
+|---|---|
+| `CLOUDFLARE_API_TOKEN` | a **user-scoped** token with *Workers Builds Configuration: Edit* |
+| `CLOUDFLARE_ACCOUNT_ID` | the account the Builds API is addressed against |
+| `CLOUDFLARE_BUILDS_TRIGGER_ID` | the Workers Builds **production** trigger uuid — the one whose `branch_includes` is `["main"]` |
+| `CLOUDFLARE_WORKER_TAG` | optional; enables build-status diagnostics only |
+
+Two things Cloudflare's documentation is explicit about and that cost an
+afternoon otherwise: the Builds API requires a **user-scoped** token —
+account-scoped tokens return "Invalid token" — and it identifies a Worker by an
+immutable **tag**, not by its name. Configuring the tag rather than looking it up
+is what lets the token omit *Workers Scripts: Read*.
+
+The credential is read in exactly one module, used in exactly one
+`Authorization` header, and stripped from anything the provider echoes back.
+Verification needs no credential at all, so it keeps working whatever the
+deployment is configured with. See
+[ADR 0020](docs/decisions/0020-publication-preview-and-deploy-trigger.md) and
+[ADR 0022](docs/decisions/0022-deployment-requests-and-proof-of-live.md).
+
+**Not yet exercised against the real Cloudflare API.** No credential exists in
+this repository, no test may call it, and no production deployment has been
+triggered through this path.
 
 **It ships switched off.** Every `/admin` path answers 404 unless the deployment
 carries both halves, and the deployed default carries neither:
@@ -417,6 +492,49 @@ Every public route prerenders to a static asset, so the Worker mostly routes.
 A local build is a **preview** build and is served `noindex`; set
 `NEXT_PUBLIC_SITE_ENV=production` to reproduce the production artefact. That
 default is deliberate — see `lib/site.ts`.
+
+### Runbook: enable the deploy trigger from the editorial tool
+
+The tool can ask Workers Builds for a production build. Nothing in this
+repository can create the credential, and the deployed default has none, so this
+is a deliberate act with named steps. It changes no code.
+
+1. **Create a user-scoped API token** at
+   `dash.cloudflare.com/profile/api-tokens`. Cloudflare requires this API to use
+   a *user* token; an account-scoped one returns "Invalid token" and nothing in
+   the error says why. Grant one permission: **Workers Builds Configuration —
+   Edit**. *Workers Scripts: Read* is only needed to look a Worker tag up at
+   runtime, which step 3 makes unnecessary.
+2. **Find the production trigger uuid.** Each Worker has at most two triggers,
+   one per branch class. The production one is the trigger whose
+   `branch_includes` is `["main"]`:
+
+   ```bash
+   curl -s "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT/workers/scripts" \
+     -H "Authorization: Bearer $TOKEN" | jq '.result[] | {name: .id, tag: .tag}'
+   curl -s "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT/builds/workers/$TAG/triggers" \
+     -H "Authorization: Bearer $TOKEN" | jq '.result[] | {trigger_uuid, trigger_name, branch_includes}'
+   ```
+
+3. **Set four variables** on the Worker (Settings -> Variables), as secrets:
+   `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`,
+   `CLOUDFLARE_BUILDS_TRIGGER_ID`, and optionally `CLOUDFLARE_WORKER_TAG` — the
+   tag from step 2, which both removes the runtime lookup and enables
+   build-status diagnostics.
+4. **Verify before trusting it.** Open `/admin/deployments` and press **Check
+   production now** *before* requesting anything. It needs no credential, and it
+   establishes what production is currently serving so the first request has a
+   baseline to be compared against.
+
+Rolling the token back is deleting the variable: publication is unaffected,
+verification keeps working, and the tool reports that no build can be requested.
+
+**Two things that are not this runbook.** An artifact deployed before migration
+`0009` answers 404 at `/deployment-manifest`; verification says so in those
+words, and it resolves itself on the next deploy. And a request stuck at
+*dispatch unknown* cannot be settled by looking — there is no build id to ask
+about — so check the Workers Builds dashboard and record what you found with the
+button the page offers.
 
 ### Runbook: protect preview URLs (one click, once, account-wide)
 

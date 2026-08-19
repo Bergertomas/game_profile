@@ -94,8 +94,14 @@ describe("robots.txt", () => {
     // Every segment that 404s in a production build is kept off the crawl
     // path, plus the editorial tool — which is authenticated and `noindex`
     // regardless, because robots.txt is a request, not a control.
+    //
+    // `/deployment-manifest` is different from all of those: it is public, and
+    // must stay public, because deployment verification has to work from
+    // anywhere without credentials. It is excluded only because it is a machine
+    // record with nothing to offer a reader, and no reason to occupy a search
+    // result. Listing it here is tidiness, not access control.
     expect(result.rules).toMatchObject({
-      disallow: ["/admin/", "/dev/", "/design-lab/"],
+      disallow: ["/admin/", "/dev/", "/design-lab/", "/deployment-manifest"],
     });
   });
 

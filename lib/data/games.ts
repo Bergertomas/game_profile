@@ -1,4 +1,5 @@
 import { readFixtureProfiles } from "@/lib/data/fixture-profiles";
+import type { ManifestSource } from "@/lib/deploy/manifest";
 import { isDatabaseConfigured } from "@/lib/db/client";
 import { readPublishedProfiles } from "@/lib/db/read-profiles";
 import { buildProfileView, type ProfileView } from "@/lib/profile/build";
@@ -76,6 +77,7 @@ function databaseIsRequired(): boolean {
  */
 async function loadPublishedProfiles(): Promise<GameWithEvaluation[]> {
   if (isDatabaseConfigured()) {
+    corpusSource = "database";
     const profiles = await readPublishedProfiles(PUBLIC_RUBRIC_VERSION);
     console.log(
       `[data] ${profiles.length} published profile(s) from Postgres.`,
@@ -100,6 +102,7 @@ async function loadPublishedProfiles(): Promise<GameWithEvaluation[]> {
     );
   }
 
+  corpusSource = "fixtures";
   const profiles = readFixtureProfiles(PUBLIC_RUBRIC_VERSION);
   console.log(
     `[data] DATABASE_URL is not set — reading ${profiles.length} published ` +
@@ -121,6 +124,17 @@ async function loadPublishedProfiles(): Promise<GameWithEvaluation[]> {
  */
 let corpus: Promise<GameWithEvaluation[]> | null = null;
 
+/**
+ * Which corpus the load above actually read.
+ *
+ * Set inside `loadPublishedProfiles`, so it reports what happened rather than
+ * what would happen if the question were asked again. That distinction is the
+ * point: the deployment manifest publishes this value as a fact about the
+ * artifact, and re-deriving it from `isDatabaseConfigured()` at some later
+ * moment would be a guess dressed as a record.
+ */
+let corpusSource: ManifestSource | null = null;
+
 function publishedProfiles(): Promise<GameWithEvaluation[]> {
   corpus ??= loadPublishedProfiles().then((profiles) =>
     profiles.slice().sort(
@@ -136,6 +150,24 @@ function publishedProfiles(): Promise<GameWithEvaluation[]> {
 /** Discard the memo. Tests only — a build loads once and exits. */
 export function resetProfileCache(): void {
   corpus = null;
+  corpusSource = null;
+}
+
+/**
+ * Whether this build's published corpus came from Postgres or the fixtures.
+ *
+ * Awaits the load deliberately. Asked before the corpus resolves the answer
+ * would be `null`, and a manifest that omitted the field — or guessed it — would
+ * be unable to distinguish a correctly deployed fixture-backed site from a
+ * database-backed one. Those two artifacts are equally healthy and share not a
+ * single Live evaluation, which is exactly the confusion the field exists to
+ * prevent.
+ */
+export async function publishedCorpusSource(): Promise<ManifestSource> {
+  await publishedProfiles();
+  // Non-null by construction: `loadPublishedProfiles` assigns on every path
+  // that returns, and throws on the one that does not.
+  return corpusSource!;
 }
 
 /**
