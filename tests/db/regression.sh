@@ -302,7 +302,7 @@ expect 'upgrade gives every game with evaluations exactly one primary scope' \
      (SELECT count(DISTINCT game_id) FROM evaluations));" '3/3'
 expect 'upgrade makes the backfilled default scope the primary one' \
   "SELECT count(*) FROM profile_scopes WHERE is_primary AND key='default';" '3'
-expect 'upgrade moves live-row uniqueness onto the scope' \
+expect 'upgrade moves Published-row uniqueness onto the scope' \
   "SELECT count(*) FROM pg_indexes
    WHERE schemaname='public'
      AND indexname='evaluations_one_published_per_scope_rubric'
@@ -586,7 +586,7 @@ expect 'one game may have published evaluations under two rubric versions' \
 echo
 echo '== 4b. One game, several simultaneously current profile scopes =='
 #
-# The blocker this replaced: the live-row index was keyed on (game, rubric), so
+# The blocker this replaced: the Published-row index was keyed on (game, rubric), so
 # The Long Dark could publish Survival OR Wintermute and never both. These
 # assertions are the proof that it can now publish both, that each series
 # numbers and supersedes independently, and that the boundary is a real
@@ -668,7 +668,7 @@ accept 'a second scope publishes while the first stays published' \
 expect 'the game now carries two simultaneously current profiles' \
   "SELECT count(*) FROM evaluations
    WHERE game_id=$RETURNAL_GAME AND rubric_version='1.0' AND status='published';" '2'
-expect 'each current profile is the only live row in its own scope' \
+expect 'each current profile is the only Published row in its own scope' \
   "SELECT count(DISTINCT scope_id) FROM evaluations
    WHERE game_id=$RETURNAL_GAME AND rubric_version='1.0' AND status='published';" '2'
 expect 'both series legitimately number their first version 1' \
@@ -676,7 +676,7 @@ expect 'both series legitimately number their first version 1' \
    WHERE game_id=$RETURNAL_GAME AND rubric_version='1.0'
      AND status='published' AND version_number=1;" '2'
 
-reject 'a second live row inside one scope is still refused' \
+reject 'a second Published row inside one scope is still refused' \
   "INSERT INTO evaluations (
      game_id,scope_id,rubric_version,version_number,edition_scope,mode_scope,platform_scope,
      build_or_patch_scope,status,evidence_status,confidence,evidence_cutoff_at,

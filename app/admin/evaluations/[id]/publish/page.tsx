@@ -46,7 +46,7 @@ export default async function PublishPage({
         <Notice tone="blocked">
           This evaluation is <strong>{status}</strong>.{" "}
           {status === "published"
-            ? "It is the current editorially published version for this scope — which is not the same as saying production serves it, since that depends on a build having run since. A published snapshot is never edited: to change it, create a revision, which supersedes this version at the moment the revision publishes."
+            ? "It is the current editorially published version for this scope — which is not the same as saying production serves it, since that needs a later production build to read it, verify, and deploy successfully. A published snapshot is never edited: to change it, create a revision, which supersedes this version at the moment the revision publishes."
             : "It is preserved editorial history: it was published once and has been replaced."}
         </Notice>
       ) : null}

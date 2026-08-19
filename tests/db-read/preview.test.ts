@@ -84,8 +84,9 @@ describe("Prospective scope switcher", () => {
    * The case that motivated the whole prospective model.
    *
    * Built from the CURRENTLY published set, this preview shows no switcher —
-   * the game has one published scope — and the switcher then appears on the
-   * public site the instant this draft publishes, on a page nobody approved.
+   * the game has one published scope — and then the next production build that
+   * reads the post-publication corpus, verifies and deploys successfully puts a
+   * switcher on a page nobody approved with one.
    */
   it("previews the first draft of a second scope with the switcher publishing will create", async () => {
     const preview = await inRolledBackTransaction(async (tx) => {

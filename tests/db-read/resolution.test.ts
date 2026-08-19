@@ -156,7 +156,7 @@ describe("Non-public evaluations", () => {
     // v1 becomes history and v2 becomes current. One profile, not two, and the
     // superseded row is preserved rather than deleted.
     //
-    // Supersede before publishing: the live-row index is a unique *index*, not
+    // Supersede before publishing: the Published-row index is a unique *index*, not
     // a deferrable constraint, so the old row has to step aside first. That
     // ordering is the contract, not a test convenience.
     const profiles = await withState(

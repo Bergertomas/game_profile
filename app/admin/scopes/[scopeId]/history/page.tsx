@@ -118,7 +118,19 @@ export default async function ScopeHistoryPage({
             }, newest first. ` +
             (generation.isPublicRubric
               ? "This is the rubric the public site reads."
-              : "An earlier rubric generation. Its version numbers are its own — they do not continue into, or from, any other generation.")
+              : /*
+                 * Neutral about direction, deliberately.
+                 *
+                 * Calling a non-public generation the older one is false
+                 * whenever a newer rubric is being authored before it becomes
+                 * the public rubric — the state every rubric migration passes
+                 * through, and the one the rubric-generation tests describe.
+                 * Direction would have to be derived by comparing this
+                 * generation's locked date against the public rubric's, and
+                 * nothing here does that. What is known is only that the public
+                 * site does not read this generation, so that is all this says.
+                 */
+                "This is not the rubric currently read by the public site. Its version numbers belong to this generation and do not continue into, or from, another generation.")
           }
         >
           <ol className="m-0 list-none space-y-4 p-0">

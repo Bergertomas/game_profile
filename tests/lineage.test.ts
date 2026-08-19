@@ -131,7 +131,7 @@ describe("Invalid supersession", () => {
     ).toContain("missing_published_at");
   });
 
-  it("rejects two live published evaluations for one game", () => {
+  it("rejects two Published evaluations in one scope's rubric lineage", () => {
     expect(
       codes({
         ...validChain,

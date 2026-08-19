@@ -299,8 +299,8 @@ export const gamePlatforms = pgTable(
  *
  * Both scopes are simultaneously *current*: each carries its own published row
  * and its own independent supersession history. That is the whole reason this
- * table exists — the previous model keyed the live row on the game, so The Long
- * Dark could publish Survival or Wintermute but never both.
+ * table exists — the previous model keyed the Published row on the game, so The
+ * Long Dark could publish Survival or Wintermute but never both.
  *
  * Identity is this row's `id`, never text. `edition_scope` and `mode_scope`
  * stay on the evaluation, where they are an immutable snapshot of what that

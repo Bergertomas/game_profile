@@ -11,7 +11,7 @@ Rubric §1 is explicit:
 > If different modes materially change the experience, create separate
 > evaluations rather than averaging them together.
 
-The contract could not hold two. Live-row uniqueness was
+The contract could not hold two. Published-row uniqueness was
 `(game_id, rubric_version)` and version numbering was
 `(game_id, rubric_version, version_number)`, so **The Long Dark could publish
 Survival or Wintermute and never both**. Whichever was published second would
@@ -60,7 +60,7 @@ all five episodes, excluding Survival"*. They answer different questions.
 ### What moved to the scope
 
 - `evaluations_scope_version` unique on `(scope_id, rubric_version, version_number)`
-- `evaluations_one_published_per_scope_rubric` — one live row per scope per rubric
+- `evaluations_one_published_per_scope_rubric` — one Published row per scope per rubric
 - supersession coherence, in both directions, is scope-local
 
 ### What the database enforces rather than trusts
@@ -73,8 +73,8 @@ all five episodes, excluding Survival"*. They answer different questions.
 - **A final evaluation cannot be moved to another series.**
 - The seed refuses to run if any evaluation sits on a scope the corpus no longer
   declares. Renaming a key is a migration, not a content edit: left unguarded it
-  would create a *second* series, publish version 1 into it, and leave two live
-  profiles for one experience with neither obviously wrong.
+  would create a *second* series, publish version 1 into it, and leave two
+  Published profiles for one experience with neither obviously wrong.
 
 ### Scope metadata is editable; snapshots are not
 

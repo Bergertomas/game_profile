@@ -12,8 +12,8 @@ no dimensions therefore made the expected set empty and passed vacuously. Final
 scores, evidence links and shared source metadata also remained editable, and
 lineage checks covered only the row carrying an outgoing supersession link.
 
-The written product contract is unambiguous on one important point: the live-row
-uniqueness boundary is `(game, rubric version)`, not game alone. A rubric change
+The written product contract is unambiguous on one important point: the
+Published-row uniqueness boundary is `(game, rubric version)`, not game alone. A rubric change
 may preserve both published interpretations while the public application makes
 an explicit cut-over choice.
 

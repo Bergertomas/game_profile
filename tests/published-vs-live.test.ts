@@ -3,43 +3,51 @@ import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
- * Published is not Live, and nothing the editor reads may say otherwise.
+ * Published is not Live, and nothing anyone reads may say otherwise.
  *
  * Master Plan §9.8 makes three separate states:
  *
  *   Published   the editorial publication transaction committed in Postgres;
- *   Superseded  an immutable snapshot that was Published and has been replaced;
+ *   Superseded  immutable editorial publication history;
  *   Live        the deployed production artifact actually serves that version.
  *
  * Publication alone never proves the third. Public pages are prerendered, so a
  * version becomes Live only if a later build reads it, verification succeeds,
- * and that artifact deploys. Any of those can fail or simply not happen — a
- * version can be Published and later Superseded without ever having been
- * served. Phase 2D-1 ships without Live tracking, which makes the wording the
- * only thing standing between an editor and a false belief.
+ * AND that artifact deploys. Any of those can fail or simply not happen — a
+ * build that runs and fails changes nothing, and a version can be Published and
+ * later Superseded without ever having been served. Phase 2D-1 ships without
+ * Live tracking, which makes the wording the only thing standing between an
+ * editor and a false belief.
  *
  * ── Two layers, because a word scan is not enough ──────────────────────────
  *
- * The scan below catches *new* uses of the word and forces each one to be
- * looked at. It cannot judge meaning, so on its own it would happily approve a
- * fluent sentence that is wrong — which is exactly what happened: an earlier
- * version of this file allowlisted `/appears on the live site/`, blessing a
- * claim that publishing changes production immediately.
+ * The **word scan** catches new uses of "live" in the editorial application and
+ * forces each one to be looked at. It cannot judge meaning, so on its own it
+ * would happily approve a fluent sentence that is wrong — which is exactly what
+ * happened: an earlier version of this file allowlisted
+ * `/appears on the live site/`, blessing a claim that publishing changes
+ * production immediately.
  *
- * So the second layer names the specific false claims, as phrases, and asserts
- * they appear nowhere. Those are regressions with a known shape; the scan is
- * for the ones that do not have one yet.
+ * The **false-claim layer** names specific wrong sentences as phrases. It runs
+ * over a much wider surface — application code, active tests, README, the
+ * Master Plan and the accepted ADRs — because the leaks it exists to catch were
+ * found in all of those, and three of them contain no "live" at all. Its
+ * previous scope covered application code and four documents, which is why
+ * "Live-row uniqueness" sat unnoticed in ADR 0014 and "two live published
+ * evaluations" in a test name.
+ *
+ * Whole-file matching, not line-by-line: several of these were line-wrapped in
+ * the prose that carried them.
  */
 
 const ROOT = join(__dirname, "..");
 
 /**
- * Everything whose text an editor can end up reading.
+ * Application text an editor reads directly.
  *
  * `lib/validation` belongs here even though it is not under `lib/admin`: its
- * `ValidationIssue` messages are rendered verbatim on the Publish page, so they
- * are editorial copy whatever directory they live in. Leaving it out is how
- * "only one may be live" survived the first pass of this guard.
+ * `ValidationIssue` messages render verbatim on the Publish page, so they are
+ * editorial copy whatever directory they live in.
  */
 const EDITORIAL_SOURCES = [
   "lib/admin",
@@ -48,45 +56,52 @@ const EDITORIAL_SOURCES = [
   "components/admin",
 ] as const;
 
-/** Current normative prose. Historical migrations are deliberately excluded. */
+/**
+ * Current normative prose.
+ *
+ * Accepted ADRs are included because they are read as current authority, and
+ * because two of the leaks this guard now catches were in one. Superseded
+ * Master Plans and historical migrations are deliberately absent: their wording
+ * is a record of what was decided then, and rewriting it would obscure history
+ * rather than correct it.
+ */
 const NORMATIVE_DOCS = [
   "README.md",
   "docs/Game_Profile_Master_Product_and_Build_Plan_v0.8.md",
+  "docs/decisions/0009-final-evaluation-and-rubric-integrity.md",
+  "docs/decisions/0014-profile-scopes.md",
+  "docs/decisions/0016-canonical-scope-urls.md",
+  "docs/decisions/0018-admin-access.md",
   "docs/decisions/0020-publication-preview-and-deploy-trigger.md",
   "docs/decisions/0021-hyperdrive-is-the-deployed-admin-transport.md",
 ] as const;
 
+/** This file. Its regexes read as the very prose it forbids. */
+const SELF = "tests/published-vs-live.test.ts";
+
 /**
  * Claims that are false under §9.8, as phrases.
  *
- * Every one of these was real prose in this branch at some point. They are
- * listed rather than described because a scan for the word "live" does not
- * catch most of them — three contain no such word at all.
+ * Every one was real prose in this branch at some point, which is why they are
+ * listed rather than described.
  */
 const FALSE_CLAIMS: readonly { pattern: RegExp; why: string }[] = [
+  // ── Publication presented as deployment ─────────────────────────────────
   {
     pattern: /becomes Live at the next production build/i,
     why: "a build may not run, may fail verification, or may fail to deploy",
+  },
+  {
+    pattern: /a build having run/i,
+    why: "a build that runs and fails changes nothing; it must also verify and deploy",
   },
   {
     pattern: /live site the moment/i,
     why: "publication changes the database; production changes on deployment",
   },
   {
-    pattern: /record of what was public/i,
-    why: "Published/Superseded is the editorial record, not proof of serving",
-  },
-  {
-    pattern: /only one may be live/i,
-    why: "the rule is one Published row per (scope, rubric)",
-  },
-  {
-    pattern: /\btwo live rows\b/i,
-    why: "the rule is Published rows, not deployed ones",
-  },
-  {
-    pattern: /one live (row|evaluation)\b/i,
-    why: "the rule is Published rows, not deployed ones",
+    pattern: /\bthe instant\b[^.]{0,60}\bpublish/i,
+    why: "nothing about production happens at the instant a publication commits",
   },
   {
     pattern: /When published, this profile would answer at/i,
@@ -97,17 +112,47 @@ const FALSE_CLAIMS: readonly { pattern: RegExp; why: string }[] = [
     why: "implies publication alone changes what production serves",
   },
   {
+    pattern: /record of what was public/i,
+    why: "Published/Superseded is the editorial record, not proof of serving",
+  },
+
+  // ── "Live" used where the rule is about Published rows ──────────────────
+  {
+    pattern: /\blive[- ]row\b/i,
+    why: "the uniqueness rule is over Published rows, not deployed ones",
+  },
+  {
+    pattern: /live published evaluation/i,
+    why: "the rule is one Published evaluation per (scope, rubric) lineage",
+  },
+  {
+    pattern: /two live\s+profiles/i,
+    why: "two Published profiles; deployment is not what the constraint governs",
+  },
+  {
+    pattern: /\btwo live rows\b/i,
+    why: "the rule is Published rows, not deployed ones",
+  },
+  {
+    pattern: /one live (row|evaluation|profile)\b/i,
+    why: "the rule is Published rows, not deployed ones",
+  },
+  {
+    pattern: /only one may be live/i,
+    why: "the rule is one Published row per (scope, rubric)",
+  },
+  {
     pattern: /is the live profile for this scope/i,
     why: "the original regression: Published presented as Live",
   },
 ];
 
 /**
- * Occurrences of the word that are reviewed and allowed.
+ * Occurrences of the word allowed in the editorial application.
  *
- * Kept deliberately narrow. Nothing here may bless a claim that publishing
- * changes production — that is what `FALSE_CLAIMS` exists to prevent, and an
- * allowlist entry that contradicted it would silently win.
+ * Deliberately narrow. Nothing here may bless a claim that publishing changes
+ * production — `FALSE_CLAIMS` exists to prevent that, and an allowlist entry
+ * contradicting it would silently win.
  */
 const ALLOWED = [
   // ── The design token, not a deployment state ────────────────────────────
@@ -146,11 +191,39 @@ function walk(dir: string): string[] {
   });
 }
 
+function rel(file: string): string {
+  return relative(ROOT, file).replaceAll("\\", "/");
+}
+
 function editorialFiles(): string[] {
   return EDITORIAL_SOURCES.flatMap((source) =>
     walk(join(ROOT, source)).filter((file) => /\.(ts|tsx)$/.test(file)),
   );
 }
+
+/**
+ * Active tests and their comments — this file excluded, see `SELF`.
+ *
+ * `.sh` is included, not an oversight to tidy later: `tests/db/regression.sh`
+ * is the database contract suite, its `expect`/`reject` labels are the names
+ * the run prints, and four of them said "live row" where the rule is about
+ * Published rows.
+ */
+function testFiles(): string[] {
+  return walk(join(ROOT, "tests"))
+    .filter((file) => /\.(ts|tsx|sh)$/.test(file))
+    .filter((file) => rel(file) !== SELF);
+}
+
+/**
+ * Schema and migration-adjacent source whose comments describe the rules.
+ *
+ * `lib/db/schema.ts` is not editorial copy — nobody reads it in the admin — but
+ * it is current normative prose about what the constraints mean, and it said
+ * "keyed the live row on the game". Migrations themselves stay out: their
+ * comments are a record of what was decided at the time.
+ */
+const SCHEMA_PROSE = ["lib/db/schema.ts", "lib/db/read-profiles.ts"] as const;
 
 function read(file: string): string {
   return readFileSync(file, "utf8");
@@ -165,9 +238,7 @@ describe("Published is not Live", () => {
         .forEach((line, index) => {
           if (!/\blive\b/i.test(line)) return;
           if (ALLOWED.some((pattern) => pattern.test(line))) return;
-          offenders.push(
-            `${relative(ROOT, file).replaceAll("\\", "/")}:${index + 1}: ${line.trim()}`,
-          );
+          offenders.push(`${rel(file)}:${index + 1}: ${line.trim()}`);
         });
     }
 
@@ -177,9 +248,11 @@ describe("Published is not Live", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("makes none of the specific false claims, in code or in current docs", () => {
+  it("makes none of the false claims, in application code, tests, or current docs", () => {
     const sources = [
       ...editorialFiles(),
+      ...testFiles(),
+      ...SCHEMA_PROSE.map((file) => join(ROOT, file)),
       ...NORMATIVE_DOCS.map((doc) => join(ROOT, doc)),
     ];
 
@@ -188,9 +261,7 @@ describe("Published is not Live", () => {
       const text = read(file);
       for (const claim of FALSE_CLAIMS) {
         if (claim.pattern.test(text)) {
-          offenders.push(
-            `${relative(ROOT, file).replaceAll("\\", "/")}: ${claim.pattern} — ${claim.why}`,
-          );
+          offenders.push(`${rel(file)}: ${claim.pattern} — ${claim.why}`);
         }
       }
     }
@@ -206,10 +277,17 @@ describe("Published is not Live", () => {
       "Publishing changes the database, not the site",
     );
     // The qualification is the point: not "at the next build", but only if one
-    // runs, verifies and deploys.
+    // runs, verifies AND deploys.
     expect(publishPage).toMatch(/becomes\s+Live only if a later production build/);
     expect(publishPage).toMatch(/verification succeeds/);
     expect(publishPage).toMatch(/deploys successfully/);
+
+    // The shorter status notice must carry the same three conditions as the
+    // detailed one below it, or an editor reading only the top of the page gets
+    // a weaker claim than the page actually makes.
+    expect(publishPage).toMatch(
+      /needs a later production build to read it, verify, and deploy successfully/,
+    );
   });
 
   it("keeps the publication module's own terminology contract", () => {
@@ -222,8 +300,6 @@ describe("Published is not Live", () => {
 
   it("describes the preview as prospective about the corpus, not production", () => {
     const preview = read(join(ROOT, "lib/admin/preview.ts"));
-    // The distinction that the earlier wording lost: prospective with respect
-    // to the database a publication would leave, not to what is served.
     expect(preview).toMatch(/database corpus/i);
     expect(preview).toMatch(/does not change what production serves/i);
   });
@@ -234,5 +310,30 @@ describe("Published is not Live", () => {
     );
     expect(history).toMatch(/editorial publication\s+record/);
     expect(history).toMatch(/not the same\s+as having been served/);
+  });
+});
+
+describe("A non-public rubric generation is not called earlier", () => {
+  /**
+   * "An earlier rubric generation" is false while a newer rubric is being
+   * authored before it becomes the public one — the state every rubric
+   * migration passes through, and the one `tests/admin/rubric-generations.test.ts`
+   * describes. Nothing in the page derives direction from the locked dates
+   * *relative to the public rubric*, so it may not claim one.
+   */
+  it("uses direction-neutral wording for any rubric the public site does not read", () => {
+    const history = read(
+      join(ROOT, "app/admin/scopes/[scopeId]/history/page.tsx"),
+    );
+
+    // The description shown for a non-public generation.
+    expect(history).toContain(
+      "This is not the rubric currently read by the public site.",
+    );
+
+    // And it claims no direction. The words appear in this file's own
+    // explanation above, which is why only the page is read here.
+    expect(history).not.toMatch(/An earlier rubric generation/);
+    expect(history).not.toMatch(/A later rubric generation/);
   });
 });
