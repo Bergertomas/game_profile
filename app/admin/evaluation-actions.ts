@@ -21,6 +21,7 @@ import {
   tagSelectionSchema,
 } from "@/lib/admin/evaluation-validation";
 import { requireEditor } from "@/lib/admin/guard";
+import { publishEvaluation } from "@/lib/admin/publication";
 import { formValues, parseObject } from "@/lib/admin/validation";
 import { CURRENT_RUBRIC_VERSION } from "@/lib/rubric";
 import { z } from "zod";
@@ -30,7 +31,12 @@ import { z } from "zod";
  *
  * Same contract as the 2B actions: `requireEditor()` first, one transaction
  * each, and a database refusal reported next to the form rather than as an
- * error page. Nothing here publishes or supersedes — that is Phase 2D.
+ * error page.
+ *
+ * Exactly one action here makes an evaluation public — `publishEvaluationAction`
+ * at the foot of the file. Everything above it authors a working draft and
+ * cannot change what the site serves, which is the property that let 2C ship
+ * before a publish gate existed.
  *
  * ── Save granularity ────────────────────────────────────────────────────────
  *
@@ -500,4 +506,45 @@ export async function deleteDraftAction(
   if (!result.ok) return result;
   refresh(evaluationId, gameId);
   redirect(`/admin/games/${gameId}`);
+}
+
+/**
+ * Publish this evaluation, superseding the version it replaces.
+ *
+ * The transition every other action in this file deliberately avoided: 2C
+ * authored working evaluations and nothing here could make one public. The
+ * publication itself — gate, supersession and status change in one transaction
+ * — lives in `lib/admin/publication.ts`; this is the form boundary.
+ *
+ * ── Why the gate runs again, after the page already ran it ─────────────────
+ *
+ * The Publish page shows readiness computed when it rendered. Between that
+ * render and this submission an editor may have changed a score in another tab,
+ * a revision may have published, or a rubric may have moved. Publishing on the
+ * strength of a check made against data that has since changed is the class of
+ * bug the whole immutability model exists to prevent, so `publishEvaluation`
+ * re-runs the gate inside the transaction that commits. This action does not
+ * pre-check at all: doing so would only produce a friendlier message for a race
+ * it cannot close.
+ */
+export async function publishEvaluationAction(
+  evaluationId: string,
+  gameId: string,
+  _previous: ActionResult | null,
+  form: FormData,
+): Promise<ActionResult> {
+  await requireEditor();
+
+  const result = await guarded(() =>
+    withAdminTransaction((tx) =>
+      publishEvaluation(tx, evaluationId, {
+        spoilerReviewed: form.get("spoilerReviewed") === "on",
+        scopeConfirmation: String(form.get("scopeConfirmation") ?? ""),
+      }),
+    ),
+  );
+  if (!result.ok) return result;
+
+  refresh(evaluationId, gameId);
+  redirect(`/admin/evaluations/${evaluationId}/publish`);
 }

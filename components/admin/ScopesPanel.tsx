@@ -359,6 +359,15 @@ function EvaluationHistory({
       )}
 
       <div className="mt-3 flex flex-wrap items-start gap-x-6 gap-y-3">
+        <p className="m-0 text-[0.82rem]">
+          <AdminLink href={`/admin/scopes/${scopeId}/history`}>
+            Full history
+          </AdminLink>{" "}
+          <span className="text-ink-quiet">
+            — every version, each previewable as it renders.
+          </span>
+        </p>
+
         {openDraft ? (
           <p className="m-0 text-[0.82rem] text-ink-soft">
             An evaluation is already in progress (v{openDraft.versionNumber}).
@@ -381,9 +390,11 @@ function EvaluationHistory({
               This copies v{latestPublished.versionNumber} into a new draft —
               context, all forty scores and rationales, confidence, overrides,
               tags, evidence and interpretation — and <strong>leaves the
-              published version exactly as it is</strong>. It stays live and
-              unchanged while the revision is authored beside it. Supersession
-              happens when the revision is published, which is Phase 2D.
+              published version exactly as it is</strong>. It stays the
+              published version, unchanged, while the revision is authored
+              beside it. Supersession
+              happens in the same transaction that publishes the revision, so
+              this scope is never without a published version and never has two.
             </p>
             <ActionForm
               action={createRevisionAction.bind(null, latestPublished.id)}

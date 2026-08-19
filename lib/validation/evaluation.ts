@@ -443,6 +443,25 @@ export function validateEvaluation(evaluation: Evaluation): ValidationIssue[] {
     }
   }
 
+  // Master Plan §8.8 — a Game Profile publishes no aggregate score.
+  //
+  // There is no field for one, which is the real defence: the shape cannot
+  // represent a single verdict number. Prose is the one place a reviewer's
+  // "8/10" can still get in, and it would undo the whole premise — the product
+  // answers "what kind of good is it", and a number collapses that back into a
+  // ranking. One issue per field, not one per pattern: an editor needs to know
+  // the sentence is wrong, not which regex objected.
+  for (const text of proseFields) {
+    if (AGGREGATE_SCORE_PATTERNS.some((pattern) => pattern.test(text))) {
+      issues.push({
+        code: "aggregate_score",
+        message:
+          "A profile states no overall score — the dimensions are the answer: " +
+          `"${text}"`,
+      });
+    }
+  }
+
   return issues;
 }
 
@@ -460,6 +479,22 @@ const BANNED_PHRASES: readonly { pattern: RegExp; reason: string }[] = [
     pattern: /\bone of the best games ever\b/i,
     reason: "Avoid universal superlatives",
   },
+];
+
+/**
+ * Shapes an aggregate verdict takes in prose (Master Plan §8.8).
+ *
+ * Scoped tightly on purpose. A dimension total is a real, publishable number
+ * and these must not object to one being discussed — so there is no bare
+ * "6" pattern here, only the forms that read as a *verdict on the game*: a
+ * fraction over a review scale, the "out of" spelling of the same, and the
+ * words that name an overall figure directly.
+ */
+const AGGREGATE_SCORE_PATTERNS: readonly RegExp[] = [
+  /\b\d{1,2}(\.\d)?\s*\/\s*(5|10|100)\b/,
+  /\b\d{1,2}(\.\d)?\s+out of\s+(5|10|100)\b/i,
+  /\b(overall|final|total|aggregate|composite)\s+(score|rating|verdict|number)\b/i,
+  /\b(score|rating)\s+of\s+\d{1,2}(\.\d)?\b/i,
 ];
 
 /**
@@ -625,17 +660,17 @@ export function validateGameRecord(
     }
   }
 
-  // Exactly one live evaluation per scope per rubric (Plan §13.2).
+  // Exactly one Published evaluation per scope per rubric (Plan §13.2).
   //
   // A GameWithEvaluation is one profile scope under one rubric. A game may
   // legitimately have several published evaluations at once — one per scope —
-  // and the database permits one live row per (scope, rubric); what neither
-  // permits is two live rows inside this one series.
+  // and the database permits one Published row per (scope, rubric); what
+  // neither permits is two Published rows inside this one series.
   const published = chain.filter((e) => e.status === "published");
   if (published.length > 1) {
     issues.push({
       code: "multiple_published_evaluations",
-      message: `${record.game.slug} › ${record.scope.key} has ${published.length} published evaluations in the selected rubric lineage; only one may be live.`,
+      message: `${record.game.slug} › ${record.scope.key} has ${published.length} published evaluations in the selected rubric lineage; only one may be Published.`,
     });
   }
 

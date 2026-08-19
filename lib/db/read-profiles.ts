@@ -43,12 +43,18 @@ import type { RubricVersion } from "@/lib/rubric";
  * querying per page — a few hundred games is a few tens of thousands of rows,
  * and the alternative is N+1 against every profile in the catalogue.
  *
- * ── History is not loaded ──────────────────────────────────────────────────
+ * ── History is not public ──────────────────────────────────────────────────
  *
- * Superseded evaluations are preserved in the database and are excluded here.
- * Nothing public renders them; they are editorial data for the revision history
- * view in Phase 2D. `GameWithEvaluation.history` is therefore left undefined,
- * which is exactly what the fixtures do.
+ * Superseded evaluations are preserved in the database and are excluded from
+ * `readPublishedProfiles`. Nothing public renders them.
+ * `GameWithEvaluation.history` is therefore left undefined, which is exactly
+ * what the fixtures do.
+ *
+ * They are not unreachable, though: `readEvaluationProfile` below loads any one
+ * evaluation by id whatever its status, which is what the Phase 2D preview and
+ * the admin revision-history view read. Both are behind the editorial guard.
+ * The public selector is unchanged — history exposure stayed an admin-only
+ * decision (Master Plan §17.2 open decision 5).
  */
 
 /** Order for card listings: alphabetical by game, then by scope. */
@@ -57,6 +63,44 @@ const CATALOGUE_ORDER = [
   asc(t.profileScopes.displayOrder),
   asc(t.profileScopes.key),
 ] as const;
+
+/**
+ * Either handle onto the same database.
+ *
+ * The public reader runs at build time on `lib/db/client.ts`; the editorial
+ * preview runs while an editor waits, on `lib/admin/db.ts`. Both are
+ * `drizzle<typeof schema>` over the same schema module, so the projection below
+ * does not care which one it is handed — and taking the handle as a parameter
+ * is what keeps it from caring. Typed from `getDatabase` rather than imported
+ * from `lib/admin/db.ts` so the public read path acquires no dependency on the
+ * admin module.
+ *
+ * The union includes a transaction handle because the publish gate re-runs
+ * inside the publication transaction — checking readiness on a connection
+ * outside it would be checking data that the transaction cannot see, and could
+ * pass on a row another session is halfway through changing.
+ */
+type ProfileDatabase = ReturnType<typeof getDatabase>;
+export type ProfileReader =
+  | ProfileDatabase
+  | Parameters<Parameters<ProfileDatabase["transaction"]>[0]>[0];
+
+/**
+ * The three rows that identify a profile. Shared so that the two selectors
+ * below differ only in their WHERE clause, which is the only thing that should
+ * differ: what a profile *is* must not depend on why it was loaded.
+ */
+const PROFILE_SELECTION = {
+  evaluation: t.evaluations,
+  scope: t.profileScopes,
+  game: t.games,
+} as const;
+
+type ProfileSelectionRow = {
+  evaluation: typeof t.evaluations.$inferSelect;
+  scope: typeof t.profileScopes.$inferSelect;
+  game: typeof t.games.$inferSelect;
+};
 
 /**
  * Every published profile, in catalogue order.
@@ -77,11 +121,7 @@ export async function readPublishedProfiles(
   await assertSchemaIsCurrent(db);
 
   const evaluationRows = await db
-    .select({
-      evaluation: t.evaluations,
-      scope: t.profileScopes,
-      game: t.games,
-    })
+    .select(PROFILE_SELECTION)
     .from(t.evaluations)
     .innerJoin(t.profileScopes, eq(t.profileScopes.id, t.evaluations.scopeId))
     .innerJoin(t.games, eq(t.games.id, t.evaluations.gameId))
@@ -93,6 +133,148 @@ export async function readPublishedProfiles(
     )
     .orderBy(...CATALOGUE_ORDER);
 
+  return buildProfiles(db, evaluationRows);
+}
+
+/**
+ * One evaluation as the profile it would be, whatever its status.
+ *
+ * This is what makes the Phase 2D preview faithful rather than a lookalike: it
+ * is not a second view model assembled for the editor, it is the *same*
+ * projection the public build runs, differing only in which row it starts from.
+ * A draft renders through it, and so does superseded history, which is what the
+ * revision-history view reads.
+ *
+ * Deliberately status-agnostic. The caller decides what may be looked at — the
+ * admin guard, in every current caller — and `checkPublishReadiness` decides
+ * what may be published. Filtering by status here would make preview unable to
+ * show a draft, which is its entire purpose.
+ *
+ * NOTE ON ARTWORK. The clearance filter in `buildProfiles` applies here
+ * unchanged, and that is correct rather than an oversight: an uncleared image
+ * will not appear on the public page, so a preview that showed it would be
+ * lying about what ships. The publish gate reports uncleared artwork as an
+ * issue; the preview simply renders what the reader would render.
+ */
+export async function readEvaluationProfile(
+  db: ProfileReader,
+  evaluationId: string,
+): Promise<GameWithEvaluation | null> {
+  await assertSchemaIsCurrent(db);
+
+  const [target] = await db
+    .select({
+      scopeId: t.evaluations.scopeId,
+      rubricVersion: t.evaluations.rubricVersion,
+    })
+    .from(t.evaluations)
+    .where(eq(t.evaluations.id, evaluationId))
+    .limit(1);
+  if (!target) return null;
+
+  /*
+   * This evaluation's series: same scope, SAME RUBRIC.
+   *
+   * `history` is what makes the supersession rules checkable. Loaded with only
+   * the one evaluation, `validateGameRecord` sees a chain of length one, and
+   * every revision — which by definition supersedes something — fails as
+   * "the oldest in the chain but claims to supersede X". The gate would then
+   * block the single most common publication there is.
+   *
+   * ── Why the rubric filter is not optional ─────────────────────────────────
+   *
+   * Version numbering and supersession are both rubric-local: the database's
+   * uniqueness is per (scope, rubric), and a scope re-evaluated under a later
+   * rubric starts a NEW series at version 1 rather than continuing the old one.
+   * A rubric-1.0 evaluation is therefore not history for a rubric-2.0 one; it
+   * is a different lineage describing the same experience under different
+   * rules.
+   *
+   * Without this filter, the first evaluation authored under a second rubric
+   * would be handed the entire earlier generation as its history, and the gate
+   * would refuse it with a pile of true-sounding nonsense —
+   * `history_rubric_mismatch` for every earlier row, `duplicate_version_number`
+   * where the two generations both have a v1, and a broken supersession chain
+   * because the new v1 correctly supersedes nothing.
+   *
+   * The admin revision-history page deliberately shows every rubric generation;
+   * that is a different question ("what has this scope ever said") from the one
+   * asked here ("what lineage is this evaluation part of").
+   *
+   * Nothing rendered changes: `buildProfileView` never reads `history`, so the
+   * preview is byte-identical either way. This is loaded for the validator.
+   */
+  const seriesRows = await db
+    .select(PROFILE_SELECTION)
+    .from(t.evaluations)
+    .innerJoin(t.profileScopes, eq(t.profileScopes.id, t.evaluations.scopeId))
+    .innerJoin(t.games, eq(t.games.id, t.evaluations.gameId))
+    .where(
+      and(
+        eq(t.evaluations.scopeId, target.scopeId),
+        eq(t.evaluations.rubricVersion, target.rubricVersion),
+      ),
+    )
+    .orderBy(asc(t.evaluations.versionNumber));
+
+  const series = await buildProfiles(db, seriesRows);
+  const index = series.findIndex(
+    (record) => record.evaluation.id === evaluationId,
+  );
+  if (index === -1) return null;
+
+  // Earlier versions only. A later draft is not this evaluation's history, and
+  // including one would make the chain claim a successor that has not happened.
+  return { ...series[index]!, history: series.slice(0, index).map((r) => r.evaluation) };
+}
+
+/**
+ * Every published profile of one game, on either handle.
+ *
+ * This is the scope switcher's data, and the editorial preview needs its own
+ * way to get it. The public page resolves siblings through
+ * `listProfileScopes`, which reads the corpus assembled at build time — and an
+ * admin request has no build-time corpus, so falling through to it would
+ * quietly render the *fixture* catalogue's siblings beside a real draft. That
+ * is precisely the lookalike failure a preview exists to rule out.
+ *
+ * Same projection, same published-only rule, same rubric filter; only the
+ * handle differs.
+ */
+export async function readPublishedProfilesForGame(
+  db: ProfileReader,
+  gameId: string,
+  rubricVersion: RubricVersion,
+): Promise<GameWithEvaluation[]> {
+  const evaluationRows = await db
+    .select(PROFILE_SELECTION)
+    .from(t.evaluations)
+    .innerJoin(t.profileScopes, eq(t.profileScopes.id, t.evaluations.scopeId))
+    .innerJoin(t.games, eq(t.games.id, t.evaluations.gameId))
+    .where(
+      and(
+        eq(t.evaluations.gameId, gameId),
+        eq(t.evaluations.status, "published"),
+        eq(t.evaluations.rubricVersion, rubricVersion),
+      ),
+    )
+    .orderBy(...CATALOGUE_ORDER);
+
+  return buildProfiles(db, evaluationRows);
+}
+
+/**
+ * Rows → domain records, in a fixed number of set-based queries.
+ *
+ * Everything below the selection is shared by both readers above. One profile
+ * or the whole corpus takes the same code path, so the preview cannot drift
+ * from the public page by construction — the failure mode that would otherwise
+ * only show up after publication.
+ */
+async function buildProfiles(
+  db: ProfileReader,
+  evaluationRows: readonly ProfileSelectionRow[],
+): Promise<GameWithEvaluation[]> {
   if (evaluationRows.length === 0) return [];
 
   const evaluationIds = evaluationRows.map((row) => row.evaluation.id);

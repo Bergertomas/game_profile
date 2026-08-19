@@ -9,10 +9,16 @@ import { Notice } from "@/components/admin/ui";
  * ── The nav IS the authoring sequence ───────────────────────────────────────
  *
  * Master Plan §8.1 lays out the workflow, and the tabs follow it in order:
- * context → evidence → the eight dimensions → interpretation → derived review.
- * That ordering is editorial rather than technical. Evidence comes before
- * scores because a score authored before its evidence is a number looking for a
- * justification, which is the failure the whole methodology exists to prevent.
+ * context → evidence → the eight dimensions → interpretation → derived review
+ * → preview → publish. That ordering is editorial rather than technical.
+ * Evidence comes before scores because a score authored before its evidence is
+ * a number looking for a justification, which is the failure the whole
+ * methodology exists to prevent.
+ *
+ * The last two are Phase 2D, and their order is the same kind of claim. Preview
+ * comes before publish because what an editor approves has to be the thing that
+ * ships, rendered by the renderer that will ship it — not the derived review,
+ * which is arithmetic, and not a lookalike built for the admin.
  *
  * ── Forty subcriteria are not one form ──────────────────────────────────────
  *
@@ -84,6 +90,8 @@ export default async function EvaluationLayout({
         />
         <Step href={`${base}/interpretation`} label="Tags & interpretation" />
         <Step href={`${base}/review`} label="Derived review" />
+        <Step href={`${base}/preview`} label="Preview" />
+        <Step href={`${base}/publish`} label="Publish" />
       </nav>
 
       {children}

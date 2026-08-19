@@ -14,11 +14,13 @@ the name of the methodology. Internal identifiers (`GameProfile`, `game_profile`
 this repository) keep the original name deliberately — the rename is public-facing
 only. See [Brand, Discoverability & Hosting](docs/Should_I_Play_Brand_and_SEO_Foundation_v0.2.md).
 
-This repository is at **Phase 2B**: the public profile vertical slice is
+This repository is at **Phase 2D**: the public profile vertical slice is
 complete and its published profiles are read from Postgres at build time, and
-the editorial tool now covers games, metadata, rights-aware artwork and profile
-scopes. Evaluation authoring, preview and publish are Phase 2C onward. See the
-[Master Product & Build Plan v0.7](docs/Game_Profile_Master_Product_and_Build_Plan_v0.7.md).
+the editorial tool covers games, metadata, rights-aware artwork, profile scopes,
+full evaluation authoring, a public-faithful preview, the publish gate and
+transactional publication. Triggering a production rebuild from a publication —
+and so distinguishing Published from Live — is the remaining half of Phase 2D.
+See the [Master Product & Build Plan v0.8](docs/Game_Profile_Master_Product_and_Build_Plan_v0.8.md).
 
 **The editorial tool ships switched off.** `/admin` answers 404 unless a
 deployment carries both an identity provider and a request-time editorial
@@ -223,8 +225,9 @@ different scope; only an editor can tell those apart.
 | `profile_scopes` | `key` (`survival`) | `label` (`Survival`) | — |
 | `evaluations` | `scope_id` + `version_number` | — | edition, mode, platforms, build |
 
-Live-row uniqueness is `(scope, rubric version)`. Superseded versions are
-preserved and linked, never overwritten.
+Published-row uniqueness is `(scope, rubric version)` — one published
+evaluation per scope per rubric, enforced by a partial unique index. Superseded
+versions are preserved and linked, never overwritten.
 
 ### Public addresses
 
@@ -261,8 +264,22 @@ misconfigured production build look identical to a correct one.
 ## Editorial tool
 
 `/admin` covers games, alternate titles, platforms, provider IDs, rights-aware
-artwork records, profile scopes, explicit primary-scope management and
-evaluation-history navigation. Evaluation and score authoring is Phase 2C.
+artwork records, profile scopes, explicit primary-scope management, evaluation
+and score authoring, revision history, and publication.
+
+The last two steps of an evaluation are `preview` and `publish`. **Preview
+renders the profile through the public renderer** — the same component
+`/games/<slug>` uses, from the same projection the production build reads — so
+what an editor approves is what ships rather than a lookalike. **Publish**
+checks every rule the database will enforce, reports them all at once in
+sentences, and on success publishes this version and supersedes the one it
+replaces in a single transaction.
+
+Publishing changes the database, not the site: public pages are prerendered, so
+a published profile becomes Live only once a later production build reads it,
+verification succeeds, and that artifact deploys. Until then production serves
+the previous version. Triggering that build from the tool is Phase 2D-2 — see
+[ADR 0020](docs/decisions/0020-publication-preview-and-deploy-trigger.md).
 
 **It ships switched off.** Every `/admin` path answers 404 unless the deployment
 carries both halves, and the deployed default carries neither:
@@ -285,7 +302,7 @@ Locally:
 ```bash
 ADMIN_DATABASE_URL=postgres://…/game_profile \
 ADMIN_DEV_IDENTITY=you@example.com \
-  npm run dev            # /admin is live at http://localhost:3000/admin
+  npm run dev            # /admin is served at http://localhost:3000/admin
 ```
 
 The development identity works **only under a real `next dev`** — it needs both

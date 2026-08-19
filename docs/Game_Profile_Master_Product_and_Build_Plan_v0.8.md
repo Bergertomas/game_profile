@@ -7,8 +7,8 @@
 **Product and project orchestration:** ChatGPT  
 **Engineering and product design:** Claude  
 **Status:** Current product and roadmap constitution — Phase 2 active  
-**Current checkpoint:** Phase 2B complete and merged; production Postgres provisioning is the next infrastructure checkpoint; Phase 2C is the next product-build stage  
-**Date:** 2026-08-15
+**Current checkpoint:** Phase 2C complete and merged; authoritative Neon Postgres provisioned, migrated and serving production builds; Phase 2D active — slice 2D-1 (preview, publish gate, transactional publication, revision history) implemented and pending merge, slice 2D-2 (deploy trigger, Published/awaiting-deployment/Live reconciliation, failure/retry/audit) still pending. The tool currently knows Published state only.\
+**Date:** 2026-08-15 · checkpoint refreshed 2026-08-18
 
 ---
 
@@ -696,7 +696,7 @@ Therefore the public path requires:
 
 - build-time `DATABASE_URL`;
 - no runtime Worker database secret;
-- no Hyperdrive requirement;
+- no Hyperdrive requirement (this describes the **public** path; the deployed admin path does use Hyperdrive as its transport — see §9.5 and [ADR 0021](decisions/0021-hyperdrive-is-the-deployed-admin-transport.md));
 - no request-time public DB connection pool;
 - no dependency on DB availability for already deployed pages.
 
@@ -706,7 +706,13 @@ Admin data access is intentionally separate from the public boundary because it 
 
 `ADMIN_DATABASE_URL` is deliberately distinct from `DATABASE_URL` so provisioning the public build does not silently switch on remote administration.
 
-For the current tiny editorial team, each admin request may use one short-lived Postgres connection and close it explicitly. Do not introduce pooling/Hyperdrive for admin unless measured need appears.
+For the current tiny editorial team, each admin request uses one short-lived Postgres connection and closes it explicitly. Do not introduce pooling for admin as a *performance* optimisation unless measured need appears.
+
+**Amended 2026-08-18.** The deployed Worker reaches the editorial database through a `HYPERDRIVE` binding, and that is accepted — see [ADR 0021](decisions/0021-hyperdrive-is-the-deployed-admin-transport.md). The reason is transport rather than throughput: a direct `postgres.js` → Neon TLS connection from inside the Workers runtime relies on Node TLS options Workers does not implement, and survives only behind a compatibility flag that suppresses the resulting throw. Hyperdrive terminates that transport outside the Worker.
+
+The no-pool rule is unchanged in substance and still holds of the Worker itself: a client is created per call and closed in `finally`, nothing is retained between requests, and Hyperdrive's pool lives outside the Worker. Local `next dev` still connects directly through `ADMIN_DATABASE_URL`, and public profile reads remain build-time Postgres that never touch Hyperdrive.
+
+This path is not yet exercised end to end, because remote admin is not yet activated; proving it belongs to the remote-admin activation checkpoint.
 
 ### 9.6 Production DB cutover — immediate next infrastructure checkpoint
 
@@ -901,17 +907,17 @@ Delivered:
 
 #### Infrastructure checkpoint — authoritative Postgres cutover
 
-**NEXT, before normal Phase-2 editorial operation**
+**COMPLETE**
 
-Provision Neon Frankfurt, migrate/seed, configure build-time DB, verify, and fail closed with `REQUIRE_DATABASE=1`.
+Neon Frankfurt provisioned, migrations and canonical seed applied, build-time `DATABASE_URL` configured in Workers Builds, verified under browser/workerd/containment gates, and failing closed with `REQUIRE_DATABASE=1`.
 
-This is an infrastructure checkpoint between completed 2B and deep 2C/real editorial work; it is not a new product phase.
+This was an infrastructure checkpoint between completed 2B and deep 2C/real editorial work, not a new product phase. Migrations are applied to the authoritative database *before* the branch that introduces them can build, because every public page is prerendered and therefore queries the live database during `next build`.
 
 #### 2C — Evaluation authoring
 
-**NEXT PRODUCT BUILD STAGE**
+**COMPLETE — merged to main**
 
-Deliver:
+Delivered:
 
 - draft evaluation editor;
 - evidence-source manager/mapping;
@@ -923,7 +929,9 @@ Deliver:
 - one-line experience / pull / risk / recommendation blocks;
 - live derived totals + validation feedback.
 
-**2C stop condition:** working evaluation authoring, verified against existing semantics, then stop for product/UX review before 2D.
+Also delivered: one working evaluation per scope, authored tag/evidence ordering (migration 0008), and a grouped subcriterion selector in evidence mapping.
+
+**2C stop condition (met):** working evaluation authoring, verified against existing semantics, reviewed, then 2D opened.
 
 #### Remote admin activation checkpoint
 
@@ -933,9 +941,37 @@ Enable deployed `/admin` once Neon + Cloudflare Access + request-time DB path ar
 
 #### 2D — Preview, validation, publication, revision
 
+**ACTIVE — delivered in two slices**
+
+##### 2D-1 — preview, validation, publication, revision history
+
+**COMPLETE (pending merge)**
+
+Delivered:
+
+- public-faithful draft preview, rendered by the public renderer and assembled
+  in the state publication would leave — including the scope switcher a first
+  publication of a second scope would create;
+- the complete publish gate of §8.8, reporting every failing rule at once
+  rather than one constraint at a time;
+- transactional publication and supersession, serialized against concurrent
+  editorial mutation by a row lock taken before the gate reads;
+- admin revision history, rubric-local lineage, every version previewable.
+
+Requires no schema migration.
+
+##### 2D-2 — deployment, and the Published/Live distinction
+
 **PENDING**
 
-Deliver public-faithful draft preview, complete publish gate, transactional publication/supersession, revision history, rebuild/deploy trigger, Published/awaiting deployment/Live state, failure/retry/audit behavior, and fail-closed production DB operation.
+Deliver the secure Cloudflare Workers Builds rebuild trigger, deployment-state
+persistence, Published/awaiting-deployment/Live reconciliation, and
+failure/retry/audit behavior.
+
+Until it lands, the editorial tool knows only that a profile is **Published**.
+It says so explicitly rather than implying a publication reached production —
+see §9.8, [ADR 0020](decisions/0020-publication-preview-and-deploy-trigger.md),
+and the wording guard in `tests/published-vs-live.test.ts`.
 
 #### 2E — Real editorial trial
 
@@ -969,23 +1005,26 @@ Still needed: About, analytics, launch runbook, final perf/a11y audit, polished 
 
 ### P0 — immediate / before Phase 2 exit
 
-1. **Provision Neon Postgres in Frankfurt.**
-2. Apply migrations + seed to the authoritative DB.
-3. Configure Cloudflare Workers Builds `DATABASE_URL`.
-4. Verify a real DB-backed production build under browser/workerd/containment gates.
-5. Set `REQUIRE_DATABASE=1`; eliminate silent production fixture fallback.
-6. Build Phase 2C evaluation/evidence/scoring/confidence/tag/interpretation authoring.
-7. Add authored ordering for evaluation tags and evidence links.
-8. Review 2C UX with real scoring workflow; fix friction before 2D.
-9. Configure and verify remote admin with Cloudflare Access + `ADMIN_DATABASE_URL`; enable during Phase 2 and no later than pre-2E editorial operations.
-10. Build 2D public-faithful preview and complete publish validation.
-11. Implement transactional publication/revision/supersession.
-12. Implement secure Cloudflare rebuild/deploy trigger.
-13. Expose Published / awaiting deployment / Live.
-14. Add deployment failure/retry/audit behavior.
-15. Add revision-history reads/UI.
-16. Run 3–5 profile editorial trial.
-17. Establish production artwork sourcing/clearance policy.
+Items 1–7, 10, 11 and 15 are **done**; the rest are open. Kept numbered rather
+than deleted so the sequence stays legible against the roadmap above.
+
+1. ~~**Provision Neon Postgres in Frankfurt.**~~ **DONE**
+2. ~~Apply migrations + seed to the authoritative DB.~~ **DONE**
+3. ~~Configure Cloudflare Workers Builds `DATABASE_URL`.~~ **DONE**
+4. ~~Verify a real DB-backed production build under browser/workerd/containment gates.~~ **DONE**
+5. ~~Set `REQUIRE_DATABASE=1`; eliminate silent production fixture fallback.~~ **DONE**
+6. ~~Build Phase 2C evaluation/evidence/scoring/confidence/tag/interpretation authoring.~~ **DONE**
+7. ~~Add authored ordering for evaluation tags and evidence links.~~ **DONE** (migration 0008)
+8. Review 2C UX with a real scoring workflow; fix friction. **OPEN** — deferred to the dedicated admin UI/UX pass, and to 2E's trial, which is where real authoring volume will expose it.
+9. Configure and verify remote admin with Cloudflare Access + `ADMIN_DATABASE_URL`; enable during Phase 2 and no later than pre-2E editorial operations. **OPEN** — now also the point at which the deployed Hyperdrive admin path is exercised end to end (ADR 0021).
+10. ~~Build 2D public-faithful preview and complete publish validation.~~ **DONE** (2D-1)
+11. ~~Implement transactional publication/revision/supersession.~~ **DONE** (2D-1)
+12. Implement secure Cloudflare rebuild/deploy trigger. **OPEN** — 2D-2.
+13. Expose Published / awaiting deployment / Live. **OPEN** — 2D-2. 2D-1 states the distinction in words but tracks only Published.
+14. Add deployment failure/retry/audit behavior. **OPEN** — 2D-2.
+15. ~~Add revision-history reads/UI.~~ **DONE** (2D-1, admin-only)
+16. Run 3–5 profile editorial trial. **OPEN** — 2E.
+17. Establish production artwork sourcing/clearance policy. **OPEN**
 
 ### P1 — strong beta value
 
@@ -1214,13 +1253,13 @@ Implementation details that do not affect user experience, methodology, data int
 
 ### 17.2 Open decisions required during Phase 2
 
-1. Exact 2C admin information design and interaction model for efficient 40-subcriterion authoring.
-2. Authored ordering representation for tags/evidence links.
-3. Exact remote-admin Cloudflare Access operational configuration and enabled-path verification runbook.
-4. Exact publish/deploy trigger authentication, persistence, retries, and audit model.
-5. Revision-history public presentation and how much history is exposed.
-6. Production artwork sourcing policy: legal basis, provider/publisher source, storage/refresh/clearance process.
-7. Canonical-domain operational confirmation: apex/www and eventual `workers.dev` disablement.
+1. ~~Exact 2C admin information design and interaction model for efficient 40-subcriterion authoring.~~ **CLOSED** by the shipped 2C editor; revisit in the dedicated admin UI/UX pass.
+2. ~~Authored ordering representation for tags/evidence links.~~ **CLOSED** by migration 0008.
+3. Exact remote-admin Cloudflare Access operational configuration and enabled-path verification runbook. **OPEN**
+4. Exact publish/deploy trigger authentication, persistence, retries, and audit model. **PARTLY CLOSED** — the mechanism is decided (Cloudflare Workers Builds API, rebuilding `main`; [ADR 0020](decisions/0020-publication-preview-and-deploy-trigger.md)). Authentication, persistence, retries and the audit model remain open and are 2D-2's subject.
+5. ~~Revision-history public presentation and how much history is exposed.~~ **CLOSED for now** — admin-only, public reader unchanged (ADR 0020). Reopen when there is enough real history to know what a public view should promise.
+6. Production artwork sourcing policy: legal basis, provider/publisher source, storage/refresh/clearance process. **OPEN**
+7. Canonical-domain operational confirmation: apex/www and eventual `workers.dev` disablement. **OPEN**
 
 ### 17.3 Later decisions
 
