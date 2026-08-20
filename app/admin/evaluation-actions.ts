@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { withAdminTransaction } from "@/lib/admin/db";
+import { withAdminTransaction, withAuthorizedAdminDatabase } from "@/lib/admin/db";
+import { dispatchDeployment } from "@/lib/admin/deployments";
 import {
   invalidForm,
   reportingFailures,
@@ -23,6 +24,7 @@ import {
 import { requireEditor } from "@/lib/admin/guard";
 import { publishEvaluation } from "@/lib/admin/publication";
 import { formValues, parseObject } from "@/lib/admin/validation";
+import { liveTransport } from "@/lib/deploy/transport";
 import { CURRENT_RUBRIC_VERSION } from "@/lib/rubric";
 import { z } from "zod";
 
@@ -533,7 +535,8 @@ export async function publishEvaluationAction(
   _previous: ActionResult | null,
   form: FormData,
 ): Promise<ActionResult> {
-  await requireEditor();
+  // Named, because the deployment request below records who asked for it.
+  const editor = await requireEditor();
 
   const result = await guarded(() =>
     withAdminTransaction((tx) =>
@@ -545,6 +548,36 @@ export async function publishEvaluationAction(
   );
   if (!result.ok) return result;
 
+  // ── The publication has COMMITTED. Everything below is a separate concern ──
+  //
+  // Strictly after, and deliberately outside that transaction. Publishing is an
+  // editorial act that was validated, approved and committed; a third-party API
+  // being down must not undo it, and holding the evaluation's row lock across a
+  // network call to another company would be its own mistake.
+  //
+  // So every failure here is *recorded* rather than raised. `dispatchDeployment`
+  // already writes the trail for a refusal, an unknown outcome and an
+  // unconfigured deployment; this catch is for the case where even that could
+  // not be written, which must still not turn a successful publication into an
+  // error page. The profile is Published either way, and the deployment page is
+  // where the gap is visible and retryable.
+  try {
+    await withAuthorizedAdminDatabase((db) =>
+      dispatchDeployment(db, {
+        reason: "publication",
+        actor: editor.email,
+        triggeringEvaluationId: evaluationId,
+        transport: liveTransport,
+      }),
+    );
+  } catch (error) {
+    console.error(
+      "[deploy] publication committed, but the deployment request could not be recorded",
+      { evaluationId, message: error instanceof Error ? error.message : String(error) },
+    );
+  }
+
   refresh(evaluationId, gameId);
+  revalidatePath("/admin/deployments");
   redirect(`/admin/evaluations/${evaluationId}/publish`);
 }

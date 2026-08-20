@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { MANIFEST_PATH } from "@/lib/deploy/manifest";
 import { absoluteUrl, IS_INDEXABLE } from "@/lib/site";
 
 /**
@@ -13,6 +14,10 @@ import { absoluteUrl, IS_INDEXABLE } from "@/lib/site";
  *   sitemap, which lists published profiles only. This line is the third of
  *   those and the weakest: robots.txt suppresses crawling, not indexing, and
  *   none of the three is access control — Cloudflare Access is (ADR 0012, 0018).
+ * - `/deployment-manifest` is the artifact's machine-readable inventory of
+ *   itself. It is public because verification must work from anywhere without
+ *   credentials, but it is not a page and has nothing to offer a reader, so
+ *   there is no reason for it to occupy a search result.
  * - a non-production build (any Cloudflare preview, or a local build) refuses
  *   crawling outright, so a preview hostname can never enter the index.
  */
@@ -25,7 +30,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/admin/", "/dev/", "/design-lab/"],
+      disallow: ["/admin/", "/dev/", "/design-lab/", MANIFEST_PATH],
     },
     sitemap: absoluteUrl("/sitemap.xml"),
   };

@@ -1,7 +1,14 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { OPEN_NEXT_CLI, WRANGLER_CLI } from "../scripts/cf-common.mjs";
+import {
+  MANIFEST_PATH as SCRIPT_MANIFEST_PATH,
+  OPEN_NEXT_CLI,
+  PRODUCTION_BRANCH as SCRIPT_PRODUCTION_BRANCH,
+  WRANGLER_CLI,
+} from "../scripts/cf-common.mjs";
+import { MANIFEST_PATH } from "@/lib/deploy/manifest";
+import { PRODUCTION_BRANCH } from "@/lib/site-env";
 
 const ROOT = join(__dirname, "..");
 
@@ -32,5 +39,24 @@ describe("Cloudflare command entry points", () => {
     ).name;
 
     expect(wranglerName).toBe(packageName);
+  });
+
+  /**
+   * Two constants exist twice, because the deployment scripts are plain `.mjs`
+   * and cannot import TypeScript. Duplication is fine; unpinned duplication is
+   * not, and both of these fail silently rather than loudly.
+   *
+   * A `PRODUCTION_BRANCH` that disagrees leaves `cf-deploy.mjs` guarding a
+   * branch name the site no longer treats as production — so a preview branch
+   * deploys to shouldiplay.gg, or `main` refuses to. A `MANIFEST_PATH` that
+   * disagrees leaves `cf:verify` checking an address the artifact does not
+   * serve, which passes as a 404 nobody looks at until deployment verification
+   * starts reporting that nothing is Live.
+   *
+   * `cf-common.mjs` already claimed this test existed. It did not.
+   */
+  it("pins the constants the .mjs scripts duplicate from TypeScript", () => {
+    expect(SCRIPT_PRODUCTION_BRANCH).toBe(PRODUCTION_BRANCH);
+    expect(SCRIPT_MANIFEST_PATH).toBe(MANIFEST_PATH);
   });
 });

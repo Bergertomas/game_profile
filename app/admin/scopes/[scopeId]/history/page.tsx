@@ -92,8 +92,8 @@ export default async function ScopeHistoryPage({
         versions are immutable snapshots — they are the editorial publication
         record, so nothing here can be edited. Being published is not the same
         as having been served: whether any particular version reached production
-        depends on a later build and deployment, which this tool does not yet
-        track.
+        depends on a later build and deployment, and is reported on the
+        deployment page rather than here.
       </p>
 
       {published.length === 0 ? (

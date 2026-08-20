@@ -3,7 +3,9 @@ import {
   date,
   foreignKey,
   index,
+  bigserial,
   integer,
+  jsonb,
   numeric,
   pgEnum,
   pgTable,
@@ -819,3 +821,212 @@ export const evaluationRevisions = pgTable("evaluation_revisions", {
   changedBy: text("changed_by"),
   summary: text("summary").notNull(),
 });
+
+/* ===========================================================================
+ * Deployment tracking — Phase 2D-2 (Master Plan §9.8, P0 items 12–14).
+ *
+ * Published is a fact this database owns. **Live** is a fact about the artifact
+ * production is serving, established by evidence and revocable when that
+ * evidence goes away. These tables hold the evidence; Live is derived from
+ * them and is deliberately NOT a value of `evaluationStatusEnum`. See
+ * `lib/db/migrations/0009_deployment_tracking.sql` for why that matters and
+ * `lib/admin/deployments.ts` for the derivation.
+ * ======================================================================== */
+
+/**
+ * How far a requested build has got, as far as this tool can tell.
+ *
+ * `build_reported_*` is named at that length on purpose. Cloudflare reporting a
+ * successful build is a report about a build process — the upload can still
+ * fail, a later build can land first, and a rollback can replace it afterwards.
+ * Nothing derives Live from these values; they exist so an editor can see why a
+ * deployment has not happened.
+ */
+export const deploymentRequestStateEnum = pgEnum("deployment_request_state", [
+  "pending",
+  "dispatched",
+  "dispatch_unknown",
+  "refused",
+  "build_reported_success",
+  "build_reported_failure",
+  "superseded",
+]);
+
+export const deploymentRequestReasonEnum = pgEnum("deployment_request_reason", [
+  "publication",
+  "manual",
+  "retry",
+]);
+
+export const deploymentEventKindEnum = pgEnum("deployment_event_kind", [
+  "dispatch_attempted",
+  "dispatch_accepted",
+  "dispatch_refused",
+  "dispatch_unknown",
+  "dispatch_coalesced",
+  "build_status_observed",
+  "production_verified",
+  "production_unverifiable",
+  "retry_requested",
+]);
+
+/**
+ * A production build this tool asked for.
+ *
+ * One row per request, not per publication: a build reads the whole corpus, so
+ * several publications can be covered by one, and coalescing onto an in-flight
+ * request is what stops a batch of edits queueing a batch of builds.
+ */
+export const deploymentRequests = pgTable(
+  "deployment_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    state: deploymentRequestStateEnum("state").notNull().default("pending"),
+    reason: deploymentRequestReasonEnum("reason").notNull(),
+    branch: text("branch").notNull(),
+    requestedBy: text("requested_by").notNull(),
+    /** The publication that prompted this, when one did. Provenance, not scope. */
+    triggeringEvaluationId: uuid("triggering_evaluation_id").references(
+      () => evaluations.id,
+      { onDelete: "restrict" },
+    ),
+    provider: text("provider").notNull().default("cloudflare_workers_builds"),
+    /**
+     * Cloudflare's `build_uuid` — also the value Workers Builds injects into
+     * the build as `WORKERS_CI_BUILD_UUID`, which is what lets a manifest read
+     * back from production be matched to the request that caused it.
+     */
+    providerBuildId: text("provider_build_id"),
+    /** The provider's last raw status string, kept verbatim rather than mapped. */
+    providerStatus: text("provider_status"),
+    /** One sanitized sentence. Never a credential, never a raw provider response. */
+    lastError: text("last_error"),
+    requestedAt: timestamp("requested_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    dispatchedAt: timestamp("dispatched_at", { withTimezone: true }),
+    lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    unique("deployment_requests_build_id_unique").on(
+      table.provider,
+      table.providerBuildId,
+    ),
+    index("deployment_requests_state_idx").on(table.state, table.requestedAt),
+    index("deployment_requests_evaluation_idx").on(table.triggeringEvaluationId),
+  ],
+);
+
+/**
+ * What a production artifact said about itself, when it was asked.
+ *
+ * Written only from a manifest fetched from a deployed origin and verified
+ * (`lib/deploy/manifest.ts`) — never from a build report, never from an
+ * intention. Immutable by trigger: it records something already observed in the
+ * world, and rewriting it would destroy the only evidence the product has that
+ * a version was ever served.
+ */
+export const deploymentArtifacts = pgTable(
+  "deployment_artifacts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** When the build read the corpus, from the manifest — not when it was fetched. */
+    generatedAt: timestamp("generated_at", { withTimezone: true }).notNull(),
+    digest: text("digest").notNull(),
+    buildUuid: text("build_uuid"),
+    commitSha: text("commit_sha"),
+    branch: text("branch"),
+    siteEnv: text("site_env").notNull(),
+    /**
+     * `database` or `fixtures`. A fixture-backed artifact is a healthy site in
+     * which no editorial evaluation is Live, and recording the distinction is
+     * what stops the tool comparing ids that were never in play.
+     */
+    source: text("source").notNull(),
+    rubricVersion: text("rubric_version").notNull(),
+    /** Exactly the document served, so a later reader can audit the derivation. */
+    manifest: jsonb("manifest").notNull(),
+    firstObservedAt: timestamp("first_observed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    unique("deployment_artifacts_identity").on(table.generatedAt, table.digest),
+    index("deployment_artifacts_build_uuid_idx").on(table.buildUuid),
+  ],
+);
+
+/**
+ * Which evaluations a proven artifact contains.
+ *
+ * `evaluationId` is `text` with NO foreign key, deliberately. These rows record
+ * what a remote document claimed, not what this database believes: a
+ * fixture-backed artifact names ids that are not evaluations at all. A foreign
+ * key would make such an artifact unrecordable — and being unable to record
+ * "production is serving something I do not recognise" deletes exactly the
+ * evidence an operator needs most.
+ */
+export const deploymentArtifactEvaluations = pgTable(
+  "deployment_artifact_evaluations",
+  {
+    artifactId: uuid("artifact_id")
+      .notNull()
+      .references(() => deploymentArtifacts.id, { onDelete: "restrict" }),
+    evaluationId: text("evaluation_id").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.artifactId, table.evaluationId] }),
+    index("deployment_artifact_evaluations_evaluation_idx").on(
+      table.evaluationId,
+    ),
+  ],
+);
+
+/**
+ * The audit trail. Append-only by trigger.
+ *
+ * Every provider interaction and every verification attempt lands here,
+ * successful or not. Failures especially: a tool that records only what worked
+ * cannot answer "why is this still not Live", which is the only question anyone
+ * will ever ask it.
+ */
+export const deploymentEvents = pgTable(
+  "deployment_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /**
+     * Monotonic, and the Live derivation depends on it.
+     *
+     * "Which artifact is production serving" is the most recent
+     * `production_verified` event, and ordering that by timestamp alone is
+     * ambiguous exactly where it matters: `now()` is transaction start time, so
+     * two verifications in one transaction tie and the database may return
+     * either. This settles it, along with any microsecond tie or clock
+     * adjustment.
+     */
+    seq: bigserial("seq", { mode: "bigint" }).notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    kind: deploymentEventKindEnum("kind").notNull(),
+    requestId: uuid("request_id").references(() => deploymentRequests.id, {
+      onDelete: "restrict",
+    }),
+    artifactId: uuid("artifact_id").references(() => deploymentArtifacts.id, {
+      onDelete: "restrict",
+    }),
+    /** The editor who caused it, or `system` for an automatic step. */
+    actor: text("actor").notNull(),
+    /** One sentence, written for a human reading this during an incident. */
+    summary: text("summary").notNull(),
+    /** Structured context. Never credentials — the client sanitizes first. */
+    detail: jsonb("detail"),
+  },
+  (table) => [
+    index("deployment_events_recent_idx").on(table.occurredAt, table.seq),
+    index("deployment_events_request_idx").on(table.requestId, table.occurredAt),
+  ],
+);

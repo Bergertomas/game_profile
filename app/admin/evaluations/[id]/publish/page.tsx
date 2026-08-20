@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { publishEvaluationAction } from "@/app/admin/evaluation-actions";
 import { PublishPanel } from "@/components/admin/PublishPanel";
 import { Notice, Panel } from "@/components/admin/ui";
+import { readEvaluationDeploymentStatus } from "@/lib/admin/deployments";
 import { readPublishReadiness } from "@/lib/admin/publication";
 
 /**
@@ -40,6 +41,10 @@ export default async function PublishPage({
   const status = record.evaluation.status;
   const isFinal = status === "published" || status === "superseded";
 
+  // Only asked for a final snapshot: a draft cannot be Live, so putting the
+  // question to the database at all would be answering something nobody asked.
+  const deployment = isFinal ? await readEvaluationDeploymentStatus(id) : null;
+
   return (
     <>
       {isFinal ? (
@@ -48,6 +53,21 @@ export default async function PublishPage({
           {status === "published"
             ? "It is the current editorially published version for this scope — which is not the same as saying production serves it, since that needs a later production build to read it, verify, and deploy successfully. A published snapshot is never edited: to change it, create a revision, which supersedes this version at the moment the revision publishes."
             : "It is preserved editorial history: it was published once and has been replaced."}
+        </Notice>
+      ) : null}
+
+      {deployment ? (
+        <Notice
+          tone={deployment.status === "live" ? "info" : "warning"}
+        >
+          {deployment.status === "live"
+            ? "Production is serving this version. Verified by reading the deployed artifact's own manifest, not inferred from a build report."
+            : deployment.status === "awaiting_deployment"
+              ? "Production was verified and is serving a different version for this scope. This version is Published and awaiting deployment."
+              : "Whether production serves this version is not currently proven: it has not been verified recently enough to say either way."}{" "}
+          <Link href="/admin/deployments" className="text-ink underline">
+            Deployment status
+          </Link>
         </Notice>
       ) : null}
 
@@ -122,19 +142,24 @@ export default async function PublishPage({
 
         {/*
           Publishing does not deploy. Master Plan §9.8 keeps Published and Live
-          distinct, and the rebuild that makes a published profile Live is 2D-2.
+          distinct, and 2D-2 added the request and the proof without collapsing
+          them: pressing Publish asks for a build, and asking is not arriving.
           Saying so here is not a caveat — an editor who believes Publish put
           the profile on the site has been misled by the interface.
         */}
         <Notice tone="info">
           Publishing changes the database, not the site. This version becomes
           Live only if a later production build reads it, verification succeeds,
-          and that artifact deploys successfully — none of which this action
-          starts or waits for. Until then production keeps serving whatever the
-          last successful deployment contained, and a version can even be
-          published and later superseded without ever having been served.
-          Triggering that build from here, and showing the gap while it is
-          pending, is the next slice of Phase 2D.
+          and that artifact deploys successfully. Publishing does request that
+          build, and the request is recorded — but a request is not an arrival,
+          and none of it is waited for here. Until a deployment is verified,
+          production keeps serving whatever the last one contained, and a
+          version can even be published and later superseded without ever having
+          been served. The{" "}
+          <Link href="/admin/deployments" className="text-ink underline">
+            deployment page
+          </Link>{" "}
+          is where that gap is shown and closed.
         </Notice>
 
         {isFinal ? null : (
