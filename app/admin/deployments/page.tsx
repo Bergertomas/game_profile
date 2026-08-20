@@ -9,12 +9,13 @@ import {
 } from "@/components/admin/ui";
 import {
   checkDeploymentAction,
-  markDispatchNotDeliveredAction,
   requestDeploymentAction,
+  settleDeploymentRequestAction,
 } from "@/app/admin/deployment-actions";
 import {
   PRODUCTION_ORIGIN,
   readDeploymentOverviewPage,
+  type DeploymentRequestRow,
   type PublishedDeploymentStatus,
 } from "@/lib/admin/deployments";
 
@@ -48,6 +49,44 @@ import {
  * on this page promotes a request to a proof; only `verifyProduction` can, and
  * it does it by reading `/deployment-manifest` from the origin below.
  */
+/**
+ * The states an operator can settle, and what each one means on screen.
+ *
+ * All three are durably open and none can resolve itself: `pending` never
+ * recorded a dispatch outcome, `dispatch_unknown` has no build id to ask about,
+ * and a `dispatched` build's outcome is unreadable whenever
+ * `CLOUDFLARE_WORKER_TAG` is unset, the build has aged off Cloudflare's list,
+ * or it failed and so will never appear in a manifest.
+ */
+const UNRESOLVED_REQUEST_STATES = [
+  "pending",
+  "dispatched",
+  "dispatch_unknown",
+] as const satisfies readonly DeploymentRequestRow["state"][];
+
+type UnresolvedRequestState = (typeof UNRESOLVED_REQUEST_STATES)[number];
+
+function isSettleable(
+  state: DeploymentRequestRow["state"],
+): state is UnresolvedRequestState {
+  return UNRESOLVED_REQUEST_STATES.some((candidate) => candidate === state);
+}
+
+const SETTLE_EXPLANATION: Record<UnresolvedRequestState, string> = {
+  pending:
+    "This request was recorded but its dispatch outcome never was — the " +
+    "process did not get that far. No build id exists, so nothing can be " +
+    "asked about it.",
+  dispatched:
+    "Cloudflare accepted a build for this request. If its status cannot be " +
+    "read — no CLOUDFLARE_WORKER_TAG, or the build has aged off Cloudflare's " +
+    "recent list — and it never appears in a production manifest, nothing " +
+    "here will ever close it.",
+  dispatch_unknown:
+    "Nothing can settle this by looking: no build id was ever returned, so " +
+    "there is nothing to ask Cloudflare about.",
+};
+
 export default async function DeploymentsPage() {
   const overview = await readDeploymentOverviewPage();
   const { live } = overview;
@@ -251,19 +290,24 @@ export default async function DeploymentsPage() {
                     {request.lastError}
                   </p>
                 ) : null}
-                {request.state === "dispatch_unknown" ? (
+                {isSettleable(request.state) ? (
                   <div className="mt-2">
                     <p className="m-0 mb-1 max-w-prose text-[0.78rem] leading-relaxed text-ink-quiet">
-                      Nothing can settle this by looking: no build id was ever
-                      returned, so there is nothing to ask Cloudflare about.
-                      Check the Workers Builds dashboard; if no build was
-                      created, record that here so later requests are not
-                      blocked.
+                      {SETTLE_EXPLANATION[request.state]} While this request is
+                      open, no further build can be requested by hand. Check the
+                      Workers Builds dashboard, and settle it here once you know
+                      what happened — that records that you stopped waiting, not
+                      that the build failed.
                     </p>
                     <DeploymentAction
-                      label="No build was created"
+                      label="Stop waiting for this request"
                       pendingLabel="Recording…"
-                      run={markDispatchNotDeliveredAction.bind(null, request.id)}
+                      run={settleDeploymentRequestAction.bind(null, request.id)}
+                      confirm={
+                        request.providerBuildId
+                          ? `Cloudflare accepted build ${request.providerBuildId} for this request. Settling it only records that you stopped waiting — if that build is still running it may still deploy, and a new build you request now would be a second one. Continue?`
+                          : "This records that you stopped waiting for this request, so another build can be requested. Continue?"
+                      }
                     />
                   </div>
                 ) : null}
@@ -316,6 +360,14 @@ function StatusPill({ status }: { status: PublishedDeploymentStatus }) {
   if (status === "live") return <Pill tone="live">Live</Pill>;
   if (status === "awaiting_deployment") {
     return <Pill tone="draft">Awaiting deployment</Pill>;
+  }
+  // Reachable only from the Publish page, which asks about one evaluation and
+  // may be asking about a superseded one. This table lists published versions,
+  // so it never produces it — the branch exists so the union stays exhaustive
+  // rather than silently falling through to "Not proven", which would be a
+  // different and wrong claim.
+  if (status === "no_longer_served") {
+    return <Pill tone="past">No longer served</Pill>;
   }
   return <Pill tone="past">Not proven</Pill>;
 }

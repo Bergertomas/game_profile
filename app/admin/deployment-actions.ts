@@ -4,13 +4,14 @@ import { revalidatePath } from "next/cache";
 import { withAuthorizedAdminDatabase } from "@/lib/admin/db";
 import {
   dispatchDeployment,
-  markDispatchNotDelivered,
   refreshBuildStatuses,
+  settleDeploymentRequest,
   verifyProduction,
 } from "@/lib/admin/deployments";
 import { reportingFailures, type ActionResult } from "@/lib/admin/errors";
 import { requireEditor } from "@/lib/admin/guard";
 import { liveTransport } from "@/lib/deploy/transport";
+import { z } from "zod";
 
 /**
  * The three things an editor can do about a deployment.
@@ -18,8 +19,8 @@ import { liveTransport } from "@/lib/deploy/transport";
  *   check      ask production what it is serving, and Cloudflare what became
  *              of the builds we are waiting on
  *   request    ask for a production build
- *   settle     record that a request whose outcome was never established
- *              produced no build
+ *   settle     stop waiting for a request nothing here can resolve, from
+ *              whichever open state it is stuck in
  *
  * All three are explicit acts by a named person, and all three leave an audit
  * entry whether they succeed or not.
@@ -64,6 +65,26 @@ export async function checkDeploymentAction(): Promise<ActionResult> {
 }
 
 /**
+ * The reasons a *person* may give for asking for a build.
+ *
+ * PARSED AT RUNTIME, AND THAT IS THE WHOLE POINT. A Server Action is a POST
+ * endpoint whose arguments are deserialized from the request body; the
+ * `"manual" | "retry"` annotation below is erased at compile time and checks
+ * nothing about what actually arrives. Anything callable with an argument is
+ * callable with a different one.
+ *
+ * `publication` is deliberately not here. It is the reason the *publication
+ * path* gives, and `dispatchDeployment` treats it differently on purpose: a
+ * publication is never refused for having another request open, and it
+ * coalesces on its triggering evaluation rather than on the open-request guard.
+ * Both of those are correct for a publication and wrong for a person — so a
+ * forged `reason: "publication"` from the client would have walked straight
+ * past the guard that stops a human asking for build after build while one is
+ * already in flight. It is refused here, before anything is written.
+ */
+const REQUEST_REASON = z.enum(["manual", "retry"]);
+
+/**
  * Ask for a production build.
  *
  * `retry` and `manual` differ only in what the trail records, and that
@@ -80,10 +101,22 @@ export async function requestDeploymentAction(
 ): Promise<ActionResult> {
   const editor = await requireEditor();
 
+  // Before the database is opened and before anything is recorded: a rejected
+  // reason must leave no request row, no event, and no build attempt.
+  const parsed = REQUEST_REASON.safeParse(reason);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message:
+        "That is not a reason a person can give for a build. Use the Request " +
+        "or Retry button on the deployment page.",
+    };
+  }
+
   try {
     const report = await withAuthorizedAdminDatabase((db) =>
       dispatchDeployment(db, {
-        reason,
+        reason: parsed.data,
         actor: editor.email,
         transport: liveTransport,
       }),
@@ -106,22 +139,28 @@ export async function requestDeploymentAction(
 }
 
 /**
- * Record that a request with an unestablished outcome produced no build.
+ * Stop waiting for a request that nothing here can resolve.
  *
- * The one state nothing can resolve by looking: `dispatch_unknown` means there
- * is no build id to ask about. Leaving it open blocks every later manual
- * request; clearing it automatically risks a duplicate production build. So a
- * person checks Cloudflare and says what they found, and the trail records that
- * it was a person who said it.
+ * Three states can strand a request forever: `pending` (the row committed, the
+ * process died before the outcome could be written), `dispatch_unknown` (no
+ * build id exists to ask about) and `dispatched` (a build id exists but its
+ * outcome cannot be read — `CLOUDFLARE_WORKER_TAG` is optional, builds age off
+ * Cloudflare's list, and a failed build never appears in a manifest). Any of
+ * them blocks every later manual request. Clearing one automatically would risk
+ * a duplicate production build, so a person checks Cloudflare and decides, and
+ * the trail records the state it was settled from and who settled it.
+ *
+ * It records that we stopped waiting — never that the build failed. See
+ * `settleDeploymentRequest`.
  */
-export async function markDispatchNotDeliveredAction(
+export async function settleDeploymentRequestAction(
   requestId: string,
 ): Promise<ActionResult> {
   const editor = await requireEditor();
 
   const result = await reportingFailures(async () => {
     await withAuthorizedAdminDatabase((db) =>
-      markDispatchNotDelivered(db, requestId, editor.email),
+      settleDeploymentRequest(db, requestId, editor.email),
     );
   });
 

@@ -37,7 +37,7 @@ export type AdminTransaction = Parameters<
   Parameters<AdminDatabase["transaction"]>[0]
 >[0];
 
-type AdminDatabaseConnection = {
+export type AdminDatabaseConnection = {
   readonly url: string;
   readonly viaHyperdrive: boolean;
 };
@@ -70,6 +70,54 @@ function adminDatabaseConnection(): AdminDatabaseConnection | null {
   }
 
   return directUrl ? { url: directUrl, viaHyperdrive: false } : null;
+}
+
+/**
+ * TLS for the direct connection, verified rather than merely encrypted.
+ *
+ * ── What `ssl: "require"` actually did ─────────────────────────────────────
+ *
+ * Read from the installed driver rather than from memory. postgres.js 3.4.9,
+ * `src/connection.js`:
+ *
+ *     if (ssl === 'require' || ssl === 'allow' || ssl === 'prefer')
+ *       options.rejectUnauthorized = false
+ *     else if (typeof ssl === 'object')
+ *       Object.assign(options, ssl)
+ *
+ * So `"require"` negotiates TLS and then explicitly turns certificate
+ * verification OFF. It means "encrypt this", not "check who I am talking to" —
+ * the same distinction `sslmode=require` carries in libpq — and an encrypted
+ * channel to an unverified peer is exactly what a network attacker in the path
+ * would like the editorial database connection to use.
+ *
+ * `"verify-full"` is NOT the fix here. In 3.4.9 that string matches neither
+ * branch above, so it falls through to Node's `tls.connect` defaults and
+ * happens to verify. Relying on a value the driver does not parse is relying on
+ * an accident. The object form is the supported one, so that is what is used.
+ *
+ * ── Local development ──────────────────────────────────────────────────────
+ *
+ * Verification is the default and is never silently dropped. A developer
+ * pointing at a local Postgres that speaks no TLS says so in the connection
+ * string, with the standard libpq spelling — `?sslmode=disable` — which
+ * postgres.js already understands and which this respects by declining to
+ * override it. Anything else, including every remote database, verifies.
+ *
+ * Hyperdrive is untouched: it terminates the Worker-side transport itself and
+ * owns the credentials, so the Worker passes no TLS options at all (ADR 0021).
+ */
+export function directTlsOptions(
+  connection: AdminDatabaseConnection,
+): { ssl?: { rejectUnauthorized: true } } {
+  if (connection.viaHyperdrive) return {};
+
+  // Passing `ssl` explicitly would override whatever the URL asked for, because
+  // postgres.js prefers an explicit option over a parsed `sslmode`. So an
+  // explicit opt-out in the URL is honoured by NOT passing one.
+  if (/[?&]sslmode=disable(&|$)/.test(connection.url)) return {};
+
+  return { ssl: { rejectUnauthorized: true } };
 }
 
 /**
@@ -115,9 +163,7 @@ export async function withAdminDatabase<T>(
 
   const client = postgres(connection.url, {
     max: 1,
-    // Hyperdrive terminates the Worker-side database transport. A direct Neon
-    // connection still requires TLS explicitly.
-    ...(connection.viaHyperdrive ? {} : { ssl: "require" as const }),
+    ...directTlsOptions(connection),
     // Short, because the connection is closed explicitly anyway; this only
     // bounds a socket left behind by an error path.
     idle_timeout: 5,

@@ -8,6 +8,7 @@ import {
   getGameProfileForScope,
   listPrimaryScopeParams,
   listSiblingScopeParams,
+  whenCorpusIsReadable,
 } from "@/lib/data/games";
 
 /**
@@ -50,6 +51,13 @@ import {
  * published profile and calls `notFound()`, which is the same 404 by a
  * different route. The share-card route below keeps the export, where it has
  * always worked.
+ *
+ * ── That on-demand render must not read a database ─────────────────────────
+ *
+ * See the same note on `/games/[slug]`. At request time there is no
+ * `DATABASE_URL` and a production bundle refuses to load a corpus without one;
+ * `whenCorpusIsReadable` turns that refusal into the 404 this route already
+ * claimed to give, instead of the 500 it actually gave.
  */
 
 export async function generateStaticParams() {
@@ -66,7 +74,10 @@ export async function generateMetadata({
   params: Promise<{ slug: string; scope: string }>;
 }): Promise<Metadata> {
   const { slug, scope } = await params;
-  const profile = await getGameProfileForScope(slug, scope);
+  const profile = await whenCorpusIsReadable(
+    () => getGameProfileForScope(slug, scope),
+    null,
+  );
   // The primary key is a redirect, never an indexable page of its own.
   if (!profile || profile.scope.isPrimary) {
     return { title: "Not found", robots: { index: false } };
@@ -80,7 +91,10 @@ export default async function ScopedProfilePage({
   params: Promise<{ slug: string; scope: string }>;
 }) {
   const { slug, scope } = await params;
-  const profile = await getGameProfileForScope(slug, scope);
+  const profile = await whenCorpusIsReadable(
+    () => getGameProfileForScope(slug, scope),
+    null,
+  );
   if (!profile) notFound();
   if (profile.scope.isPrimary) permanentRedirect(`/games/${slug}`);
   return <ProfilePageBody profile={profile} />;

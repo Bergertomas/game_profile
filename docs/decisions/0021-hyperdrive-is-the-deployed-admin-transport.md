@@ -117,3 +117,88 @@ to revisit this ADR, not to quietly keep a binding nothing needs.
 - Application code stays ordinary-Postgres portable, as ADR 0019 requires:
   Hyperdrive hands back a connection string, and nothing above
   `adminDatabaseConnection()` knows which transport produced it.
+
+## Amendment — N1: query caching on this binding (investigated, not changed)
+
+This ADR chose Hyperdrive as the transport and did not consider what Hyperdrive
+does to *reads*. It caches them, and this application is the case Cloudflare's
+own guidance names as the wrong fit.
+
+### What the configuration does today
+
+`should-i-play-editorial` (`6129a6b8…`) carries `caching: { disabled: false }`
+with no explicit ages, so Cloudflare's documented defaults apply: `max_age` 60
+seconds and `stale_while_revalidate` 15 seconds. Caching is on by default for
+every Hyperdrive configuration; nothing here opted into it.
+
+### What Cloudflare documents
+
+- Hyperdrive parses the wire protocol and caches eligible **non-mutating**
+  query responses. Writes are never cached.
+- **It does not invalidate cached reads when the application writes.** A
+  matching `SELECT` can return the cached result until `max_age` expires, and
+  can be served stale for the `stale_while_revalidate` window on top.
+- The prescribed fix for reads that must be fresh is a **second Hyperdrive
+  configuration created with `--caching-disabled`**, bound alongside the cached
+  one, with those reads routed through it. A cache-disabled binding keeps the
+  pooling and fast connection setup, which is the whole reason this ADR chose
+  Hyperdrive.
+- The examples given for that treatment are "authentication, sessions,
+  permissions, billing state, **admin settings, and reads immediately after a
+  write**".
+- Since 2026-02-23, queries containing `VOLATILE` or `STABLE` functions
+  (`NOW()`, `CURRENT_TIMESTAMP`, `RANDOM()`) are treated as uncacheable,
+  including when those names appear only in comments.
+
+### Why this application is squarely in that category
+
+Every editorial action is a write followed immediately by a read of what was
+just written. `revalidatePath` re-renders the page, and the re-render issues
+fresh `SELECT`s:
+
+| Action | The read that follows it |
+|---|---|
+| Request a build | the deployment page lists requests and events |
+| Check production | the page reads the new `production_verified` event and artifact |
+| Stop waiting for a request | the page reads the settled state |
+| Publish | the publish page reads the evaluation's new status |
+
+Two specific consequences, both plausible at first activation:
+
+1. **An editor does not see what they just did**, for up to `max_age` plus the
+   stale window. The obvious response to a button that appears to have done
+   nothing is to press it again.
+2. **The active-request guard reads stale state.** `dispatchDeployment` reads
+   the open-request list before claiming; served from cache, it could report
+   none open while one is. The advisory lock added in N1 serialises the two
+   dispatchers against each other, and cannot help if the read itself is stale.
+
+Nothing in the application currently avoids this. Drizzle emits ordinary
+parameterised `SELECT`s with no volatile or stable function in their text, which
+is precisely the shape Hyperdrive caches.
+
+### What N1 did about it: nothing, deliberately
+
+No Cloudflare configuration was changed by this branch, and no application-level
+cache-busting was added — a hand-rolled cache-buster (a volatile function
+smuggled into every admin query, a random comment) would be an undocumented
+dependency on a parser Cloudflare explicitly says is not a cache-control API.
+
+The recommended correction, if activation confirms the behaviour, is the
+documented one: create a second Hyperdrive configuration with
+`--caching-disabled` over the same database, bind it as (for example)
+`HYPERDRIVE_FRESH`, and have `lib/admin/db.ts` prefer it. That is an external
+configuration change plus a small binding change, and it belongs to whoever
+performs remote-admin activation.
+
+### Activation test item
+
+**This cannot be proven locally.** Wrangler's local Hyperdrive emulation
+connects straight through and performs no caching, so a green `cf:verify` says
+nothing either way. It must be observed against the real binding, and it is
+listed with the other activation checks in the README:
+
+> After activating remote `/admin`, write something and immediately reload the
+> page that reads it. If the write is not visible, check Hyperdrive metrics by
+> `cacheStatus` for `hit` on the admin reads, and apply the cache-disabled
+> configuration above.

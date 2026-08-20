@@ -159,6 +159,36 @@ try {
   check("game page asks the search question", page.includes("<title>Should I Play Returnal? | Should I Play?</title>"));
   check("game page publishes no rating", !/aggregateRating|ratingValue|reviewRating/.test(page));
 
+  // ── An address that does not exist answers 404, in the real runtime ─────
+  //
+  // Every published profile is prerendered, so the ONLY `/games/*` URLs the
+  // deployed Worker renders on demand are ones that do not exist. That render
+  // has no database — the public path is build-time Postgres only (ADR 0017) —
+  // and a production bundle refuses to load a corpus without one, which threw
+  // before `notFound()` could be reached. Production answered **500** for every
+  // unknown or stale game URL: mistyped links, retired slugs, and every URL a
+  // crawler still held.
+  //
+  // Nothing else catches this. The unit suite and `next start` both have a
+  // database in the process, so the throw never happens there; only asking
+  // workerd for the real bytes reproduces the deployed condition. It is checked
+  // here for the same reason `dynamicParams` is: this is the gate that asks the
+  // runtime that actually serves.
+  for (const [label, path] of [
+    ["unknown game slug", "/games/no-such-game"],
+    ["unknown scope", "/games/returnal/no-such-scope"],
+    ["unknown slug and scope", "/games/no-such-game/no-such-scope"],
+    ["a slug that looks like a file", "/games/returnal.json"],
+    ["an unknown root route", "/no-such-page"],
+  ]) {
+    const missing = await get(path);
+    check(
+      `${label} answers 404, not a server error`,
+      missing.status === 404,
+      `${path} got ${missing.status}`,
+    );
+  }
+
   const sitemap = await text("/sitemap.xml");
   check("sitemap uses the production origin", sitemap.includes("<loc>https://shouldiplay.gg/games/returnal</loc>"));
   // Design surfaces stay out of the sitemap in EVERY environment. In preview

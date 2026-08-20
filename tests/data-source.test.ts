@@ -158,3 +158,121 @@ describe("The fixture reader itself", () => {
     expect(readFixtureProfiles("9.9" as typeof RUBRIC_V1.version)).toEqual([]);
   });
 });
+
+/**
+ * The request-time path, which is the only reason a public route ever renders
+ * on demand at all.
+ *
+ * Every published profile is prerendered, so the deployed Worker only renders
+ * `/games/*` for addresses that do not exist — and at request time there is no
+ * `DATABASE_URL`, because the public path is build-time Postgres only. That
+ * made a production bundle throw before `notFound()` could be reached, so every
+ * unknown or stale game URL answered 500. Confirmed against real production and
+ * reproduced under workerd by `cf:verify`.
+ */
+describe("Reading the corpus for a request that has none", () => {
+  it("answers the fallback when this runtime cannot read a corpus", async () => {
+    vi.stubEnv("DATABASE_URL", "");
+    vi.stubEnv("REQUIRE_DATABASE", "");
+    const { getGameProfile, whenCorpusIsReadable } =
+      await loadGamesFor("production");
+
+    // Unwrapped, this is the throw that produced the 500.
+    await expect(getGameProfile("returnal")).rejects.toThrow(
+      /this is a production build/i,
+    );
+
+    // Wrapped, it is the 404 the route always claimed to give.
+    await expect(
+      whenCorpusIsReadable(() => getGameProfile("returnal"), null),
+    ).resolves.toBeNull();
+  });
+
+  /**
+   * The line this must not cross. "I cannot read the corpus" only means "there
+   * is no such profile" for an address that would have been prerendered. A
+   * genuine database failure must stay an error, or a broken Postgres would
+   * quietly publish an empty site and a manifest certifying it.
+   */
+  it("rethrows anything that is not a missing corpus", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SITE_ENV", "preview");
+    vi.stubEnv("DATABASE_URL", "");
+    vi.stubEnv("REQUIRE_DATABASE", "");
+    const { whenCorpusIsReadable } = await loadGames();
+
+    await expect(
+      whenCorpusIsReadable(() => {
+        throw new Error("connection terminated unexpectedly");
+      }, null),
+    ).rejects.toThrow(/connection terminated/);
+  });
+
+  it("does not memoise a corpus that could not be loaded", async () => {
+    vi.stubEnv("DATABASE_URL", "");
+    vi.stubEnv("REQUIRE_DATABASE", "");
+    const { getGameProfile, whenCorpusIsReadable } =
+      await loadGamesFor("production");
+
+    // Twice, because memoising a rejected promise is an unhandled rejection
+    // waiting for the first caller who does not await it — a crashed request in
+    // a Worker rather than a logged warning.
+    await expect(
+      whenCorpusIsReadable(() => getGameProfile("a"), null),
+    ).resolves.toBeNull();
+    await expect(
+      whenCorpusIsReadable(() => getGameProfile("b"), null),
+    ).resolves.toBeNull();
+  });
+});
+
+/**
+ * The corpus is read once PER PROCESS, and the prose used to promise more.
+ *
+ * `listGameProfiles`, the sitemap, the share cards and `/deployment-manifest`
+ * all read through one memo, so within a build worker they cannot disagree
+ * about what the corpus is. That is the guarantee, and it is the one that
+ * matters for the manifest: it describes the same corpus the pages beside it
+ * were rendered from.
+ */
+describe("The corpus is memoised within a process", () => {
+  it("reads once however many consumers ask", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SITE_ENV", "preview");
+    vi.stubEnv("DATABASE_URL", "");
+    vi.stubEnv("REQUIRE_DATABASE", "");
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    const { listGameProfiles, listGameSlugs, publishedCorpusSource } =
+      await loadGames();
+
+    await Promise.all([
+      listGameProfiles(),
+      listGameSlugs(),
+      publishedCorpusSource(),
+      listGameProfiles(),
+    ]);
+
+    // The loader announces every read it performs. One read, one announcement.
+    const reads = log.mock.calls
+      .flat()
+      .filter(
+        (line) => typeof line === "string" && line.includes("[data]"),
+      );
+    expect(reads).toHaveLength(1);
+    log.mockRestore();
+  });
+
+  it("hands every consumer the same corpus object", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SITE_ENV", "preview");
+    vi.stubEnv("DATABASE_URL", "");
+    vi.stubEnv("REQUIRE_DATABASE", "");
+    const { listGameProfiles } = await loadGames();
+
+    const [first, second] = await Promise.all([
+      listGameProfiles(),
+      listGameProfiles(),
+    ]);
+    expect(first.map((p) => p.evaluation.id)).toEqual(
+      second.map((p) => p.evaluation.id),
+    );
+  });
+});

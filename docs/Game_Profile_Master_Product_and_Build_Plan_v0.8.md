@@ -7,8 +7,12 @@
 **Product and project orchestration:** ChatGPT  
 **Engineering and product design:** Claude  
 **Status:** Current product and roadmap constitution — Phase 2 active  
-**Current checkpoint:** Phase 2C complete and merged; authoritative Neon Postgres provisioned, migrated and serving production builds; Phase 2D active — slice 2D-1 (preview, publish gate, transactional publication, revision history) complete and merged, slice 2D-2 (deploy trigger, Published/awaiting-deployment/Live reconciliation, failure/retry/audit) implemented and pending merge. The tool now derives Live from evidence read back from the deployed artifact, and migration `0009_deployment_tracking` must be applied to the authoritative database before 2D-2 is built against it.\
-**Date:** 2026-08-15 · checkpoint refreshed 2026-08-19
+**Current checkpoint:** Phase 2C complete and merged; authoritative Neon Postgres provisioned, migrated and serving production builds; Phase 2D active — slice 2D-1 (preview, publish gate, transactional publication, revision history) and slice 2D-2 (deploy trigger, Published/awaiting-deployment/Live reconciliation, failure/retry/audit) both **complete, merged and deployed**. Migration `0009_deployment_tracking` **is applied** to the authoritative database, and production serves `/deployment-manifest` from a build of `main`. The tool now derives Live from evidence read back from the deployed artifact.
+
+**2D-2 is deployed and has not been exercised**, and the distinction is load-bearing rather than pedantic. *Proven:* a production build from `main`; the manifest live on the canonical origin with a digest matching the three published evaluations; behaviour under workerd; migration `0009` in the authoritative database. *Not yet exercised:* a real Cloudflare Builds POST from the application, a real build uuid persisted and reconciled, the first `production_verified` observation, and one complete Publish → dispatch → Live cycle. All four deployment tables are empty. Phase 2 is **not** frozen and remote-admin activation is **not** complete.
+
+An N1 hardening pass follows 2D-2 and precedes activation: it makes every unresolved deployment request recoverable without SQL, makes a verification observation atomic, parses the dispatch reason at the Server Action boundary, and corrects an unknown-`/games/*` route that answered 500 in production instead of 404. It adds no migration and no new capability.\
+**Date:** 2026-08-15 · checkpoint refreshed 2026-08-20 (post-2D-2 merge and deploy; N1 hardening in progress)
 
 ---
 
@@ -1043,12 +1047,12 @@ than deleted so the sequence stays legible against the roadmap above.
 6. ~~Build Phase 2C evaluation/evidence/scoring/confidence/tag/interpretation authoring.~~ **DONE**
 7. ~~Add authored ordering for evaluation tags and evidence links.~~ **DONE** (migration 0008)
 8. Review 2C UX with a real scoring workflow; fix friction. **OPEN** — deferred to the dedicated admin UI/UX pass, and to 2E's trial, which is where real authoring volume will expose it.
-9. Configure and verify remote admin with Cloudflare Access + `ADMIN_DATABASE_URL`; enable during Phase 2 and no later than pre-2E editorial operations. **OPEN** — now also the point at which the deployed Hyperdrive admin path is exercised end to end (ADR 0021).
+9. Configure and verify remote admin with Cloudflare Access + `ADMIN_DATABASE_URL`; enable during Phase 2 and no later than pre-2E editorial operations. **OPEN** — now also the point at which the deployed Hyperdrive admin path is exercised end to end (ADR 0021), the first real Cloudflare Builds dispatch is made, and Hyperdrive query caching is checked against read-after-write (ADR 0021 N1 amendment). Nothing local can prove any of the three.
 10. ~~Build 2D public-faithful preview and complete publish validation.~~ **DONE** (2D-1)
 11. ~~Implement transactional publication/revision/supersession.~~ **DONE** (2D-1)
 12. ~~Implement secure Cloudflare rebuild/deploy trigger.~~ **DONE** (2D-2, ADR 0022) — server-only user-scoped token, no deploy hook. Not yet exercised against the real API.
 13. ~~Expose Published / awaiting deployment / Live.~~ **DONE** (2D-2) — plus a third state, *not proven*, for when production cannot currently be verified.
-14. ~~Add deployment failure/retry/audit behavior.~~ **DONE** (2D-2) — append-only trail, coalescing on identical intent, and no automatic retry of an unestablished dispatch.
+14. ~~Add deployment failure/retry/audit behavior.~~ **DONE** (2D-2, hardened in N1) — append-only trail, coalescing on identical intent serialized against concurrent requesters, no automatic retry of an unestablished dispatch, and an operator path out of every durably unresolved state that never fabricates a provider outcome.
 15. ~~Add revision-history reads/UI.~~ **DONE** (2D-1, admin-only)
 16. Run 3–5 profile editorial trial. **OPEN** — 2E.
 17. Establish production artwork sourcing/clearance policy. **OPEN**
