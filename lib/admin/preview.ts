@@ -1,5 +1,6 @@
 import type { ScopeLink } from "@/components/profile/ScopeSwitcher";
 import { PUBLIC_RUBRIC_VERSION } from "@/lib/data/games";
+import { byCodeUnit } from "@/lib/order";
 import {
   readEvaluationProfile,
   readPublishedProfilesForGame,
@@ -93,7 +94,7 @@ function inPublicOrder(
   return [...records].sort(
     (a, b) =>
       a.scope.displayOrder - b.scope.displayOrder ||
-      a.scope.key.localeCompare(b.scope.key),
+      byCodeUnit(a.scope.key, b.scope.key),
   );
 }
 

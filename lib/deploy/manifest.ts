@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { byCodeUnit } from "@/lib/order";
 
 /**
  * What the deployed artifact says about itself.
@@ -20,8 +21,11 @@ import { z } from "zod";
  * is not.
  *
  * So the artifact carries its own inventory, generated in the same
- * `next build` that renders the pages, from the same corpus read, and served by
- * the deployed Worker at `/deployment-manifest`. Reading it back over the
+ * `next build` that renders the pages, through the same memoised public data
+ * boundary they read, and served by the deployed Worker at
+ * `/deployment-manifest`. (The memo is per process, so a build reads the corpus
+ * once per render worker rather than once in total; see
+ * lib/deploy/build-manifest.ts for why the proof does not depend on that.) Reading it back over the
  * public internet is the only evidence in this system that answers the actual
  * question, because it is the only one that comes *from the thing being asked
  * about*.
@@ -133,7 +137,11 @@ export type DeploymentManifest = z.infer<typeof MANIFEST_SCHEMA>;
  * A stable digest of exactly what is served.
  *
  * Sorted by `evaluationId` before hashing, so two builds of one corpus agree
- * whatever order the database returned rows in. Only identifying fields go in:
+ * whatever order the database returned rows in. The sort is by CODE POINT and
+ * not `localeCompare`: the build computes this digest and the verifier
+ * recomputes it in a different process, so a comparator that depends on the
+ * runtime's locale or ICU build could make one machine's honest manifest look
+ * tampered with to another. See lib/order.ts. Only identifying fields go in:
  * a changed label must not read as a changed corpus, and `generatedAt`
  * certainly must not — two builds of the same corpus are the same corpus.
  *
@@ -149,7 +157,7 @@ export async function digestEntries(
   entries: readonly ManifestEntry[],
 ): Promise<string> {
   const canonical = [...entries]
-    .sort((a, b) => a.evaluationId.localeCompare(b.evaluationId))
+    .sort((a, b) => byCodeUnit(a.evaluationId, b.evaluationId))
     .map((entry) =>
       [
         entry.evaluationId,

@@ -401,7 +401,7 @@ export function buildSeedSql(
     // that two records of one game claim the same scope key — which makes them
     // the same series, silently competing for its one published row — or that
     // one scope id has been pasted onto two different scopes.
-    const scopeNaturalKey = `${record.game.slug} ${record.scope.key}`;
+    const scopeNaturalKey = `${record.game.slug}\u0000${record.scope.key}`;
     if (scopesByNaturalKey.has(scopeNaturalKey)) {
       throw new Error(
         `${record.game.slug}: profile scope "${record.scope.key}" appears in more than one seed record. Two current profiles of one game need two distinct scope keys.`,

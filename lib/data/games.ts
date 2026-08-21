@@ -2,6 +2,7 @@ import { readFixtureProfiles } from "@/lib/data/fixture-profiles";
 import type { ManifestSource } from "@/lib/deploy/manifest";
 import { isDatabaseConfigured } from "@/lib/db/client";
 import { readPublishedProfiles } from "@/lib/db/read-profiles";
+import { byCodeUnit } from "@/lib/order";
 import { buildProfileView, type ProfileView } from "@/lib/profile/build";
 import type { GameWithEvaluation } from "@/lib/profile/types";
 import { RUBRIC_V1 } from "@/lib/rubric";
@@ -18,10 +19,21 @@ import { SITE_ENV } from "@/lib/site";
  *
  * Every public route is prerendered, so these functions execute during
  * `next build`, not in the Cloudflare Worker. The published corpus is therefore
- * loaded once per build and memoised for the process, which is what a static
- * build wants and is also why the memo is safe: there is no request whose data
- * could go stale under it. Moving `/games/*` to request-time rendering would
- * make this cache wrong, and this comment is the warning that goes with it.
+ * loaded once PER PROCESS and memoised there, which is what a static build
+ * wants and is also why the memo is safe: there is no request whose data could
+ * go stale under it. Moving `/games/*` to request-time rendering would make
+ * this cache wrong, and this comment is the warning that goes with it.
+ *
+ * Per process, not per build: Next renders static pages across several worker
+ * processes and each gets its own module instance and its own memo. Every
+ * consumer inside one process shares one read — which is the property
+ * `/deployment-manifest` relies on — but a build as a whole may read the corpus
+ * more than once.
+ *
+ * The one thing that DOES run in the Worker is a request-time render of a
+ * `/games/*` address that was never prerendered, i.e. one that does not exist.
+ * There is no database there and there is not supposed to be; see
+ * `whenCorpusIsReadable`.
  */
 
 /**
@@ -64,6 +76,26 @@ function databaseIsRequired(): boolean {
 }
 
 /**
+ * This runtime cannot read the published corpus at all.
+ *
+ * Distinct from "the corpus is readable and contains no such game", and the
+ * distinction is the whole point of the type. Both used to surface identically
+ * — as a thrown `Error` — and the deployed Worker turned every unknown
+ * `/games/*` URL into a 500 because of it (see `whenCorpusIsReadable`).
+ *
+ * Thrown only where a build has no database and must refuse rather than
+ * republish the calibration fixtures. A genuine database failure is NOT this:
+ * it stays an ordinary error, because "Postgres refused the query" must never
+ * be quietly answered with a 404.
+ */
+export class CorpusUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CorpusUnavailableError";
+  }
+}
+
+/**
  * TEMPORARY COMPATIBILITY PATH — the whole of it, in one function.
  *
  * Postgres is the operational source of editorial truth. Production Postgres is
@@ -86,7 +118,7 @@ async function loadPublishedProfiles(): Promise<GameWithEvaluation[]> {
   }
 
   if (databaseIsRequired()) {
-    throw new Error(
+    throw new CorpusUnavailableError(
       `DATABASE_URL is not set${
         SITE_ENV === "production"
           ? ", and this is a production build"
@@ -115,7 +147,7 @@ async function loadPublishedProfiles(): Promise<GameWithEvaluation[]> {
 }
 
 /**
- * The published corpus, loaded once per build.
+ * The published corpus, loaded once per process.
  *
  * Sorted here rather than in each reader so both paths present the same
  * catalogue order: alphabetical by game, then scope order within a game. That
@@ -136,15 +168,28 @@ let corpus: Promise<GameWithEvaluation[]> | null = null;
 let corpusSource: ManifestSource | null = null;
 
 function publishedProfiles(): Promise<GameWithEvaluation[]> {
-  corpus ??= loadPublishedProfiles().then((profiles) =>
+  if (corpus) return corpus;
+
+  const loading = loadPublishedProfiles().then((profiles) =>
     profiles.slice().sort(
       (a, b) =>
-        a.game.canonicalTitle.localeCompare(b.game.canonicalTitle) ||
+        byCodeUnit(a.game.canonicalTitle, b.game.canonicalTitle) ||
         a.scope.displayOrder - b.scope.displayOrder ||
-        a.scope.key.localeCompare(b.scope.key),
+        byCodeUnit(a.scope.key, b.scope.key),
     ),
   );
-  return corpus;
+
+  // A load that FAILED is not memoised, and the handler attached here is what
+  // makes that safe. Keeping the rejected promise would report the same failure
+  // to every later caller — fine — but it would also be an unhandled rejection
+  // the moment nobody happened to be awaiting it, which in a Worker is a
+  // crashed request rather than a logged warning.
+  loading.catch(() => {
+    if (corpus === loading) corpus = null;
+  });
+
+  corpus = loading;
+  return loading;
 }
 
 /** Discard the memo. Tests only — a build loads once and exits. */
@@ -226,6 +271,46 @@ export async function getGameProfileForScope(
     (entry) => entry.game.slug === slug && entry.scope.key === scopeKey,
   );
   return record ? buildProfileView(record) : null;
+}
+
+/**
+ * Read the corpus for a REQUEST, answering `fallback` if this runtime has none.
+ *
+ * ── The bug this exists to fix ─────────────────────────────────────────────
+ *
+ * Every published profile is prerendered, so the only `/games/*` URLs the
+ * deployed Worker renders on demand are ones that do not exist. The page then
+ * called `getGameProfile`, which loaded the corpus, which in a production
+ * bundle refuses outright when `DATABASE_URL` is unset — and it always is at
+ * request time, because the public path is build-time Postgres only (ADR 0017).
+ * So the throw happened before `notFound()` could be reached and production
+ * answered **500** for every unknown or stale `/games/*` URL, including every
+ * one a crawler still had. The route's own comment said it 404s. It did not.
+ *
+ * ── Why this is narrow, and must stay narrow ───────────────────────────────
+ *
+ * "I cannot read the corpus" is only equivalent to "there is no such profile"
+ * when the question is about ONE address that would have been prerendered if it
+ * existed. It is emphatically not equivalent anywhere else: the sitemap, the
+ * homepage and above all `/deployment-manifest` must fail loudly rather than
+ * publish an empty answer, because an empty manifest is a certificate that
+ * production serves nothing. So this is an explicit wrapper at the two dynamic
+ * route files that need it, never a property of the readers themselves.
+ *
+ * A build is unaffected in both directions: `generateStaticParams` calls the
+ * readers directly and still fails a database-less production build closed,
+ * before any page renders.
+ */
+export async function whenCorpusIsReadable<T>(
+  read: () => Promise<T>,
+  fallback: T,
+): Promise<T> {
+  try {
+    return await read();
+  } catch (error) {
+    if (error instanceof CorpusUnavailableError) return fallback;
+    throw error;
+  }
 }
 
 /** Distinct slugs, for static generation. One base page per game. */
