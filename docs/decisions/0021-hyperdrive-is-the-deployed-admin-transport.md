@@ -191,6 +191,12 @@ documented one: create a second Hyperdrive configuration with
 configuration change plus a small binding change, and it belongs to whoever
 performs remote-admin activation.
 
+> **Do not act on that paragraph.** It records what N1 recommended, and the
+> amendment below took a different route: caching was disabled on the existing
+> configuration instead, so there is no second configuration and no
+> `HYPERDRIVE_FRESH` binding to create. Kept as the record of the reasoning, not
+> as an instruction.
+
 ### Activation test item
 
 **This cannot be proven locally.** Wrangler's local Hyperdrive emulation
