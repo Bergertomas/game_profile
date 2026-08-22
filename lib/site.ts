@@ -28,65 +28,35 @@ export const SITE_TAGLINE = "What kind of good is it?";
 /**
  * Who writes the profiles, and how that person is named in public.
  *
- * ── Why this is one constant ───────────────────────────────────────────────
+ * ── The decision ───────────────────────────────────────────────────────────
  *
- * Naming the editor is a product decision the owner has not made yet (O1 in
- * the public-design lock). Every surface that attributes the work — the
- * profile byline, the footer, the About page — reads this one value, so the
- * decision is a single edit here rather than a search across the site.
+ * Settled: the work is published under the role, not under a name. Every
+ * surface that attributes it — the profile byline, the homepage, the footer —
+ * reads this one constant, so the posture is stated once and cannot drift
+ * between pages.
  *
- * ── Why the default is the role and not the name ───────────────────────────
+ * This is not anonymity as a value, and the copy never implies an institution.
+ * "One editor" is the literal truth about how the work is made, and the claim
+ * it carries is checkable elsewhere: the rubric is published, every scored
+ * subcriterion carries a rationale, the evidence classes are named on each
+ * profile, and superseded evaluations stay in history. A name would add a
+ * person to trust; those four add ways to check.
  *
- * The three postures are not equally reversible. A published real name cannot
- * be withdrawn: it is indexed, archived and quoted within days. "the editor"
- * can become a name at any time, and the change costs one constant. So the
- * build defaults to the reversible posture, and stays there until the owner
- * chooses otherwise — the code must not make that choice by shipping first.
- *
- * This is deliberately NOT anonymity as a value. The About page argues the
- * single-editor case explicitly, and the rubric, evidence classes and revision
- * history are what make the judgement checkable regardless of the name on it.
+ * Changing the posture later — to a name or to initials — is a change to these
+ * two strings and nothing else. That direction stays open, which is the reason
+ * the role was the right place to start: a published name cannot be withdrawn.
  */
-export type EditorIdentityVariant = "full_name" | "initials" | "role";
-
 export interface EditorIdentity {
-  readonly variant: EditorIdentityVariant;
   /** Byline form, used mid-sentence: "Researched and scored by …". */
   readonly short: string;
   /** Attribution form, used where the sentence needs a subject. */
   readonly long: string;
-  /** Whether the identity names a person, which some copy has to know. */
-  readonly namesAPerson: boolean;
 }
 
-export const EDITOR_IDENTITIES: Readonly<
-  Record<EditorIdentityVariant, EditorIdentity>
-> = {
-  full_name: {
-    variant: "full_name",
-    short: "Tomas Berger",
-    long: "Tomas Berger",
-    namesAPerson: true,
-  },
-  initials: {
-    variant: "initials",
-    short: "T.B.",
-    long: "T.B., the editor",
-    namesAPerson: true,
-  },
-  role: {
-    variant: "role",
-    short: "one editor",
-    long: "the editor",
-    namesAPerson: false,
-  },
+export const SITE_EDITOR: EditorIdentity = {
+  short: "one editor",
+  long: "the editor",
 };
-
-/**
- * The posture this build publishes under. Change this one value to settle O1;
- * nothing else needs editing.
- */
-export const SITE_EDITOR: EditorIdentity = EDITOR_IDENTITIES.role;
 
 export const SITE_DESCRIPTION =
   "Should I Play? gives every game a Game Profile: eight fixed dimensions scored " +

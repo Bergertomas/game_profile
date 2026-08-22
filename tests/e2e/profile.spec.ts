@@ -267,6 +267,26 @@ test("home page contrasts three distinct silhouettes", async ({ page }) => {
   }
 });
 
+test("the home page argues against an overall score without printing one", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const proposition = page.locator("section").first();
+  const copy = await proposition.innerText();
+
+  await expect(
+    proposition.getByText(/never average them into an overall score/i),
+  ).toBeVisible();
+  // Naming a figure to refute it still teaches that a single number is the
+  // unit of comparison here, and it is the exact number the product refuses
+  // to publish. The only two-digit figure allowed in this copy is the scale.
+  expect(new Set(copy.match(/\b\d{2}\b/g) ?? [])).toEqual(new Set(["10"]));
+
+  // Attribution is present, and is plain text while /about is unpublished.
+  await expect(proposition.getByText(/Researched and scored by/i)).toBeVisible();
+  await expect(page.locator('a[href="/about"]')).toHaveCount(0);
+});
+
 test("a game card leads with the game, not with its numbers", async ({
   page,
 }) => {

@@ -58,15 +58,11 @@ export default async function HomePage() {
             storyless, mechanically exact action game. The shape tells them
             apart; a single number never could.
           </p>
+          {/* Plain text, not a link: /about is unpublished until a working
+              corrections route exists, and attribution should not wait on it.
+              The link returns with the page. */}
           <p className="sip-label mt-5 text-ink-quiet">
             Researched and scored by {SITE_EDITOR.short}, one profile at a time
-            ·{" "}
-            <Link
-              href="/about"
-              className="underline decoration-rule-strong underline-offset-[4px] transition-colors duration-150 hover:decoration-ink"
-            >
-              About
-            </Link>
           </p>
         </div>
       </section>

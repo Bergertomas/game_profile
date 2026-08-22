@@ -29,12 +29,16 @@ const WORDMARK = SITE_NAME.replace(/\?+$/, "");
  *
  * ── Why the nav lists exactly the rooms that exist ─────────────────────────
  *
- * The launch header is fixed: Find · Compare · How we score · About. It is not
- * built all at once, because navigation that promises rooms that do not exist
- * is the fastest way to make a small product feel like a mock-up. Each entry
- * appears when its room does — About arrives here with the About page, Find
- * with search, Compare with the comparison surface — and the order they will
- * finally sit in is already decided, so nothing gets rearranged later.
+ * The launch header is fixed, and in this order: Find · Compare · How we score
+ * · About. It is not built all at once, because navigation that promises rooms
+ * that do not exist is the fastest way to make a small product feel like a
+ * mock-up. Each entry appears when its room does — Find with search, Compare
+ * with the comparison surface, About when its page is publishable — and the
+ * final order is already decided, so nothing gets rearranged later.
+ *
+ * About is written but withheld: it is not published until a working
+ * corrections route exists, because a page that invites a reader to report an
+ * error while offering no way to do it is worse than no page.
  */
 
 export function SiteHeader() {
@@ -54,10 +58,8 @@ export function SiteHeader() {
             link keeps its text-only appearance and grows its own hit area. */}
         <nav aria-label="Primary" className="flex flex-wrap items-center gap-x-5 gap-y-1">
           {(
-            [
-              ["/methodology", "How we score"],
-              ["/about", "About"],
-            ] as const
+            // In locked launch order. Entries join as their rooms ship.
+            [["/methodology", "How we score"]] as const
           ).map(([href, label]) => (
             <Link
               key={href}
@@ -90,14 +92,8 @@ export function SiteFooter() {
         {/* The attribution belongs on every page, not only on the profile
             carrying a judgement: who does this is a property of the site. */}
         <p className="sip-label mt-6 text-bone-quiet">
-          Researched and scored by {SITE_EDITOR.short} ·{" "}
-          <Link
-            href="/about"
-            className="underline decoration-rule-bone-strong underline-offset-[5px] transition-colors duration-150 hover:text-bone hover:decoration-signal"
-          >
-            About
-          </Link>{" "}
-          · Game Profile Scoring Rubric v1.0 · Profiles are editorial judgements
+          Researched and scored by {SITE_EDITOR.short} · Game Profile Scoring
+          Rubric v1.0 · Profiles are editorial judgements
           against a{" "}
           <Link
             href="/methodology"

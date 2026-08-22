@@ -11,7 +11,6 @@ import { formatDate } from "@/lib/format";
 import { provenanceStatement } from "@/lib/profile/provenance";
 import { creditLineFor, type ProfileArtwork } from "@/lib/profile/artwork";
 import { SITE_EDITOR } from "@/lib/site";
-import Link from "next/link";
 
 /**
  * Everything below the profile field.
@@ -292,21 +291,20 @@ export function ProfileLower({
           {/* Who did this, on the page carrying the judgement.
               A profile that names its rubric, its evidence and its cut-off but
               not its author is asking to be trusted by an institution that does
-              not exist. One editor is the honest description and, argued
-              properly on /about, the stronger one. */}
+              not exist. One editor is the honest description.
+
+              Plain text for now. The About page it will point at is withheld
+              until a working corrections route exists — an editorial product
+              that invites scrutiny without offering a way to report an error
+              is asking for trust it has not equipped anyone to test. The
+              attribution does not wait on that; the link does. */}
           <p
             className="mt-7 max-w-[54rem] border-t pt-4 text-[0.9375rem] leading-relaxed text-[var(--gp-ink-soft)]"
             style={{ borderColor: "rgba(22,24,28,0.18)" }}
           >
             Researched and scored by{" "}
             <span className="text-[var(--gp-ink)]">{SITE_EDITOR.long}</span> —
-            one editor, one calibrated instrument.{" "}
-            <Link
-              href="/about"
-              className="underline decoration-[rgba(22,24,28,0.30)] underline-offset-[4px] hover:decoration-[var(--gp-ink)]"
-            >
-              About the editor and the method
-            </Link>
+            one editor, one calibrated instrument.
           </p>
 
           {/* Credit, and — for artwork held on an evaluation basis — the full

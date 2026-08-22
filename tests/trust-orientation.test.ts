@@ -1,7 +1,6 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import AboutPage from "@/app/(public)/about/page";
 import { GameCard } from "@/components/GameCard";
 import { GameProfile } from "@/components/profile/GameProfile";
 import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
@@ -49,11 +48,6 @@ function text(html: string): string {
  */
 function visible(cardHtml: string): string {
   return text(cardHtml).split("Profile across 8 dimensions")[0] ?? "";
-}
-
-/** The text between two headings, so a section is asserted on its own copy. */
-function section(rendered: string, from: string, to: string): string {
-  return (rendered.split(from)[1] ?? "").split(to)[0] ?? "";
 }
 
 function renderProfile(record: typeof alanWake2): string {
@@ -168,86 +162,36 @@ describe("Orientation", () => {
 
 describe("Authorship", () => {
   it("names the editor on the profile that carries the judgement", () => {
-    const html = renderProfile(pending);
-    expect(text(html)).toContain(`Researched and scored by ${SITE_EDITOR.long}`);
-    expect(html).toContain('href="/about"');
+    expect(text(renderProfile(pending))).toContain(
+      `Researched and scored by ${SITE_EDITOR.long}`,
+    );
   });
 
   it("names the editor in the footer of every page", () => {
-    const html = renderToStaticMarkup(createElement(SiteFooter));
-    expect(text(html)).toContain(
+    expect(text(renderToStaticMarkup(createElement(SiteFooter)))).toContain(
       `Researched and scored by ${SITE_EDITOR.short}`,
     );
-    expect(html).toContain('href="/about"');
   });
 
-  it("puts About in the primary nav, in its locked position after How we score", () => {
-    const rendered = text(renderToStaticMarkup(createElement(SiteHeader)));
-    expect(rendered).toContain("How we score");
-    expect(rendered).toContain("About");
-    expect(rendered.indexOf("How we score")).toBeLessThan(
-      rendered.indexOf("About"),
-    );
-  });
-
-  it("does not advertise rooms that do not exist yet", () => {
-    const rendered = text(renderToStaticMarkup(createElement(SiteHeader)));
-    expect(rendered).not.toContain("Compare");
-    expect(rendered).not.toMatch(/\bFind\b/);
-  });
-});
-
-describe("The About page", () => {
-  const html = renderToStaticMarkup(createElement(AboutPage));
-  const rendered = text(html);
-
-  it("answers the questions a sceptical reader has", () => {
-    for (const heading of [
-      "Who writes it",
-      "How scoring works",
-      "Direct play",
-      "Why there is no overall score",
-      "Independence and funding",
-      "Corrections",
+  it("attributes in plain text, because the About page is not published", () => {
+    // The attribution does not wait on /about; the link to it does. A byline
+    // pointing at a 404 is worse than a byline that simply states the fact.
+    for (const html of [
+      renderProfile(pending),
+      renderToStaticMarkup(createElement(SiteFooter)),
+      renderToStaticMarkup(createElement(SiteHeader)),
     ]) {
-      expect(rendered).toContain(heading);
+      expect(html).not.toContain('href="/about"');
     }
   });
 
-  it("attributes the work in whichever posture the build publishes", () => {
-    expect(rendered).toMatch(
-      new RegExp(`${SITE_EDITOR.short}|${SITE_EDITOR.long}|one person`),
-    );
-  });
-
-  it("marks the sections the owner has not signed off", () => {
-    // A placeholder a reader cannot see is a placeholder that ships.
-    expect(rendered).toContain("Not published yet.");
-  });
-
-  it("claims no independence fact while the wording is unconfirmed", () => {
-    const funding = section(rendered, "Independence and funding", "Corrections");
-    expect(funding).toContain("does not yet publish a funding and independence");
-    expect(funding).toContain("unstated rather than as a claim");
-    // No disclosure is asserted in either direction until the owner writes it.
-    expect(funding).not.toMatch(/no advertising|no affiliate|reader-funded|sponsor/i);
-  });
-
-  it("links the rubric rather than restating it", () => {
-    expect(html).toContain('href="/methodology"');
-  });
-});
-
-describe("No aggregate figure is printed anywhere, even as an example", () => {
-  it("holds on the About page", () => {
-    const rendered = text(renderToStaticMarkup(createElement(AboutPage)));
-    expect(rendered).toContain("no overall score");
-    // "87" was the worked example this copy used to argue against aggregates.
-    // Printing one to refute it still teaches that a single number is the unit
-    // of comparison here. The only two-digit figure allowed on the page is the
-    // 0–10 scale itself.
-    const twoDigit = rendered.match(/\b\d{2}\b/g) ?? [];
-    expect(new Set(twoDigit)).toEqual(new Set(["10"]));
+  it("advertises only the rooms that exist", () => {
+    const rendered = text(renderToStaticMarkup(createElement(SiteHeader)));
+    expect(rendered).toContain("How we score");
+    for (const unbuilt of ["About", "Compare"]) {
+      expect(rendered).not.toContain(unbuilt);
+    }
+    expect(rendered).not.toMatch(/\bFind\b/);
   });
 });
 
