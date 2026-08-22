@@ -37,6 +37,16 @@
   // fails closed instead of touching the production database. Developers who
   // intentionally exercise Hyperdrive locally can override this with
   // CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE.
+  //
+  // THE CONFIGURATION THIS ID NAMES HAS QUERY CACHING DISABLED, AND THAT IS A
+  // CORRECTNESS PROPERTY RATHER THAN A PREFERENCE. Hyperdrive does not
+  // invalidate cached reads when the application writes, and every read behind
+  // this binding is an editor reading state they just changed — including the
+  // "is a build already open?" guard in `dispatchDeployment`, which answered
+  // from a stale cache would let two production builds be queued for one
+  // corpus. Replacing or recreating this configuration means recreating it with
+  // `--caching-disabled`; the id below is not interchangeable with a default
+  // one. See ADR 0021, "activation prep: caching is disabled".
   "hyperdrive": [
     {
       "binding": "HYPERDRIVE",
