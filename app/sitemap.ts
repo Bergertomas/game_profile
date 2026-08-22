@@ -31,6 +31,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 1,
     },
     {
+      url: absoluteUrl("/about"),
+      // Editorial policy and authorship. It changes when the owner settles the
+      // identity, funding and corrections wording, not on a build.
+      lastModified: RUBRIC_V1.lockedAt,
+      changeFrequency: "yearly",
+      priority: 0.5,
+    },
+    {
       url: absoluteUrl("/methodology"),
       // Rendered from the typed rubric, so it changes when the rubric is relocked.
       lastModified: RUBRIC_V1.lockedAt,

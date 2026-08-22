@@ -163,19 +163,31 @@ for (const slug of SLUGS) {
         has: page.getByText("How this profile was made"),
       });
 
-      // Counts of evidence by kind, never one opaque number.
+      // The classes of evidence by kind, never one opaque number.
       await expect(trust.getByText("Direct play").first()).toBeVisible();
       await expect(trust.getByText("Critic reviews").first()).toBeVisible();
       await expect(
-        trust.getByText("Source records pending").first(),
+        trust.getByText(/counts appear when the ledger is complete/),
       ).toBeVisible();
-      await expect(
-        trust.getByText(/not yet the individual records behind them/),
-      ).toBeVisible();
-      // No "supported by N sources" claim while the ledger is pending.
-      expect(await trust.innerText()).not.toMatch(
-        /\b\d+\s+(?:linked\s+)?sources?\b/i,
+
+      const trustText = await trust.innerText();
+      // No "supported by N sources" claim while the ledger is pending…
+      expect(trustText).not.toMatch(/\b\d+\s+(?:linked\s+)?sources?\b/i);
+      // …and no number attached to a category either, which is the same claim
+      // wearing a label: "Critic reviews 1" understates a body of coverage and
+      // overstates its precision at once.
+      expect(trustText).not.toMatch(
+        /(Direct play|Critic reviews|Technical analysis|Specialist & creator coverage|Player signal|First-party material)\s+\d/,
       );
+
+      // Provenance reads for a visitor, with the audit key kept beneath it.
+      await expect(
+        trust.getByText(/Scored in the rubric.s calibration set/),
+      ).toBeVisible();
+      await expect(trust.getByText(/Provenance: calibration/)).toBeVisible();
+
+      // And the page says who made the judgement.
+      await expect(trust.getByText(/Researched and scored by/)).toBeVisible();
     });
   });
 }

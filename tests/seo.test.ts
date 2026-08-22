@@ -112,7 +112,7 @@ describe("robots.txt", () => {
 });
 
 describe("sitemap.xml", () => {
-  it("lists the home page, the methodology and every published game", async () => {
+  it("lists the home page, About, the methodology and every published game", async () => {
     const sitemap = (await import("@/app/sitemap")).default;
     const entries = await sitemap();
     const urls = entries.map((entry) => entry.url);
@@ -120,8 +120,11 @@ describe("sitemap.xml", () => {
 
     expect(urls).toContain(`${SITE_URL}/`);
     expect(urls).toContain(`${SITE_URL}/methodology`);
+    expect(urls).toContain(`${SITE_URL}/about`);
     for (const slug of slugs) expect(urls).toContain(gameUrl(slug));
-    expect(urls).toHaveLength(slugs.length + 2);
+    // Home, About, methodology, and one entry per profile — the count is
+    // asserted so a new indexable route cannot appear without a decision.
+    expect(urls).toHaveLength(slugs.length + 3);
   });
 
   it("uses the canonical production origin for every entry", async () => {

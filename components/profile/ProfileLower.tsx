@@ -8,8 +8,10 @@ import {
   blockHeadings,
 } from "@/lib/profile/vocabulary";
 import { formatDate } from "@/lib/format";
-import { provenanceLabel } from "@/lib/profile/provenance";
+import { provenanceStatement } from "@/lib/profile/provenance";
 import { creditLineFor, type ProfileArtwork } from "@/lib/profile/artwork";
+import { SITE_EDITOR } from "@/lib/site";
+import Link from "next/link";
 
 /**
  * Everything below the profile field.
@@ -34,6 +36,7 @@ export function ProfileLower({
 }) {
   const { evaluation } = profile;
   const headings = blockHeadings(evaluation.evidenceStatus);
+  const provenance = provenanceStatement(evaluation.scoreProvenance);
 
   return (
     <>
@@ -138,13 +141,12 @@ export function ProfileLower({
                     CONFIDENCE_LABEL[evaluation.confidence],
                   ],
                   ["Rubric", `v${evaluation.rubricVersion}`],
-                  ["Scores", provenanceLabel(evaluation.scoreProvenance)],
                   ["Evidence cut-off", formatDate(evaluation.evidenceCutoffAt)],
                   ["Release context", evaluation.releaseContext],
                   [
                     "Ledger",
                     evaluation.evidenceLedger === "pending"
-                      ? "Source records pending"
+                      ? "Reconciling source records"
                       : "Source records held",
                   ],
                   // Only meaningful for a pre-release profile, and required
@@ -181,17 +183,27 @@ export function ProfileLower({
               </p>
 
               {/* Provenance and revision history. Both say how much weight the
-                  published numbers can carry, so neither is optional. */}
-              {evaluation.scoreProvenance.note && (
-                <div className="mt-6 max-w-[40rem]">
-                  <h3 className="gp__label gp__label--accent">
-                    Score provenance
-                  </h3>
+                  published numbers can carry, so neither is optional.
+
+                  The primary line is written for a reader; the exact audit key
+                  sits under it in the label voice. "Calibration round 1" as the
+                  headline was a filing reference standing in for an
+                  explanation — precise, checkable, and unreadable to anyone who
+                  has not read the report it refers to. Demoted, not hidden. */}
+              <div className="mt-6 max-w-[40rem]">
+                <h3 className="gp__label gp__label--ink">Where the scores came from</h3>
+                <p className="mt-1.5 text-[0.9375rem] leading-relaxed text-[var(--gp-ink-soft)]">
+                  {provenance.reader}
+                </p>
+                <p className="gp__label gp__label--ink mt-1.5">
+                  Provenance: {provenance.audit}
+                </p>
+                {evaluation.scoreProvenance.note && (
                   <p className="mt-1.5 text-[0.9375rem] leading-relaxed text-[var(--gp-ink-soft)]">
                     {evaluation.scoreProvenance.note}
                   </p>
-                </div>
-              )}
+                )}
+              </div>
 
               {evaluation.changeSummary && (
                 <div className="mt-6 max-w-[40rem]">
@@ -206,26 +218,54 @@ export function ProfileLower({
             <div>
               <h3 className="gp__label gp__label--ink">Evidence</h3>
 
-              {/* Counts of evidence by kind, never votes to be averaged. The
-                  breakdown is the point: "supported by 6 sources" hides whether
-                  those are hands-on hours or six people repeating one preview
-                  (SOP §6). */}
-              <dl className="mt-2.5 flex flex-wrap gap-x-5 gap-y-1">
-                {profile.evidence.categoryCounts.map(({ category, count }) => (
-                  <div key={category} className="flex items-baseline gap-1.5">
-                    <dt className="gp__label gp__label--ink">
-                      {SOURCE_CATEGORY_LABEL[category]}
-                    </dt>
-                    <dd className="gp__num text-[0.875rem]">{count}</dd>
-                  </div>
-                ))}
-                <div className="flex items-baseline gap-1.5">
-                  <dt className="gp__label gp__label--ink">Direct play</dt>
-                  <dd className="text-[0.875rem]">
-                    {profile.evidence.hasDirectPlay ? "Yes" : "Not yet"}
-                  </dd>
-                </div>
-              </dl>
+              {/* Evidence by kind, never votes to be averaged. The breakdown
+                  is the point: "supported by 6 sources" hides whether those are
+                  hands-on hours or six people repeating one preview (SOP §6).
+
+                  ── Why the counts disappear while the ledger is pending ────
+
+                  A count is a claim about reconciled individual records. While
+                  `evidenceLedger` is `pending` the ledger holds evidence
+                  *classes* — one row can stand for a whole body of critical
+                  coverage — so "Critic reviews 1" is not a small number, it is
+                  the wrong kind of number: it understates the real basis and
+                  overstates its precision in the same breath.
+
+                  The classes are still named, because what the evaluation
+                  rested on is exactly what a reader is entitled to see. Only
+                  the numerals wait for the ledger. This is the same rule
+                  `linkedEvidenceSummary` applies to the expanded score rows,
+                  and the page must not contradict itself between the two. */}
+              {evaluation.evidenceLedger === "pending" ? (
+                <p className="mt-2.5 max-w-[22rem] text-[0.9375rem] leading-snug text-[var(--gp-ink)]">
+                  {profile.evidence.categoryCounts
+                    .map(({ category }) => SOURCE_CATEGORY_LABEL[category])
+                    .join(" · ")}
+                </p>
+              ) : (
+                <dl className="mt-2.5 flex flex-wrap gap-x-5 gap-y-1">
+                  {profile.evidence.categoryCounts.map(
+                    ({ category, count }) => (
+                      <div
+                        key={category}
+                        className="flex items-baseline gap-1.5"
+                      >
+                        <dt className="gp__label gp__label--ink">
+                          {SOURCE_CATEGORY_LABEL[category]}
+                        </dt>
+                        <dd className="gp__num text-[0.875rem]">{count}</dd>
+                      </div>
+                    ),
+                  )}
+                </dl>
+              )}
+
+              {/* Direct play is a yes/no about the evaluation's own basis, not
+                  a count, so it is published in either ledger state. */}
+              <p className="mt-2 text-[0.875rem] text-[var(--gp-ink-soft)]">
+                <span className="gp__label gp__label--ink">Direct play</span>{" "}
+                {profile.evidence.hasDirectPlay ? "Yes" : "Not yet"}
+              </p>
 
               <ol className="mt-3 list-none space-y-2 p-0">
                 {evaluation.sources.map((source) => (
@@ -243,11 +283,31 @@ export function ProfileLower({
               </ol>
               <p className="mt-3 text-[0.875rem] leading-relaxed text-[var(--gp-ink-quiet)]">
                 {evaluation.evidenceLedger === "pending"
-                  ? "The ledger holds these classes of source, not yet the individual records behind them. No source count is published until it does."
+                  ? "Source records are still being reconciled; counts appear when the ledger is complete. Sources are evidence, not votes — nothing here is averaged."
                   : "Sources are evidence, not votes. Nothing here is averaged."}
               </p>
             </div>
           </div>
+
+          {/* Who did this, on the page carrying the judgement.
+              A profile that names its rubric, its evidence and its cut-off but
+              not its author is asking to be trusted by an institution that does
+              not exist. One editor is the honest description and, argued
+              properly on /about, the stronger one. */}
+          <p
+            className="mt-7 max-w-[54rem] border-t pt-4 text-[0.9375rem] leading-relaxed text-[var(--gp-ink-soft)]"
+            style={{ borderColor: "rgba(22,24,28,0.18)" }}
+          >
+            Researched and scored by{" "}
+            <span className="text-[var(--gp-ink)]">{SITE_EDITOR.long}</span> —
+            one editor, one calibrated instrument.{" "}
+            <Link
+              href="/about"
+              className="underline decoration-[rgba(22,24,28,0.30)] underline-offset-[4px] hover:decoration-[var(--gp-ink)]"
+            >
+              About the editor and the method
+            </Link>
+          </p>
 
           {/* Credit, and — for artwork held on an evaluation basis — the full
               rights notice. Required wherever the image renders, so the basis

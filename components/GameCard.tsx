@@ -231,9 +231,15 @@ function TypographicSleeve({ children }: { children: React.ReactNode }) {
 function Extreme({ label, view }: { label: string; view: DimensionView }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
+      {/* The dimension's SHORT label, not its full rubric name. "Story &
+          Character Investment" truncates to "Story & Character Inv…" in a
+          three-up grid and disappears entirely on a phone, so the one thing
+          the row exists to say — which dimension this value belongs to — was
+          the first thing to go. The short label is the same word the radar
+          axis carries, so card and instrument name the axis identically. */}
       <dt className="truncate text-[0.8125rem] text-ink-quiet">
         <span className="sip-label mr-1.5">{label}</span>
-        {view.dimension.name}
+        {view.dimension.shortLabel}
       </dt>
       <dd className="sip-num shrink-0 text-[0.9375rem] text-ink">
         {view.display}

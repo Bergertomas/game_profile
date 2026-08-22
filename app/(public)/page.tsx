@@ -6,6 +6,7 @@ import { listGameProfiles } from "@/lib/data/games";
 import { accentFor } from "@/lib/profile/accent";
 import type { ProfileView } from "@/lib/profile/build";
 import { dimensionsInRadarOrder } from "@/lib/rubric";
+import { SITE_EDITOR } from "@/lib/site";
 import type { CSSProperties } from "react";
 
 /**
@@ -45,11 +46,27 @@ export default async function HomePage() {
             published rubric, so you can see what a game is actually good at —
             and what might make it wrong for you.
           </p>
+          {/* No aggregate figure appears in this copy, including as an
+              example. Printing one to argue against it still teaches the
+              reader that a single number is the unit of comparison here, and
+              it is the exact figure the product refuses to publish. The
+              argument is stronger made in shapes. */}
           <p className="sip-prose mt-4 max-w-[46rem] text-[1.0625rem] text-ink-soft">
-            We never average them into an overall score. An 87 can describe a
-            beautifully written but clumsy RPG or a nearly storyless,
-            mechanically perfect action game, and those are completely different
-            purchases.
+            We never average them into an overall score. Profiles that look
+            equally strong can describe completely different purchases — a
+            beautifully written but mechanically clumsy RPG, or a nearly
+            storyless, mechanically exact action game. The shape tells them
+            apart; a single number never could.
+          </p>
+          <p className="sip-label mt-5 text-ink-quiet">
+            Researched and scored by {SITE_EDITOR.short}, one profile at a time
+            ·{" "}
+            <Link
+              href="/about"
+              className="underline decoration-rule-strong underline-offset-[4px] transition-colors duration-150 hover:decoration-ink"
+            >
+              About
+            </Link>
           </p>
         </div>
       </section>

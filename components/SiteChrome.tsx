@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { SITE_NAME, SITE_TAGLINE } from "@/lib/site";
+import { SITE_EDITOR, SITE_NAME, SITE_TAGLINE } from "@/lib/site";
 
 /**
  * The wordmark, split so the question mark can be styled and animated on its
@@ -27,11 +27,14 @@ const WORDMARK = SITE_NAME.replace(/\?+$/, "");
  * do — and nodding when you point at it. A solemn newspaper masthead would be
  * a more impressive piece of design and a worse fit for what this is.
  *
- * ── Why there are two links and not six ────────────────────────────────────
+ * ── Why the nav lists exactly the rooms that exist ─────────────────────────
  *
- * Because there are two destinations. Search, Discover and Compare are real
- * plans and are not built, and navigation that promises rooms that do not
- * exist is the fastest way to make a small product feel like a mock-up.
+ * The launch header is fixed: Find · Compare · How we score · About. It is not
+ * built all at once, because navigation that promises rooms that do not exist
+ * is the fastest way to make a small product feel like a mock-up. Each entry
+ * appears when its room does — About arrives here with the About page, Find
+ * with search, Compare with the comparison surface — and the order they will
+ * finally sit in is already decided, so nothing gets rearranged later.
  */
 
 export function SiteHeader() {
@@ -47,13 +50,23 @@ export function SiteHeader() {
             {SITE_TAGLINE}
           </span>
         </Link>
-        <nav aria-label="Primary">
-          <Link
-            href="/methodology"
-            className="sip-label text-bone-soft underline decoration-transparent decoration-2 underline-offset-[6px] transition-colors duration-150 hover:text-bone hover:decoration-signal"
-          >
-            How we score
-          </Link>
+        {/* Touch targets are 44px tall on a phone without becoming pills: the
+            link keeps its text-only appearance and grows its own hit area. */}
+        <nav aria-label="Primary" className="flex flex-wrap items-center gap-x-5 gap-y-1">
+          {(
+            [
+              ["/methodology", "How we score"],
+              ["/about", "About"],
+            ] as const
+          ).map(([href, label]) => (
+            <Link
+              key={href}
+              href={href}
+              className="sip-label inline-flex min-h-11 items-center px-1 text-bone-soft underline decoration-transparent decoration-2 underline-offset-[6px] transition-colors duration-150 hover:text-bone hover:decoration-signal sm:min-h-0 sm:px-0"
+            >
+              {label}
+            </Link>
+          ))}
         </nav>
       </div>
     </header>
@@ -74,8 +87,17 @@ export function SiteFooter() {
           is before you buy it. No overall score, and not a review aggregator —
           the point is what a game is, not where it ranks.
         </p>
+        {/* The attribution belongs on every page, not only on the profile
+            carrying a judgement: who does this is a property of the site. */}
         <p className="sip-label mt-6 text-bone-quiet">
-          Game Profile Scoring Rubric v1.0 · Profiles are editorial judgements
+          Researched and scored by {SITE_EDITOR.short} ·{" "}
+          <Link
+            href="/about"
+            className="underline decoration-rule-bone-strong underline-offset-[5px] transition-colors duration-150 hover:text-bone hover:decoration-signal"
+          >
+            About
+          </Link>{" "}
+          · Game Profile Scoring Rubric v1.0 · Profiles are editorial judgements
           against a{" "}
           <Link
             href="/methodology"

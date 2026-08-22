@@ -64,6 +64,7 @@ app/
     games/[slug]/[scope]/      a sibling profile scope; the primary key 308s
     games/[slug]/opengraph-image  prerendered share card, silhouette and all
     methodology/page.tsx       renders itself from the typed rubric
+    about/page.tsx             authorship, evidence states, and why no overall score
     dev/radar-states/          unknown/range harness, non-production only
   admin/                       the editorial tool. Authenticated, noindex, never prerendered
     layout.tsx                 the shell, and the guard every page passes through
@@ -459,7 +460,7 @@ not post them anywhere durable. See
 
 ## Not built, deliberately
 
-Search, `/discover`, `/compare`, `/about` and the evaluation editor are
-Phases 2C–5. Public accounts, reviews, comments, social features, AI chat,
+Search, `/discover` and `/compare` are Phase 3–4 (`/about` shipped with the
+B1 trust slice). Public accounts, reviews, comments, social features, AI chat,
 recommendation ML and a public aggregate score are out of scope for the product,
 not merely deferred.

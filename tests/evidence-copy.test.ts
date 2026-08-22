@@ -91,8 +91,10 @@ describe("The profile page on a pending ledger", () => {
 
   it("does not let the rows and the evidence section contradict each other", () => {
     const html = render(pendingProfile);
-    // The foot of the page says no count is published…
-    expect(html).toContain("No source count is published until it does");
+    // The foot of the page says counts are still to come…
+    expect(html).toContain(
+      "Source records are still being reconciled; counts appear when the ledger is complete",
+    );
     // …so nothing above it may publish one.
     expect(html).not.toMatch(NUMERIC_SOURCE_CLAIM);
   });

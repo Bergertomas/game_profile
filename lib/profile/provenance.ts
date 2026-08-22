@@ -91,3 +91,52 @@ export function provenanceLabel(provenance: ScoreProvenance): string {
       return "Editorial evaluation";
   }
 }
+
+/**
+ * Provenance as a reader meets it, with the audit key kept underneath.
+ *
+ * `provenanceLabel` above is audit vocabulary: "Calibration round 1" is exact,
+ * checkable, and means nothing to somebody who has never read the calibration
+ * report. Published as the primary line it asked a visitor to take a filing
+ * reference as an explanation of where eight numbers came from.
+ *
+ * So the two jobs are separated rather than traded off. `reader` says what the
+ * provenance *means* for the numbers on the page; `audit` keeps the exact key
+ * beside it, demoted but never removed — a reader who wants to check which
+ * round, or an editor reconciling a report, still finds it on the page.
+ */
+export interface ProvenanceStatement {
+  /** Primary line. Plain language, no filing vocabulary. */
+  readonly reader: string;
+  /** Secondary key, rendered beneath: "calibration · round 1". */
+  readonly audit: string;
+}
+
+export function provenanceStatement(
+  provenance: ScoreProvenance,
+): ProvenanceStatement {
+  switch (provenance.kind) {
+    case "calibration":
+      return {
+        reader:
+          "Scored in the rubric's calibration set — the anchor profiles the published method was tuned on.",
+        // "calibration · round 1", not "calibration · calibration round 1":
+        // the round's public label already carries the word.
+        audit: provenance.round
+          ? `calibration · ${provenance.round.replace("_", " ")}`
+          : "calibration",
+      };
+    case "derived":
+      return {
+        reader:
+          "Produced against the rubric without editorial sign-off, so these numbers have not been through review.",
+        audit: "derived",
+      };
+    case "editorial":
+      return {
+        reader:
+          "Scored by the editor against the published Game Profile rubric.",
+        audit: "editorial",
+      };
+  }
+}

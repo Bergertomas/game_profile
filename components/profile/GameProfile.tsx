@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, type CSSProperties } from "react";
 import { formatYear } from "@/lib/format";
 import { accentFor } from "@/lib/profile/accent";
@@ -101,8 +102,18 @@ export function GameProfile({
             <h2 id="gp-profile" className="gp__label gp__label--bone">
               Profile
             </h2>
-            <span className="gp__label">
-              8 axes · 0–10 each · no overall score
+            {/* The reading key. An organic landing arrives on a profile, not
+                on the homepage, and the instrument assumes a literacy the
+                visitor has no reason to have yet. One line, in the label
+                voice, offering the method rather than explaining it here. */}
+            <span className="gp__label flex flex-wrap items-baseline gap-x-2">
+              <Link
+                href="/methodology"
+                className="text-[var(--gp-bone)] underline decoration-[rgba(237,235,231,0.32)] underline-offset-[5px] hover:decoration-[var(--gp-accent-lift)]"
+              >
+                First profile? How to read it →
+              </Link>
+              <span>· 8 axes · 0–10 each · no overall score</span>
             </span>
           </div>
 

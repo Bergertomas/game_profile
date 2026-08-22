@@ -384,9 +384,16 @@ These rules are enforced in the write layer, not merely hidden in the UI.
 
 ### 5.2 Planned routes
 
-- `/discover` — filterable catalog.
-- `/compare` — two-to-four-profile comparison.
+Launch-critical for the public MVP (built after Phase 2E, before beta):
+
 - `/about` — what Should I Play? is and is not.
+- `/compare` — two-profile comparison: a lightweight launcher page, with results at `/compare/[a]/[b]`; result pages are `noindex` at launch (§11.1).
+- Site search — client-side over a build-emitted index of titles, `game.aliases` and scope labels; no runtime search endpoint.
+
+Later (Phase 4+):
+
+- `/discover` — filterable catalog.
+- Compare beyond two profiles.
 
 ### 5.3 Admin routes
 
@@ -844,6 +851,8 @@ Every public profile needs:
 
 No `Review`, `AggregateRating`, or `reviewRating` schema is published.
 
+Compare result pages ship `noindex` at launch; indexing comparisons is a separate later decision requiring substantive authored comparison content. The `/compare` entry page is indexable.
+
 Preview/design/admin surfaces stay out of the public index and sitemap; authentication, not `noindex`, protects private editorial content.
 
 ### 11.2 Initial analytics vocabulary
@@ -983,13 +992,13 @@ Deliver Game #4 without fixture edits, author 3–5 real profiles through the to
 
 > A non-coding editor can create, evaluate, preview, validate, publish, deploy, and revise a Game Profile without touching source code.
 
-### Phase 3 — Catalog, search, and content scale
+### Phase 3 — Launch-critical public product
 
-**PENDING** — real search/aliases, catalog/home scaling, metadata adapter + manual fallback, 15–25 real profiles, stable scope navigation at scale.
+**PENDING; begins after Phase 2E** — catalog expansion toward 12–15 profiles; site search (build-emitted index + client matching; Postgres FTS + trigram per §9.10 is the catalog-scale successor); public shell/navigation; profile comprehension and trust-state corrections (§3.5, §14.3); About and authorship; two-profile Compare (`/compare` launcher + prerendered `noindex` result pages); responsive and accessibility hardening; artwork clearance policy for the launch shelf. Metadata adapter + manual fallback and scope navigation at scale continue as listed.
 
-### Phase 4 — Discover and Compare
+### Phase 4 — Discover and richer comparison
 
-**PENDING** — Discover filters, URL-persisted state, 2–4 profile Compare, meaningful difference summary, responsive behavior.
+**PENDING** — Discover filters, URL-persisted state, extension of Compare toward 2–4 profiles with a meaningful difference summary, richer discovery/taxonomy — each gated on its own product decision after the public MVP. Personal taste profiling, game↔person fit and personalization remain later still (§13 P2).
 
 ### Phase 5 — Public beta hardening
 
@@ -1280,10 +1289,10 @@ Public beta is ready when:
 - 40+ varied high-quality profiles exist;
 - released profiles have credible Medium/High confidence where evidence supports it;
 - pre-release profiles are unmistakably different;
-- search works for titles/common aliases;
+- search works for titles and common aliases (client-side over the build-emitted index at this scale);
 - multi-scope games navigate clearly;
 - mobile profiles are excellent;
-- Compare exists or has an explicit immediate beta commitment;
+- two-profile Compare exists, with all result pages `noindex` until a deliberate comparison-SEO decision;
 - Methodology and About are public;
 - no aggregate score exists in visible or machine-readable output;
 - a non-coding editor can create, publish, deploy, and revise;

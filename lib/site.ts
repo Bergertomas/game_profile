@@ -25,6 +25,69 @@ export const SITE_URL = "https://shouldiplay.gg";
 /** Retained from the original positioning: the product's one-line thesis. */
 export const SITE_TAGLINE = "What kind of good is it?";
 
+/**
+ * Who writes the profiles, and how that person is named in public.
+ *
+ * ── Why this is one constant ───────────────────────────────────────────────
+ *
+ * Naming the editor is a product decision the owner has not made yet (O1 in
+ * the public-design lock). Every surface that attributes the work — the
+ * profile byline, the footer, the About page — reads this one value, so the
+ * decision is a single edit here rather than a search across the site.
+ *
+ * ── Why the default is the role and not the name ───────────────────────────
+ *
+ * The three postures are not equally reversible. A published real name cannot
+ * be withdrawn: it is indexed, archived and quoted within days. "the editor"
+ * can become a name at any time, and the change costs one constant. So the
+ * build defaults to the reversible posture, and stays there until the owner
+ * chooses otherwise — the code must not make that choice by shipping first.
+ *
+ * This is deliberately NOT anonymity as a value. The About page argues the
+ * single-editor case explicitly, and the rubric, evidence classes and revision
+ * history are what make the judgement checkable regardless of the name on it.
+ */
+export type EditorIdentityVariant = "full_name" | "initials" | "role";
+
+export interface EditorIdentity {
+  readonly variant: EditorIdentityVariant;
+  /** Byline form, used mid-sentence: "Researched and scored by …". */
+  readonly short: string;
+  /** Attribution form, used where the sentence needs a subject. */
+  readonly long: string;
+  /** Whether the identity names a person, which some copy has to know. */
+  readonly namesAPerson: boolean;
+}
+
+export const EDITOR_IDENTITIES: Readonly<
+  Record<EditorIdentityVariant, EditorIdentity>
+> = {
+  full_name: {
+    variant: "full_name",
+    short: "Tomas Berger",
+    long: "Tomas Berger",
+    namesAPerson: true,
+  },
+  initials: {
+    variant: "initials",
+    short: "T.B.",
+    long: "T.B., the editor",
+    namesAPerson: true,
+  },
+  role: {
+    variant: "role",
+    short: "one editor",
+    long: "the editor",
+    namesAPerson: false,
+  },
+};
+
+/**
+ * The posture this build publishes under. Change this one value to settle O1;
+ * nothing else needs editing.
+ */
+export const SITE_EDITOR: EditorIdentity = EDITOR_IDENTITIES.role;
+
 export const SITE_DESCRIPTION =
   "Should I Play? gives every game a Game Profile: eight fixed dimensions scored " +
   "against a published rubric, so you can see what a game is actually good at — " +
