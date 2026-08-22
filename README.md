@@ -593,17 +593,21 @@ from the manifest.
 
 **Verify these at activation, because nothing local can.**
 
-- **Hyperdrive query caching.** The editorial binding has caching enabled with
-  Cloudflare's defaults (`max_age` 60s, `stale_while_revalidate` 15s), and
-  Hyperdrive does not invalidate cached reads when the application writes. Every
-  editorial action here is a write followed immediately by a read of what was
-  written, which is the case Cloudflare's own guidance says to route through a
-  cache-disabled configuration. Wrangler's local emulation does no caching, so a
-  green `cf:verify` proves nothing. After activation: write something, reload the
-  page that reads it, and if the write is not visible check Hyperdrive metrics by
-  `cacheStatus`. The documented fix is a second `--caching-disabled` Hyperdrive
-  configuration bound alongside the first. See
-  [ADR 0021](docs/decisions/0021-hyperdrive-is-the-deployed-admin-transport.md#amendment--n1-query-caching-on-this-binding-investigated-not-changed).
+- **Hyperdrive query caching — already corrected, confirm it is being used.**
+  Hyperdrive does not invalidate cached reads when the application writes, and
+  every editorial action here is a write followed immediately by a read of what
+  was written. The editorial binding therefore has **caching disabled**:
+  `should-i-play-editorial` (`6129a6b8…`) carries `caching: { disabled: true }`,
+  applied before any deployment request was ever made. One configuration, one
+  `HYPERDRIVE` binding, no second transport to route between. Wrangler's local
+  emulation does no caching either way, so a green `cf:verify` still proves
+  nothing about this. What remains is one look on first use: write something,
+  reload the page that reads it, and confirm Hyperdrive metrics report
+  `cacheStatus` **`disabled`** for the admin reads. If a future change ever
+  re-enables caching on this configuration, the active-request guard in
+  `dispatchDeployment` can be answered from a stale cache and two production
+  builds become possible again. See
+  [ADR 0021](docs/decisions/0021-hyperdrive-is-the-deployed-admin-transport.md#amendment--activation-prep-caching-is-disabled-on-this-configuration).
 - **The first real dispatch.** No Cloudflare Builds request has ever been made
   through this application. The first one is also the first test of the request
   lifecycle end to end.

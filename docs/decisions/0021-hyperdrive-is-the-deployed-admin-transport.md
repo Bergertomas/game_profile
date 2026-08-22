@@ -202,3 +202,62 @@ listed with the other activation checks in the README:
 > page that reads it. If the write is not visible, check Hyperdrive metrics by
 > `cacheStatus` for `hit` on the admin reads, and apply the cache-disabled
 > configuration above.
+
+**Superseded by the amendment below.** The correction was applied before first
+dispatch rather than after observing a failure, so the check above is now a
+confirmation rather than a decision point.
+
+## Amendment — activation prep: caching is disabled on this configuration
+
+Applied 2026-08-22, before any deployment request had ever been made.
+
+`should-i-play-editorial` (`6129a6b8…`) now carries `caching: { disabled: true }`.
+Same configuration, same id, same origin, same `HYPERDRIVE` binding, same
+`origin_connection_limit` of 20. Nothing in this repository changed to achieve
+it and nothing needed to: the binding resolves a configuration by id, and it is
+the configuration that was corrected.
+
+### Why in place, rather than a second configuration
+
+The amendment above proposed a second `--caching-disabled` configuration bound
+as `HYPERDRIVE_FRESH`, because that is the shape Cloudflare's documentation
+leads with — it is written for applications that have *both* kinds of read and
+must route between them. This application does not. The binding serves `/admin`
+and nothing else: every read behind it is an editor's read of editorial state,
+and every one of them is a read that must be fresh. Cloudflare names that case
+too — "disable query caching everywhere only when most reads must be fresh" —
+and for a transport whose entire traffic is admin traffic, *most* is *all*.
+
+So the second configuration would have been two pools against one database, a
+binding to select between, a code path to choose it, and an obsolete
+configuration to remember to delete. The simpler permanent state is one
+configuration that does not cache, and it is what a reader of `wrangler.jsonc`
+will find when they look the binding up.
+
+Caching remains off for the public path by construction rather than by
+configuration: the public site never reaches Hyperdrive at all (ADR 0017).
+
+### What this does and does not buy
+
+It removes the transport's ability to answer a read from a stale cache, which
+was the one thing that could defeat the active-request guard in
+`dispatchDeployment` — the advisory transaction lock serialises two dispatchers
+against each other, and can do nothing about a read that never reached the
+origin.
+
+It does **not** make `settleDeploymentRequest` newly safe, and that is worth
+saying because the two look alike. Settlement's guard is a compare-and-set
+predicate on the `UPDATE` itself, evaluated by Postgres against the real row, so
+a stale read could never have caused it to overwrite a resolved request. Fresh
+reads make the operator's *screen* honest; the CAS makes the *write* honest, and
+those are different guarantees held in different places.
+
+### What is left to observe at activation
+
+That caching is disabled is settled — it is a property of the configuration and
+is readable from the Cloudflare API. What still needs one look on first use is
+that the deployed Worker is exercising this configuration as expected: after
+activating remote `/admin`, write something, reload the page that reads it, and
+confirm Hyperdrive metrics report `cacheStatus` `disabled` for the admin reads
+rather than `hit` or `miss`. There is nothing to observe before then, because no
+admin request has ever reached this binding.
