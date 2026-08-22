@@ -863,6 +863,12 @@ export async function refreshBuildStatuses(
  * blocking because the request genuinely stopped being open, not because the
  * check was loosened.
  *
+ * And it only ever settles a request that is *still open at the moment it is
+ * written*. A request that resolved while the operator was looking at it is
+ * refused rather than overwritten, so an observed provider outcome cannot be
+ * replaced by a human judgement and the recorded prior state is the one the
+ * settlement actually replaced. See the lock inside the transaction below.
+ *
  * No network call and no transaction across one: settling is a local judgement
  * about a local row.
  */
@@ -871,33 +877,89 @@ export async function settleDeploymentRequest(
   requestId: string,
   actor: string,
 ): Promise<void> {
-  const [request] = await db
-    .select()
+  const [seen] = await db
+    .select({ state: t.deploymentRequests.state })
     .from(t.deploymentRequests)
     .where(eq(t.deploymentRequests.id, requestId))
     .limit(1);
 
   // Rules, not faults: both are things an editor can legitimately run into by
   // having two tabs open, and both belong next to the button rather than on an
-  // error page.
-  if (!request) {
+  // error page. This read is for the message; the decision is made under a lock
+  // below, because by the time the write happens this answer may be stale.
+  if (!seen) {
     throw new EditorialRuleError("That deployment request does not exist.");
   }
-  if (!UNRESOLVED_STATES.some((state) => state === request.state)) {
+  if (!UNRESOLVED_STATES.some((state) => state === seen.state)) {
     throw new EditorialRuleError(
       "Only a request that is still open can be settled by hand. This one is " +
-        `"${request.state.replace(/_/g, " ")}", so there is nothing left to ` +
+        `"${seen.state.replace(/_/g, " ")}", so there is nothing left to ` +
         "decide.",
     );
   }
 
-  const priorState = request.state;
-
   await inOneTransaction(db, async (tx) => {
-    await tx
+    /*
+     * Lock the row BEFORE deciding, because the check above is not the write.
+     *
+     * The read above happens on its own statement and its own snapshot, and
+     * another operation can resolve this request before the update below runs.
+     * `verifyProduction` does exactly that: it settles a matching request to
+     * `build_reported_success` the moment a production manifest names its build
+     * uuid, on a different connection, in a transaction of its own. An
+     * unconditional update would then overwrite an outcome the provider was
+     * actually observed to produce with `superseded`, and append an immutable
+     * event naming a prior state the row had already left — a false record in
+     * the one table that refuses UPDATE and DELETE and so can never be
+     * corrected.
+     *
+     * `FOR UPDATE` is the same mechanism `finalizePublication` uses for the
+     * same reason: from this statement onward nothing else can change this row
+     * until this transaction ends, so what is read here is what is written, and
+     * `priorState` describes the row the settlement actually replaced. A
+     * concurrent resolver either committed before this lock was taken — in
+     * which case the state read here is the resolved one and settlement is
+     * refused — or waits, and finds the request already `superseded`.
+     */
+    const [request] = await tx
+      .select()
+      .from(t.deploymentRequests)
+      .where(eq(t.deploymentRequests.id, requestId))
+      .for("update");
+
+    if (!request) {
+      throw new EditorialRuleError("That deployment request does not exist.");
+    }
+    if (!UNRESOLVED_STATES.some((state) => state === request.state)) {
+      throw new EditorialRuleError(
+        "This request resolved while you were looking at it, so there is " +
+          "nothing left to settle.",
+      );
+    }
+
+    const priorState = request.state;
+
+    // Compare-and-set, saying the same thing again where the write happens.
+    // Under the lock above this cannot fail; it is here so that the statement
+    // which changes the state also carries the condition the change depends on,
+    // rather than leaving that condition somewhere a later edit might move.
+    const settled = await tx
       .update(t.deploymentRequests)
       .set({ state: "superseded", lastCheckedAt: new Date() })
-      .where(eq(t.deploymentRequests.id, requestId));
+      .where(
+        and(
+          eq(t.deploymentRequests.id, requestId),
+          inArray(t.deploymentRequests.state, [...UNRESOLVED_STATES]),
+        ),
+      )
+      .returning({ id: t.deploymentRequests.id });
+
+    if (settled.length === 0) {
+      throw new EditorialRuleError(
+        "This request resolved while you were looking at it, so there is " +
+          "nothing left to settle.",
+      );
+    }
 
     await recordEvent(tx, {
       kind: "dispatch_coalesced",
