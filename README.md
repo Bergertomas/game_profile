@@ -17,10 +17,24 @@ only. See [Brand, Discoverability & Hosting](docs/Should_I_Play_Brand_and_SEO_Fo
 This repository is at **Phase 2D**: the public profile vertical slice is
 complete and its published profiles are read from Postgres at build time, and
 the editorial tool covers games, metadata, rights-aware artwork, profile scopes,
-full evaluation authoring, a public-faithful preview, the publish gate and
-transactional publication. Triggering a production rebuild from a publication —
-and so distinguishing Published from Live — is the remaining half of Phase 2D.
-See the [Master Product & Build Plan v0.8](docs/Game_Profile_Master_Product_and_Build_Plan_v0.8.md).
+full evaluation authoring, a public-faithful preview, the publish gate,
+transactional publication, and — since 2D-2 — deployment requests and proof of
+what production is actually serving. See the
+[Master Product & Build Plan v0.8](docs/Game_Profile_Master_Product_and_Build_Plan_v0.8.md).
+
+**2D-2 is built and deployed; it has never been exercised.** Those are different
+claims and the difference is the whole point of the phase, so it is stated
+plainly rather than rounded to "done":
+
+| | |
+|---|---|
+| **Implemented and deployed** | migration `0009` and its schema; deployment-request persistence; the Cloudflare Builds client; manifest generation; the `/deployment-manifest` route; the reconciliation and Live-proof machinery; the `/admin` deployment surface |
+| **Proven** | a production build from `main`; `/deployment-manifest` live on the canonical origin; the corpus and digest it reports matching the three published evaluations; behaviour under workerd via `cf:verify`; migration `0009` applied to the authoritative database |
+| **Not yet exercised** | a real Cloudflare Builds POST from this application; a real build uuid persisted and reconciled; the first `production_verified` observation; one complete Publish → dispatch → Live cycle |
+
+All four deployment tables are empty and no dispatch has ever been attempted, so
+the first activation is genuinely unproven rather than assumed. Phase 2 is not
+frozen and activation is not complete.
 
 **The editorial tool ships switched off.** `/admin` answers 404 unless a
 deployment carries both an identity provider and a request-time editorial
@@ -302,9 +316,17 @@ part. Everything available on the requesting side describes a request:
 | **the origin serves a manifest naming version V** | **production serves V** |
 
 So the deployed artifact publishes its own inventory at `/deployment-manifest`,
-generated during the same `next build` that renders the pages, from the same
-corpus read. Verification fetches it, re-derives its digest, and only then
-records what production serves. Build status is recorded and shown, and it is
+generated during the same `next build` that renders the pages, through the same
+memoised data boundary they read. Verification fetches it from the production
+origin, re-derives its digest, and only then records what production serves.
+
+That memo is per process — Next renders static pages across several worker
+processes — so a build reads the corpus once per render worker, not once in
+total. Within a process the manifest and the pages beside it cannot disagree,
+which is what rules out assembling the manifest from a separate query. Across
+processes nothing is promised, and nothing needs to be: the digest makes the
+manifest self-checking, and what is finally proven is what the deployed origin
+serves rather than what any build process believed while assembling it. Build status is recorded and shown, and it is
 advisory — it answers "why has this not deployed", never "has this deployed".
 
 Three states, because two would lie:
@@ -379,6 +401,32 @@ ADMIN_DATABASE_URL=postgres://…/game_profile \
 ADMIN_DEV_IDENTITY=you@example.com \
   npm run dev            # /admin is served at http://localhost:3000/admin
 ```
+
+**The direct connection verifies the server's certificate.** It used to pass
+`ssl: "require"`, which in postgres.js negotiates TLS and then switches
+certificate verification *off* — encrypted, but to whoever answered. It now
+passes `{ rejectUnauthorized: true }`, the driver's supported way to verify, and
+every hosted database works unchanged. A local Postgres that speaks no TLS needs
+the standard libpq opt-out spelled in the URL:
+
+```bash
+ADMIN_DATABASE_URL=postgres://…@127.0.0.1:5432/game_profile?sslmode=disable
+```
+
+That is the only way to turn verification off, it is visible in the connection
+string, and it applies to that one connection. Hyperdrive is unaffected: it
+terminates the transport itself and the Worker passes no TLS options at all
+(ADR 0021).
+
+**The application role is granted `SELECT, INSERT, UPDATE, DELETE` — never
+`GRANT ALL`.** Withholding `TRUNCATE` is part of the deployment audit trail's
+immutability, not tidiness: the append-only triggers are per-row on UPDATE and
+DELETE, so a `TRUNCATE` fires none of them and would erase the trail in one
+statement. `ALL` on a table includes `TRUNCATE`. In the authoritative database
+the role is `should_i_play_admin` and holds exactly the four privileges above;
+`tests/db/regression.sh` asserts that set is sufficient for the application and
+insufficient to erase the trail. See
+[ADR 0022](docs/decisions/0022-deployment-requests-and-proof-of-live.md#f-truncate-and-the-privilege-boundary-this-rests-on).
 
 The development identity works **only under a real `next dev`** — it needs both
 a non-production `SITE_ENV` and `NODE_ENV=development`, so no built artefact can
@@ -524,17 +572,46 @@ is a deliberate act with named steps. It changes no code.
 4. **Verify before trusting it.** Open `/admin/deployments` and press **Check
    production now** *before* requesting anything. It needs no credential, and it
    establishes what production is currently serving so the first request has a
-   baseline to be compared against.
+   baseline to be compared against. Until it has been pressed once, every
+   published profile reads *not proven* — which is correct, and is what an
+   unexercised deployment looks like.
 
 Rolling the token back is deleting the variable: publication is unaffected,
 verification keeps working, and the tool reports that no build can be requested.
 
-**Two things that are not this runbook.** An artifact deployed before migration
-`0009` answers 404 at `/deployment-manifest`; verification says so in those
-words, and it resolves itself on the next deploy. And a request stuck at
-*dispatch unknown* cannot be settled by looking — there is no build id to ask
-about — so check the Workers Builds dashboard and record what you found with the
-button the page offers.
+**A request that will never resolve itself.** Three states can strand one:
+*pending* (the row committed but the dispatch outcome never did), *dispatch
+unknown* (no build id was returned, so there is nothing to ask Cloudflare
+about), and *dispatched* whose build outcome cannot be read — which happens
+whenever `CLOUDFLARE_WORKER_TAG` is unset, when a build has aged off
+Cloudflare's recent list, and always when a build **failed**, since a failed
+build never appears in a manifest. Each blocks every later manual request. Check
+the Workers Builds dashboard and use **Stop waiting for this request** on the
+deployment page. That records that you stopped waiting, and deliberately not
+that the build failed: if it does deploy after all, verification still proves it
+from the manifest.
+
+**Verify these at activation, because nothing local can.**
+
+- **Hyperdrive query caching.** The editorial binding has caching enabled with
+  Cloudflare's defaults (`max_age` 60s, `stale_while_revalidate` 15s), and
+  Hyperdrive does not invalidate cached reads when the application writes. Every
+  editorial action here is a write followed immediately by a read of what was
+  written, which is the case Cloudflare's own guidance says to route through a
+  cache-disabled configuration. Wrangler's local emulation does no caching, so a
+  green `cf:verify` proves nothing. After activation: write something, reload the
+  page that reads it, and if the write is not visible check Hyperdrive metrics by
+  `cacheStatus`. The documented fix is a second `--caching-disabled` Hyperdrive
+  configuration bound alongside the first. See
+  [ADR 0021](docs/decisions/0021-hyperdrive-is-the-deployed-admin-transport.md#amendment--n1-query-caching-on-this-binding-investigated-not-changed).
+- **The first real dispatch.** No Cloudflare Builds request has ever been made
+  through this application. The first one is also the first test of the request
+  lifecycle end to end.
+- **The application role's privileges.** No test here can reach the
+  authoritative database. That the role holds `SELECT, INSERT, UPDATE, DELETE`
+  and *not* `TRUNCATE` on the four deployment tables is asserted against a
+  modelled role in `tests/db/regression.sh` and remains externally true of the
+  real one.
 
 ### Runbook: protect preview URLs (one click, once, account-wide)
 

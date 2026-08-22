@@ -432,7 +432,7 @@ async function buildProfiles(
   const scoresByEvaluation = groupBy(scoreRows, (row) => row.evaluationId);
   const overridesByScore = groupBy(
     overrideRows,
-    (row) => `${row.evaluationId} ${row.subcriterionId}`,
+    (row) => `${row.evaluationId}\u0000${row.subcriterionId}`,
   );
   const assessmentsByEvaluation = groupBy(
     assessmentRows,
@@ -557,7 +557,7 @@ function toEvaluation(
   const dimensions: Record<string, Record<string, SubcriterionEntry>> = {};
   for (const score of scores) {
     const overrides =
-      overridesByScore.get(`${score.evaluationId} ${score.subcriterionId}`) ??
+      overridesByScore.get(`${score.evaluationId}\u0000${score.subcriterionId}`) ??
       [];
     (dimensions[score.dimensionKey] ??= {})[score.subcriterionKey] = {
       value: toSubcriterionValue(score.score),

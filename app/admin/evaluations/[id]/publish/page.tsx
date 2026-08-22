@@ -3,7 +3,10 @@ import { notFound } from "next/navigation";
 import { publishEvaluationAction } from "@/app/admin/evaluation-actions";
 import { PublishPanel } from "@/components/admin/PublishPanel";
 import { Notice, Panel } from "@/components/admin/ui";
-import { readEvaluationDeploymentStatus } from "@/lib/admin/deployments";
+import {
+  readEvaluationDeploymentStatus,
+  type PublishedDeploymentStatus,
+} from "@/lib/admin/deployments";
 import { readPublishReadiness } from "@/lib/admin/publication";
 
 /**
@@ -28,6 +31,42 @@ import { readPublishReadiness } from "@/lib/admin/publication";
  * — and they are answered by an attestation rather than by a check passing.
  * Mixing the two would teach an editor to click past both.
  */
+/**
+ * What each deployment state means for THIS evaluation, in a sentence.
+ *
+ * `no_longer_served` is here because its absence was a lie. A superseded
+ * snapshot that production no longer serves was rendered with the
+ * awaiting-deployment sentence — "This version is Published and awaiting
+ * deployment" — under a warning tone, which told an editor that a version they
+ * had already replaced was the current one and that a deployment was
+ * outstanding for it. Neither was true, and no build would ever have changed it.
+ *
+ * A superseded version that production is still serving keeps the first
+ * sentence below, unchanged: it is true, and it is the one case §9.8 asks the
+ * tool to surface, because the previous deployed artifact goes on serving until
+ * a new one lands.
+ */
+const DEPLOYMENT_COPY: Record<PublishedDeploymentStatus, string> = {
+  live: "Production is serving this version. Verified by reading the deployed artifact's own manifest, not inferred from a build report.",
+  awaiting_deployment:
+    "Production was verified and is serving a different version for this scope. This version is Published and awaiting deployment.",
+  no_longer_served:
+    "Production was verified and no longer serves this version. That is expected: this is preserved editorial history, not the current published version, so no deployment is outstanding for it.",
+  unproven:
+    "Whether production serves this version is not currently proven: it has not been verified recently enough to say either way.",
+};
+
+/** Only a genuine outstanding gap warns. History and proof do not. */
+const DEPLOYMENT_TONE: Record<
+  PublishedDeploymentStatus,
+  "info" | "warning"
+> = {
+  live: "info",
+  awaiting_deployment: "warning",
+  no_longer_served: "info",
+  unproven: "warning",
+};
+
 export default async function PublishPage({
   params,
 }: {
@@ -57,14 +96,8 @@ export default async function PublishPage({
       ) : null}
 
       {deployment ? (
-        <Notice
-          tone={deployment.status === "live" ? "info" : "warning"}
-        >
-          {deployment.status === "live"
-            ? "Production is serving this version. Verified by reading the deployed artifact's own manifest, not inferred from a build report."
-            : deployment.status === "awaiting_deployment"
-              ? "Production was verified and is serving a different version for this scope. This version is Published and awaiting deployment."
-              : "Whether production serves this version is not currently proven: it has not been verified recently enough to say either way."}{" "}
+        <Notice tone={DEPLOYMENT_TONE[deployment.status]}>
+          {DEPLOYMENT_COPY[deployment.status]}{" "}
           <Link href="/admin/deployments" className="text-ink underline">
             Deployment status
           </Link>

@@ -1,3 +1,4 @@
+import { byCodeUnit } from "@/lib/order";
 import {
   dimensionsInRadarOrder,
   getRubric,
@@ -104,22 +105,6 @@ export interface ProfileView {
    * describes distribution, never an overall rating.
    */
   readonly shapeDescription: string;
-}
-
-/**
- * A stable comparator that does not depend on anything outside this process.
- *
- * Deliberately NOT `localeCompare`, and deliberately not left to the database.
- * `ORDER BY alias` in Postgres sorts under the database's collation: a `C`
- * database returns "AW2" before "Alan Wake II" (byte order), an `en_US.utf8`
- * one returns the reverse (case-insensitive first pass). CI runs the second and
- * a laptop may run the first, so a parity test that passed locally failed there
- * — and the underlying bug is not the test: a game's `alternateName` list in
- * JSON-LD would have been ordered by whichever database happened to build the
- * site.
- */
-function byCodeUnit(a: string, b: string): number {
-  return a < b ? -1 : a > b ? 1 : 0;
 }
 
 /**

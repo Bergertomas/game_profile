@@ -4,7 +4,11 @@ import {
   ProfilePageBody,
   profileMetadata,
 } from "@/components/profile/ProfilePage";
-import { getGameProfile, listGameSlugs } from "@/lib/data/games";
+import {
+  getGameProfile,
+  listGameSlugs,
+  whenCorpusIsReadable,
+} from "@/lib/data/games";
 
 /**
  * A game's canonical public address: its PRIMARY profile scope.
@@ -39,6 +43,17 @@ import { getGameProfile, listGameSlugs } from "@/lib/data/games";
  * published profile and calls `notFound()`, which is the same 404 by a
  * different route. The share-card route below keeps the export, where it has
  * always worked.
+ *
+ * ── That on-demand render must not read a database ─────────────────────────
+ *
+ * It cannot: the public path is build-time Postgres only (ADR 0017), so at
+ * request time in the Worker there is no `DATABASE_URL` and a production bundle
+ * refuses to load a corpus without one. That refusal used to happen inside
+ * `getGameProfile`, BEFORE `notFound()` could be reached, so production
+ * answered 500 for every unknown or stale `/games/*` URL while this comment
+ * claimed it 404s. `whenCorpusIsReadable` is what makes the claim true: this
+ * runtime having no corpus and this address having no profile are the same
+ * answer for a route where every real profile is prerendered.
  */
 
 export async function generateStaticParams() {
@@ -52,7 +67,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const profile = await getGameProfile(slug);
+  const profile = await whenCorpusIsReadable(() => getGameProfile(slug), null);
   if (!profile) return { title: "Not found", robots: { index: false } };
   return profileMetadata(profile);
 }
@@ -63,7 +78,7 @@ export default async function GameProfilePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const profile = await getGameProfile(slug);
+  const profile = await whenCorpusIsReadable(() => getGameProfile(slug), null);
   if (!profile) notFound();
   return <ProfilePageBody profile={profile} />;
 }

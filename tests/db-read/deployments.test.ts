@@ -7,7 +7,8 @@ import * as t from "@/lib/db/schema";
 import type { AdminTransaction } from "@/lib/admin/db";
 import {
   dispatchDeployment,
-  markDispatchNotDelivered,
+  settleDeploymentRequest,
+  evaluationDeploymentStatus,
   readDeploymentOverview,
   readLiveProof,
   refreshBuildStatuses,
@@ -735,8 +736,91 @@ describe("Build status is advisory", () => {
   });
 });
 
-describe("Settling an unknown dispatch by hand", () => {
-  it("closes it and records that a person decided", async () => {
+/**
+ * Every durable unresolved state must have a way out that does not need psql.
+ *
+ * Before N1 exactly one of the three could be settled. A `pending` request —
+ * committed, then abandoned when the process died before its dispatch outcome
+ * was written — and a `dispatched` one whose build cannot be polled were both
+ * permanent: they blocked every later manual request, and no application path
+ * could close them. These are the tests for each dead end.
+ */
+describe("Settling a request that nothing here can resolve", () => {
+  /**
+   * The state reached by a row that committed and was then abandoned. Produced
+   * directly, because the only honest way to reach it is a crash.
+   */
+  async function abandonedPendingRequest(
+    store: DeploymentStore,
+  ): Promise<string> {
+    const [created] = await store
+      .insert(t.deploymentRequests)
+      .values({
+        reason: "manual",
+        branch: "main",
+        requestedBy: "editor@example.com",
+      })
+      .returning({ id: t.deploymentRequests.id });
+    return created!.id;
+  }
+
+  it("settles a pending request abandoned before its outcome was written", async () => {
+    await inRolledBackTransaction(async (store) => {
+      const requestId = await abandonedPendingRequest(store);
+
+      const [before] = await store.select().from(t.deploymentRequests);
+      expect(before!.state).toBe("pending");
+
+      await settleDeploymentRequest(store, requestId, "editor@example.com");
+
+      const [after] = await store.select().from(t.deploymentRequests);
+      expect(after!.state).toBe("superseded");
+    });
+  });
+
+  it("settles a dispatched request whose build outcome cannot be read", async () => {
+    await inRolledBackTransaction(async (store) => {
+      const report = await dispatchDeployment(store, {
+        reason: "manual",
+        actor: "editor@example.com",
+        transport: accepting("build-stranded"),
+        env: CONFIGURED,
+      });
+      const requestId = report.kind === "dispatched" ? report.requestId : "";
+
+      // The configuration that strands it: no worker tag, so build status is
+      // unreadable, and the build will never appear in a manifest either.
+      const { CLOUDFLARE_WORKER_TAG: _omitted, ...WITHOUT_TAG } = CONFIGURED;
+      await refreshBuildStatuses(store, {
+        transport: {
+          fetch: async () => {
+            throw new Error("polled Cloudflare without a worker tag");
+          },
+        },
+        actor: "editor@example.com",
+        env: WITHOUT_TAG,
+      });
+
+      // Polling looked at it and learned nothing: with no worker tag there is no
+      // endpoint to ask, so the request stays exactly where it was, forever.
+      const [stranded] = await store.select().from(t.deploymentRequests);
+      expect(stranded!.state).toBe("dispatched");
+      expect(stranded!.providerStatus).toBeNull();
+
+      const observed = await store
+        .select({ summary: t.deploymentEvents.summary })
+        .from(t.deploymentEvents)
+        .where(eq(t.deploymentEvents.kind, "build_status_observed"));
+      expect(observed.at(-1)!.summary).toMatch(/CLOUDFLARE_WORKER_TAG is unset/);
+
+      await settleDeploymentRequest(store, requestId, "editor@example.com");
+
+      const [after] = await store.select().from(t.deploymentRequests);
+      expect(after!.state).toBe("superseded");
+    });
+  });
+
+  it("settles a request whose dispatch outcome was never established", async () => {
     await inRolledBackTransaction(async (store) => {
       const report = await dispatchDeployment(store, {
         reason: "manual",
@@ -746,31 +830,441 @@ describe("Settling an unknown dispatch by hand", () => {
       });
       const requestId = report.kind === "unknown" ? report.requestId : "";
 
-      await markDispatchNotDelivered(store, requestId, "editor@example.com");
+      await settleDeploymentRequest(store, requestId, "editor@example.com");
 
-      const [request] = await store.select().from(t.deploymentRequests);
-      expect(request!.state).toBe("refused");
-
-      const summaries = await store
-        .select({ summary: t.deploymentEvents.summary })
-        .from(t.deploymentEvents);
-      expect(summaries.at(-1)!.summary).toMatch(/a human judgement/);
+      const [after] = await store.select().from(t.deploymentRequests);
+      expect(after!.state).toBe("superseded");
     });
   });
 
-  it("refuses to settle a request that is not in doubt", async () => {
+  it("records the state it was settled from, and that a person decided", async () => {
     await inRolledBackTransaction(async (store) => {
       const report = await dispatchDeployment(store, {
         reason: "manual",
         actor: "editor@example.com",
-        transport: accepting("b-1"),
+        transport: accepting("build-7"),
         env: CONFIGURED,
       });
       const requestId = report.kind === "dispatched" ? report.requestId : "";
 
+      await settleDeploymentRequest(store, requestId, "chief@example.com");
+
+      const events = await store
+        .select()
+        .from(t.deploymentEvents)
+        .orderBy(t.deploymentEvents.seq);
+      const settlement = events.at(-1)!;
+
+      expect(settlement.actor).toBe("chief@example.com");
+      expect(settlement.requestId).toBe(requestId);
+      expect(settlement.summary).toMatch(/a human judgement/);
+      expect(settlement.summary).toMatch(/dispatched/);
+      expect(settlement.detail).toMatchObject({
+        resolution: "settled_by_operator",
+        priorState: "dispatched",
+        priorProviderBuildId: "build-7",
+      });
+    });
+  });
+
+  /**
+   * The line settlement must not cross. `superseded` says "we stopped waiting";
+   * it must never be readable as "Cloudflare refused" or "the build failed",
+   * because an operator cannot know either without provider truth.
+   */
+  it("never records a provider outcome it did not observe", async () => {
+    await inRolledBackTransaction(async (store) => {
+      const report = await dispatchDeployment(store, {
+        reason: "manual",
+        actor: "editor@example.com",
+        transport: accepting("build-8"),
+        env: CONFIGURED,
+      });
+      const requestId = report.kind === "dispatched" ? report.requestId : "";
+
+      await settleDeploymentRequest(store, requestId, "editor@example.com");
+
+      const [after] = await store.select().from(t.deploymentRequests);
+      expect(after!.state).not.toBe("refused");
+      expect(after!.state).not.toBe("build_reported_success");
+      expect(after!.state).not.toBe("build_reported_failure");
+      // The provider's own fields are untouched: nothing was observed.
+      expect(after!.providerStatus).toBeNull();
+      expect(after!.providerBuildId).toBe("build-8");
+    });
+  });
+
+  it("does not make anything Live", async () => {
+    await inRolledBackTransaction(async (store) => {
+      const report = await dispatchDeployment(store, {
+        reason: "manual",
+        actor: "editor@example.com",
+        transport: accepting("build-9"),
+        env: CONFIGURED,
+      });
+      const requestId = report.kind === "dispatched" ? report.requestId : "";
+
+      await settleDeploymentRequest(store, requestId, "editor@example.com");
+
+      expect((await readLiveProof(store)).kind).toBe("unproven");
+    });
+  });
+
+  it("unblocks the retry that was refused while it was open", async () => {
+    await inRolledBackTransaction(async (store) => {
+      const first = await dispatchDeployment(store, {
+        reason: "manual",
+        actor: "editor@example.com",
+        transport: accepting("build-a"),
+        env: CONFIGURED,
+      });
+      const requestId = first.kind === "dispatched" ? first.requestId : "";
+
+      // Blocked while it is open — the active-request guard, still doing its job.
+      const blocked = await dispatchDeployment(store, {
+        reason: "retry",
+        actor: "editor@example.com",
+        transport: accepting("build-b"),
+        env: CONFIGURED,
+      });
+      expect(blocked.kind).toBe("coalesced");
+
+      await settleDeploymentRequest(store, requestId, "editor@example.com");
+
+      const retried = await dispatchDeployment(store, {
+        reason: "retry",
+        actor: "editor@example.com",
+        transport: accepting("build-b"),
+        env: CONFIGURED,
+      });
+      expect(retried.kind).toBe("dispatched");
+    });
+  });
+
+  it("keeps retry lineage in the trail", async () => {
+    await inRolledBackTransaction(async (store) => {
+      const first = await dispatchDeployment(store, {
+        reason: "manual",
+        actor: "editor@example.com",
+        transport: accepting("build-a"),
+        env: CONFIGURED,
+      });
+      const firstId = first.kind === "dispatched" ? first.requestId : "";
+      await settleDeploymentRequest(store, firstId, "editor@example.com");
+
+      await dispatchDeployment(store, {
+        reason: "retry",
+        actor: "editor@example.com",
+        transport: accepting("build-b"),
+        env: CONFIGURED,
+      });
+
+      const [lineage] = await store
+        .select()
+        .from(t.deploymentEvents)
+        .where(eq(t.deploymentEvents.kind, "retry_requested"));
+
+      expect(lineage).toBeDefined();
+      expect(lineage!.detail).toMatchObject({
+        previousRequestId: firstId,
+        previousState: "superseded",
+      });
+    });
+  });
+
+  /** A settled request stays settled; a resolved one was never open. */
+  it("refuses to settle a request that is not open", async () => {
+    await inRolledBackTransaction(async (store) => {
+      const report = await dispatchDeployment(store, {
+        reason: "manual",
+        actor: "editor@example.com",
+        transport: cloudflareReturning(400, { errors: [{ message: "no" }] }),
+        env: CONFIGURED,
+      });
+      const requestId = report.kind === "refused" ? report.requestId : "";
+
       await expect(
-        markDispatchNotDelivered(store, requestId, "editor@example.com"),
+        settleDeploymentRequest(store, requestId, "editor@example.com"),
       ).rejects.toThrow(/nothing left to decide/);
+    });
+  });
+
+  it("refuses a request id that does not exist", async () => {
+    await inRolledBackTransaction(async (store) => {
+      await expect(
+        settleDeploymentRequest(
+          store,
+          "00000000-0000-4000-8000-000000000000",
+          "editor@example.com",
+        ),
+      ).rejects.toThrow(/does not exist/);
+    });
+  });
+
+  /**
+   * Settling a `dispatched` request is not a claim that its build failed. If it
+   * deploys anyway, the manifest still proves it — Live is derived from evidence
+   * about production, never from a request's state.
+   */
+  it("still proves Live from the manifest if a settled build deploys", async () => {
+    await inRolledBackTransaction(async (store) => {
+      const report = await dispatchDeployment(store, {
+        reason: "manual",
+        actor: "editor@example.com",
+        transport: accepting("build-late"),
+        env: CONFIGURED,
+      });
+      const requestId = report.kind === "dispatched" ? report.requestId : "";
+      await settleDeploymentRequest(store, requestId, "editor@example.com");
+
+      const entries = await publishedEntries(store);
+      const manifest = await manifestFor(entries, { buildUuid: "build-late" });
+      const verified = await verifyProduction(store, {
+        transport: serving(manifest),
+        actor: "editor@example.com",
+      });
+
+      expect(verified.kind).toBe("verified");
+      const live = await readLiveProof(store);
+      expect(live.kind).toBe("proven");
+      if (live.kind === "proven") {
+        expect(live.evaluationIds.size).toBe(entries.length);
+      }
+    });
+  });
+});
+
+/**
+ * An artifact and the list of what it contained are ONE fact.
+ *
+ * They used to be written as separate autocommits, and the failure was
+ * permanent: a crash in between left an immutable artifact with no members,
+ * every later verification matched it on `(generated_at, digest)` and skipped
+ * the membership insert, and the tool reported a *proven* deployment containing
+ * nothing — so every published profile read "awaiting deployment". The
+ * append-only triggers meant nothing could repair it.
+ */
+describe("A verification observation commits as one unit", () => {
+  /**
+   * A store that fails a chosen write, wrapping transactions too so the failure
+   * lands inside the real transaction rather than beside it.
+   */
+  function failingWrite(
+    store: DeploymentStore,
+    shouldFail: (table: unknown) => boolean,
+  ): DeploymentStore {
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    const handler: ProxyHandler<any> = {
+      get(target, prop) {
+        if (prop === "insert") {
+          return (table: unknown) => {
+            if (shouldFail(table)) {
+              throw new Error("injected failure between artifact and membership");
+            }
+            return target.insert(table);
+          };
+        }
+        if (prop === "transaction") {
+          return (run: (tx: any) => Promise<unknown>) =>
+            target.transaction((tx: any) => run(new Proxy(tx, handler)));
+        }
+        const value = target[prop];
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    };
+    return new Proxy(store, handler) as DeploymentStore;
+    /* eslint-enable @typescript-eslint/no-explicit-any */
+  }
+
+  it("leaves no artifact when membership cannot be written", async () => {
+    await inRolledBackTransaction(async (store) => {
+      const entries = await publishedEntries(store);
+      const manifest = await manifestFor(entries);
+
+      const injected = failingWrite(
+        store,
+        (table) => table === t.deploymentArtifactEvaluations,
+      );
+
+      await expect(
+        verifyProduction(injected, {
+          transport: serving(manifest),
+          actor: "editor@example.com",
+        }),
+      ).rejects.toThrow(/injected failure/);
+
+      const artifacts = await store.select().from(t.deploymentArtifacts);
+      expect(artifacts).toHaveLength(0);
+
+      const members = await store
+        .select()
+        .from(t.deploymentArtifactEvaluations);
+      expect(members).toHaveLength(0);
+    });
+  });
+
+  it("shows no partial Live proof after a failed write", async () => {
+    await inRolledBackTransaction(async (store) => {
+      const entries = await publishedEntries(store);
+      const manifest = await manifestFor(entries);
+
+      await expect(
+        verifyProduction(
+          failingWrite(store, (table) => table === t.deploymentArtifactEvaluations),
+          { transport: serving(manifest), actor: "editor@example.com" },
+        ),
+      ).rejects.toThrow();
+
+      expect((await readLiveProof(store)).kind).toBe("unproven");
+
+      const overview = await readDeploymentOverview(store, CONFIGURED);
+      expect(
+        overview.published.every((row) => row.status === "unproven"),
+      ).toBe(true);
+    });
+  });
+
+  it("verifies normally on the next attempt", async () => {
+    await inRolledBackTransaction(async (store) => {
+      const entries = await publishedEntries(store);
+      const manifest = await manifestFor(entries);
+
+      await expect(
+        verifyProduction(
+          failingWrite(store, (table) => table === t.deploymentArtifactEvaluations),
+          { transport: serving(manifest), actor: "editor@example.com" },
+        ),
+      ).rejects.toThrow();
+
+      const retried = await verifyProduction(store, {
+        transport: serving(manifest),
+        actor: "editor@example.com",
+      });
+      expect(retried.kind).toBe("verified");
+
+      const live = await readLiveProof(store);
+      expect(live.kind).toBe("proven");
+      if (live.kind === "proven") {
+        expect(live.evaluationIds.size).toBe(entries.length);
+      }
+    });
+  });
+
+  it("re-observes an existing complete artifact without rewriting it", async () => {
+    await inRolledBackTransaction(async (store) => {
+      const entries = await publishedEntries(store);
+      const manifest = await manifestFor(entries);
+
+      const first = await verifyProduction(store, {
+        transport: serving(manifest),
+        actor: "editor@example.com",
+      });
+      const second = await verifyProduction(store, {
+        transport: serving(manifest),
+        actor: "editor@example.com",
+      });
+
+      expect(first.kind).toBe("verified");
+      expect(second.kind).toBe("verified");
+      if (first.kind === "verified" && second.kind === "verified") {
+        expect(second.artifactId).toBe(first.artifactId);
+      }
+
+      expect(await store.select().from(t.deploymentArtifacts)).toHaveLength(1);
+      expect(
+        await store.select().from(t.deploymentArtifactEvaluations),
+      ).toHaveLength(entries.length);
+
+      const observations = await store
+        .select()
+        .from(t.deploymentEvents)
+        .where(eq(t.deploymentEvents.kind, "production_verified"));
+      expect(observations).toHaveLength(2);
+    });
+  });
+
+  /**
+   * `(generated_at, digest)` is an artifact's identity. Two artifacts claiming
+   * it while disagreeing about what they are cannot both be right, and this
+   * code cannot tell which is. It certifies neither.
+   */
+  it("fails closed when a duplicate identity describes a different build", async () => {
+    await inRolledBackTransaction(async (store) => {
+      const entries = await publishedEntries(store);
+      const manifest = await manifestFor(entries, { buildUuid: "build-one" });
+
+      expect(
+        (
+          await verifyProduction(store, {
+            transport: serving(manifest),
+            actor: "editor@example.com",
+          })
+        ).kind,
+      ).toBe("verified");
+
+      // Same generatedAt, same digest — a different build claiming to be it.
+      const impostor = { ...manifest, buildUuid: "build-two" };
+      const result = await verifyProduction(store, {
+        transport: serving(impostor),
+        actor: "editor@example.com",
+      });
+
+      expect(result.kind).toBe("unverifiable");
+      if (result.kind === "unverifiable") {
+        expect(result.detail).toMatch(/buildUuid/);
+      }
+
+      // Refused, and the refusal is on the record.
+      const refusals = await store
+        .select()
+        .from(t.deploymentEvents)
+        .where(eq(t.deploymentEvents.kind, "production_unverifiable"));
+      expect(refusals).toHaveLength(1);
+
+      // And the artifact that was already proven is untouched.
+      expect(await store.select().from(t.deploymentArtifacts)).toHaveLength(1);
+    });
+  });
+
+  it("refuses a manifest naming one evaluation twice", async () => {
+    await inRolledBackTransaction(async (store) => {
+      const entries = await publishedEntries(store);
+      const doubled = [...entries, entries[0]!];
+      const manifest = await manifestFor(doubled);
+
+      const result = await verifyProduction(store, {
+        transport: serving(manifest),
+        actor: "editor@example.com",
+      });
+
+      expect(result.kind).toBe("unverifiable");
+      expect(await store.select().from(t.deploymentArtifacts)).toHaveLength(0);
+    });
+  });
+
+  it("keeps the previous Live proof when a later verification fails", async () => {
+    await inRolledBackTransaction(async (store) => {
+      const entries = await publishedEntries(store);
+      const manifest = await manifestFor(entries);
+
+      const first = await verifyProduction(store, {
+        transport: serving(manifest),
+        actor: "editor@example.com",
+      });
+      const artifactId = first.kind === "verified" ? first.artifactId : "";
+
+      const failed = await verifyProduction(store, {
+        transport: UNREACHABLE,
+        actor: "editor@example.com",
+      });
+      expect(failed.kind).toBe("unverifiable");
+
+      const live = await readLiveProof(store);
+      expect(live.kind).toBe("proven");
+      if (live.kind === "proven") {
+        expect(live.artifact.id).toBe(artifactId);
+        expect(live.evaluationIds.size).toBe(entries.length);
+      }
     });
   });
 });
@@ -839,6 +1333,146 @@ describe("The record cannot be rewritten", () => {
       expect(
         await refusalFrom(() => store.delete(t.deploymentArtifacts)),
       ).toMatch(/append-only/);
+    });
+  });
+});
+
+/**
+ * What the Publish page says about ONE evaluation.
+ *
+ * The bug was a sentence: a superseded snapshot that production no longer
+ * serves was described as "Published and awaiting deployment", in a warning
+ * tone. It is neither. It is not the published version — a later one replaced
+ * it — and no build will ever make it Live again, so nothing is outstanding.
+ * Reported as a gap, it sends an editor to press Request for a deployment that
+ * cannot exist.
+ */
+describe("How one evaluation stands against production", () => {
+  /**
+   * One published version, and one that has been superseded.
+   *
+   * Built by moving a seeded evaluation `published -> superseded`, which is the
+   * only transition into that state the immutability trigger permits and
+   * exactly what publishing a revision does. Inventing a fresh evaluation would
+   * mean satisfying every completeness rule the publish gate enforces, to
+   * produce a row this test never reads the contents of.
+   *
+   * Rolled back with everything else, so the shared corpus is unchanged.
+   */
+  async function publishedAndSupersededIds(
+    store: DeploymentStore,
+  ): Promise<{ published: string; superseded: string }> {
+    const rows = await store
+      .select({ id: t.evaluations.id })
+      .from(t.evaluations)
+      .where(eq(t.evaluations.status, "published"))
+      .orderBy(t.evaluations.id);
+
+    expect(rows.length).toBeGreaterThanOrEqual(2);
+    const [first, second] = rows as [{ id: string }, { id: string }];
+
+    await store
+      .update(t.evaluations)
+      .set({ status: "superseded" })
+      .where(eq(t.evaluations.id, second.id));
+
+    return { published: first.id, superseded: second.id };
+  }
+
+  it("calls a superseded version production does not serve history, not a gap", async () => {
+    await inRolledBackTransaction(async (store) => {
+      const { superseded } = await publishedAndSupersededIds(store);
+
+      const entries = await publishedEntries(store);
+      await verifyProduction(store, {
+        transport: serving(await manifestFor(entries)),
+        actor: "editor@example.com",
+      });
+
+      const live = await readLiveProof(store);
+      expect(await evaluationDeploymentStatus(store, live, superseded)).toBe(
+        "no_longer_served",
+      );
+    });
+  });
+
+  it("still calls the current published version awaiting deployment", async () => {
+    await inRolledBackTransaction(async (store) => {
+      const { published } = await publishedAndSupersededIds(store);
+
+      // A manifest that carries no editorial evaluation at all.
+      await verifyProduction(store, {
+        transport: serving(await manifestFor([])),
+        actor: "editor@example.com",
+      });
+
+      const live = await readLiveProof(store);
+      expect(await evaluationDeploymentStatus(store, live, published)).toBe(
+        "awaiting_deployment",
+      );
+    });
+  });
+
+  /** §9.8's "the previous deployed artifact remains Live". Still true, still said. */
+  it("calls a superseded version production IS serving Live", async () => {
+    await inRolledBackTransaction(async (store) => {
+      const { superseded } = await publishedAndSupersededIds(store);
+
+      // The artifact production is serving still carries the older version —
+      // which is the whole point: it was deployed before the revision landed.
+      const entries = await publishedEntries(store);
+      const withHistory = await manifestFor([
+        ...entries,
+        {
+          evaluationId: superseded,
+          gameSlug: "a-game",
+          scopeKey: "default",
+          versionNumber: 1,
+          rubricVersion: "1.0",
+          publishedAt: "2026-08-01",
+          path: "/games/a-game",
+        },
+      ]);
+
+      await verifyProduction(store, {
+        transport: serving(withHistory),
+        actor: "editor@example.com",
+      });
+
+      const live = await readLiveProof(store);
+      expect(await evaluationDeploymentStatus(store, live, superseded)).toBe(
+        "live",
+      );
+    });
+  });
+
+  it("says nothing either way when production has not been verified", async () => {
+    await inRolledBackTransaction(async (store) => {
+      const { published, superseded } = await publishedAndSupersededIds(store);
+      const live = await readLiveProof(store);
+
+      expect(await evaluationDeploymentStatus(store, live, published)).toBe(
+        "unproven",
+      );
+      expect(await evaluationDeploymentStatus(store, live, superseded)).toBe(
+        "unproven",
+      );
+    });
+  });
+
+  /** `evaluations.id` is a uuid column; a non-uuid is a type error, not a miss. */
+  it("does not take the page down for an id that is not a uuid", async () => {
+    await inRolledBackTransaction(async (store) => {
+      const entries = await publishedEntries(store);
+      await verifyProduction(store, {
+        transport: serving(await manifestFor(entries)),
+        actor: "editor@example.com",
+      });
+
+      const live = await readLiveProof(store);
+      expect(
+        await evaluationDeploymentStatus(store, live, "evl_returnal_v1"),
+      ).toBe("awaiting_deployment");
     });
   });
 });

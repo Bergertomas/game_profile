@@ -1,6 +1,7 @@
 import { asc, eq, inArray } from "drizzle-orm";
 import { withAuthorizedAdminDatabase, type AdminDatabase } from "@/lib/admin/db";
 import * as t from "@/lib/db/schema";
+import { byCodeUnit } from "@/lib/order";
 import {
   deriveDimensionScore,
   formatDimensionScore,
@@ -684,9 +685,13 @@ export function groupByRubricGeneration(
       versions: [...rows].sort((a, b) => b.versionNumber - a.versionNumber),
     }))
     .sort(
+      // Newest rubric lineage first. `byCodeUnit` rather than `localeCompare`
+      // for the same reason as everywhere else: these are ISO timestamps and
+      // dotted versions, where a collation that gives punctuation variable
+      // weight can order them by something other than what they mean.
       (a, b) =>
-        b.lockedAt.localeCompare(a.lockedAt) ||
-        b.rubricVersion.localeCompare(a.rubricVersion),
+        byCodeUnit(b.lockedAt, a.lockedAt) ||
+        byCodeUnit(b.rubricVersion, a.rubricVersion),
     );
 }
 

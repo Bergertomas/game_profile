@@ -24,10 +24,12 @@ Every public route is prerendered. The database is therefore read during
 This is why 2A needs no Hyperdrive, no runtime connection pooling, no Worker
 binding and no runtime credential. `DATABASE_URL` is a **build** variable.
 
-It also means the whole published corpus is loaded once per build, in a fixed
-number of set-based queries, rather than queried per page. A few hundred games
-is a few tens of thousands of rows; the alternative is N+1 against every profile
-in the catalogue.
+It also means the whole published corpus is loaded once per build process, in a
+fixed number of set-based queries, rather than queried per page. A few hundred
+games is a few tens of thousands of rows; the alternative is N+1 against every
+profile in the catalogue. (Per process: the memo in `lib/data/games.ts` is
+module-scoped and Next renders across several worker processes, so a build
+performs one read per worker that needs one.)
 
 **It also means publishing a profile will require a rebuild.** That is a real
 constraint on the editorial workflow and it is not decided here — see "What 2D

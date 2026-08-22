@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import type { AdminDatabase, AdminTransaction } from "@/lib/admin/db";
 import { withAuthorizedAdminDatabase } from "@/lib/admin/db";
 import { EditorialRuleError } from "@/lib/admin/errors";
@@ -91,6 +91,18 @@ const RESOLVED_STATES = [
 const UNRESOLVED_STATES = ["pending", "dispatched", "dispatch_unknown"] as const;
 
 /**
+ * The advisory lock that serializes "is a build already open, and if not, claim
+ * one". Two arbitrary but fixed integers, because `pg_advisory_xact_lock` keys
+ * a lock by value and nothing else in this system may pick the same pair.
+ *
+ * A TRANSACTION lock, deliberately: it is released by COMMIT rather than by the
+ * session ending, so it is safe on a pooled Hyperdrive connection, and it
+ * cannot outlive the short transaction that takes it.
+ */
+const DISPATCH_LOCK_NAMESPACE = 0x5190;
+const DISPATCH_LOCK_KEY = 0xde91;
+
+/**
  * A database handle or a transaction handle.
  *
  * The same arrangement `ProfileReader` uses in `lib/db/read-profiles.ts`, for
@@ -134,6 +146,23 @@ async function recordEvent(
     artifactId: event.artifactId ?? null,
     detail: event.detail ?? null,
   });
+}
+
+/**
+ * Run several writes as one unit, whichever kind of handle we were given.
+ *
+ * `DeploymentStore` is a database or a transaction because callers legitimately
+ * want both: a Server Action holds neither open across a request, while every
+ * database-backed test runs inside a transaction it rolls back. Drizzle answers
+ * `transaction()` on both — a real `BEGIN` on a database, a `SAVEPOINT` inside
+ * an existing transaction — and both give the property this needs: the writes
+ * inside either all land or none do.
+ */
+function inOneTransaction<T>(
+  db: DeploymentStore,
+  run: (tx: DeploymentStore) => Promise<T>,
+): Promise<T> {
+  return (db as AdminDatabase).transaction((tx) => run(tx));
 }
 
 /** Requests that might still produce a build, newest first. */
@@ -220,62 +249,136 @@ export async function dispatchDeployment(
     return { kind: "not-configured", detail };
   }
 
-  const open = await unresolvedRequests(db);
-
-  if (options.reason === "publication" && options.triggeringEvaluationId) {
-    const duplicate = open.find(
-      (request) =>
-        request.triggeringEvaluationId === options.triggeringEvaluationId,
+  // ── The guard and the row it creates are one step, and it ends here ───────
+  //
+  // Checking for an open request and then inserting one is a read-then-write,
+  // and two editors pressing Request at the same moment arrive on two
+  // connections: both read zero open requests, both insert, and two production
+  // builds are queued for one corpus. The guard read as though it prevented
+  // that and did not.
+  //
+  // A transaction alone does not fix it either — these are inserts, not
+  // updates, so there is no row to contend on and READ COMMITTED lets both
+  // proceed. So the section is serialized explicitly, and this commits BEFORE
+  // the Cloudflare call: the lock is a transaction lock, released at COMMIT, so
+  // nothing is held across network I/O and nothing is held in a pooled
+  // connection beyond the statement that took it.
+  const claim = await inOneTransaction(db, async (tx) => {
+    await tx.execute(
+      sql`SELECT pg_advisory_xact_lock(${DISPATCH_LOCK_NAMESPACE}, ${DISPATCH_LOCK_KEY})`,
     );
-    if (duplicate) {
+
+    const open = await unresolvedRequests(tx);
+
+    if (options.reason === "publication" && options.triggeringEvaluationId) {
+      const duplicate = open.find(
+        (request) =>
+          request.triggeringEvaluationId === options.triggeringEvaluationId,
+      );
+      if (duplicate) {
+        const detail =
+          `A production build for this publication was already requested at ` +
+          `${duplicate.requestedAt.toISOString()} and has not resolved.`;
+        await recordEvent(tx, {
+          kind: "dispatch_coalesced",
+          actor: options.actor,
+          requestId: duplicate.id,
+          summary: detail,
+        });
+        return {
+          kind: "coalesced" as const,
+          requestId: duplicate.id,
+          detail,
+        };
+      }
+    }
+
+    if (options.reason !== "publication" && open.length > 0) {
+      const blocking = open[0]!;
       const detail =
-        `A production build for this publication was already requested at ` +
-        `${duplicate.requestedAt.toISOString()} and has not resolved.`;
-      await recordEvent(db, {
+        `A production build requested at ${blocking.requestedAt.toISOString()} ` +
+        `is still ${blocking.state.replace(/_/g, " ")}. Check it before asking ` +
+        "for another, so two builds are not racing for the same corpus.";
+      await recordEvent(tx, {
         kind: "dispatch_coalesced",
         actor: options.actor,
-        requestId: duplicate.id,
+        requestId: blocking.id,
         summary: detail,
       });
-      return { kind: "coalesced", requestId: duplicate.id, detail };
+      return { kind: "coalesced" as const, requestId: blocking.id, detail };
     }
-  }
 
-  if (options.reason !== "publication" && open.length > 0) {
-    const blocking = open[0]!;
-    const detail =
-      `A production build requested at ${blocking.requestedAt.toISOString()} ` +
-      `is still ${blocking.state.replace(/_/g, " ")}. Check it before asking ` +
-      "for another, so two builds are not racing for the same corpus.";
-    await recordEvent(db, {
-      kind: "dispatch_coalesced",
+    const [created] = await tx
+      .insert(t.deploymentRequests)
+      .values({
+        reason: options.reason,
+        branch: PRODUCTION_BRANCH,
+        requestedBy: options.actor,
+        triggeringEvaluationId: options.triggeringEvaluationId ?? null,
+      })
+      .returning({ id: t.deploymentRequests.id });
+
+    const requestId = created!.id;
+
+    // Retry lineage. `retry` and `manual` differ only in the story the trail
+    // tells, and a retry's story is "this follows something that did not work" —
+    // which is unreadable unless the trail says what it followed. Recorded on
+    // the new request and naming the previous one, so a run of builds can be
+    // read back as a sequence rather than as four unexplained requests.
+    if (options.reason === "retry") {
+      const [previous] = await tx
+        .select({
+          id: t.deploymentRequests.id,
+          state: t.deploymentRequests.state,
+          providerBuildId: t.deploymentRequests.providerBuildId,
+        })
+        .from(t.deploymentRequests)
+        .where(ne(t.deploymentRequests.id, requestId))
+        .orderBy(desc(t.deploymentRequests.requestedAt))
+        .limit(1);
+
+      await recordEvent(tx, {
+        kind: "retry_requested",
+        actor: options.actor,
+        requestId,
+        summary: previous
+          ? `A retry of the request before this one, which ended ` +
+            `"${previous.state.replace(/_/g, " ")}".`
+          : "A retry, though no earlier request is on record.",
+        detail: previous
+          ? {
+              previousRequestId: previous.id,
+              previousState: previous.state,
+              previousProviderBuildId: previous.providerBuildId,
+            }
+          : null,
+      });
+    }
+
+    await recordEvent(tx, {
+      kind: "dispatch_attempted",
       actor: options.actor,
-      requestId: blocking.id,
-      summary: detail,
+      requestId,
+      summary: `Asking Cloudflare Workers Builds to build ${PRODUCTION_BRANCH}.`,
+      detail: { reason: options.reason },
     });
-    return { kind: "coalesced", requestId: blocking.id, detail };
-  }
 
-  const [created] = await db
-    .insert(t.deploymentRequests)
-    .values({
-      reason: options.reason,
-      branch: PRODUCTION_BRANCH,
-      requestedBy: options.actor,
-      triggeringEvaluationId: options.triggeringEvaluationId ?? null,
-    })
-    .returning({ id: t.deploymentRequests.id });
-
-  const requestId = created!.id;
-
-  await recordEvent(db, {
-    kind: "dispatch_attempted",
-    actor: options.actor,
-    requestId,
-    summary: `Asking Cloudflare Workers Builds to build ${PRODUCTION_BRANCH}.`,
-    detail: { reason: options.reason },
+    return { kind: "claimed" as const, requestId };
   });
 
+  if (claim.kind === "coalesced") {
+    return { kind: "coalesced", requestId: claim.requestId, detail: claim.detail };
+  }
+
+  const requestId = claim.requestId;
+
+  // ── Past this point no transaction is open ────────────────────────────────
+  //
+  // The request is durably `pending`. If this process dies now, that row
+  // survives with no dispatch outcome — which is exactly why
+  // `settleDeploymentRequest` accepts `pending`: the window cannot be closed
+  // without holding a transaction across a call to another company, and the
+  // answer to a window that cannot be closed is a way out of it.
   const outcome = await requestBuild(
     options.transport,
     availability.config,
@@ -366,6 +469,12 @@ export async function verifyProduction(
   | { readonly kind: "unverifiable"; readonly detail: string }
 > {
   const origin = options.origin ?? PRODUCTION_ORIGIN;
+
+  // OUTSIDE every transaction, and that ordering is load-bearing. This is an
+  // HTTP request to a remote origin over the public internet; holding a
+  // database transaction open across one would pin a connection and its locks
+  // for as long as a third party takes to answer, which is the same mistake
+  // dispatch avoids by committing before it calls Cloudflare.
   const check = await readProductionManifest(options.transport, origin);
 
   if (check.kind === "unverifiable") {
@@ -379,10 +488,75 @@ export async function verifyProduction(
   }
 
   const manifest = check.manifest;
+
+  // The network is done. Everything below is ONE observation and commits as
+  // one unit — see `persistVerifiedObservation`.
+  try {
+    const artifactId = await inOneTransaction(db, (tx) =>
+      persistVerifiedObservation(tx, manifest, options.actor, origin),
+    );
+    return { kind: "verified", artifactId, manifest };
+  } catch (error) {
+    if (!(error instanceof ContradictedArtifactError)) throw error;
+
+    // Recorded outside the rolled-back transaction, because the refusal is the
+    // one thing that must survive it.
+    await recordEvent(db, {
+      kind: "production_unverifiable",
+      actor: options.actor,
+      summary: `Refused to record what ${origin} is serving: ${error.message}`,
+      detail: { origin, rejection: "contradicted-artifact", detail: error.message },
+    });
+    return { kind: "unverifiable", detail: error.message };
+  }
+}
+
+/**
+ * An artifact identity that two different artifacts are both claiming.
+ *
+ * `deployment_artifacts_identity` makes `(generated_at, digest)` an artifact's
+ * identity. If a row already carries that identity but describes a different
+ * build, or carries a membership list that does not match the manifest just
+ * read, then one of the two records is wrong and this code cannot tell which.
+ * Both readings are refused: certifying either would put a false Live proof in
+ * front of an editor, and the rows are immutable so a wrong one is permanent.
+ */
+class ContradictedArtifactError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ContradictedArtifactError";
+  }
+}
+
+/**
+ * Write one verification observation: artifact identity, complete membership,
+ * the `production_verified` event, and any request the build settles.
+ *
+ * ── Why this is one transaction and not four statements ────────────────────
+ *
+ * It used to be four autocommits, and the failure mode was permanent. A crash
+ * between the artifact insert and the membership insert left an immutable
+ * artifact row with no members; every later verification then matched that row
+ * on `(generated_at, digest)`, took the `existing` branch, and skipped the
+ * membership insert forever. The tool would report a *proven* deployment
+ * containing nothing — so every published profile read "awaiting deployment",
+ * which is the confident false negative the three-state model exists to
+ * prevent. The append-only triggers refuse UPDATE and DELETE, so nothing in
+ * the application could ever repair it.
+ *
+ * An artifact and the list of what it contained are one fact. They now commit
+ * together or not at all.
+ */
+async function persistVerifiedObservation(
+  tx: DeploymentStore,
+  manifest: DeploymentManifest,
+  actor: string,
+  origin: string,
+): Promise<string> {
   const generatedAt = new Date(manifest.generatedAt);
 
-  const [existing] = await db
-    .select({ id: t.deploymentArtifacts.id })
+  const [existing] = await tx
+    .select()
     .from(t.deploymentArtifacts)
     .where(
       and(
@@ -392,10 +566,51 @@ export async function verifyProduction(
     )
     .limit(1);
 
-  let artifactId = existing?.id;
+  const expectedMembers = new Set(
+    manifest.entries.map((entry) => entry.evaluationId),
+  );
+  if (expectedMembers.size !== manifest.entries.length) {
+    throw new ContradictedArtifactError(
+      "the manifest names the same evaluation twice, so what the artifact " +
+        "contains cannot be recorded unambiguously",
+    );
+  }
 
-  if (!artifactId) {
-    const [inserted] = await db
+  let artifactId: string;
+
+  if (existing) {
+    // Re-observation. Idempotent by design: the same deployment verified twice
+    // is one artifact and two observations. But "the same identity" must mean
+    // "the same artifact", so anything that disagrees is refused rather than
+    // quietly re-certified.
+    assertArtifactAgrees(existing, manifest);
+
+    const members = await tx
+      .select({ evaluationId: t.deploymentArtifactEvaluations.evaluationId })
+      .from(t.deploymentArtifactEvaluations)
+      .where(eq(t.deploymentArtifactEvaluations.artifactId, existing.id));
+
+    const recorded = new Set(members.map((member) => member.evaluationId));
+    const complete =
+      recorded.size === expectedMembers.size &&
+      [...expectedMembers].every((id) => recorded.has(id));
+
+    if (!complete) {
+      // Only reachable for a row written before this function existed, since
+      // nothing can now commit an artifact without its membership. Refusing is
+      // the honest answer: the row is immutable, so it cannot be completed, and
+      // deriving Live from it would under-report every profile it omits.
+      throw new ContradictedArtifactError(
+        `an artifact with this identity was already recorded with ` +
+          `${recorded.size} member(s), but the manifest names ` +
+          `${expectedMembers.size}; the record is immutable and cannot be ` +
+          "completed, so nothing is certified from it",
+      );
+    }
+
+    artifactId = existing.id;
+  } else {
+    const [inserted] = await tx
       .insert(t.deploymentArtifacts)
       .values({
         generatedAt,
@@ -412,18 +627,18 @@ export async function verifyProduction(
     artifactId = inserted!.id;
 
     if (manifest.entries.length > 0) {
-      await db.insert(t.deploymentArtifactEvaluations).values(
+      await tx.insert(t.deploymentArtifactEvaluations).values(
         manifest.entries.map((entry) => ({
-          artifactId: artifactId!,
+          artifactId,
           evaluationId: entry.evaluationId,
         })),
       );
     }
   }
 
-  await recordEvent(db, {
+  await recordEvent(tx, {
     kind: "production_verified",
-    actor: options.actor,
+    actor,
     artifactId,
     summary:
       `${origin} is serving a ${manifest.source}-backed artifact carrying ` +
@@ -444,21 +659,21 @@ export async function verifyProduction(
   // Nothing else can settle one: matching on build uuid is the only link
   // between "we asked" and "this is what is being served".
   if (manifest.buildUuid) {
-    const [matching] = await db
+    const [matching] = await tx
       .select({ id: t.deploymentRequests.id, state: t.deploymentRequests.state })
       .from(t.deploymentRequests)
       .where(eq(t.deploymentRequests.providerBuildId, manifest.buildUuid))
       .limit(1);
 
     if (matching && !RESOLVED_STATES.some((state) => state === matching.state)) {
-      await db
+      await tx
         .update(t.deploymentRequests)
         .set({ state: "build_reported_success", lastCheckedAt: new Date() })
         .where(eq(t.deploymentRequests.id, matching.id));
 
-      await recordEvent(db, {
+      await recordEvent(tx, {
         kind: "build_status_observed",
-        actor: options.actor,
+        actor,
         requestId: matching.id,
         artifactId,
         summary:
@@ -468,7 +683,33 @@ export async function verifyProduction(
     }
   }
 
-  return { kind: "verified", artifactId, manifest };
+  return artifactId;
+}
+
+/** The identifying fields an artifact cannot change without being a different one. */
+function assertArtifactAgrees(
+  existing: DeploymentArtifactRow,
+  manifest: DeploymentManifest,
+): void {
+  const disagreements = (
+    [
+      ["buildUuid", existing.buildUuid, manifest.buildUuid],
+      ["commitSha", existing.commitSha, manifest.commitSha],
+      ["branch", existing.branch, manifest.branch],
+      ["siteEnv", existing.siteEnv, manifest.siteEnv],
+      ["source", existing.source, manifest.source],
+      ["rubricVersion", existing.rubricVersion, manifest.rubricVersion],
+    ] as const
+  ).filter(([, recorded, claimed]) => recorded !== claimed);
+
+  if (disagreements.length > 0) {
+    throw new ContradictedArtifactError(
+      "an artifact with this identity was already recorded with a different " +
+        disagreements
+          .map(([field, recorded, claimed]) => `${field} (${recorded} vs ${claimed})`)
+          .join(", "),
+    );
+  }
 }
 
 /**
@@ -480,7 +721,7 @@ export async function verifyProduction(
  *
  * A request in `dispatch_unknown` is skipped, because there is no build id to
  * ask about — that is what `dispatch_unknown` means. Those are settled by an
- * editor (`markDispatchNotDelivered`) or by a verification that matches a build
+ * editor (`settleDeploymentRequest`) or by a verification that matches a build
  * uuid, and never by this function guessing.
  */
 export async function refreshBuildStatuses(
@@ -570,50 +811,176 @@ export async function refreshBuildStatuses(
 }
 
 /**
- * An editor settling a request whose outcome nothing could establish.
+ * An operator settling a durable request that is never going to resolve itself.
  *
- * `dispatch_unknown` cannot be resolved by looking, because there is no build id
- * to look for. Leaving it open forever would block every later manual request;
- * clearing it automatically would risk a duplicate production build. So a person
- * decides, and the trail records that a person decided and who.
+ * ── The dead ends this exists to remove ────────────────────────────────────
+ *
+ * A request blocks every later `manual`/`retry` while it is unresolved, and
+ * three unresolved states could not be resolved by anything in the application:
+ *
+ *   pending           the row committed, then the process died before the
+ *                     dispatch outcome could be written. No build id, so
+ *                     `refreshBuildStatuses` skips it and verification has
+ *                     nothing to match.
+ *   dispatched        a build id exists, but its outcome cannot be read —
+ *                     `CLOUDFLARE_WORKER_TAG` is unset (it is documented
+ *                     optional), or the build has aged off Cloudflare's list,
+ *                     or it failed and so will never appear in a manifest.
+ *   dispatch_unknown  the POST outcome was never established, so there is no
+ *                     build id to ask about at all.
+ *
+ * Each of those left the tool permanently unable to request another build, with
+ * no repair short of hand-written SQL — and the retry path is disabled exactly
+ * when a first build has failed and retrying is what an operator needs.
+ *
+ * ── Why `superseded`, and not `refused` ────────────────────────────────────
+ *
+ * `superseded` is the state 0009 already defines for a request that is no
+ * longer the one being awaited ("a build is dispatched, then reports, then is
+ * superseded"). It is the only honest terminal state here, because it is a fact
+ * about *this tool's* intent rather than a claim about Cloudflare:
+ *
+ *   refused                  Cloudflare declined; no build exists
+ *   build_reported_success   a build process exited 0
+ *   build_reported_failure   a build process did not
+ *   superseded               we have stopped waiting for this request
+ *
+ * Only the last of those is something an operator can know without provider
+ * truth. Settling never writes the other three, so the trail cannot come to
+ * contain a fabricated provider outcome — which also means settling a
+ * `dispatched` request does NOT assert its build failed. It may yet succeed and
+ * deploy; if it does, verification records the artifact and Live from the
+ * manifest exactly as it would have, because Live is derived from evidence
+ * about production and never from a request's state.
+ *
+ * ── What is preserved ──────────────────────────────────────────────────────
+ *
+ * Nothing is deleted or rewritten: the request keeps its reason, requester,
+ * branch and `provider_build_id` (frozen by trigger anyway), and an event is
+ * appended recording the state it was settled *from*, the build id if there was
+ * one, and that a named person decided. The active-request guard is preserved
+ * rather than weakened — `superseded` is a resolved state, so the guard stops
+ * blocking because the request genuinely stopped being open, not because the
+ * check was loosened.
+ *
+ * And it only ever settles a request that is *still open at the moment it is
+ * written*. A request that resolved while the operator was looking at it is
+ * refused rather than overwritten, so an observed provider outcome cannot be
+ * replaced by a human judgement and the recorded prior state is the one the
+ * settlement actually replaced. See the lock inside the transaction below.
+ *
+ * No network call and no transaction across one: settling is a local judgement
+ * about a local row.
  */
-export async function markDispatchNotDelivered(
+export async function settleDeploymentRequest(
   db: DeploymentStore,
   requestId: string,
   actor: string,
 ): Promise<void> {
-  const [request] = await db
-    .select()
+  const [seen] = await db
+    .select({ state: t.deploymentRequests.state })
     .from(t.deploymentRequests)
     .where(eq(t.deploymentRequests.id, requestId))
     .limit(1);
 
   // Rules, not faults: both are things an editor can legitimately run into by
   // having two tabs open, and both belong next to the button rather than on an
-  // error page.
-  if (!request) {
+  // error page. This read is for the message; the decision is made under a lock
+  // below, because by the time the write happens this answer may be stale.
+  if (!seen) {
     throw new EditorialRuleError("That deployment request does not exist.");
   }
-  if (request.state !== "dispatch_unknown") {
+  if (!UNRESOLVED_STATES.some((state) => state === seen.state)) {
     throw new EditorialRuleError(
-      "Only a request whose dispatch outcome was never established can be " +
-        `settled by hand. This one is "${request.state.replace(/_/g, " ")}", ` +
-        "so there is nothing left to decide.",
+      "Only a request that is still open can be settled by hand. This one is " +
+        `"${seen.state.replace(/_/g, " ")}", so there is nothing left to ` +
+        "decide.",
     );
   }
 
-  await db
-    .update(t.deploymentRequests)
-    .set({ state: "refused", lastCheckedAt: new Date() })
-    .where(eq(t.deploymentRequests.id, requestId));
+  await inOneTransaction(db, async (tx) => {
+    /*
+     * Lock the row BEFORE deciding, because the check above is not the write.
+     *
+     * The read above happens on its own statement and its own snapshot, and
+     * another operation can resolve this request before the update below runs.
+     * `verifyProduction` does exactly that: it settles a matching request to
+     * `build_reported_success` the moment a production manifest names its build
+     * uuid, on a different connection, in a transaction of its own. An
+     * unconditional update would then overwrite an outcome the provider was
+     * actually observed to produce with `superseded`, and append an immutable
+     * event naming a prior state the row had already left — a false record in
+     * the one table that refuses UPDATE and DELETE and so can never be
+     * corrected.
+     *
+     * `FOR UPDATE` is the same mechanism `finalizePublication` uses for the
+     * same reason: from this statement onward nothing else can change this row
+     * until this transaction ends, so what is read here is what is written, and
+     * `priorState` describes the row the settlement actually replaced. A
+     * concurrent resolver either committed before this lock was taken — in
+     * which case the state read here is the resolved one and settlement is
+     * refused — or waits, and finds the request already `superseded`.
+     */
+    const [request] = await tx
+      .select()
+      .from(t.deploymentRequests)
+      .where(eq(t.deploymentRequests.id, requestId))
+      .for("update");
 
-  await recordEvent(db, {
-    kind: "dispatch_refused",
-    actor,
-    requestId,
-    summary:
-      "An editor confirmed this request produced no build, after checking " +
-      "Cloudflare directly. Recorded as a human judgement, not an observation.",
+    if (!request) {
+      throw new EditorialRuleError("That deployment request does not exist.");
+    }
+    if (!UNRESOLVED_STATES.some((state) => state === request.state)) {
+      throw new EditorialRuleError(
+        "This request resolved while you were looking at it, so there is " +
+          "nothing left to settle.",
+      );
+    }
+
+    const priorState = request.state;
+
+    // Compare-and-set, saying the same thing again where the write happens.
+    // Under the lock above this cannot fail; it is here so that the statement
+    // which changes the state also carries the condition the change depends on,
+    // rather than leaving that condition somewhere a later edit might move.
+    const settled = await tx
+      .update(t.deploymentRequests)
+      .set({ state: "superseded", lastCheckedAt: new Date() })
+      .where(
+        and(
+          eq(t.deploymentRequests.id, requestId),
+          inArray(t.deploymentRequests.state, [...UNRESOLVED_STATES]),
+        ),
+      )
+      .returning({ id: t.deploymentRequests.id });
+
+    if (settled.length === 0) {
+      throw new EditorialRuleError(
+        "This request resolved while you were looking at it, so there is " +
+          "nothing left to settle.",
+      );
+    }
+
+    await recordEvent(tx, {
+      kind: "dispatch_coalesced",
+      actor,
+      requestId,
+      summary:
+        `An editor stopped waiting for this request, which was ` +
+        `"${priorState.replace(/_/g, " ")}"` +
+        (request.providerBuildId
+          ? ` after Cloudflare accepted build ${request.providerBuildId}`
+          : "") +
+        ". Recorded as a human judgement, not an observation: nothing here " +
+        "claims what Cloudflare did, and if that build does deploy, " +
+        "verification will still prove it from the manifest.",
+      detail: {
+        resolution: "settled_by_operator",
+        priorState,
+        priorProviderBuildId: request.providerBuildId,
+        priorProviderStatus: request.providerStatus,
+      },
+    });
   });
 }
 
@@ -679,10 +1046,31 @@ export async function readLiveProof(db: DeploymentStore): Promise<LiveProof> {
   };
 }
 
-/** How a published evaluation stands against what production serves. */
+/**
+ * How one evaluation stands against what production serves.
+ *
+ *   live                    the verified artifact contains this version
+ *   awaiting_deployment     production was verified and serves a different
+ *                           version of this scope, and THIS one is the current
+ *                           published version — so a deployment is genuinely
+ *                           outstanding
+ *   no_longer_served        production was verified and does not contain this
+ *                           version, and this version has been superseded —
+ *                           it is history, and nothing is outstanding
+ *   unproven                production has not been verified recently enough
+ *                           to say either way
+ *
+ * The third exists because the other three were once said with two words too
+ * few. A superseded snapshot that production no longer serves was reported as
+ * "Published and awaiting deployment", which is false twice over: it is not the
+ * published version, and no deployment will ever make it Live again. A
+ * superseded version production IS still serving remains `live`, because that
+ * is true and is exactly the situation §9.8 asks the tool to surface.
+ */
 export type PublishedDeploymentStatus =
   | "live"
   | "awaiting_deployment"
+  | "no_longer_served"
   | "unproven";
 
 export interface PublishedDeploymentRow {
@@ -864,12 +1252,51 @@ export async function readEvaluationDeploymentStatus(
     const live = await readLiveProof(db);
     return {
       live,
-      status:
-        live.kind !== "proven"
-          ? "unproven"
-          : live.evaluationIds.has(evaluationId)
-            ? "live"
-            : "awaiting_deployment",
+      status: await evaluationDeploymentStatus(db, live, evaluationId),
     };
   });
+}
+
+/**
+ * How one evaluation stands, given what production was last proven to serve.
+ *
+ * ── Why the evaluation's own status is an input ────────────────────────────
+ *
+ * "Production does not contain this version" is the same observation for a
+ * published version and a superseded one, and it means opposite things:
+ *
+ *   published + not served    a deployment is outstanding
+ *   superseded + not served   history, and nothing is outstanding
+ *
+ * Reading both as "awaiting deployment" told an editor that a version they had
+ * already replaced was Published and waiting for a build that no build could
+ * ever deliver.
+ *
+ * Superseded AND served stays `live`, because it is true: §9.8's "the previous
+ * deployed artifact remains Live" is precisely this, and it is invisible to
+ * anything that only asks about the current corpus.
+ */
+export async function evaluationDeploymentStatus(
+  db: DeploymentStore,
+  live: LiveProof,
+  evaluationId: string,
+): Promise<PublishedDeploymentStatus> {
+  if (live.kind !== "proven") return "unproven";
+  if (live.evaluationIds.has(evaluationId)) return "live";
+
+  // The shape filter is the one `readDeploymentOverview` needs, for the same
+  // reason: `evaluations.id` is a `uuid` column, and handing it a non-uuid is a
+  // type error that fails the query and takes the page down, not an empty
+  // result. A manifest can name ids that are not evaluations at all.
+  const [record] = UUID_SHAPE.test(evaluationId)
+    ? await db
+        .select({ status: t.evaluations.status })
+        .from(t.evaluations)
+        .where(eq(t.evaluations.id, evaluationId))
+        .limit(1)
+    : [];
+
+  return record?.status === "superseded"
+    ? "no_longer_served"
+    : "awaiting_deployment";
 }

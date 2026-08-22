@@ -1,3 +1,4 @@
+import { byCodeUnit } from "@/lib/order";
 import { TAGS } from "@/lib/rubric/tags";
 import type { EvaluationTag, EvidenceSource, GameWithEvaluation } from "./types";
 
@@ -59,11 +60,6 @@ function orderSources(
   // an authored list, and `buildProfileView` presents it in rubric order for
   // both read paths.
   return [...sources].sort((a, b) => byCodeUnit(a.id, b.id));
-}
-
-/** A stable comparator that depends on nothing outside this process. */
-export function byCodeUnit(a: string, b: string): number {
-  return a < b ? -1 : a > b ? 1 : 0;
 }
 
 /** One record with its orderless collections put into the canonical order. */

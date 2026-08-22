@@ -27,8 +27,9 @@ one with a tempting wrong answer.
 ### 1. Live is proven by the artifact, or it is not proven
 
 The deployed artifact publishes its own inventory at **`/deployment-manifest`**,
-generated during the same `next build` that renders the pages, from the same
-corpus read. Verification fetches it from the production origin, revalidates it,
+generated during the same `next build` that renders the pages, through the same
+memoised data boundary they read (per process — see the note below).
+Verification fetches it from the production origin, revalidates it,
 and only then records what production serves.
 
 Everything else available to this system describes a **request**:
@@ -259,3 +260,126 @@ someone presses Check. That is honest, because until someone looks, nobody knows
   workerd. Exercising the trigger end to end belongs with remote-admin
   activation, alongside the Hyperdrive path ADR 0021 records as equally
   unexercised.
+
+## Amendment — N1 runtime hardening (post-merge)
+
+Phase 2D-2 merged and deployed before the machine had ever been asked to do
+anything. A post-merge adversarial review found four defects that only appear
+once it is, plus two claims here that were stated more strongly than the code
+supports. None changes a decision above; each closes a gap between what this
+document says and what the code does. **No migration was required** — every fix
+uses states and event kinds §7 already defines.
+
+### A. Every unresolved request must have a way out
+
+§6 refuses a `manual`/`retry` request while any request is unresolved, which is
+correct. What was missing is that three unresolved states could not be resolved
+by anything in the application:
+
+| State | Why it could not resolve itself |
+|---|---|
+| `pending` | the row committed, then the process died before the dispatch outcome was written; no build id exists, so status polling skips it and verification has nothing to match |
+| `dispatched` | a build id exists but its outcome is unreadable — `CLOUDFLARE_WORKER_TAG` is optional (see Consequences), builds age off Cloudflare's list, and a **failed** build never appears in a manifest |
+| `dispatch_unknown` | no build id was ever returned, so there is nothing to ask about |
+
+Each blocked every later manual request permanently, repairable only by
+hand-written SQL — and the retry path was disabled exactly when a first build
+had failed and retrying was what an operator needed.
+
+The settle operation is therefore widened to accept all three, and it settles to
+**`superseded`**, the state §7 already defines for a request that is no longer
+the one being awaited. That is the only honest terminal state available to an
+operator: `refused` means Cloudflare declined and `build_reported_*` mean a
+build process exited, and none of those can be known without provider truth.
+Settling a `dispatched` request is explicitly **not** a claim that its build
+failed — if it deploys anyway, verification proves it from the manifest exactly
+as it would have, because Live is derived from evidence about production and
+never from a request's state. The appended event records the state it was
+settled from, the build id if there was one, and who decided.
+
+### B. A verification observation commits as one unit
+
+§7 says an artifact and its membership are immutable. They were written as
+separate autocommits, so a crash between them left an immutable artifact with no
+members — and because `deployment_artifacts_identity` makes `(generated_at,
+digest)` the identity, every later verification matched that row and skipped the
+membership insert forever. The tool would report a *proven* deployment
+containing nothing, so every published profile read "awaiting deployment": the
+confident false negative §3 exists to prevent, and unrepairable, because the
+append-only triggers refuse UPDATE and DELETE.
+
+Artifact identity, complete membership, the `production_verified` event and any
+request the build settles now commit as one transaction. The manifest fetch
+stays outside it — no transaction is held across network I/O, for the same
+reason §4 gives about dispatch.
+
+Re-observation is unchanged and still idempotent. What is new is that a
+duplicate identity which *disagrees* — a different build uuid, commit, branch,
+environment, source or rubric version, or a membership list that does not match
+the manifest — is refused rather than re-certified, and the refusal is recorded
+as `production_unverifiable`. Two artifacts cannot both be the one thing that
+identity names, and this code cannot tell which is lying.
+
+### C. The dispatch guard is serialized
+
+"Is a build already open, and if not, claim one" was a read followed by a write
+with nothing between them. Two editors pressing Request at the same moment
+arrive on two connections, both read zero open requests, both insert, and one
+corpus gets two production builds. A transaction alone does not close it —
+these are inserts, so there is no row to contend on. The check and the claim now
+run under `pg_advisory_xact_lock` and commit **before** the Cloudflare call, so
+the guard is serialized without anything being held across network I/O. A
+transaction lock, not a session one, so it is safe on a pooled Hyperdrive
+connection.
+
+### D. The reason a person gives is parsed, not trusted
+
+A Server Action's arguments are deserialized from the request body and its
+TypeScript annotation is erased. A forged `reason: "publication"` therefore
+walked past §6 entirely: the publication path is never refused for having
+another request open, and it coalesces on a triggering evaluation the forged
+call does not send. The action now parses the value against a runtime enum of
+`manual | retry` before anything is opened or written.
+
+### E. Two claims, restated to what the code supports
+
+**"From the same corpus read."** The memo in `lib/data/games.ts` is
+module-scoped, so it holds per *process*. Next renders static pages across
+several worker processes, so a build performs one corpus read per render worker,
+not one in total. Within a process the manifest and the pages beside it cannot
+disagree, which is what rules out assembling the manifest from a separate query
+— the near-miss §1 is guarding against. Across processes nothing is promised,
+and the proof does not need one: the digest makes the manifest self-checking,
+and what is finally established is what the deployed origin serves, not what a
+build process believed while assembling it.
+
+**A superseded version was described as awaiting deployment.** §3's three states
+were derived for one evaluation without asking whether that evaluation was still
+the published one, so a superseded snapshot production no longer serves was
+reported as "Published and awaiting deployment" — false twice, and pointing an
+editor at a build that could never deliver it. A fourth reading is added for
+that case alone. Superseded **and still served** remains Live, because it is
+true and is precisely §9.8's "the previous deployed artifact remains Live".
+
+### F. TRUNCATE, and the privilege boundary this rests on
+
+The append-only triggers in §7 are `FOR EACH ROW` on UPDATE and DELETE.
+`TRUNCATE` is a statement-level operation and fires none of them.
+
+**No `BEFORE TRUNCATE` trigger is added, deliberately.** The application role
+cannot truncate these tables: in the authoritative database the deployed
+transport connects as `should_i_play_admin`, whose grant is
+INSERT/SELECT/UPDATE/DELETE with no TRUNCATE, and which is not a member of the
+owning role. So ordinary application mutation is already contained by the
+triggers, and TRUNCATE is already contained by the grant. What a trigger would
+add is a defence against the database *owner* — the role that runs migrations
+and can drop the trigger in the same session — which is theatre.
+
+**The grant is therefore load-bearing, and it lives in provisioning rather than
+in this repository.** That is the exposure worth naming: a re-provision, or a
+convenience `GRANT ALL`, silently removes the containment with nothing in a diff
+to show it. `tests/db/regression.sh` now models the intended grant set and
+asserts that it is sufficient for everything the application does and
+insufficient to erase the trail, so a widened grant fails a test. The real
+role's privileges remain externally asserted: no test in this repository can
+reach the authoritative database to check them.

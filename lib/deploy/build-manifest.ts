@@ -17,14 +17,31 @@ import { SITE_ENV, profilePath } from "@/lib/site";
  * ── This runs during `next build`, and that is the whole guarantee ─────────
  *
  * It reads `listGameProfiles()` — the same public data boundary every page,
- * the sitemap and the share cards read, memoised once per build. So the
- * manifest cannot describe a different corpus from the one the pages were
- * rendered from: there is only one read, and this is a second consumer of it.
+ * the sitemap and the share cards read, memoised for the process. So this is a
+ * second consumer of a read rather than a read of its own.
  *
  * Assembling it from a fresh database query instead would be the classic
  * near-miss. It would usually agree, and on the one occasion that matters —
  * a publication committing midway through a build — it would certify a corpus
  * the artifact does not contain.
+ *
+ * ── The precise shape of that guarantee ────────────────────────────────────
+ *
+ * The memo is module-scoped, so it holds PER PROCESS. Next renders static pages
+ * across several worker processes, so a build performs one corpus read per
+ * worker that needs one — not one read for the whole build, which earlier
+ * wording here claimed. Within a process the guarantee is exact and is what
+ * rules out the near-miss above; across processes it is not a guarantee at all,
+ * and the design does not rest on one.
+ *
+ * It does not need to. `digestEntries` makes the manifest self-checking: the
+ * verifier recomputes the digest from the entries it received and refuses any
+ * manifest whose digest does not match its own contents. And the question the
+ * manifest answers is settled by reading it back FROM the deployed origin, so
+ * what is finally proven is what production serves — not what any build process
+ * believed while assembling it. A publication committing mid-build is visible
+ * as an artifact that does not contain the new version, which is exactly the
+ * "awaiting deployment" state the tool exists to show.
  *
  * ── Build identity comes from the build, not from this repository ──────────
  *

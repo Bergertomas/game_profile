@@ -257,13 +257,20 @@ fi
 # Everything after 0002, applied to that same populated database. These
 # migrations restructure identity beneath published rows the 0002 triggers have
 # already frozen, so "it builds an empty schema" is not evidence they work.
+#
+# 0009 is in this list because the authoritative database is exactly this shape:
+# it was migrated 0008 -> 0009 by hand, in place, with three published
+# evaluations and every hardening trigger armed. Stopping the loop at 0008 meant
+# the repository only ever tested 0009 against an EMPTY database, which is the
+# one shape production is never in.
 for later_migration in \
   lib/db/migrations/0003_profile_scopes.sql \
   lib/db/migrations/0004_platform_overrides.sql \
   lib/db/migrations/0005_score_provenance.sql \
   lib/db/migrations/0006_game_artwork.sql \
   lib/db/migrations/0007_primary_scope.sql \
-  lib/db/migrations/0008_authored_ordering.sql
+  lib/db/migrations/0008_authored_ordering.sql \
+  lib/db/migrations/0009_deployment_tracking.sql
 do
   if upgrade_out="$(psql "$UPGRADE_DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -1 \
       -f "$later_migration" 2>&1)"; then
@@ -368,6 +375,103 @@ expect 'upgrade links the Redfall Update 2 source to its final evaluation' \
      AND evaluation.rubric_version='1.0' AND evaluation.version_number=1
      AND link.dimension_id IS NULL AND link.subcriterion_id IS NULL
      AND link.note='Establishes that the Xbox Series X|S 60fps Performance Mode arrived in Update 2, not Update 4. Used for factual update attribution, not for judging technical quality.';" '1'
+# ── 0009 against the populated database ─────────────────────────────────────
+#
+# The upgrade production actually underwent. What matters is not only that the
+# DDL ran, but that it ran WITHOUT disturbing the editorial corpus underneath
+# it: 0009 adds deployment tracking beside the evaluation model and is not
+# supposed to touch a single existing row.
+expect 'upgrade installs all four deployment tables' \
+  "SELECT count(*) FROM pg_tables WHERE schemaname='public' AND tablename IN (
+     'deployment_requests', 'deployment_events', 'deployment_artifacts',
+     'deployment_artifact_evaluations');" '4'
+expect 'upgrade installs the three deployment enums' \
+  "SELECT count(*) FROM pg_type WHERE typname IN (
+     'deployment_request_state', 'deployment_request_reason',
+     'deployment_event_kind');" '3'
+expect 'upgrade arms the append-only triggers on the record tables' \
+  "SELECT count(*) FROM pg_trigger
+   WHERE NOT tgisinternal AND tgenabled = 'O' AND tgname IN (
+     'deployment_events_append_only',
+     'deployment_artifacts_append_only',
+     'deployment_artifact_evaluations_append_only');" '3'
+expect 'upgrade arms the request identity trigger' \
+  "SELECT count(*) FROM pg_trigger
+   WHERE NOT tgisinternal AND tgenabled = 'O'
+     AND tgname = 'deployment_requests_identity_frozen';" '1'
+# The audit trail orders by `seq`, not by `occurred_at`: `now()` is transaction
+# start time, so two verifications in one transaction tie and Live could be
+# derived from the wrong one. The monotonic column is load-bearing.
+expect 'upgrade gives the trail a monotonic sequence' \
+  "SELECT (column_default LIKE 'nextval%')::text FROM information_schema.columns
+   WHERE table_name='deployment_events' AND column_name='seq';" 'true'
+# Deliberately text and deliberately unreferenced: these rows record what a
+# REMOTE document claimed, and a fixture-backed artifact names ids that are not
+# evaluations. A foreign key would make "production is serving something I do
+# not recognise" unrecordable — deleting the evidence an operator needs most.
+expect 'membership records a remote claim, not a local foreign key' \
+  "SELECT concat_ws('/', data_type, (SELECT count(*) FROM information_schema.table_constraints
+     WHERE table_name='deployment_artifact_evaluations' AND constraint_type='FOREIGN KEY'
+       AND constraint_name LIKE '%evaluation_id%'))
+   FROM information_schema.columns
+   WHERE table_name='deployment_artifact_evaluations' AND column_name='evaluation_id';" 'text/0'
+expect 'upgrade writes no deployment rows of its own' \
+  "SELECT concat_ws('/',
+     (SELECT count(*) FROM deployment_requests),
+     (SELECT count(*) FROM deployment_events),
+     (SELECT count(*) FROM deployment_artifacts),
+     (SELECT count(*) FROM deployment_artifact_evaluations));" '0/0/0/0'
+expect 'upgrade leaves the published corpus exactly as it was' \
+  "SELECT concat_ws('/',
+     (SELECT count(*) FROM evaluations WHERE status='published'),
+     (SELECT count(*) FROM games),
+     (SELECT count(*) FROM evaluations));" '3/3/3'
+# Live is DERIVED. If a rubric migration or a stray ALTER ever adds it to the
+# status enum, the whole Published-versus-Live distinction quietly collapses.
+expect 'upgrade does not make Live an evaluation status' \
+  "SELECT count(*) FROM pg_enum AS enum_value
+   JOIN pg_type AS enum_type ON enum_type.oid = enum_value.enumtypid
+   WHERE enum_type.typname='evaluation_status' AND enum_value.enumlabel='live';" '0'
+
+# ── The application role's privilege boundary ───────────────────────────────
+#
+# The append-only triggers are FOR EACH ROW on UPDATE and DELETE. TRUNCATE is a
+# statement-level operation and fires none of them, so the audit trail's
+# immutability rests on the application role simply not holding TRUNCATE — which
+# is a GRANT made during provisioning and lives nowhere in this repository.
+#
+# In authoritative Neon the application role is `should_i_play_admin` and its
+# grant is `arwd` (INSERT/SELECT/UPDATE/DELETE) with no `D` for TRUNCATE. This
+# models that role rather than asserting on the real one, which this suite
+# cannot reach: what it pins is that the intended grant set is SUFFICIENT for
+# everything the application does and INSUFFICIENT to erase the trail. A
+# provisioning change to `GRANT ALL` would make this fail.
+#
+# It deliberately does NOT install a BEFORE TRUNCATE trigger. The remaining hole
+# is a database owner or migration role deliberately truncating, and defending
+# an owner against itself is theatre; see ADR 0022.
+ROLE_PROBE="regression_app_role_probe"
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q \
+  -c "DROP ROLE IF EXISTS $ROLE_PROBE;" \
+  -c "CREATE ROLE $ROLE_PROBE NOLOGIN;" \
+  -c "GRANT SELECT, INSERT, UPDATE, DELETE ON deployment_requests, deployment_events,
+        deployment_artifacts, deployment_artifact_evaluations TO $ROLE_PROBE;" >/dev/null
+
+expect 'the application role can do everything the application does' \
+  "SELECT bool_and(
+     has_table_privilege('$ROLE_PROBE', tablename, 'SELECT') AND
+     has_table_privilege('$ROLE_PROBE', tablename, 'INSERT') AND
+     has_table_privilege('$ROLE_PROBE', tablename, 'UPDATE'))::text
+   FROM pg_tables WHERE schemaname='public' AND tablename LIKE 'deployment%';" 'true'
+expect 'the application role cannot truncate the audit trail' \
+  "SELECT bool_or(has_table_privilege('$ROLE_PROBE', tablename, 'TRUNCATE'))::text
+   FROM pg_tables WHERE schemaname='public' AND tablename LIKE 'deployment%';" 'false'
+
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q \
+  -c "REVOKE ALL ON deployment_requests, deployment_events, deployment_artifacts,
+        deployment_artifact_evaluations FROM $ROLE_PROBE;" \
+  -c "DROP ROLE IF EXISTS $ROLE_PROBE;" >/dev/null
+
 DATABASE_URL="$PRIMARY_DATABASE_URL"
 
 psql "$ADMIN_URL" -X -v ON_ERROR_STOP=1 -q \
