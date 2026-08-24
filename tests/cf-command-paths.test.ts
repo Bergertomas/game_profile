@@ -59,4 +59,51 @@ describe("Cloudflare command entry points", () => {
     expect(SCRIPT_PRODUCTION_BRANCH).toBe(PRODUCTION_BRANCH);
     expect(SCRIPT_MANIFEST_PATH).toBe(MANIFEST_PATH);
   });
+
+  /**
+   * `global_fetch_strictly_public` is the reason production verification can
+   * happen at all, and it is one word in a list that reads like housekeeping.
+   *
+   * The verifier fetches https://shouldiplay.gg/deployment-manifest — the
+   * canonical URL of the very Worker making the request. This Worker is attached
+   * to that hostname as a Custom Domain, so it *is* the origin; without this
+   * flag Cloudflare routes the subrequest past the Worker to an origin that does
+   * not exist and answers 522. That is not a hypothetical: it is what the first
+   * authenticated production check actually got. See ADR 0023.
+   *
+   * The flag has no "default as of" date, so no compatibility_date will restore
+   * it if it is dropped. Deleting it silently returns the deployment machine to
+   * "production can never be verified" — which fails closed, and therefore looks
+   * like a stuck deployment rather than like a broken verifier.
+   *
+   * THIS TEST CANNOT PROVE THE FLAG WORKS. Nothing in this repository can:
+   * `workerd` runs with no Cloudflare edge in front of it, so a local run
+   * reproduces neither the 522 nor its absence. It asserts only that the
+   * configuration still asks for the behaviour.
+   */
+  it("keeps the compatibility flag production verification depends on", () => {
+    const wrangler = JSON.parse(
+      readFileSync(join(ROOT, "wrangler.jsonc"), "utf8").replace(
+        /^\s*\/\/.*$/gm,
+        "",
+      ),
+    ) as { compatibility_flags?: string[] };
+
+    expect(wrangler.compatibility_flags).toContain("global_fetch_strictly_public");
+
+    // The flag it opposes would reinstate the exact routing that produced the
+    // 522, so the two must never appear together.
+    expect(wrangler.compatibility_flags).not.toContain(
+      "global_fetch_private_origin",
+    );
+
+    // The pre-existing flags are load-bearing for separate reasons documented in
+    // wrangler.jsonc; adding one must not have displaced them.
+    expect(wrangler.compatibility_flags).toEqual(
+      expect.arrayContaining([
+        "nodejs_compat",
+        "no_throw_on_not_implemented_tls_options",
+      ]),
+    );
+  });
 });

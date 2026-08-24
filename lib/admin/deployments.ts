@@ -444,6 +444,21 @@ export async function dispatchDeployment(
 }
 
 /**
+ * What a verification established, or why it established nothing.
+ *
+ * Named rather than inline so a caller can hold one while deciding what to tell
+ * the editor — `checkDeploymentAction` reports this outcome, and a discarded
+ * one is how a failed check came to say "Done."
+ */
+export type ProductionVerification =
+  | {
+      readonly kind: "verified";
+      readonly artifactId: string;
+      readonly manifest: DeploymentManifest;
+    }
+  | { readonly kind: "unverifiable"; readonly detail: string };
+
+/**
  * Record what production is serving, from the artifact's own manifest.
  *
  * The only writer of `production_verified`, and therefore the only thing in
@@ -464,10 +479,7 @@ export async function verifyProduction(
     readonly actor: string;
     readonly origin?: string;
   },
-): Promise<
-  | { readonly kind: "verified"; readonly artifactId: string; readonly manifest: DeploymentManifest }
-  | { readonly kind: "unverifiable"; readonly detail: string }
-> {
+): Promise<ProductionVerification> {
   const origin = options.origin ?? PRODUCTION_ORIGIN;
 
   // OUTSIDE every transaction, and that ordering is load-bearing. This is an
@@ -482,7 +494,16 @@ export async function verifyProduction(
       kind: "production_unverifiable",
       actor: options.actor,
       summary: `Could not establish what ${origin} is serving: ${check.rejection}.`,
-      detail: { origin, rejection: check.rejection, detail: check.detail },
+      // `observed` is the allow-listed diagnostic subset of the response —
+      // status, `cf-ray`, content type — and is absent only when there was no
+      // response at all. It is what lets a refusal be correlated with
+      // Cloudflare's own logs for that request; see lib/deploy/verify.ts.
+      detail: {
+        origin,
+        rejection: check.rejection,
+        detail: check.detail,
+        ...(check.observed ? { observed: check.observed } : {}),
+      },
     });
     return { kind: "unverifiable", detail: check.detail };
   }

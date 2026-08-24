@@ -15,9 +15,44 @@
   // Postgres.js also passes Node TLS options that Workers does not implement.
   // Since 2026-06-16 Workers throws on those unsupported options by default;
   // disabling that throw lets the supported TLS connection proceed instead.
+  //
+  // `global_fetch_strictly_public` IS LOAD-BEARING, AND IT IS NOT A PREFERENCE.
+  //
+  // Production verification (lib/deploy/verify.ts) deliberately fetches
+  // https://shouldiplay.gg/deployment-manifest — the canonical public URL of the
+  // very Worker performing the fetch. That self-fetch is the point: Live means
+  // "the artifact production is serving contains this version", and the only
+  // evidence for that is the answer the deployed artifact gives over the public
+  // internet. Reading Neon, or a manifest object already in this process, would
+  // answer a different question (what production *should* serve) while looking
+  // identical.
+  //
+  // Below, `routes` attaches this Worker to `shouldiplay.gg` as a CUSTOM DOMAIN,
+  // which makes the Worker itself the origin for that hostname. Without this
+  // flag, Cloudflare's default `global_fetch_private_origin` behaviour routes a
+  // same-zone subrequest "to the zone's origin server, ignoring any Workers
+  // mapped to the URL" — so the verifier's request is aimed past the Worker at
+  // an origin that does not exist, and Cloudflare answers 522. Cloudflare's own
+  // Error 522 guidance names this exact case: "If you are using Workers with a
+  // Custom Domain, performing a fetch to its own hostname will cause a 522
+  // error … enabling the global_fetch_strictly_public compatibility flag".
+  //
+  // This flag has no "default as of" date; no compatibility_date enables it. It
+  // must be listed here or the behaviour does not exist. With it, global fetch
+  // routes "as if the requests were made on the public Internet", so the
+  // verifier goes out to Cloudflare's front door and back in through the same
+  // path a reader takes. That PRESERVES the production-proof invariant rather
+  // than replacing it: it removes the origin-bypass shortcut, leaving the served
+  // bytes as the only thing the verifier can observe.
+  //
+  // The loop terminates at depth one: the re-entered request is
+  // /deployment-manifest, a prerendered asset (app/deployment-manifest/route.ts,
+  // `force-static`) that makes no further subrequest. This was diagnosed from a
+  // real 522 on the first authenticated production check; see ADR 0023.
   "compatibility_flags": [
     "nodejs_compat",
-    "no_throw_on_not_implemented_tls_options"
+    "no_throw_on_not_implemented_tls_options",
+    "global_fetch_strictly_public"
   ],
 
   "assets": {

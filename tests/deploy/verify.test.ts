@@ -174,3 +174,138 @@ describe("readProductionManifest", () => {
     expect(seen?.cache).toBe("no-store");
   });
 });
+
+/**
+ * A refusal has to be actionable, and the first real one was not quite.
+ *
+ * It recorded `http-error` and status 522 — enough to know the shape of the
+ * failure — but discarded `cf-ray`, which is the only value that ties the
+ * observation to Cloudflare's own record of that exact request. Without it a
+ * refusal cannot be correlated with anything; with it, an operator has a key to
+ * paste into the dashboard.
+ *
+ * The allow-list is closed by construction. These tests exist to keep it that
+ * way: the response arrives from a public URL over a network and is persisted
+ * into an append-only trail that cannot be edited afterwards, so a body or a
+ * `set-cookie` leaking in is permanent.
+ */
+describe("what a refusal keeps about the response", () => {
+  function respondingWith(
+    status: number,
+    body: string,
+    headers: Record<string, string>,
+  ): VerifyTransport {
+    return { fetch: async () => new Response(body, { status, headers }) };
+  }
+
+  it("keeps status, cf-ray and content type when the origin answers badly", async () => {
+    const result = await readProductionManifest(
+      respondingWith(522, "error", {
+        "cf-ray": "a2fb3dfa28aae5eb-IAD",
+        "content-type": "text/html; charset=UTF-8",
+      }),
+      "https://shouldiplay.gg",
+    );
+
+    expect(result).toMatchObject({
+      kind: "unverifiable",
+      rejection: "http-error",
+      observed: {
+        status: 522,
+        cfRay: "a2fb3dfa28aae5eb-IAD",
+        contentType: "text/html; charset=UTF-8",
+      },
+    });
+  });
+
+  it("keeps nothing else, whatever the response carried", async () => {
+    const result = await readProductionManifest(
+      respondingWith(500, "an internal error, with detail nobody vetted", {
+        "cf-ray": "ray-1",
+        "content-type": "text/plain",
+        "set-cookie": "session=super-secret",
+        authorization: "Bearer a-token-that-must-not-be-persisted",
+        "x-internal-hostname": "origin-3.internal",
+      }),
+      "https://shouldiplay.gg",
+    );
+
+    const observed =
+      result.kind === "unverifiable" ? result.observed : undefined;
+
+    // The allow-list, asserted as an exact shape rather than by absence, so a
+    // fourth field cannot be added without this failing.
+    expect(Object.keys(observed ?? {}).sort()).toEqual([
+      "cfRay",
+      "contentType",
+      "status",
+    ]);
+    expect(JSON.stringify(observed)).not.toMatch(
+      /secret|Bearer|internal|nobody vetted/i,
+    );
+  });
+
+  it("records a missing cf-ray as absent rather than inventing one", async () => {
+    const result = await readProductionManifest(
+      respondingWith(503, "down", {}),
+      "https://shouldiplay.gg",
+    );
+
+    expect(result.kind === "unverifiable" && result.observed).toMatchObject({
+      status: 503,
+      cfRay: null,
+    });
+  });
+
+  /**
+   * A malformed or wrong-environment answer is still an answer, and correlating
+   * it is just as useful as correlating a 522.
+   */
+  it("keeps the same subset when a 200 fails to be a manifest", async () => {
+    const result = await readProductionManifest(
+      respondingWith(200, "<!doctype html>", {
+        "cf-ray": "ray-2",
+        "content-type": "text/html",
+      }),
+      "https://shouldiplay.gg",
+    );
+
+    expect(result).toMatchObject({
+      kind: "unverifiable",
+      rejection: "malformed",
+      observed: { status: 200, cfRay: "ray-2" },
+    });
+  });
+
+  it("has nothing to describe when no response arrived at all", async () => {
+    const result = await readProductionManifest(
+      {
+        fetch: async () => {
+          throw new Error("ENOTFOUND");
+        },
+      },
+      "https://shouldiplay.gg",
+    );
+
+    expect(result).toMatchObject({
+      kind: "unverifiable",
+      rejection: "unreachable",
+    });
+    expect(result.kind === "unverifiable" && result.observed).toBeUndefined();
+  });
+
+  /**
+   * The diagnostics are an addition to a refusal, not a change to what counts
+   * as proof. A verified artifact is verified on its manifest and its digest,
+   * exactly as before, and carries no response metadata into the proof.
+   */
+  it("does not attach response metadata to a successful verification", async () => {
+    const result = await readProductionManifest(
+      respondingWith(200, await manifestJson(), { "cf-ray": "ray-3" }),
+      "https://shouldiplay.gg",
+    );
+
+    expect(result.kind).toBe("verified");
+    expect(Object.keys(result).sort()).toEqual(["kind", "manifest"]);
+  });
+});
