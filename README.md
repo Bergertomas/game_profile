@@ -608,9 +608,20 @@ from the manifest.
   `dispatchDeployment` can be answered from a stale cache and two production
   builds become possible again. See
   [ADR 0021](docs/decisions/0021-hyperdrive-is-the-deployed-admin-transport.md#amendment--activation-prep-caching-is-disabled-on-this-configuration).
+- **Reading the manifest needs the public front door — fixed 2026-08-24.**
+  `verifyProduction` fetches the real `https://shouldiplay.gg/deployment-manifest`,
+  and a Worker's fetch to its own Custom Domain is routed to the zone's *origin
+  server* unless `global_fetch_strictly_public` is set. A Workers-only Custom
+  Domain has no origin server, so every verification answered `http-error` while
+  the same URL served a valid manifest to browsers. The flag is set in
+  `wrangler.jsonc` and asserted by `tests/cf-command-paths.test.ts`; nothing
+  local can prove the behaviour, because `cf:verify` has no zone to be inside of
+  and previews run on workers.dev. See
+  [ADR 0023](docs/decisions/0023-verifying-production-from-inside-the-worker.md).
 - **The first real dispatch.** No Cloudflare Builds request has ever been made
   through this application. The first one is also the first test of the request
-  lifecycle end to end.
+  lifecycle end to end. Still true after activation: the credential and trigger
+  id are installed, but no build has been requested from `/admin`.
 - **The application role's privileges.** No test here can reach the
   authoritative database. That the role holds `SELECT, INSERT, UPDATE, DELETE`
   and *not* `TRUNCATE` on the four deployment tables is asserted against a

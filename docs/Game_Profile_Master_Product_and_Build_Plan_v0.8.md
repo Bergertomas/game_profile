@@ -8,11 +8,12 @@
 **Engineering and product design:** Claude  
 **Status:** Current product and roadmap constitution — Phase 2 active  
 **Current checkpoint:** Phase 2C complete and merged; authoritative Neon Postgres provisioned, migrated and serving production builds; Phase 2D active — slice 2D-1 (preview, publish gate, transactional publication, revision history) and slice 2D-2 (deploy trigger, Published/awaiting-deployment/Live reconciliation, failure/retry/audit) both **complete, merged and deployed**. Migration `0009_deployment_tracking` **is applied** to the authoritative database, and production serves `/deployment-manifest` from a build of `main`. The tool now derives Live from evidence read back from the deployed artifact.
+**Remote `/admin` is activated:** Cloudflare Access protects `shouldiplay.gg/admin`, the seven runtime Worker secrets are set and deployed, an editor has authenticated against the production Worker, and the first `production_verified` observation is recorded. The first *application-originated* Builds dispatch has still not been made; it belongs to 2E's first real publication.
 
 **2D-2 is deployed and has not been exercised**, and the distinction is load-bearing rather than pedantic. *Proven:* a production build from `main`; the manifest live on the canonical origin with a digest matching the three published evaluations; behaviour under workerd; migration `0009` in the authoritative database. *Not yet exercised:* a real Cloudflare Builds POST from the application, a real build uuid persisted and reconciled, the first `production_verified` observation, and one complete Publish → dispatch → Live cycle. All four deployment tables are empty. Phase 2 is **not** frozen and remote-admin activation is **not** complete.
 
 An N1 hardening pass follows 2D-2 and precedes activation: it makes every unresolved deployment request recoverable without SQL, makes a verification observation atomic, parses the dispatch reason at the Server Action boundary, and corrects an unknown-`/games/*` route that answered 500 in production instead of 404. It adds no migration and no new capability.\
-**Date:** 2026-08-15 · checkpoint refreshed 2026-08-20 (post-2D-2 merge and deploy; N1 hardening in progress)
+**Date:** 2026-08-15 · checkpoint refreshed 2026-08-24 (2D-1, 2D-2 and N1 merged and deployed; remote admin activated)
 
 ---
 
@@ -946,9 +947,21 @@ Also delivered: one working evaluation per scope, authored tag/evidence ordering
 
 #### Remote admin activation checkpoint
 
-**REQUIRED DURING PHASE 2; before Phase 2E at the latest**
+**DONE — 2026-08-24**
 
-Enable deployed `/admin` once Neon + Cloudflare Access + request-time DB path are configured and verified under the real Worker contract. Local-first is only the initial development mode.
+Deployed `/admin` is enabled and was verified under the real Worker contract, which is what this checkpoint asked for. Observed rather than assumed:
+
+- a self-hosted Cloudflare Access application protects `shouldiplay.gg/admin` and its descendants, and nothing else — `/`, `/methodology`, `/games/*`, `/deployment-manifest`, `/robots.txt` and `/sitemap.xml` are all reachable unauthenticated;
+- the seven runtime settings are Worker **secrets**, not Workers Builds variables, so a future `wrangler deploy` preserves them;
+- an editor authenticated through Access and the dashboard rendered live editorial data, which exercises Access JWT verification and the Hyperdrive request-time path together;
+- the first `production_verified` observation is recorded, and the published profiles read Live rather than *not proven*.
+
+Two things this checkpoint did **not** establish, both deliberately left to 2E rather than manufactured against an unchanged corpus:
+
+- the first **application-originated** Cloudflare Builds dispatch, and its reconciliation from request → build uuid → manifest;
+- a direct reading of Hyperdrive `cacheStatus` in the metrics dashboard. The configuration carries `caching: { disabled: true }` and that was confirmed through the Cloudflare API, so the property is set; what is unobserved is the metric confirming it in flight.
+
+Activation also found a real defect, which is why it existed: verification could never succeed, because a Worker's fetch to its own Custom Domain is routed to a non-existent origin unless `global_fetch_strictly_public` is set. See [ADR 0023](decisions/0023-verifying-production-from-inside-the-worker.md).
 
 #### 2D — Preview, validation, publication, revision
 
@@ -956,7 +969,7 @@ Enable deployed `/admin` once Neon + Cloudflare Access + request-time DB path ar
 
 ##### 2D-1 — preview, validation, publication, revision history
 
-**COMPLETE (pending merge)**
+**COMPLETE — merged and deployed**
 
 Delivered:
 
@@ -973,7 +986,7 @@ Requires no schema migration.
 
 ##### 2D-2 — deployment, and the Published/Live distinction
 
-**IMPLEMENTED — pending merge**
+**COMPLETE — merged and deployed**
 
 Delivered the Cloudflare Workers Builds rebuild trigger, deployment-state
 persistence, Published/awaiting-deployment/Live reconciliation, and
@@ -1047,10 +1060,10 @@ than deleted so the sequence stays legible against the roadmap above.
 6. ~~Build Phase 2C evaluation/evidence/scoring/confidence/tag/interpretation authoring.~~ **DONE**
 7. ~~Add authored ordering for evaluation tags and evidence links.~~ **DONE** (migration 0008)
 8. Review 2C UX with a real scoring workflow; fix friction. **OPEN** — deferred to the dedicated admin UI/UX pass, and to 2E's trial, which is where real authoring volume will expose it.
-9. Configure and verify remote admin with Cloudflare Access + `ADMIN_DATABASE_URL`; enable during Phase 2 and no later than pre-2E editorial operations. **OPEN** — now also the point at which the deployed Hyperdrive admin path is exercised end to end (ADR 0021) and the first real Cloudflare Builds dispatch is made. Nothing local can prove either. Hyperdrive query caching is no longer among them: the editorial configuration was set to `caching: { disabled: true }` in activation prep, before any deployment request existed, so read-after-write freshness is a settled property of the transport rather than something to discover on first use (ADR 0021, "activation prep: caching is disabled").
+9. ~~Configure and verify remote admin with Cloudflare Access + `ADMIN_DATABASE_URL`; enable during Phase 2 and no later than pre-2E editorial operations.~~ **DONE** (2026-08-24) — Access, the seven runtime secrets, an authenticated editor session and the first `production_verified` observation are all in place; the deployed Hyperdrive admin path is exercised end to end. The first real Builds dispatch is **not** part of this and remains open under item 12. Previously read: **OPEN** — now also the point at which the deployed Hyperdrive admin path is exercised end to end (ADR 0021) and the first real Cloudflare Builds dispatch is made. Nothing local can prove either. Hyperdrive query caching is no longer among them: the editorial configuration was set to `caching: { disabled: true }` in activation prep, before any deployment request existed, so read-after-write freshness is a settled property of the transport rather than something to discover on first use (ADR 0021, "activation prep: caching is disabled").
 10. ~~Build 2D public-faithful preview and complete publish validation.~~ **DONE** (2D-1)
 11. ~~Implement transactional publication/revision/supersession.~~ **DONE** (2D-1)
-12. ~~Implement secure Cloudflare rebuild/deploy trigger.~~ **DONE** (2D-2, ADR 0022) — server-only user-scoped token, no deploy hook. Not yet exercised against the real API.
+12. ~~Implement secure Cloudflare rebuild/deploy trigger.~~ **DONE** (2D-2, ADR 0022) — server-only user-scoped token, no deploy hook. The credential is now installed and the trigger id resolved to the production trigger (`branch_includes: ["main"]`), but **no build has yet been requested through the application**: the path from a dispatch to a reconciled build uuid is unexercised and is 2E's first real publication to prove.
 13. ~~Expose Published / awaiting deployment / Live.~~ **DONE** (2D-2) — plus a third state, *not proven*, for when production cannot currently be verified.
 14. ~~Add deployment failure/retry/audit behavior.~~ **DONE** (2D-2, hardened in N1) — append-only trail, coalescing on identical intent serialized against concurrent requesters, no automatic retry of an unestablished dispatch, and an operator path out of every durably unresolved state that never fabricates a provider outcome.
 15. ~~Add revision-history reads/UI.~~ **DONE** (2D-1, admin-only)

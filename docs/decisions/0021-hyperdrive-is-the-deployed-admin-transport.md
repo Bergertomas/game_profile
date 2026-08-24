@@ -267,3 +267,27 @@ activating remote `/admin`, write something, reload the page that reads it, and
 confirm Hyperdrive metrics report `cacheStatus` `disabled` for the admin reads
 rather than `hit` or `miss`. There is nothing to observe before then, because no
 admin request has ever reached this binding.
+
+## Amendment — activation: the transport carried a real editorial session
+
+Recorded 2026-08-24, when remote `/admin` was activated (ADR 0019 amendment).
+
+The binding was exercised under the production Worker for the first time: an
+editor authenticated through Cloudflare Access, and the dashboard rendered live
+editorial data read through `env.HYPERDRIVE`. Until then every claim about this
+transport was an argument about configuration.
+
+Confirmed against the Cloudflare API at activation, not taken from this
+repository: exactly **one** editorial Hyperdrive configuration exists
+(`should-i-play-editorial`, `6129a6b8…`, the id `wrangler.jsonc` names), its
+origin is the Neon `game_profile` database, it connects as the restricted
+`should_i_play_admin` role rather than an owner or migration credential, and it
+carries `caching: { disabled: true }`.
+
+**What is still not observed.** Configuration says caching is disabled; the
+Hyperdrive metrics dashboard was not read, so `cacheStatus: disabled` has not
+been seen for a live admin query. The distinction matters because the read-after-
+write freshness this ADR depends on — including the "is a build already open?"
+guard in `dispatchDeployment` — is a property of the *running* transport, and the
+"Honest limitation" section above says as much. The gap is narrower than it was:
+the setting is confirmed at the API, and only the in-flight metric is unread.

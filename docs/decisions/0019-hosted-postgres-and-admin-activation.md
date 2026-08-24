@@ -86,3 +86,47 @@ The security decisions of ADR 0018 remain unchanged:
 - Public traffic geography does not currently determine the DB region because the database is outside the public page-view request path.
 - Remote editorial work becomes a supported normal workflow during Phase 2 rather than a later-phase feature.
 - A later move to public request-time DB usage would require explicit reassessment of region, connection strategy, and the static-public-rendering contract.
+
+## Amendment — activation performed, 2026-08-24
+
+This ADR called remote admin a near-term Phase-2 activation and set the
+conditions for it. Those conditions are now met, and this records what was
+actually observed rather than what was intended.
+
+**Configured and verified.** A self-hosted Cloudflare Access application
+protects `shouldiplay.gg/admin` and its descendants. Its scope was checked
+explicitly rather than assumed: `/admin`, `/admin/`, `/admin/games` and
+`/admin/deployments` all meet Access, while `/`, `/methodology`, `/games/*`,
+`/deployment-manifest`, `/robots.txt` and `/sitemap.xml` remain reachable
+unauthenticated, and `/adminx` is a plain 404 — so the rule is a path rule and
+not a prefix glob that would over-match.
+
+**The seven runtime settings are Worker secrets**, not Workers Builds
+environment variables and not plaintext variables:
+`CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD`, `ADMIN_DATABASE_URL`,
+`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_BUILDS_TRIGGER_ID`,
+`CLOUDFLARE_WORKER_TAG`. Secrets rather than variables is deliberate: Wrangler
+replaces dashboard plaintext variables on deploy and preserves existing secrets,
+so the non-sensitive identifiers are stored as secrets purely for durability.
+`DATABASE_URL` remains the build-time public read path and was not touched.
+
+**An editor authenticated end to end.** The dashboard rendered live editorial
+data under the production Worker, which exercises Access JWT verification and
+the Hyperdrive request-time path in a single act — neither of which any local or
+preview test can reach.
+
+**One operational trap worth recording.** Adding a secret through the Cloudflare
+dashboard creates a new Worker *version* but does not deploy it, so
+`wrangler secret list` reports a name the running Worker does not have. Wrangler
+refuses the next `secret put` for exactly this reason ("the latest version of
+your Worker isn't currently deployed"). The clean resolution is
+`wrangler versions secret put` to fold the remaining secret onto the latest
+version, then one `wrangler versions deploy` — a single deployment that activates
+everything, rather than a partially-configured Worker.
+
+**Still unproven at the close of activation:** the first application-originated
+Cloudflare Builds dispatch and its reconciliation, and a metrics reading of
+Hyperdrive `cacheStatus`. Both are deliberately deferred to 2E's first real
+publication rather than manufactured against an unchanged corpus. Activation
+also uncovered a defect that made verification impossible until fixed — see
+[ADR 0023](0023-verifying-production-from-inside-the-worker.md).
