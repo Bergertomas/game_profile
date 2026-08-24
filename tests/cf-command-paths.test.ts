@@ -42,6 +42,32 @@ describe("Cloudflare command entry points", () => {
   });
 
   /**
+   * The editorial tool reads `https://shouldiplay.gg/deployment-manifest` to
+   * establish what production is serving. Without
+   * `global_fetch_strictly_public`, a global fetch to the Worker's own zone is
+   * routed to the zone's ORIGIN SERVER rather than through Cloudflare's front
+   * door — and a Workers-only Custom Domain has no origin server, so every
+   * such request came back an HTTP error and nothing could ever be reported
+   * Live.
+   *
+   * This is asserted here because nothing else can catch it: `cf:verify` runs
+   * the Worker with no zone to be inside of, previews run on workers.dev
+   * rather than the custom domain, and the failure is invisible until someone
+   * presses the button on production. Dropping the flag would silently break
+   * Published-versus-Live verification again.
+   */
+  it("routes the Worker's own-zone fetches through the public front door", () => {
+    const flags: string[] = JSON.parse(
+      readFileSync(join(ROOT, "wrangler.jsonc"), "utf8").replace(
+        /^\s*\/\/.*$/gm,
+        "",
+      ),
+    ).compatibility_flags;
+
+    expect(flags).toContain("global_fetch_strictly_public");
+  });
+
+  /**
    * Two constants exist twice, because the deployment scripts are plain `.mjs`
    * and cannot import TypeScript. Duplication is fine; unpinned duplication is
    * not, and both of these fail silently rather than loudly.

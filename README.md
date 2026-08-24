@@ -608,6 +608,17 @@ from the manifest.
   `dispatchDeployment` can be answered from a stale cache and two production
   builds become possible again. See
   [ADR 0021](docs/decisions/0021-hyperdrive-is-the-deployed-admin-transport.md#amendment--activation-prep-caching-is-disabled-on-this-configuration).
+- **Reading the manifest needs the public front door — fixed, confirm on first
+  use.** `verifyProduction` fetches the real `https://shouldiplay.gg/deployment-manifest`.
+  Without the `global_fetch_strictly_public` compatibility flag, a Worker's
+  fetch to its own zone is routed to the zone's *origin server* rather than
+  through Cloudflare, and a Workers-only Custom Domain has no origin server —
+  so every verification returned `production_unverifiable … http-error` while
+  the same URL served a valid manifest to browsers. The flag is now set in
+  `wrangler.jsonc` and asserted by `tests/cf-command-paths.test.ts`. Nothing
+  local can prove the behaviour: `cf:verify` has no zone to be inside of and
+  previews run on workers.dev. See
+  [ADR 0022](docs/decisions/0022-deployment-requests-and-proof-of-live.md#amendment--activation-the-manifest-read-needed-the-public-front-door).
 - **The first real dispatch.** No Cloudflare Builds request has ever been made
   through this application. The first one is also the first test of the request
   lifecycle end to end.

@@ -15,9 +15,45 @@
   // Postgres.js also passes Node TLS options that Workers does not implement.
   // Since 2026-06-16 Workers throws on those unsupported options by default;
   // disabling that throw lets the supported TLS connection proceed instead.
+  //
+  // `global_fetch_strictly_public` is what lets the editorial tool read the
+  // site it is deployed alongside.
+  //
+  // ── The bug this fixes ─────────────────────────────────────────────────
+  //
+  // `verifyProduction` answers "what is production serving right now?" by
+  // fetching `https://shouldiplay.gg/deployment-manifest` — the real public
+  // URL, deliberately, because the question is about what the internet gets.
+  // Without this flag, a global `fetch()` to the Worker's OWN zone is not
+  // routed through Cloudflare's front door: it is sent to the zone's origin
+  // server, ignoring every Worker mapped to that URL. `shouldiplay.gg` is a
+  // Workers-only Custom Domain and HAS no origin server, so the request
+  // reached nothing and came back an HTTP error. Every verification attempt
+  // recorded `production_unverifiable … http-error` and no profile could ever
+  // be reported Live, while the same URL returned a valid manifest to any
+  // browser.
+  //
+  // With the flag set, such a request loops back to the front door and is
+  // treated like a request from the Internet — which is precisely the claim
+  // the check is trying to make. Reading the manifest out of the ASSETS
+  // binding instead would have been a smaller change and a weaker proof: it
+  // would say what this bundle contains, not what the public is served, and
+  // so could not notice a routing or deployment fault at all.
+  //
+  // Scope: the flag changes routing only for this Worker's own zone. Calls to
+  // api.cloudflare.com are external and already public-routed; Hyperdrive and
+  // Postgres do not use global fetch. `/deployment-manifest` is not behind
+  // Cloudflare Access, so the front-door round trip does not meet the Access
+  // gate that protects `/admin`.
+  //
+  // Nothing local can catch a regression here — `cf:verify` runs the Worker
+  // with no zone to be inside of, and previews run on workers.dev rather than
+  // the custom domain. `tests/cf-command-paths.test.ts` therefore asserts the
+  // flag's presence, and first use in production is the only real proof.
   "compatibility_flags": [
     "nodejs_compat",
-    "no_throw_on_not_implemented_tls_options"
+    "no_throw_on_not_implemented_tls_options",
+    "global_fetch_strictly_public"
   ],
 
   "assets": {

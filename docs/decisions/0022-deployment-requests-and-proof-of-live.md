@@ -383,3 +383,44 @@ asserts that it is sufficient for everything the application does and
 insufficient to erase the trail, so a widened grant fails a test. The real
 role's privileges remain externally asserted: no test in this repository can
 reach the authoritative database to check them.
+
+## Amendment — activation: the manifest read needed the public front door
+
+Recorded on first real use, 2026-08-24. The decision above is unchanged; this
+records a defect it did not anticipate, found the first time the button was
+pressed on production.
+
+`verifyProduction` reads `https://shouldiplay.gg/deployment-manifest` — the real
+public URL, deliberately, because the question is what the internet is served
+rather than what this bundle believes. Every attempt failed, recording
+`production_unverifiable … http-error`, while the same URL returned a valid
+manifest to any browser.
+
+**Why.** Without the `global_fetch_strictly_public` compatibility flag, a global
+`fetch()` to the Worker's *own zone* is not routed through Cloudflare's front
+door. Cloudflare sends it to the zone's origin server, ignoring every Worker
+mapped to that URL. `shouldiplay.gg` is a Workers-only Custom Domain and has no
+origin server, so the request reached nothing and returned an HTTP error. The
+fetch was not blocked and DNS was not wrong — the request was routed somewhere
+that does not exist.
+
+**The fix** is that flag, set in `wrangler.jsonc`. Requests to the Worker's own
+zone then loop back to the front door and are treated as coming from the
+Internet, which is exactly the claim this check makes. Reading the manifest from
+the `ASSETS` binding was the alternative and was rejected: it would report what
+the deployed bundle contains rather than what the public is served, and so could
+not detect a routing or deployment fault — which is half of what Live means.
+
+**Why no test caught it, and what now does.** `cf:verify` runs the Worker with no
+zone to be inside of, and previews run on `workers.dev` rather than on the
+custom domain, so the failure could not occur anywhere except production on the
+custom domain, on first use. `tests/cf-command-paths.test.ts` now asserts the
+flag is present, which prevents silent removal; it cannot prove the behaviour.
+First use in production remains the only real proof, and this is the second
+entry — after Hyperdrive cache invalidation — on the short list of properties
+that only production can establish.
+
+**Standing exposure.** Nothing here polls. A future change to `PRODUCTION_ORIGIN`,
+to the custom-domain setup, or to the compatibility flags can break this again
+in a way that only shows up as `http-error` in the audit trail. That trail is
+the diagnostic: it is append-only and it names the rejection.
