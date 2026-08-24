@@ -111,7 +111,20 @@ export function describeDatabaseFailure(error: unknown): string | null {
 
 /** The shape every admin Server Action returns. */
 export type ActionResult =
-  | { readonly ok: true }
+  | {
+      readonly ok: true;
+      /**
+       * What the action actually established, when "it finished" is not the
+       * same statement as "it succeeded".
+       *
+       * Optional because most actions do one thing and either do it or throw,
+       * for which the generic acknowledgement is honest. `checkDeploymentAction`
+       * is the case that is not: it reports on the state of a third party, so
+       * the outcome it computed has to reach the editor rather than be
+       * flattened into a word that means "no exception was raised".
+       */
+      readonly message?: string;
+    }
   | {
       readonly ok: false;
       readonly message: string;
@@ -123,6 +136,30 @@ export type ActionResult =
        */
       readonly values?: Record<string, string>;
     };
+
+/**
+ * The one line a control shows after its action runs.
+ *
+ * Extracted from the button so it can be asserted directly. The rule is three
+ * lines and the temptation is to leave it inline as JSX — but this repository
+ * has no component-rendering test setup, and the specific thing worth pinning is
+ * that A REFUSAL NEVER RENDERS AS GENERIC SUCCESS. That regression already
+ * shipped once: the first real production check refused to establish anything
+ * and the page said "Done." A rule that lives here can be proven; the same rule
+ * inline can only be re-read.
+ *
+ * `"Done."` remains the fallback, and is the honest report for actions that do
+ * one thing and either do it or throw. An action reporting on the state of
+ * something else supplies its own text.
+ */
+export function actionFeedback(result: ActionResult): {
+  readonly tone: "ok" | "failed";
+  readonly text: string;
+} {
+  return result.ok
+    ? { tone: "ok", text: result.message ?? "Done." }
+    : { tone: "failed", text: result.message };
+}
 
 /** The standard failure for a form that did not validate. */
 export function invalidForm(

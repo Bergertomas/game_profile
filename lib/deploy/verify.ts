@@ -42,12 +42,49 @@ export interface VerifyTransport {
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 
+/**
+ * The part of a response worth keeping when verification refuses.
+ *
+ * A refusal is only useful if somebody can act on it, and the first real
+ * production check proved how thin "http-error" is on its own: the status was
+ * recorded, but `cf-ray` — the one value that correlates a refusal with
+ * Cloudflare's own logs for that exact request — was discarded, so the
+ * observation could not be tied to anything Cloudflare knows about it.
+ *
+ * THE ALLOW-LIST IS THE POINT. This is a fixed, named set of three
+ * non-sensitive values, not "some headers". The response comes from a public
+ * URL over a network, is persisted into an append-only audit trail, and is read
+ * by a person during an incident — so a body, a `set-cookie`, or an echoed
+ * `authorization` must be impossible to capture here by construction rather
+ * than by review. Adding a field means deciding again, deliberately.
+ */
+export interface ObservedResponse {
+  readonly status: number;
+  /** Cloudflare's per-request id, for correlating with Worker logs. */
+  readonly cfRay: string | null;
+  /** Enough to tell "served the wrong thing" from "served nothing". */
+  readonly contentType: string | null;
+}
+
+function observe(response: Response): ObservedResponse {
+  return {
+    status: response.status,
+    cfRay: response.headers.get("cf-ray"),
+    contentType: response.headers.get("content-type"),
+  };
+}
+
 export type ProductionCheck =
   | { readonly kind: "verified"; readonly manifest: DeploymentManifest }
   | {
       readonly kind: "unverifiable";
       readonly rejection: ManifestRejection | "wrong-environment";
       readonly detail: string;
+      /**
+       * Present whenever a response was actually received — so every refusal
+       * except `unreachable`, which has no response to describe.
+       */
+      readonly observed?: ObservedResponse;
     };
 
 /**
@@ -96,10 +133,13 @@ export async function readProductionManifest(
     clearTimeout(timer);
   }
 
+  const observed = observe(response);
+
   if (!response.ok) {
     return {
       kind: "unverifiable",
       rejection: "http-error",
+      observed,
       detail:
         `${url} answered ${response.status}. ` +
         (response.status === 404
@@ -113,6 +153,7 @@ export async function readProductionManifest(
     return {
       kind: "unverifiable",
       rejection: parsed.rejection,
+      observed,
       detail: parsed.detail,
     };
   }
@@ -121,6 +162,7 @@ export async function readProductionManifest(
     return {
       kind: "unverifiable",
       rejection: "wrong-environment",
+      observed,
       detail:
         `${url} is serving a "${parsed.manifest.siteEnv}" artifact. A preview ` +
         "build is a healthy artifact, but nothing it contains is Live, and " +

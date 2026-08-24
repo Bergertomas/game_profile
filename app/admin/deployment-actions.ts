@@ -7,6 +7,7 @@ import {
   refreshBuildStatuses,
   settleDeploymentRequest,
   verifyProduction,
+  type ProductionVerification,
 } from "@/lib/admin/deployments";
 import { reportingFailures, type ActionResult } from "@/lib/admin/errors";
 import { requireEditor } from "@/lib/admin/guard";
@@ -39,16 +40,41 @@ import { z } from "zod";
  * has a field, and reading one would only invite a caller to add one.
  */
 
-/** Verify production, then reconcile the requests we are still waiting on. */
+/**
+ * Verify production, then reconcile the requests we are still waiting on.
+ *
+ * ── Why this action reports its own outcome ────────────────────────────────
+ *
+ * An unverifiable production is a state of the world, not a fault, so
+ * `verifyProduction` records it and returns rather than throwing — and that is
+ * correct. But the outcome was then discarded, and the generic action button
+ * renders "Done." for anything that did not throw. The first real production
+ * check therefore refused to establish anything, wrote a truthful
+ * `production_unverifiable` event, and told the editor "Done.".
+ *
+ * Nothing lied: the audit trail and the proof panel both said Unverified. But
+ * "Done." is the only immediate feedback at the point of action, and a system
+ * whose entire discipline is refusing to let *finished* read as *succeeded*
+ * should not spend its one line of feedback saying the wrong one of those. The
+ * outcome is already computed one line above; this returns it.
+ *
+ * `ok: false` for an unverifiable result follows the precedent
+ * `requestDeploymentAction` already sets: a refusal that is not an exception is
+ * still not a success, and the failure path is how this page reports one. It
+ * changes no deployment state and no proof semantics — only what the editor is
+ * told about a check that did not establish what production serves.
+ */
 export async function checkDeploymentAction(): Promise<ActionResult> {
   const editor = await requireEditor();
 
-  const result = await reportingFailures(async () => {
+  let verification: ProductionVerification | undefined;
+
+  const fault = await reportingFailures(async () => {
     await withAuthorizedAdminDatabase(async (db) => {
       // Verification first. It is the only step that can establish Live, and it
       // can settle a request by matching a build uuid — so running it before
       // the status poll leaves the poll less to ask about, not more.
-      await verifyProduction(db, {
+      verification = await verifyProduction(db, {
         transport: liveTransport,
         actor: editor.email,
       });
@@ -61,7 +87,43 @@ export async function checkDeploymentAction(): Promise<ActionResult> {
 
   revalidatePath("/admin/deployments");
   revalidatePath("/admin");
-  return result;
+
+  // A thrown operational failure — a database that is down — still wins, and
+  // still uses the existing error path. It is a different thing from production
+  // being unverifiable, and the two must not be reported as one.
+  if (!fault.ok) return fault;
+
+  // Absent only if `reportingFailures` swallowed something before verification
+  // ran. Treated as not-proven rather than as success, because the one thing
+  // this action must never do is imply a check that did not happen.
+  if (!verification) {
+    return {
+      ok: false,
+      message:
+        "The check did not complete, so nothing can be reported about what " +
+        "production is serving. Nothing was changed.",
+    };
+  }
+
+  if (verification.kind === "unverifiable") {
+    return {
+      ok: false,
+      message: `Production could not be verified, so nothing is Live. ${verification.detail}`,
+    };
+  }
+
+  const { manifest } = verification;
+  const count = manifest.entries.length;
+  const commit = manifest.commitSha
+    ? ` from commit ${manifest.commitSha.slice(0, 7)}`
+    : "";
+
+  return {
+    ok: true,
+    message:
+      `Production verified${commit}: it is serving ${count} published ` +
+      `${count === 1 ? "profile" : "profiles"}.`,
+  };
 }
 
 /**

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import type { ActionResult } from "@/lib/admin/errors";
+import { actionFeedback, type ActionResult } from "@/lib/admin/errors";
 
 /**
  * A button that performs one deployment action and says what happened.
@@ -41,6 +41,10 @@ export function DeploymentAction({
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<ActionResult | null>(null);
 
+  // What to say, and in which tone, derived in one place so a refusal cannot
+  // reach the page wearing the success style. See `actionFeedback`.
+  const feedback = result ? actionFeedback(result) : null;
+
   const classes =
     emphasis === "primary"
       ? "border-ink bg-graphite text-bone hover:bg-ink"
@@ -63,13 +67,14 @@ export function DeploymentAction({
         {pending ? pendingLabel : label}
       </button>
 
-      {result && !result.ok ? (
-        <p className="m-0 mt-2 max-w-prose text-[0.8rem] leading-relaxed text-signal-ink">
-          {result.message}
+      {feedback ? (
+        <p
+          className={`m-0 mt-2 max-w-prose text-[0.8rem] leading-relaxed ${
+            feedback.tone === "failed" ? "text-signal-ink" : "text-ink-quiet"
+          }`}
+        >
+          {feedback.text}
         </p>
-      ) : null}
-      {result?.ok ? (
-        <p className="m-0 mt-2 text-[0.8rem] text-ink-quiet">Done.</p>
       ) : null}
     </div>
   );
