@@ -1083,7 +1083,11 @@ For every calibration batch report:
 - material disagreement count;
 - agreement by dimension and score band;
 - common ambiguity causes;
-- owner override count and reasons.
+- owner override count and reasons;
+- wall-clock time and working effort per game for the research pass and for
+  each scoring pass — the measurement that decides, before any catalog
+  commitment, whether every production profile carries the full
+  calibration-grade record or a reduced-but-auditable one.
 
 Protocol v1.0 is production-ready only after a blind program using ten varied
 mature games: six development games for anchor refinement and four untouched
@@ -1287,9 +1291,19 @@ set; no other decision or platform-override set changes. Then derive all eight
 dimensions/confidence labels and interpretation from that merged 40-decision
 map — after re-attesting the carried-forward decisions' confidence facts at
 the new cutoff; a fact that cannot be re-attested from the new active corpus is
-recorded at its degraded value rather than inherited. The published successor
-stores the full merged state plus its baseline/patch lineage. Missing baseline, duplicate keys, a key outside the
-affected set or a rubric/protocol incompatibility rejects the package; a rubric
+recorded at its degraded value rather than inherited.
+
+The bounded package's pass and final decision sets contain exactly the
+affected keys; the carried-forward decisions are not duplicated into it. Their
+re-attested facts live in the reassessment record's
+`carried_forward_reattestations` — one entry per rubric key outside the
+affected set, each carrying the three §10.1 facts as attested at the new
+cutoff. Derivation reads baseline decisions, affected-set replacements and
+re-attested facts together; the published successor stores the bounded package
+plus its baseline/patch lineage, and the full merged state is what it derives,
+not what it re-stores. Missing baseline, duplicate keys, a key outside the
+affected set, a carried-forward set that is not exactly the affected set's
+complement, or a rubric/protocol incompatibility rejects the package; a rubric
 or incompatible protocol change requires `reassessment_full`.
 
 `evaluation_kind = reassessment_affected` must carry
@@ -1350,7 +1364,9 @@ The validator has no editorial discretion. It rejects unless all are true:
 1. canonical JSON and digest/approval binding match the rules above;
 2. initial/full packages contain each of the 40 rubric keys exactly once in
    primary, audit and final decisions; affected reassessments contain exactly
-   their graph-derived affected set in all three;
+   their graph-derived affected set in all three, and exactly the remaining
+   rubric keys — each exactly once — in the reassessment record's
+   carried-forward re-attestations;
 3. primary/audit normalized-packet digest, source order, protocol/rubric/schema,
    prompt hashes and exact model snapshot match; their decoding configurations
    match except the sampling seed and exposed seeds differ (§2.3); their roles
@@ -1366,7 +1382,9 @@ The validator has no editorial discretion. It rejects unless all are true:
    decision carries the adjacent anchor-rejection rationales its value admits;
    and every endpoint decision carries its §9 `endpoint_gate` record;
 6. coverage states reproduce from the frozen coverage frame, Unknown reasons
-   name a controlled missing class and elapsed retrospective dates/lower bounds
+   name a controlled missing class, every date is calendar-valid (the schema
+   patterns bound fields and ranges; only the semantic validator knows
+   February), and elapsed retrospective dates/lower bounds
    reproduce arithmetically; and the §6 Step 2 retrospective minima recompute
    for `memory_residue` and `lasting_impact` — the per-value independent-claim
    counts, the 180-day bound for `2`, releases under 30 days forced to Unknown,
@@ -1379,9 +1397,9 @@ The validator has no editorial discretion. It rejects unless all are true:
 8. all eight dimension result kinds/values and every confidence label reproduce
    from §§7 and 10; duplicated maturity/stability/scope facts match the frozen
    evaluation scope; release-state/date combinations are valid; the declared
-   `evidence_status` reproduces from the §15.2 rule; and, for a reassessment,
-   carried-forward confidence facts are re-attested at the new cutoff (§14);
-   and
+   `evidence_status` reproduces from the §15.2 rule; and, for a bounded
+   reassessment, every carried-forward key's re-attested facts are present in
+   the reassessment record and are what derivation consumed (§14); and
 9. reassessment source status, affected-set graph/threshold, baseline digest and
    disposition are internally consistent.
 
@@ -1408,6 +1426,7 @@ in ADR 0024 and must land before the first import.
 | `evaluation_scope.evidence_cutoff` | `evaluations.evidence_cutoff_at`. Both are dates, not timestamps. |
 | `interpretation` blocks | `profile_blocks` rows (`great_fit`, `know_before`, `probably_not`), 2–5 bullets each — the schema enforces the same 2–5 the publish gate does. Pre-release headings render per §12 from the same three slots. |
 | `public_rationale` | `subcriterion_scores.rationale`, minimum 31 characters — the floor the calibration-corpus test already enforces. |
+| the complete package | `scoring_packages` (ADR 0024 migration): an immutable row per approved document, keyed by unique `content_digest`, storing the whole package as `jsonb` with its schema/protocol/rubric versions, approval actor/time and `baseline_package_digest`. The evaluation the import creates references it through `evaluations.scoring_package_digest`; §14 resolves a baseline by selecting this table by digest. Run manifests, claim ledgers, endpoint gates, confidence facts and approval binding are thereby durable without becoming a second relational source of truth. |
 
 Nothing here weakens §15's rule that the importer creates a draft only.
 
@@ -1588,7 +1607,10 @@ Before Protocol v1.0 becomes governing:
    evidence/anchor traceability, Unknown rationales, derivation parity and
    record retention.
 10. Tomas approves Protocol v1.0 only if every holdout gate passes and no
-    integrity failure occurred.
+    integrity failure occurred. The approval also decides, from the recorded
+    per-game time and effort, whether the full record is required for every
+    production profile or reserved for calibration, endpoints and disagreement
+    cases — before the catalog commits to either answer.
 
 The ten-game set should collectively include:
 

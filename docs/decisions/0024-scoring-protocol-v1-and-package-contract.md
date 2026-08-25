@@ -56,11 +56,23 @@ Protocol §6.1 derives six criteria (`narrative_momentum`, `failure_fairness`,
 `mechanics_meaning`) from the lower of two required facets. That changes how
 those criteria are calculated, and Rubric §18 classes calculation changes as
 breaking. The rule therefore travels with this ADR as a proposed Rubric v1.1
-amendment: Tomas either approves it with the protocol, or the rule reverts to
-ordinary whole-criterion anchor selection with facet records retained as
-evidence structure. The six criteria span five of the eight dimensions, so the
-Appendix B development games must check the rule's aggregate effect against the
-approved calibration corpus for systematic deflation before the holdout runs.
+amendment. The protocol is deliberately conditional here and cannot become
+governing in this state; approval resolves it down exactly one of two paths:
+
+- **Approve Rubric v1.1.** The amendment is authored as a rubric minor version
+  under Rubric §18, and every `rubric_version` constant moves with it — the
+  protocol header, the package schema's three `"1.0"` consts, the run
+  manifests, and the `rubric_versions` registry row the evaluations reference.
+- **Reject the calculation change.** §6.1's parent-from-lower-facet sentence
+  reverts to ordinary whole-criterion anchor selection. The facet *records*
+  stay — they are protocol-owned evidence structure, and the schema's facet
+  pairing enforcement is unaffected — but no arithmetic derives the parent
+  from them.
+
+The six criteria span five of the eight dimensions, so the Appendix B
+development games must check the rule's aggregate effect against the approved
+calibration corpus for systematic deflation before the holdout runs — evidence
+for exactly this choice.
 
 ### 5. The published corpus is grandfathered
 
@@ -91,7 +103,23 @@ Protocol §15.2 is the normative field mapping. It depends on:
    the editorial sign-off) and `derived` plus a mandatory note for a draft
    imported before approval; confidence labels lowercased and recomputed.
 
-No migration here changes public meaning; all three are additive or relocations.
+4. **The package itself** — protocol §15 requires the database to store the
+   complete approved package for audit, and §14 resolves reassessment
+   baselines by `baseline_package_digest`; neither has a home today. A
+   `scoring_packages` table: `content_digest` text primary key (the RFC 8785
+   SHA-256, giving baseline resolution and uniqueness in one), the whole
+   document as `jsonb`, `package_id`, schema/protocol/rubric versions,
+   approval actor and UTC time, and a nullable `baseline_package_digest`
+   self-reference with ON DELETE RESTRICT so a baseline cannot be deleted out
+   from under its successor (the same posture as `supersedes_evaluation_id`,
+   ADR 0009). Rows are immutable once written — corrections are a new digest,
+   exactly as `owner_approval` already requires. `evaluations` gains a
+   nullable `scoring_package_digest` reference to it, set by the importer on
+   the draft it creates. Run manifests, claim ledgers, endpoint gates,
+   confidence facts, approval binding and baselines are thereby durable
+   without the opaque document becoming a second relational source of truth.
+
+No migration here changes public meaning; all four are additive or relocations.
 
 ### 7. The endpoint gate is recorded structure
 
@@ -104,12 +132,26 @@ No subcriterion-level calibration references exist yet (ADR 0005 left their
 publication open); the reference clause binds prospectively once Appendix B
 produces them.
 
+### 8. Calibration validity under undisclosed decoding parameters
+
+Protocol §2.3 excludes `snapshot_unavailable` runs from the reliability gate
+but lets a `parameter_unavailable` pair count, because provider-default
+sampling is stochastic and the initially named scoring editor exposes neither
+seed nor decoding controls. That is a consciously weaker claim: two such
+passes are independent samples, but their configurations cannot be *proven*
+identical, so same-snapshot repeatability becomes provider-dependent to that
+extent. Approving the protocol accepts this explicitly; the calibration report
+must state which pairs ran under it. The alternative — requiring exposed
+seeds for all calibration pairs — is stronger and is the standard to move to
+if a scoring path with exposed decoding controls becomes the primary editor.
+
 ## Consequences
 
 - Approval of Protocol v1.0 approves this register; a rejected entry sends the
   protocol back to development rather than being quietly dropped.
 - On approval: SOP v0.2 → v0.3 (source-target vocabulary, confidence facts),
-  and the Rubric v1.1 decision of §4 above is made explicitly.
+  and the Rubric v1.1 decision of §4 above is made explicitly, down one of
+  its two named paths.
 - The migrations of §6 above land before the first package import; the §15.1
   checklist plus the JSON Schema remain the entire enforcement surface.
 - Published snapshots are untouched throughout — §5 above and Master Plan

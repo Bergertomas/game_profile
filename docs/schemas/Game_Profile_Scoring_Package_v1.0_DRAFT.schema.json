@@ -35,12 +35,12 @@
     "date": {
       "type": "string",
       "format": "date",
-      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      "pattern": "^\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])$"
     },
     "dateTime": {
       "type": "string",
       "format": "date-time",
-      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+      "pattern": "^\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])T([01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(\\.\\d+)?(Z|[+-]([01]\\d|2[0-3]):[0-5]\\d)$"
     },
     "sha256": {
       "type": "string",
@@ -1802,7 +1802,7 @@
     "reassessmentRecord": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["trigger", "checked_at", "disposition", "initial_impact_keys", "affected_set_keys", "active_source_ids", "superseded_source_ids", "no_change_reason"],
+      "required": ["trigger", "checked_at", "disposition", "initial_impact_keys", "affected_set_keys", "carried_forward_reattestations", "active_source_ids", "superseded_source_ids", "no_change_reason"],
       "properties": {
         "trigger": { "enum": ["scheduled_3m", "scheduled_6m", "scheduled_12m", "major_patch", "systems_redesign", "performance_change", "expansion_base_effect", "port_or_upgrade", "service_availability", "late_game_evidence", "credible_correction"] },
         "checked_at": { "$ref": "#/$defs/dateTime" },
@@ -1817,6 +1817,11 @@
           "uniqueItems": true,
           "items": { "$ref": "#/$defs/subcriterionKey" }
         },
+        "carried_forward_reattestations": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/carriedForwardReattestation" }
+        },
         "active_source_ids": {
           "type": "array",
           "uniqueItems": true,
@@ -1828,6 +1833,33 @@
           "items": { "$ref": "#/$defs/id" }
         },
         "no_change_reason": { "type": "null" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "disposition": { "const": "affected_set_revision" } },
+            "required": ["disposition"]
+          },
+          "then": {
+            "properties": {
+              "carried_forward_reattestations": { "minItems": 33, "maxItems": 39 }
+            }
+          },
+          "else": {
+            "properties": {
+              "carried_forward_reattestations": { "maxItems": 0 }
+            }
+          }
+        }
+      ]
+    },
+    "carriedForwardReattestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subcriterion_key", "confidence_facts"],
+      "properties": {
+        "subcriterion_key": { "$ref": "#/$defs/subcriterionKey" },
+        "confidence_facts": { "$ref": "#/$defs/confidenceFacts" }
       }
     },
     "ownerApproval": {
