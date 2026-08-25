@@ -1827,7 +1827,7 @@
           "uniqueItems": true,
           "items": { "$ref": "#/$defs/id" }
         },
-        "no_change_reason": { "$ref": "#/$defs/nullableString" }
+        "no_change_reason": { "type": "null" }
       }
     },
     "ownerApproval": {
