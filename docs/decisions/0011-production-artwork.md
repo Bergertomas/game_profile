@@ -182,3 +182,34 @@ built production artefact, and production still renders the artless composition.
 thing still blocking real artwork: the basis each publisher's art is held on.**
 That is a product and legal decision. Everything structural is now in place, and
 enabling a game is a data change on one row.
+
+## Deferred follow-up — editorial fair-use basis, recorded 2026-08-25
+
+The public-product consolidation selected an artwork-forward mixed launch and
+identified a further lawful-basis candidate: official publisher/developer
+promotional artwork used directly to identify, navigate to, or discuss the game
+inside a substantive editorial profile may qualify for an
+`editorial-fair-use` basis. Public availability on Steam or another storefront
+does not itself establish that basis, and community/user-uploaded artwork is
+outside this candidate policy.
+
+This paragraph records future work; it does **not** add a production basis yet.
+No asset may be marked `production` on editorial-fair-use grounds until the
+later artwork-policy phase has:
+
+1. obtained a one-time, jurisdiction-aware legal review of the intended uses,
+   including profile heroes, catalog/search cards, homepage editorial links,
+   crops, resolution, attribution, storage and takedown handling;
+2. amended this ADR's governing decision and the `artwork_basis` database enum
+   through a forward migration to add `editorial-fair-use`;
+3. updated every corresponding application type, validation/schema boundary,
+   admin/import path, fixture and regression test rather than treating the new
+   string as documentation-only;
+4. documented the eligible source/placement rules, required credit and source
+   page, web-appropriate resolution, prohibition on standalone downloads and
+   user-uploaded art, and the rights-holder removal channel; and
+5. retained the artless fallback and existing containment rules for every asset
+   that does not meet the approved policy.
+
+Until that work is deliberately completed, the existing basis values and
+production-clearance rules remain authoritative.
