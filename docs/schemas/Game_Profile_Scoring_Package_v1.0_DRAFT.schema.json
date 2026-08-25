@@ -34,11 +34,13 @@
     },
     "date": {
       "type": "string",
-      "format": "date"
+      "format": "date",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
     },
     "dateTime": {
       "type": "string",
-      "format": "date-time"
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
     },
     "sha256": {
       "type": "string",
@@ -262,6 +264,8 @@
         "included_platforms",
         "build_cutoff",
         "release_state",
+        "pre_release_playable_basis",
+        "evidence_status",
         "evaluation_maturity",
         "public_release_date",
         "evidence_cutoff",
@@ -292,13 +296,19 @@
         "release_state": {
           "enum": ["announced", "showcased", "pre_release_playable", "released"]
         },
+        "pre_release_playable_basis": {
+          "enum": ["hands_on", "review_code", null]
+        },
+        "evidence_status": {
+          "enum": ["verified", "provisional", "pre_release"]
+        },
         "evaluation_maturity": {
           "enum": ["pre_release", "newly_released", "mature"]
         },
         "public_release_date": {
           "oneOf": [{ "$ref": "#/$defs/date" }, { "type": "null" }]
         },
-        "evidence_cutoff": { "$ref": "#/$defs/dateTime" },
+        "evidence_cutoff": { "$ref": "#/$defs/date" },
         "direct_play": { "$ref": "#/$defs/directPlay" },
         "known_exclusions": {
           "type": "array",
@@ -320,13 +330,47 @@
           "then": {
             "properties": {
               "evaluation_maturity": { "const": "pre_release" },
-              "public_release_date": { "type": "null" }
+              "public_release_date": { "type": "null" },
+              "evidence_status": { "const": "pre_release" }
             }
           },
           "else": {
             "properties": {
               "evaluation_maturity": { "enum": ["newly_released", "mature"] },
-              "public_release_date": { "$ref": "#/$defs/date" }
+              "public_release_date": { "$ref": "#/$defs/date" },
+              "evidence_status": { "enum": ["verified", "provisional"] }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "release_state": { "const": "pre_release_playable" }
+            },
+            "required": ["release_state"]
+          },
+          "then": {
+            "properties": {
+              "pre_release_playable_basis": { "enum": ["hands_on", "review_code"] }
+            }
+          },
+          "else": {
+            "properties": {
+              "pre_release_playable_basis": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "release_state": { "const": "released" },
+              "profile_stability_state": { "enum": ["actively_changing", "unknown"] }
+            },
+            "required": ["release_state", "profile_stability_state"]
+          },
+          "then": {
+            "properties": {
+              "evidence_status": { "const": "provisional" }
             }
           }
         }
@@ -402,7 +446,7 @@
         "frozen_at"
       ],
       "properties": {
-        "research_run_manifest": { "$ref": "#/$defs/runManifest" },
+        "research_run_manifest": { "$ref": "#/$defs/researchRunManifest" },
         "collection_standard": {
           "enum": ["scarcity_floor", "normal_target", "expanded_for_complexity"]
         },
@@ -411,7 +455,51 @@
           "type": "array",
           "minItems": 7,
           "maxItems": 7,
-          "items": { "$ref": "#/$defs/queryFamilyAudit" }
+          "items": { "$ref": "#/$defs/queryFamilyAudit" },
+          "allOf": [
+            {
+              "contains": {
+                "properties": { "query_family": { "const": "title_edition" } },
+                "required": ["query_family"]
+              }
+            },
+            {
+              "contains": {
+                "properties": { "query_family": { "const": "full_game" } },
+                "required": ["query_family"]
+              }
+            },
+            {
+              "contains": {
+                "properties": { "query_family": { "const": "platform_technical" } },
+                "required": ["query_family"]
+              }
+            },
+            {
+              "contains": {
+                "properties": { "query_family": { "const": "late_game_endgame" } },
+                "required": ["query_family"]
+              }
+            },
+            {
+              "contains": {
+                "properties": { "query_family": { "const": "specialist" } },
+                "required": ["query_family"]
+              }
+            },
+            {
+              "contains": {
+                "properties": { "query_family": { "const": "major_patches" } },
+                "required": ["query_family"]
+              }
+            },
+            {
+              "contains": {
+                "properties": { "query_family": { "const": "material_disagreement" } },
+                "required": ["query_family"]
+              }
+            }
+          ]
         },
         "candidate_source_log": {
           "type": "array",
@@ -576,7 +664,7 @@
         "subcriterion_key": { "$ref": "#/$defs/subcriterionKey" },
         "coverage_units": {
           "type": "array",
-          "minItems": 1,
+          "minItems": 4,
           "items": { "$ref": "#/$defs/coverageUnit" }
         }
       }
@@ -623,7 +711,7 @@
       ],
       "properties": {
         "run_id": { "$ref": "#/$defs/id" },
-        "role": { "enum": ["research", "primary", "audit"] },
+        "role": { "enum": ["primary", "audit"] },
         "started_at": { "$ref": "#/$defs/dateTime" },
         "ended_at": { "$ref": "#/$defs/dateTime" },
         "provider": { "$ref": "#/$defs/nonEmptyString" },
@@ -660,7 +748,7 @@
             }
           }
         },
-        "seed": { "type": ["integer", "string", "null"] },
+        "seed": { "oneOf": [{ "type": "integer" }, { "const": "parameter_unavailable" }] },
         "retry_count": { "type": "integer", "minimum": 0 },
         "validation_failures": {
           "type": "array",
@@ -671,6 +759,93 @@
           "items": { "$ref": "#/$defs/nonEmptyString" }
         },
         "structured_output_digest": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "researchRunManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id",
+        "role",
+        "started_at",
+        "ended_at",
+        "provider",
+        "model_label",
+        "model_snapshot_build_id",
+        "protocol_version",
+        "rubric_version",
+        "package_schema_version",
+        "system_instructions_digest",
+        "prompt_template_digest",
+        "rubric_digest",
+        "protocol_digest",
+        "output_schema_digest",
+        "normalized_packet_digest",
+        "canonical_source_order",
+        "research_tool_access",
+        "decoding_parameters",
+        "seed",
+        "retry_count",
+        "validation_failures",
+        "human_corrections",
+        "structured_output_digest"
+      ],
+      "properties": {
+        "run_id": { "$ref": "#/$defs/id" },
+        "role": { "const": "research" },
+        "started_at": { "$ref": "#/$defs/dateTime" },
+        "ended_at": { "$ref": "#/$defs/dateTime" },
+        "provider": { "$ref": "#/$defs/nonEmptyString" },
+        "model_label": { "$ref": "#/$defs/nonEmptyString" },
+        "model_snapshot_build_id": { "$ref": "#/$defs/nonEmptyString" },
+        "protocol_version": { "const": "1.0" },
+        "rubric_version": { "const": "1.0" },
+        "package_schema_version": { "const": "1.0-draft" },
+        "system_instructions_digest": { "$ref": "#/$defs/sha256" },
+        "prompt_template_digest": {
+          "oneOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }]
+        },
+        "rubric_digest": { "$ref": "#/$defs/sha256" },
+        "protocol_digest": { "$ref": "#/$defs/sha256" },
+        "output_schema_digest": {
+          "oneOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }]
+        },
+        "normalized_packet_digest": { "$ref": "#/$defs/sha256" },
+        "canonical_source_order": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        },
+        "research_tool_access": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        },
+        "decoding_parameters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "value"],
+            "properties": {
+              "name": { "$ref": "#/$defs/id" },
+              "value": { "type": ["string", "number", "integer", "boolean", "null"] }
+            }
+          }
+        },
+        "seed": { "oneOf": [{ "type": "integer" }, { "const": "parameter_unavailable" }] },
+        "retry_count": { "type": "integer", "minimum": 0 },
+        "validation_failures": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        },
+        "human_corrections": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        },
+        "structured_output_digest": {
+          "oneOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }]
+        }
       }
     },
     "scoringPass": {
@@ -734,8 +909,8 @@
           "items": { "$ref": "#/$defs/id" }
         },
         "scorer_inference": { "$ref": "#/$defs/nullableString" },
-        "recurrence": { "enum": ["isolated", "recurring", "widespread"] },
-        "consequence": { "enum": ["cosmetic", "minor_friction", "material", "blocking_or_defining"] },
+        "recurrence": { "enum": ["isolated", "recurring", "widespread", null] },
+        "consequence": { "enum": ["cosmetic", "minor_friction", "material", "blocking_or_defining", null] },
         "anchor_condition_ids": {
           "type": "array",
           "items": {
@@ -763,7 +938,27 @@
             { "type": "null" }
           ]
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "claim_type": { "const": "fact" } },
+            "required": ["claim_type"]
+          },
+          "then": {
+            "properties": {
+              "recurrence": { "type": "null" },
+              "consequence": { "type": "null" }
+            }
+          },
+          "else": {
+            "properties": {
+              "recurrence": { "enum": ["isolated", "recurring", "widespread"] },
+              "consequence": { "enum": ["cosmetic", "minor_friction", "material", "blocking_or_defining"] }
+            }
+          }
+        }
+      ]
     },
     "retrospectiveTime": {
       "type": "object",
@@ -802,6 +997,21 @@
         "coverage_state": { "enum": ["full", "bounded", "materially_limited"] },
         "conflict_state": { "enum": ["none", "adjacent_resolved", "material_unresolved"] },
         "stability_state": { "enum": ["stable", "bounded_change", "actively_changing", "unknown"] }
+      }
+    },
+    "endpointGate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_spanning_claim_ids", "calibration_reference", "intent_genre_check"],
+      "properties": {
+        "scope_spanning_claim_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        },
+        "calibration_reference": { "$ref": "#/$defs/nullableString" },
+        "intent_genre_check": { "$ref": "#/$defs/nonEmptyString" }
       }
     },
     "facetRecord": {
@@ -875,6 +1085,7 @@
         "confidence_facts",
         "subcriterion_confidence",
         "zero_reason",
+        "endpoint_gate",
         "platform_overrides"
       ],
       "properties": {
@@ -899,7 +1110,7 @@
         "lower_anchor_rejection": { "$ref": "#/$defs/nullableString" },
         "higher_anchor_rejection": { "$ref": "#/$defs/nullableString" },
         "internal_rationale": { "$ref": "#/$defs/nonEmptyString" },
-        "public_rationale": { "$ref": "#/$defs/nonEmptyString" },
+        "public_rationale": { "type": "string", "minLength": 31 },
         "claim_ids": {
           "type": "array",
           "uniqueItems": true,
@@ -920,6 +1131,9 @@
         "zero_reason": {
           "type": ["string", "null"],
           "enum": ["absent_offering", "failed_execution", null]
+        },
+        "endpoint_gate": {
+          "oneOf": [{ "$ref": "#/$defs/endpointGate" }, { "type": "null" }]
         },
         "platform_overrides": {
           "type": "array",
@@ -950,7 +1164,10 @@
               "missing_coverage_classes": { "minItems": 1 },
               "insufficiency_reference_ids": { "minItems": 1 },
               "subcriterion_confidence": { "const": "Low" },
-              "zero_reason": { "type": "null" }
+              "zero_reason": { "type": "null" },
+              "lower_anchor_rejection": { "type": "null" },
+              "higher_anchor_rejection": { "type": "null" },
+              "endpoint_gate": { "type": "null" }
             }
           }
         },
@@ -966,6 +1183,253 @@
           },
           "else": {
             "properties": { "zero_reason": { "type": "null" } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "numeric_score": { "enum": [0.5, 1, 1.5] } },
+            "required": ["numeric_score"]
+          },
+          "then": {
+            "properties": {
+              "lower_anchor_rejection": { "$ref": "#/$defs/nonEmptyString" },
+              "higher_anchor_rejection": { "$ref": "#/$defs/nonEmptyString" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "numeric_score": { "const": 0 } },
+            "required": ["numeric_score"]
+          },
+          "then": {
+            "properties": {
+              "lower_anchor_rejection": { "type": "null" },
+              "higher_anchor_rejection": { "$ref": "#/$defs/nonEmptyString" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "numeric_score": { "const": 2 } },
+            "required": ["numeric_score"]
+          },
+          "then": {
+            "properties": {
+              "lower_anchor_rejection": { "$ref": "#/$defs/nonEmptyString" },
+              "higher_anchor_rejection": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "numeric_score": { "enum": [0, 2] } },
+            "required": ["numeric_score"]
+          },
+          "then": {
+            "properties": { "endpoint_gate": { "$ref": "#/$defs/endpointGate" } }
+          },
+          "else": {
+            "properties": { "endpoint_gate": { "type": "null" } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "subcriterion_key": { "const": "narrative_momentum" } },
+            "required": ["subcriterion_key"]
+          },
+          "then": {
+            "properties": {
+              "facet_records": {
+                "minItems": 2,
+                "maxItems": 2,
+                "items": {
+                  "properties": { "facet_key": { "enum": ["development_momentum", "payoff"] } }
+                },
+                "allOf": [
+                  {
+                    "contains": {
+                      "properties": { "facet_key": { "const": "development_momentum" } },
+                      "required": ["facet_key"]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": { "facet_key": { "const": "payoff" } },
+                      "required": ["facet_key"]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "subcriterion_key": { "const": "failure_fairness" } },
+            "required": ["subcriterion_key"]
+          },
+          "then": {
+            "properties": {
+              "facet_records": {
+                "minItems": 2,
+                "maxItems": 2,
+                "items": {
+                  "properties": { "facet_key": { "enum": ["causality_feedback", "proportionality_recovery"] } }
+                },
+                "allOf": [
+                  {
+                    "contains": {
+                      "properties": { "facet_key": { "const": "causality_feedback" } },
+                      "required": ["facet_key"]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": { "facet_key": { "const": "proportionality_recovery" } },
+                      "required": ["facet_key"]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "subcriterion_key": { "const": "capability_balance" } },
+            "required": ["subcriterion_key"]
+          },
+          "then": {
+            "properties": {
+              "facet_records": {
+                "minItems": 2,
+                "maxItems": 2,
+                "items": {
+                  "properties": { "facet_key": { "enum": ["capability_counterplay", "pressure_fit"] } }
+                },
+                "allOf": [
+                  {
+                    "contains": {
+                      "properties": { "facet_key": { "const": "capability_counterplay" } },
+                      "required": ["facet_key"]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": { "facet_key": { "const": "pressure_fit" } },
+                      "required": ["facet_key"]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "subcriterion_key": { "const": "session_rhythm" } },
+            "required": ["subcriterion_key"]
+          },
+          "then": {
+            "properties": {
+              "facet_records": {
+                "minItems": 2,
+                "maxItems": 2,
+                "items": {
+                  "properties": { "facet_key": { "enum": ["progress_unit_legibility", "closure_resumption_loss"] } }
+                },
+                "allOf": [
+                  {
+                    "contains": {
+                      "properties": { "facet_key": { "const": "progress_unit_legibility" } },
+                      "required": ["facet_key"]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": { "facet_key": { "const": "closure_resumption_loss" } },
+                      "required": ["facet_key"]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "subcriterion_key": { "const": "theme_character_integration" } },
+            "required": ["subcriterion_key"]
+          },
+          "then": {
+            "properties": {
+              "facet_records": {
+                "minItems": 2,
+                "maxItems": 2,
+                "items": {
+                  "properties": { "facet_key": { "enum": ["agent_situation_embodiment", "thematic_testing_consequence"] } }
+                },
+                "allOf": [
+                  {
+                    "contains": {
+                      "properties": { "facet_key": { "const": "agent_situation_embodiment" } },
+                      "required": ["facet_key"]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": { "facet_key": { "const": "thematic_testing_consequence" } },
+                      "required": ["facet_key"]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "subcriterion_key": { "const": "mechanics_meaning" } },
+            "required": ["subcriterion_key"]
+          },
+          "then": {
+            "properties": {
+              "facet_records": {
+                "minItems": 2,
+                "maxItems": 2,
+                "items": {
+                  "properties": { "facet_key": { "enum": ["rule_behavior", "meaning_consequence"] } }
+                },
+                "allOf": [
+                  {
+                    "contains": {
+                      "properties": { "facet_key": { "const": "rule_behavior" } },
+                      "required": ["facet_key"]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": { "facet_key": { "const": "meaning_consequence" } },
+                      "required": ["facet_key"]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "subcriterion_key": {
+                "not": { "enum": ["narrative_momentum", "failure_fairness", "capability_balance", "session_rhythm", "theme_character_integration", "mechanics_meaning"] }
+              }
+            },
+            "required": ["subcriterion_key"]
+          },
+          "then": {
+            "properties": { "facet_records": { "maxItems": 0 } }
           }
         }
       ]
@@ -1106,7 +1570,47 @@
         "confidence_differs": { "type": "boolean" },
         "owner_review_required": { "type": "boolean" },
         "resolution_reason": { "$ref": "#/$defs/nonEmptyString" }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "difference_class": { "const": "material" } },
+            "required": ["difference_class"]
+          },
+          "then": {
+            "properties": { "owner_review_required": { "const": true } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "difference_class": { "const": "adjacent" } },
+            "required": ["difference_class"],
+            "anyOf": [
+              {
+                "properties": {
+                  "primary_value": {
+                    "properties": { "numeric_score": { "enum": [0, 2] } },
+                    "required": ["numeric_score"]
+                  }
+                },
+                "required": ["primary_value"]
+              },
+              {
+                "properties": {
+                  "audit_value": {
+                    "properties": { "numeric_score": { "enum": [0, 2] } },
+                    "required": ["numeric_score"]
+                  }
+                },
+                "required": ["audit_value"]
+              }
+            ]
+          },
+          "then": {
+            "properties": { "owner_review_required": { "const": true } }
+          }
+        }
+      ]
     },
     "compactScore": {
       "type": "object",
@@ -1165,7 +1669,8 @@
             "properties": {
               "exact_value": { "type": "null" },
               "lower_bound": { "type": "number", "minimum": 0, "maximum": 8, "multipleOf": 0.5 },
-              "upper_bound": { "type": "number", "minimum": 2, "maximum": 10, "multipleOf": 0.5 }
+              "upper_bound": { "type": "number", "minimum": 2, "maximum": 10, "multipleOf": 0.5 },
+              "dimension_confidence": { "enum": ["Medium", "Low"] }
             }
           }
         },
@@ -1206,21 +1711,25 @@
         "primary_risk": { "$ref": "#/$defs/nonEmptyString" },
         "experience_tags": {
           "type": "array",
+          "uniqueItems": true,
           "items": { "$ref": "#/$defs/experienceTag" }
         },
         "great_fit_if": {
           "type": "array",
-          "minItems": 1,
+          "minItems": 2,
+          "maxItems": 5,
           "items": { "$ref": "#/$defs/nonEmptyString" }
         },
         "know_before_buying": {
           "type": "array",
-          "minItems": 1,
+          "minItems": 2,
+          "maxItems": 5,
           "items": { "$ref": "#/$defs/nonEmptyString" }
         },
         "probably_not_for_you_if": {
           "type": "array",
-          "minItems": 1,
+          "minItems": 2,
+          "maxItems": 5,
           "items": { "$ref": "#/$defs/nonEmptyString" }
         },
         "material_platform_warning": { "$ref": "#/$defs/nullableString" }
@@ -1297,7 +1806,7 @@
       "properties": {
         "trigger": { "enum": ["scheduled_3m", "scheduled_6m", "scheduled_12m", "major_patch", "systems_redesign", "performance_change", "expansion_base_effect", "port_or_upgrade", "service_availability", "late_game_evidence", "credible_correction"] },
         "checked_at": { "$ref": "#/$defs/dateTime" },
-        "disposition": { "enum": ["no_change", "affected_set_revision", "full_revision"] },
+        "disposition": { "enum": ["affected_set_revision", "full_revision"] },
         "initial_impact_keys": {
           "type": "array",
           "uniqueItems": true,

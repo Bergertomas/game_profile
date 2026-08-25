@@ -502,8 +502,10 @@ Each material observation becomes a concise claim record containing:
 - observed-unit IDs from the frozen criterion coverage frame (scenes,
   encounters, systems, sections, sessions, modes, builds or platforms);
 - `observation_basis` from Appendix C and any separate scorer inference;
-- recurrence: isolated, recurring or widespread;
-- consequence: cosmetic, minor friction, material or blocking/defining;
+- recurrence: isolated, recurring or widespread — null for a `fact` claim,
+  which states something rather than observes a spread;
+- consequence: cosmetic, minor friction, material or blocking/defining — null
+  for a `fact` claim, whose weight comes from the criteria it informs;
 - anchor-condition IDs the claim may satisfy;
 - corroborating and contradicting claim IDs;
 - limitation/spoiler note;
