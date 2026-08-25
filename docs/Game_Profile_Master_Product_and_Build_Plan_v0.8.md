@@ -38,6 +38,7 @@ Until that is true, the editorial machine is the highest-priority product milest
 | **Game_Profile_Master_Product_and_Build_Plan_v0.8.md** | Product scope, positioning, public/admin IA, roadmap, current phase status, architecture direction, and cross-system product contracts |
 | **Game_Profile_Scoring_Rubric_v1.0.md** | Scoring semantics: dimensions, subcriteria, score meanings, scope rules, Unknown/range behavior, platform-sensitive scoring, and rubric versioning |
 | **Game_Profile_Editorial_Evidence_and_Data_Sourcing_SOP_v0.2.md** | Evidence operations: source collection, mapping, confidence practice, transparency, and pre-release workflow |
+| **Game_Profile_Scoring_Protocol_v1.0_DRAFT.md** and **ADR 0024** | Owner-approved candidate scoring workflow and package contract for Appendix B calibration; not governing until the deferred gates in §3.8 are resolved and final approval is recorded |
 | **Game_Profile_Calibration_Round_1_Report_v0.1.md** and **Game_Profile_Calibration_Round_2_Report_v0.1.md** | Approved calibration outcomes and canonical calibration content they explicitly publish |
 | **Should_I_Play_Brand_and_SEO_Foundation_v0.2.md** | Brand/domain rationale, organic-acquisition strategy, and launch/runbook layer; current routing/hosting contracts are governed by this Plan and accepted ADRs |
 | **Game_Profile_Art_Direction_and_Anti_AI_Design_Brief_v0.1.md**, D3 record, ADR 0013 | Visual principles, anti-patterns, and the chosen production visual grammar |
@@ -289,6 +290,36 @@ Each profile also carries one-line experience, Primary Pull, Primary Risk, contr
 AI may assist with research summaries, contradiction detection, structured notes, mapping candidates, missing-support flags, and copy drafts based on approved structured data.
 
 AI must not fabricate play, invent sources, silently resolve disagreement, turn marketing claims into quality evidence, choose scores without editorial responsibility, or publish automatically. AI is not a Phase-2 dependency.
+
+### 3.8 Scoring Protocol v1.0 — approved for calibration
+
+On 2026-08-25, Tomas approved the candidate Scoring Protocol v1.0 and ADR 0024
+as the basis for the Appendix B calibration program. This authorizes the blind
+development/holdout exercise; it is not the final approval that makes the
+protocol governing. Rubric v1.0, Evidence SOP v0.2 and the current data contract
+remain in force until that final decision is recorded.
+
+The following gates are deliberately deferred and must remain visible until
+closed:
+
+1. Run Appendix B's ten-game program (six development games, then four untouched
+   holdouts), satisfy its integrity and reliability gates, and record Tomas's
+   final governing approval or rejection.
+2. After the development games expose the aggregate effect, but before the
+   holdout run, choose ADR 0024 §4's Rubric path: approve the required-facet
+   minimum as Rubric v1.1 and move every version binding, or revert the
+   parent-minimum calculation while retaining facet evidence records.
+3. Before implementing ADR 0024 migration 4 or importing any scoring package,
+   settle the package persistence lifecycle: either write immutable package
+   rows only after approval (with unapproved drafts unlinked and ineligible as
+   baselines), or separate immutable scoring content from its approval record.
+4. At final approval, use the calibration's recorded wall-clock time and effort
+   to choose the full production record or a deliberately reduced record, as
+   required by Appendix B step 10.
+
+The calibration may use `parameter_unavailable` pairs under ADR 0024 §8, with
+mandatory disclosure in the report. That limitation is an accepted calibration
+condition, not an unrecorded deferral.
 
 ---
 
@@ -876,6 +907,10 @@ Track discovery/search success, decision engagement, trust behavior, editorial t
 
 Rubric v1.0, two calibration rounds, three implementation profiles, approved totals/interpretation, evidence model, pre-release model, and radar/exact-row contract are established.
 
+This completion refers to the original Rubric v1.0 calibration. The later
+Scoring Protocol v1.0 reproducibility program is an approved follow-on gate,
+tracked in §3.8, and is not complete.
+
 ### D0 — Art direction
 
 **COMPLETE**
@@ -1069,6 +1104,9 @@ than deleted so the sequence stays legible against the roadmap above.
 15. ~~Add revision-history reads/UI.~~ **DONE** (2D-1, admin-only)
 16. Run 3–5 profile editorial trial. **OPEN** — 2E.
 17. Establish production artwork sourcing/clearance policy. **OPEN**
+18. Run and close the Scoring Protocol v1.0 calibration and deferred decisions.
+    **OPEN** — Appendix B plus the four gates in §3.8; the candidate is approved
+    to begin, but it is not yet governing.
 
 ### P1 — strong beta value
 
@@ -1304,6 +1342,14 @@ Implementation details that do not affect user experience, methodology, data int
 5. ~~Revision-history public presentation and how much history is exposed.~~ **CLOSED for now** — admin-only, public reader unchanged (ADR 0020). Reopen when there is enough real history to know what a public view should promise.
 6. Production artwork sourcing policy: legal basis, provider/publisher source, storage/refresh/clearance process. **OPEN**
 7. Canonical-domain operational confirmation: apex/www and eventual `workers.dev` disablement. **OPEN**
+8. Scoring Protocol v1.0 final governing approval after Appendix B. **OPEN** —
+   approved to enter calibration on 2026-08-25; see §3.8.
+9. Rubric v1.1 required-facet path after development-game evidence and before
+   holdout. **OPEN** — ADR 0024 §4.
+10. Immutable scoring-package persistence lifecycle before migration 4 or the
+    first package import. **OPEN** — ADR 0024 §6.
+11. Full versus reduced production scoring record after calibration timing and
+    effort are measured. **OPEN** — Protocol Appendix B step 10.
 
 ### 17.3 Later decisions
 

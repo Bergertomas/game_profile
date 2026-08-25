@@ -1,7 +1,8 @@
 # ADR 0024 — Scoring Protocol v1.0: declared supersessions and the package import contract
 
-**Status:** Proposed · 2026-08-25 · pending the Appendix B calibration program
-and Tomas's approval of Protocol v1.0. Nothing here governs until then.
+**Status:** Approved for calibration · 2026-08-25 · Tomas. Proposed for
+governing use pending Appendix B and final owner approval. Nothing here governs
+until then.
 **Context:** `docs/Game_Profile_Scoring_Protocol_v1.0_DRAFT.md` and
 `docs/schemas/Game_Profile_Scoring_Package_v1.0_DRAFT.schema.json`; Rubric v1.0
 §18; Evidence SOP v0.2 §3, §5; ADRs 0005, 0006, 0009; Master Plan v0.8 §0.3–0.4,
@@ -15,6 +16,25 @@ populate the relational contract the importer must write into. AGENTS.md and
 Master Plan §0.4 forbid resolving either kind of conflict silently or by
 convenience. This ADR is the register: each supersession named, each migration
 listed, so that approval of the protocol is also an explicit approval of these.
+
+## Approval scope and deferred gates
+
+The 2026-08-25 approval authorizes this ADR and the candidate protocol as the
+basis for Appendix B calibration. It accepts §8's disclosed
+`parameter_unavailable` limitation for that exercise. It does not yet activate
+the supersessions, document amendments or migrations below.
+
+Final governing approval remains conditional on the Appendix B result. Three
+decisions also remain explicit rather than being inferred during implementation:
+
+1. ADR §4's Rubric v1.1 required-facet path, decided from the development-game
+   evidence before the holdout run;
+2. ADR §6 migration 4's immutable-package lifecycle, decided before that
+   migration or any package import; and
+3. the full-versus-reduced production record, decided from Appendix B's measured
+   time and effort at final approval.
+
+Master Plan v0.8 §3.8 is the durable cross-project tracker for these gates.
 
 ## Proposed decisions
 
@@ -57,7 +77,8 @@ Protocol §6.1 derives six criteria (`narrative_momentum`, `failure_fairness`,
 those criteria are calculated, and Rubric §18 classes calculation changes as
 breaking. The rule therefore travels with this ADR as a proposed Rubric v1.1
 amendment. The protocol is deliberately conditional here and cannot become
-governing in this state; approval resolves it down exactly one of two paths:
+governing in this state; final governing approval resolves it down exactly one
+of two paths:
 
 - **Approve Rubric v1.1.** The amendment is authored as a rubric minor version
   under Rubric §18, and every `rubric_version` constant moves with it — the
@@ -119,6 +140,15 @@ Protocol §15.2 is the normative field mapping. It depends on:
    confidence facts, approval binding and baselines are thereby durable
    without the opaque document becoming a second relational source of truth.
 
+   One lifecycle detail is intentionally unresolved before implementation:
+   because `content_digest` covers scoring content rather than
+   `owner_approval`, a pre-approval draft cannot become an immutable approved
+   document in place without an explicit rule. Before migration 4 or the first
+   package import, choose either (a) approved-only package rows, leaving
+   unapproved relational drafts unlinked and ineligible as reassessment
+   baselines, or (b) separate immutable scoring-content and approval records.
+   The migration and importer must not guess between them.
+
 No migration here changes public meaning; all four are additive or relocations.
 
 ### 7. The endpoint gate is recorded structure
@@ -147,12 +177,14 @@ if a scoring path with exposed decoding controls becomes the primary editor.
 
 ## Consequences
 
-- Approval of Protocol v1.0 approves this register; a rejected entry sends the
-  protocol back to development rather than being quietly dropped.
-- On approval: SOP v0.2 → v0.3 (source-target vocabulary, confidence facts),
+- Final governing approval of Protocol v1.0 approves this register; a rejected
+  entry sends the protocol back to development rather than being quietly
+  dropped.
+- On final governing approval: SOP v0.2 → v0.3 (source-target vocabulary, confidence facts),
   and the Rubric v1.1 decision of §4 above is made explicitly, down one of
   its two named paths.
-- The migrations of §6 above land before the first package import; the §15.1
-  checklist plus the JSON Schema remain the entire enforcement surface.
+- The migrations of §6 above land before the first package import; migration 4
+  first requires the lifecycle decision recorded in §6. The §15.1 checklist
+  plus the JSON Schema remain the entire enforcement surface.
 - Published snapshots are untouched throughout — §5 above and Master Plan
   §0.3's history rule are the same commitment.
