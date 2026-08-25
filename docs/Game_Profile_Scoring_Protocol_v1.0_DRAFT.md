@@ -112,9 +112,15 @@ private model chain-of-thought.
 ### 1.4 Independent editorial reliability
 
 Two independent passes using the same frozen source corpus should normally
-select the same anchor or an adjacent half-step. Pre-adjudication agreement is
-measured against §11. Owner adjudication creates an accountable final decision;
-it never counts as independent agreement or improves the reliability metric.
+select the same anchor or an adjacent half-step. "Independent" means
+independently sampled from the same approved model snapshot under the §2.3
+configuration rules: identical inputs and decoding configuration, different
+sampling seeds, no shared context. What §11 measures is therefore same-snapshot
+repeatability under independent sampling — not cross-model robustness, which is
+reported separately, and not human inter-rater reliability. Pre-adjudication
+agreement is measured against §11. Owner adjudication creates an accountable
+final decision; it never counts as independent agreement or improves the
+reliability metric.
 
 ### 1.5 Publication standard
 
@@ -183,6 +189,18 @@ For a paired audit or calibration result to count, provider/model and exact
 execution snapshot/build identifiers must match. `snapshot_unavailable` runs
 may produce working drafts, but cannot satisfy the same-snapshot reliability
 gate or complete publication under this protocol.
+
+Matching snapshots is necessary but not sufficient: a configuration that makes
+the two passes reproduce each other by construction measures nothing. The
+decoding configuration for both scoring passes is pre-registered at the
+protocol freeze (Appendix B step 6) and must be identical between the passes
+except for the sampling seed. Where the provider exposes a seed, the two passes
+record different seeds; a paired result whose seeds match — or whose decoding
+is configured so that identical output is guaranteed rather than observed —
+cannot satisfy §11.4. Where the provider exposes neither seed nor decoding
+parameters, both manifests record `parameter_unavailable`; the pair may still
+count only because provider-default sampling is stochastic, and the calibration
+report states that limitation rather than hiding it.
 
 ### 2.4 Tomas — accountable editor
 
@@ -493,12 +511,25 @@ reassessment.
 
 ### 6.1 Operational terms
 
-- **Isolated:** observed in one relevant coverage unit, with no persistent
-  cross-unit consequence.
-- **Recurring:** observed in at least two relevant coverage units but fewer than
-  half of them, or repeatedly within a noncentral loop.
-- **Widespread:** observed in at least half of relevant coverage units, or under
-  normal operation of a central core loop/system in at least two observations.
+- **Isolated:** observed in exactly one relevant coverage unit, with no
+  persistent cross-unit consequence.
+- **Recurring:** observed in at least two relevant coverage units but no more
+  than half of them, or repeatedly within a noncentral loop.
+- **Widespread:** observed in more than half of relevant coverage units, or
+  under normal operation of a central core loop/system in at least two
+  observations.
+
+The three bands partition every observation count. On a frame of four or more
+units every band is reachable: one unit is isolated, two up to half is
+recurring, more than half is widespread — on the minimum four-unit frame, two
+of four is recurring and three is widespread. The core-loop clause takes
+precedence: a pattern under normal operation of a central core loop/system with
+at least two observations is widespread regardless of its unit fraction, and
+the noncentral-loop clause classifies as recurring only where neither
+widespread clause applies. Where a criterion's *relevant* subset of the frame
+is only two or three units, the recurring band is definitionally empty — one
+unit is isolated and a majority is widespread — and the decision record says so
+rather than forcing a band.
 - **Cosmetic consequence:** perceptible but changes no required action, time,
   understanding, access or sustained response.
 - **Minor-friction consequence:** creates local extra action/time/confusion or a
@@ -525,7 +556,13 @@ Before claim extraction, declare a criterion coverage frame. For a campaign it
 contains opening, early, middle and late/end strata; for run/sandbox/simulation
 forms it substitutes representative progression states and core-loop/system
 states. Add every included mode/platform/build and any optional/endgame stratum
-that materially affects the declared scope. The frame is frozen with the
+that materially affects the declared scope. A criterion coverage frame
+contains at least four coverage units: the default campaign strata supply four,
+run/sandbox/simulation frames must reach at least four through representative
+progression and core-loop/system states, and included modes, platforms, builds
+and optional/endgame strata add units rather than replacing them. A frame that
+cannot honestly reach four units means the scope was drawn too narrowly to
+score; fix the scope, not the arithmetic. The frame is frozen with the
 corpus; scorers may not choose representative units after seeing a candidate
 anchor.
 
@@ -551,6 +588,17 @@ To choose between opposing observed patterns:
    candidate anchors differ by 1.0 or more, use Unknown.
 
 Source quantity never breaks a pattern tie.
+
+Rule 5 and §8.3 answer different questions, and the claim ledger decides which
+applies. Rule 5 governs when the accepted claim set is internally coherent — no
+material accepted-versus-accepted contradiction survives §8 — and the residual
+doubt is which of two adjacent anchor descriptions better fits one agreed
+pattern: select the lower and record `adjacent_resolved`. §8.3 governs when
+credible claims still contradict each other about what the experience *is*
+after §8.1 separation and the §8.2 evidentiary-fit test: if no defensible
+advantage exists, the value is Unknown with `material_conflict`, never a
+number. When it is unclear whether a tie is descriptive or evidentiary, it is
+evidentiary and §8.3 governs.
 
 #### Required-facet rule
 
@@ -814,6 +862,9 @@ more:
 - mention the disagreement publicly when it materially affects a purchase
   decision.
 
+An anchor tie that survives with an internally consistent accepted claim set is
+not this section's case; §6.1 rule 5 resolves it to the lower adjacent anchor.
+
 ### 8.4 Source consensus is not arithmetic
 
 Eight shallow claims do not mechanically defeat two deep claims. The record
@@ -1042,7 +1093,8 @@ Every primary and audit pass carries an immutable run manifest containing:
 - research date, evidence cutoff, search queries/collection strategy and all
   enabled research/tool/network access;
 - decoding parameters and seed where exposed; otherwise an explicit
-  `parameter_unavailable` value;
+  `parameter_unavailable` value. The two scoring passes' configurations are
+  identical except the seed, and exposed seeds differ (§2.3);
 - retry count, validation failures, repairs and any human-supplied correction;
 - structured-output digest.
 
@@ -1149,7 +1201,11 @@ Every actual revision:
    prior immutable snapshot and superseded source records;
 2. constructs the affected set using the graph above;
 3. runs independent primary and audit decisions for that complete affected set;
-4. re-derives every dimension and confidence result from final stored values;
+4. re-attests the three §10.1 confidence facts for every decision in the
+   merged 40-decision map against the new evidence cutoff and active corpus —
+   carried-forward decisions included, because a `stable` attested before the
+   change evidence existed proves nothing about the state after it — and then
+   re-derives every dimension and confidence result from the re-attested facts;
 5. regenerates interpretation when any supporting decision changes; and
 6. requires Tomas's approval before publication.
 
@@ -1158,8 +1214,10 @@ For `reassessment_affected`, load the immutable baseline named by
 replace, by canonical key, every decision in the new graph-derived affected
 set; no other decision or platform-override set changes. Then derive all eight
 dimensions/confidence labels and interpretation from that merged 40-decision
-map. The published successor stores the full merged state plus its
-baseline/patch lineage. Missing baseline, duplicate keys, a key outside the
+map — after re-attesting the carried-forward decisions' confidence facts at
+the new cutoff; a fact that cannot be re-attested from the new active corpus is
+recorded at its degraded value rather than inherited. The published successor
+stores the full merged state plus its baseline/patch lineage. Missing baseline, duplicate keys, a key outside the
 affected set or a rubric/protocol incompatibility rejects the package; a rubric
 or incompatible protocol change requires `reassessment_full`.
 
@@ -1393,10 +1451,12 @@ Before Protocol v1.0 becomes governing:
    ledger and decisions from the raw frozen packet.
 5. Use the six development games to identify repeated mapping/anchor ambiguity.
    Amend the protocol where necessary and rerun changed development cases.
-6. Freeze the candidate protocol, prompts, schemas and one exact model execution
-   snapshot/build before exposing any of the four holdout packets to scoring;
-   all eight holdout passes use that snapshot. Each paired development run must
-   likewise match snapshots, even when the protocol later changes.
+6. Freeze the candidate protocol, prompts, schemas, one exact model execution
+   snapshot/build and the decoding configuration both scoring passes will use,
+   before exposing any of the four holdout packets to scoring; all eight
+   holdout passes use that snapshot and configuration, and paired passes differ
+   only in sampling seed (§2.3). Each paired development run must likewise
+   match snapshots, even when the protocol later changes.
 7. Score the holdout once. Calculate every §11.4 acceptance metric on the 160
    paired holdout decisions before adjudication.
 8. If any gate fails, return to development. Any subsequent anchor, mapping,
