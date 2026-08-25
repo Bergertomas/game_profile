@@ -32,10 +32,28 @@ or turn sources into votes. Authority is subject-specific:
 - The Evidence SOP continues to govern evidence practice except where a later
   owner decision is explicitly recorded here.
 
-Section 4.1 records the later owner decision that supersedes the SOP v0.2
-generic five-to-eight-source target: five is now a genuine-scarcity floor and
-eight to ten is the normal AA/AAA target. The governing SOP should be amended
-to match; this candidate does not pretend the older wording never existed.
+Where this candidate supersedes governing text, it says so here, and
+[ADR 0024](decisions/0024-scoring-protocol-v1-and-package-contract.md) registers
+every entry so none happens silently:
+
+- **SOP v0.2 §3 (source targets), restated by §4.1.** The SOP's five to eight
+  is *substantive critic reviews within a larger pack* — deep dives, technical
+  sources, player signal, direct play — which ADR 0006 §3 reads as eight to
+  fifteen individual records in total. §4.1 restates that demand in this
+  protocol's stricter unit, independent A/B evidentiary clusters, with C
+  material no longer counting toward the floor: eight to ten clusters is the
+  normal AA/AAA target and five is a genuine-scarcity floor. That is a
+  comparable overall demand under a stricter counting rule, not the raising of
+  a weaker one.
+- **SOP v0.2 §5 (confidence conditions), superseded by §10.1.** Confidence
+  derives from three recorded facts; "recent release" is no longer an
+  automatic Medium condition.
+- **ADR 0006 §1 (stored per-dimension confidence), superseded by §10.2–10.3.**
+  The stored editorial input becomes the facts; the label becomes arithmetic
+  over them.
+
+Each superseded document should be amended when this protocol is approved; this
+candidate does not pretend the older wording never existed.
 
 The protocol is intended for:
 
@@ -238,6 +256,12 @@ No research or scoring begins until the evaluation declares:
 - included and materially relevant platforms;
 - patch, build or current-state cutoff;
 - `release_state = announced | showcased | pre_release_playable | released`;
+- `pre_release_playable_basis = hands_on | review_code` when
+  `release_state = pre_release_playable`, null otherwise — the distinction the
+  data contract's `evidence_maturity` and SOP §10.3's minimum-evidence rules
+  turn on;
+- `evidence_status = verified | provisional | pre_release`, derived by the
+  §15.2 rule and stored;
 - `evaluation_maturity = pre_release | newly_released | mature`;
 - profile-level `stability_state = stable | bounded_change |
   actively_changing | unknown`;
@@ -277,6 +301,9 @@ may change without changing release state or maturity.
 - **Normal AA/AAA target:** eight to ten substantive independent sources.
 - Use more only when platform variance, technical instability, disagreement,
   live-service change or unusual complexity warrants it.
+
+This restates SOP v0.2 §3's pack target in independence-cluster units; §0 and
+ADR 0024 record the supersession.
 
 The package records `collection_standard`: `scarcity_floor` means five to seven
 independent active A/B clusters plus a concrete scarcity reason;
@@ -623,6 +650,17 @@ exceptional facet erase a weak/unknown required facet. Other criteria carry an
 empty `facet_records` array; their slash/ampersand wording is an alternative or
 explanatory label, not an instruction to invent facets.
 
+Deriving the parent from the lower facet changes how these six criteria are
+calculated, and Rubric §18 classes a calculation change as breaking. The rule
+is therefore submitted as a proposed Rubric v1.1 amendment alongside this
+candidate, recorded in ADR 0024, and this protocol cannot become governing
+while it rests on an unapproved rubric change: either the amendment is approved
+with the protocol, or the rule reverts to ordinary whole-criterion anchor
+selection with facet records retained as evidence structure. The six criteria
+span five of the eight dimensions, so Appendix B's development games must check
+the rule's aggregate effect against the approved calibration corpus for
+systematic deflation before the holdout is run.
+
 ### 6.2 Evidence-ownership boundaries
 
 The same observation may be relevant to several criteria, but each criterion
@@ -889,6 +927,23 @@ A `0` additionally records `zero_reason = absent_offering | failed_execution`.
 Absence is descriptive and does not make the product globally bad. Fame,
 popularity, novelty or cultural recognition cannot establish a `2`.
 
+No published subcriterion-level calibration reference exists today: Rounds 1–2
+publish dimension totals only, and ADR 0005 records the subcriterion
+decompositions as engineering artefacts constrained to reproduce them. The
+reference clause is therefore prospective — it binds once the Appendix B
+program publishes subcriterion-level endpoint references, which it is directed
+to do for every endpoint value its ten games produce — and an endpoint scored
+before then satisfies the gate through the remaining requirements.
+
+The gate is recorded structure, not intention: an endpoint decision carries an
+`endpoint_gate` object naming the scope-spanning claims, the calibration
+reference or its absence, and the intent/genre check, while the written reason
+that `0.5` or `1.5` is insufficient is carried by the decision's adjacent
+anchor-rejection field, mandatory at endpoints. The §15.1 validator confirms
+the record and recomputes, from the difference and override records, that the
+final value stood through blind exact agreement or a documented owner
+adjudication.
+
 ---
 
 ## 10. Confidence protocol
@@ -921,7 +976,9 @@ Medium and Low.
 
 Recent release and absence of direct play do not mechanically lower confidence;
 they matter only through an actual coverage or stability limitation. Direct-play
-status remains public.
+status remains public. This supersedes SOP v0.2 §5, which lists "recent
+release" as a Medium condition and defines the labels qualitatively; the SOP is
+amended on approval and ADR 0024 records the change.
 
 ### 10.2 Dimension confidence derivation
 
@@ -963,6 +1020,13 @@ pre-release profiles and games
 under active remediation cannot exceed Medium. The importer recomputes
 dimension and overall confidence from the stored facts; imported derived labels
 are never trusted.
+
+Deriving the dimension and overall labels from stored facts supersedes ADR 0006
+§1's decision that per-dimension confidence is a stored editorial input: the
+editorial input becomes the recorded facts, and the label becomes arithmetic
+over them. ADR 0024 records the supersession; `dimension_assessments` remains
+the storage location for the derived label and its note until the data contract
+is amended.
 
 ---
 
@@ -1075,7 +1139,12 @@ Primary Pull/Risk are purchase-decision summaries, not the highest and lowest
 numbers by rule. They must be supported by the score record and may not smuggle
 an aggregate verdict back into the product.
 
-Pre-release wording follows the Evidence SOP and never sounds final.
+Pre-release wording follows the Evidence SOP and never sounds final. For a
+pre-release profile (`evidence_status = pre_release`), the three interpretation
+blocks carry the pre-release headings — *Looks promising if…*, *Watch before
+buying…*, *Biggest unknowns…* — in the same three slots, keyed off evidence
+status exactly as ADR 0006 §5 and Master Plan §3.6 define. The package stores
+the same three arrays; the renderer selects the headings.
 
 ---
 
@@ -1281,23 +1350,36 @@ The validator has no editorial discretion. It rejects unless all are true:
    primary, audit and final decisions; affected reassessments contain exactly
    their graph-derived affected set in all three;
 3. primary/audit normalized-packet digest, source order, protocol/rubric/schema,
-   prompt hashes and exact model snapshot match, their roles are correct and
-   their scoring runs had no research/network tools;
+   prompt hashes and exact model snapshot match; their decoding configurations
+   match except the sampling seed and exposed seeds differ (§2.3); their roles
+   are correct and their scoring runs had no research/network tools;
 4. all seven query-family dispositions occur exactly once; source collection
    standard/reason and independent active A/B cluster counts reproduce the
    five-versus-eight-to-ten rule; source/claim/difference/override references
    resolve; claim links contain no self-reference or relation-type
-   contradiction; and no active Tier-D claim supports a numeric decision;
+   contradiction; no active Tier-D claim supports a numeric decision; and
+   experience-tag keys are unique;
 5. numeric/Unknown conditional fields, zero reasons, anchor IDs, required-facet
-   records/minima and platform base-difference rules hold;
+   records/minima and platform base-difference rules hold; every numeric
+   decision carries the adjacent anchor-rejection rationales its value admits;
+   and every endpoint decision carries its §9 `endpoint_gate` record;
 6. coverage states reproduce from the frozen coverage frame, Unknown reasons
    name a controlled missing class and elapsed retrospective dates/lower bounds
-   reproduce arithmetically;
+   reproduce arithmetically; and the §6 Step 2 retrospective minima recompute
+   for `memory_residue` and `lasting_impact` — the per-value independent-claim
+   counts, the 180-day bound for `2`, releases under 30 days forced to Unknown,
+   and the 90-day pre-release exception's Medium confidence cap;
 7. final decisions equal a recorded primary/audit resolution or a documented
-   owner override; difference classes and audit rates recompute exactly;
+   owner override; difference classes and audit rates recompute exactly; every
+   material difference and every difference touching an endpoint value is
+   marked for owner review and is adjudicated; and every endpoint final value
+   shows blind exact agreement or a documented owner adjudication;
 8. all eight dimension result kinds/values and every confidence label reproduce
    from §§7 and 10; duplicated maturity/stability/scope facts match the frozen
-   evaluation scope; release-state/date combinations are valid; and
+   evaluation scope; release-state/date combinations are valid; the declared
+   `evidence_status` reproduces from the §15.2 rule; and, for a reassessment,
+   carried-forward confidence facts are re-attested at the new cutoff (§14);
+   and
 9. reassessment source status, affected-set graph/threshold, baseline digest and
    disposition are internally consistent.
 
@@ -1306,6 +1388,26 @@ Claude prompt nor importer code may create missing rules.
 
 An importer may create a draft only. Existing validation, preview, publication,
 history, deployment and Live-proof machinery remains authoritative.
+
+### 15.2 Package → relational import mapping
+
+The importer writes a draft into the existing relational contract. These
+mappings are normative; where one requires a migration, the migration is listed
+in ADR 0024 and must land before the first import.
+
+| Package | Relational contract |
+|---|---|
+| `evaluation_scope.evidence_status` | `evaluations.evidence_status`. Derived, then stored: `pre_release` iff `release_state ≠ released`; a released profile is `provisional` when `profile_stability_state` is `actively_changing` or `unknown`, or when overall confidence derives to Low; otherwise `verified`. |
+| `release_state` + `pre_release_playable_basis` | `evaluations.evidence_maturity`: `announced → announced`, `showcased → showcased`, `pre_release_playable → hands_on` or `review_code` per the recorded basis; null for released profiles. The package's `evaluation_maturity` (pre_release / newly_released / mature) is a different, protocol-owned axis and never maps to this column. |
+| `owner_approval.approval_status` | `evaluations.score_provenance`: an approved package imports as `editorial` — owner approval is the editorial sign-off. A package imported before approval may only produce a draft with `score_provenance = derived` and a `provenance_note` naming the package digest and its unapproved status. |
+| `source.source_class` | `evidence_sources.source_category`: `critical_review → critic`, `technical_analysis → technical`, the rest map by name. `documented_gameplay` requires an additive enum-value migration; until it lands the importer rejects packages that use it rather than mislabelling them. |
+| `source.source_tier` | Evaluation-local (§4.4), but `evidence_sources.evidence_tier` is global on the source row and frozen once a final evaluation cites it (ADR 0009 §2). The tier moves to `evaluation_evidence_links` by migration; until then a reused source whose local tier differs imports as a new source identity. |
+| confidence labels | `High/Medium/Low` lowercase to the database's `confidence` enum. Labels are recomputed from the stored facts (§10) and written to `subcriterion_scores.evidence_confidence`, `dimension_assessments.confidence` and `evaluations.confidence`; imported labels are cross-checked, never trusted. |
+| `evaluation_scope.evidence_cutoff` | `evaluations.evidence_cutoff_at`. Both are dates, not timestamps. |
+| `interpretation` blocks | `profile_blocks` rows (`great_fit`, `know_before`, `probably_not`), 2–5 bullets each — the schema enforces the same 2–5 the publish gate does. Pre-release headings render per §12 from the same three slots. |
+| `public_rationale` | `subcriterion_scores.rationale`, minimum 31 characters — the floor the calibration-corpus test already enforces. |
+
+Nothing here weakens §15's rule that the importer creates a draft only.
 
 ---
 
@@ -1324,9 +1426,28 @@ Protocol changes require a new version when they alter:
 Clarifying examples that do not change meaning may be added as a documented
 minor revision.
 
+#### Draft changelog
+
+- **2026-08-25 — pre-approval revision after repository review.** Sampling
+  independence (§1.4, §2.3, §13, §15.1); recurrence bands and the four-unit
+  frame minimum (§6.1); adjacent-tie precedence (§6.1/§8.3); the supersession
+  register and corrected SOP §3 reading (§0, §4.1, §10, ADR 0024); facet-rule
+  escalation to a proposed Rubric v1.1 (§6.1); the recorded endpoint gate and
+  prospective calibration references (§9); pre-release interpretation headings
+  (§12); reassessment fact re-attestation (§14); grandfathering (§16); the
+  §15.2 import mapping; and the matching package-schema tightening.
+
 New versions are calibrated against the approved corpus before use. Published
 profiles retain their original rubric/protocol provenance. No protocol change
 silently rewrites historical evaluations.
+
+The three published calibration profiles — and any profile published before
+this protocol becomes governing — are grandfathered under their recorded
+provenance: their approved totals, including the twenty subcriterion values at
+`2` inside the four 10.0 dimension totals, stand as calibration-round outcomes
+and are not retroactively rescored, re-gated or re-evidenced under §9 or §6
+Step 2. This protocol applies to them prospectively, through §14: their next
+revision runs under it in full.
 
 ---
 
@@ -1504,6 +1625,8 @@ adds another. Display labels may differ; stored meaning may not.
 | `stability_state` | `stable`, `bounded_change`, `actively_changing`, `unknown` |
 | `scope_state` | `sound`, `threatened` |
 | `release_state` | `announced`, `showcased`, `pre_release_playable`, `released` |
+| `pre_release_playable_basis` | `hands_on`, `review_code` |
+| `evidence_status` | `verified`, `provisional`, `pre_release` |
 | `evaluation_maturity` | `pre_release`, `newly_released`, `mature` |
 | `direct_play_status` | `none`, `partial`, `complete` |
 | `candidate_source_disposition` | `accepted`, `limited`, `rejected` |
@@ -1513,11 +1636,14 @@ adds another. Display labels may differ; stored meaning may not.
 | `zero_reason` | `absent_offering`, `failed_execution` |
 | `dimension_result_kind` | `exact`, `range`, `insufficient` |
 | `decision_role` | `primary`, `audit`, `adjudicated` |
-| `reassessment_disposition` | `no_change`, `affected_set_revision`, `full_revision` |
+| `reassessment_disposition` | `no_change`, `affected_set_revision`, `full_revision` — `no_change` appears only in evaluation-history events; a scoring package never carries it (§14) |
 | `reassessment_trigger` | `scheduled_3m`, `scheduled_6m`, `scheduled_12m`, `major_patch`, `systems_redesign`, `performance_change`, `expansion_base_effect`, `port_or_upgrade`, `service_availability`, `late_game_evidence`, `credible_correction` |
 | `approval_status` | `draft`, `approved`, `rejected` |
 
 `Unknown` is represented by `score_value_kind = unknown` and a null numeric
-value; it is not an additional number. `blocking_or_defining` takes its meaning
+value; it is not an additional number. `snapshot_unavailable` is the declared
+value of `model_snapshot_build_id` when the provider exposes no snapshot
+identifier, and `parameter_unavailable` the declared value of `seed` when none
+is exposed; both are limitations, not hidden defaults (§2.3, §13). `blocking_or_defining` takes its meaning
 from claim direction and selected anchor and must not be interpreted without
 the claim text.
