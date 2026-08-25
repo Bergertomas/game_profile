@@ -492,13 +492,7 @@ Before catalog-scale production art:
 2. resolve provider terms and commercial-use questions;
 3. decide permitted hosting/proxy/hotlink strategy;
 4. retain per-asset provenance;
-5. preserve graceful artless fallback; and
-6. execute ADR 0011's deferred `editorial-fair-use` work before clearing any
-   asset on that basis: complete the one-time legal review, amend the ADR and
-   database enum through a forward migration, and update types, validation,
-   admin/import paths, fixtures and tests.
-
-The current basis enum remains unchanged until item 6 is completed.
+5. preserve graceful artless fallback.
 
 ### 7.4 Metadata providers/runtime
 

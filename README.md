@@ -14,31 +14,31 @@ the name of the methodology. Internal identifiers (`GameProfile`, `game_profile`
 this repository) keep the original name deliberately — the rename is public-facing
 only. See [Brand, Discoverability & Hosting](docs/Should_I_Play_Brand_and_SEO_Foundation_v0.2.md).
 
-This repository is at **Phase 2D**: the public profile vertical slice is
-complete and its published profiles are read from Postgres at build time, and
-the editorial tool covers games, metadata, rights-aware artwork, profile scopes,
-full evaluation authoring, a public-faithful preview, the publish gate,
-transactional publication, and — since 2D-2 — deployment requests and proof of
-what production is actually serving. See the
-[Master Product & Build Plan v0.8](docs/Game_Profile_Master_Product_and_Build_Plan_v0.8.md).
+The editorial/publication foundation is substantially complete and now operates
+in support of the public-product program. Published profiles are read from
+Postgres at build time; the Access-protected editorial tool covers games,
+rights-aware artwork, scopes, evaluation authoring, preview, validation,
+transactional publication, history, deployment requests and proof of what
+production actually serves. See the
+[Master Product & Build Plan v0.9](docs/Game_Profile_Master_Product_and_Build_Plan_v0.9.md)
+and the dated
+[Public Product P0 Decision Set](docs/Should_I_Play_Public_Product_P0_Decisions_2026-08-24.md).
 
-**2D-2 is built and deployed; it has never been exercised.** Those are different
-claims and the difference is the whole point of the phase, so it is stated
-plainly rather than rounded to "done":
+**Remote admin and production Live proof are exercised.** The current state is:
 
 | | |
 |---|---|
 | **Implemented and deployed** | migration `0009` and its schema; deployment-request persistence; the Cloudflare Builds client; manifest generation; the `/deployment-manifest` route; the reconciliation and Live-proof machinery; the `/admin` deployment surface |
-| **Proven** | a production build from `main`; `/deployment-manifest` live on the canonical origin; the corpus and digest it reports matching the three published evaluations; behaviour under workerd via `cf:verify`; migration `0009` applied to the authoritative database |
-| **Not yet exercised** | a real Cloudflare Builds POST from this application; a real build uuid persisted and reconciled; the first `production_verified` observation; one complete Publish → dispatch → Live cycle |
+| **Proven** | a production build from `main`; `/deployment-manifest` live on the canonical origin; corpus/digest matching the three published evaluations; behavior under workerd; migration `0009`; Access-authenticated editorial session through Hyperdrive; successful `production_verified` observation and Live state |
+| **Not yet exercised** | a real Cloudflare Builds POST from this application; a build UUID produced by that application dispatch and reconciled; one complete new-profile Publish → dispatch → Live cycle |
 
-All four deployment tables are empty and no dispatch has ever been attempted, so
-the first activation is genuinely unproven rather than assumed. Phase 2 is not
-frozen and activation is not complete.
+The remaining dispatch proof belongs to the first real catalog publication. It
+does not justify further standalone admin hardening.
 
-**The editorial tool ships switched off.** `/admin` answers 404 unless a
+**The editorial tool ships switched off by default.** `/admin` answers 404 unless a
 deployment carries both an identity provider and a request-time editorial
-database, and it carries neither by default — see
+database. Production now carries both behind Cloudflare Access; ordinary
+previews/default deployments carry neither — see
 [Editorial tool](#editorial-tool).
 
 ---
@@ -374,12 +374,14 @@ deployment is configured with. See
 [ADR 0020](docs/decisions/0020-publication-preview-and-deploy-trigger.md) and
 [ADR 0022](docs/decisions/0022-deployment-requests-and-proof-of-live.md).
 
-**Not yet exercised against the real Cloudflare API.** No credential exists in
-this repository, no test may call it, and no production deployment has been
-triggered through this path.
+**Not yet exercised against the real Cloudflare Builds API.** The production
+credential and trigger id are installed as secrets, no credential exists in the
+repository, no test may call the API, and no deployment has yet been triggered
+through this application path.
 
-**It ships switched off.** Every `/admin` path answers 404 unless the deployment
-carries both halves, and the deployed default carries neither:
+**It ships switched off by default.** Every `/admin` path answers 404 unless the
+deployment carries both halves. Production carries them behind Access; an
+ordinary deployment/default carries neither:
 
 | Variable | Meaning |
 |---|---|
@@ -666,10 +668,17 @@ not post them anywhere durable. See
 - [0016 — A game's primary profile scope owns its canonical URL](docs/decisions/0016-canonical-scope-urls.md)
 - [0017 — Postgres is the read path, and it is a build dependency](docs/decisions/0017-postgres-read-path.md) *(supersedes the fixture half of 0002)*
 - [0018 — Cloudflare Access is the editorial identity, and the admin ships switched off](docs/decisions/0018-admin-access.md) *(supersedes the JWT deferral in 0012)*
+- [0019 — Hosted Postgres and remote-admin activation](docs/decisions/0019-hosted-postgres-and-admin-activation.md)
+- [0020 — Public-faithful preview and deployment trigger](docs/decisions/0020-publication-preview-and-deploy-trigger.md)
+- [0021 — Hyperdrive is the deployed admin transport](docs/decisions/0021-hyperdrive-is-the-deployed-admin-transport.md)
+- [0022 — Deployment requests and proof of Live](docs/decisions/0022-deployment-requests-and-proof-of-live.md)
+- [0023 — Production verification from inside the Worker](docs/decisions/0023-verifying-production-from-inside-the-worker.md)
+- [0024 — Candidate scoring protocol and package contract](docs/decisions/0024-scoring-protocol-v1-and-package-contract.md) *(proposed; not governing until calibration and owner approval)*
 
 ## Not built, deliberately
 
-Search, `/discover`, `/compare`, `/about` and the evaluation editor are
-Phases 2C–5. Public accounts, reviews, comments, social features, AI chat,
-recommendation ML and a public aggregate score are out of scope for the product,
-not merely deferred.
+The resolved public homepage, Search/Discovery, `/compare`, `/about`, the
+12–15-profile validation corpus and the approximately-100-profile launch catalog
+are not built. Evaluation authoring is built. Public accounts, reviews,
+comments, social features, AI chat, recommendation ML and a public aggregate
+score remain out of current scope.

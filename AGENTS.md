@@ -12,23 +12,33 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 Before beginning material product, editorial, design, data-model, or implementation work, read:
 
-1. `docs/Game_Profile_Master_Product_and_Build_Plan_v0.8.md`
-2. `docs/Game_Profile_Scoring_Rubric_v1.0.md`
-3. `docs/Game_Profile_Editorial_Evidence_and_Data_Sourcing_SOP_v0.2.md`
-4. the ADRs relevant to the work under `docs/decisions/`
-5. the current `README.md`, code, and tests in the area being changed
+1. `docs/Game_Profile_Master_Product_and_Build_Plan_v0.9.md`
+2. `docs/Should_I_Play_Public_Product_P0_Decisions_2026-08-24.md`
+3. `docs/Game_Profile_Scoring_Rubric_v1.0.md`
+4. `docs/Game_Profile_Editorial_Evidence_and_Data_Sourcing_SOP_v0.2.md`
+5. for scoring/calibration work, `docs/Game_Profile_Scoring_Protocol_v1.0_DRAFT.md`
+   and its package schema — both remain candidate material until calibration
+6. the ADRs relevant to the work under `docs/decisions/`
+7. the current `README.md`, code, and tests in the area being changed
 
 Use these authority boundaries:
 
 - The Master Plan is the product, architecture, roadmap, phase-status, and decision constitution.
+- The dated Public Product P0 Decisions document owns its recorded owner decisions.
 - The Rubric exclusively owns scoring meaning, criteria, derivation, Unknown/range behavior, and evaluation rules.
 - The Evidence SOP exclusively owns evidence collection, sourcing, reconciliation, confidence, and ledger procedure.
+- The candidate Scoring Protocol operationalizes evidence-to-number work but is not governing until its calibration gates pass and Tomas approves it; its explicit proposed supersessions remain provisional meanwhile.
 - Calibration reports own their approved calibration outcomes and locked totals.
 - The Brand/SEO foundation, art-direction brief, D3 records, and ADR 0013 own their respective brand, visual, and design-system decisions.
 - ADRs own accepted implementation decisions within the boundaries above.
 - The README, code, migrations, and tests describe implemented behavior and provide evidence; they do not silently amend the governing documents.
 
-**Master Plan v0.8 is the current authority.** It states in its own §0.1 that it supersedes v0.7 for product scope, information architecture, roadmap status, architecture direction, and cross-system contracts. v0.7 and earlier Master Plans, and every Project Context file, are continuity records: read them for history, never as current authority on a question v0.8 answers. Preserve historical documents unless explicitly directed otherwise.
+**Master Plan v0.9 is the current authority.** It supersedes v0.8 for product
+scope, information architecture, roadmap status, architecture direction, and
+cross-system contracts. v0.8 and earlier Master Plans, and every Project Context
+file, are continuity records: read them for history, never as current authority
+on a question v0.9 answers. Preserve historical documents unless explicitly
+directed otherwise.
 
 A Master Plan's own header may lag the repository between checkpoints — a phase can complete before the status line naming it is rewritten. That is drift to reconcile at the next checkpoint, not licence to treat the plan as stale on questions of product meaning.
 
