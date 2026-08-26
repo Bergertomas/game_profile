@@ -1209,7 +1209,7 @@ existing calibration profiles.
 
 ### Phase 3B — Public-product contract and design reconciliation
 
-**ACTIVE; PRODUCT CONTRACT COMPLETE, FABLE RECONCILIATION IN PROGRESS**
+**ACTIVE; PRODUCT CONTRACT COMPLETE, FABLE ARTIFACT IN FINAL CONFORMANCE REVIEW**
 
 The 24–25 August decision records now resolve the proposition, journey labels
 and hierarchy, Search coverage states, deterministic What should I play?
