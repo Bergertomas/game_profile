@@ -7,10 +7,10 @@
 **Product and project orchestration:** ChatGPT
 **Engineering:** Codex and Claude
 **Public product design:** Tomas, ChatGPT, and the reconciled Fable design work
-**Status:** Current product and roadmap constitution — public-product P0 resolution and Scoring Protocol calibration
+**Status:** Current product and roadmap constitution — public-product decisions resolved through 25 August and Scoring Protocol calibration
 **Current checkpoint:** Phase 2's editorial/publishing architecture is substantially complete. Cloudflare Access protects the real remote admin; Hyperdrive carries authenticated editorial traffic with caching disabled; preview, validation, transactional publication, history, deployment requests, manifest proof, N1 recovery/concurrency hardening, and the production self-fetch correction are merged and deployed. A successful `production_verified` observation now proves the current three-profile production artifact Live. The first application-originated Cloudflare Builds dispatch and one complete new-profile Publish → dispatch → Live cycle remain unexercised and will be proved by the first real catalog publication, not by further standalone admin hardening.
-**Public-product state:** the current site still exposes three calibration profiles and does not yet implement the resolved homepage, Search/Discovery, exactly-two Compare, accountability, catalog, or mixed-artwork product. The 12–15-profile corpus is a private catalog/design validation milestone. Broad public launch requires approximately 100 substantive profiles.
-**Date:** 2026-08-25
+**Public-product state:** the current site still exposes three calibration profiles and does not yet implement the resolved homepage, global Search, deterministic What should I play?, exactly-two Compare, accountability, catalog, time/session guidance, storefront actions, governed analytics, or mixed-artwork product. The 12–15-profile corpus is a private catalog/design validation milestone. Quiet public release requires approximately 100 substantive profiles.
+**Date:** 2026-08-26
 
 ---
 
@@ -38,20 +38,21 @@ edge case exists.
 |---|---|
 | **Game_Profile_Master_Product_and_Build_Plan_v0.9.md** | Product scope, positioning, public/admin IA, roadmap, current phase status, architecture direction, and cross-system product contracts |
 | **Should_I_Play_Public_Product_P0_Decisions_2026-08-24.md** | Governing owner decisions for the homepage, scoring-protocol direction, catalog/launch target, homepage curation, accountability, and artwork posture |
+| **Should_I_Play_Public_Product_Resolutions_2026-08-25.md** | Later governing decisions for Search, What should I play?, metadata, time/session guidance, analytics, commerce, catalog operation, release posture, personalization sequencing, and the corrected artwork basis |
 | **Game_Profile_Scoring_Rubric_v1.0.md** | Scoring semantics: dimensions, subcriteria, score meanings, scope rules, Unknown/range behavior, platform-sensitive scoring, and rubric versioning |
 | **Game_Profile_Editorial_Evidence_and_Data_Sourcing_SOP_v0.2.md** | Evidence operations: source collection, mapping, confidence practice, transparency, and pre-release workflow |
 | **Game_Profile_Scoring_Protocol_v1.0_DRAFT.md** and its package schema | Candidate operational evidence-to-number protocol and reproducibility contract; provisional until the ten-game development/holdout program passes and Tomas approves it |
 | **Game_Profile_Calibration_Round_1_Report_v0.1.md** and **Game_Profile_Calibration_Round_2_Report_v0.1.md** | Approved calibration outcomes and canonical calibration content they explicitly publish |
 | **Should_I_Play_Brand_and_SEO_Foundation_v0.2.md** | Brand/domain rationale, organic-acquisition strategy, and launch/runbook layer; current routing/hosting contracts are governed by this Plan and accepted ADRs |
-| **Game_Profile_Art_Direction_and_Anti_AI_Design_Brief_v0.1.md**, D3 record, ADR 0013 | Visual principles, anti-patterns, and the chosen production visual grammar |
+| **Game_Profile_Art_Direction_and_Anti_AI_Design_Brief_v0.1.md**, D3 record, ADR 0013, and **Should_I_Play_Fable_Reconciliation_Brief_2026-08-26.md** | Visual principles, anti-patterns, chosen production grammar, and the bounded mission that reconciles the existing Fable artifact with current decisions |
 | **ADRs in docs/decisions** | Accepted implementation and architecture decisions beneath the product/methodology contracts |
 | **README.md** | Operational onboarding and concise repository-as-implemented summary |
 | **Code, schema, migrations, tests** | Evidence of implementation state and enforcement; they do not silently redefine product or methodology |
 
 Historical Project Context, older Master Plan versions, and superseded Fable
 explorations are continuity records, not current authority. The latest accepted
-Fable artifact is the visual baseline but must be reconciled against the P0
-decision document before implementation.
+Fable artifact is the visual baseline but must be reconciled against both dated
+decision records before implementation.
 
 ### 0.3 Authority boundaries
 
@@ -194,14 +195,16 @@ Do not build for the current product:
 - public list creation;
 - AI chatbot;
 - recommendation machine learning;
-- storefront checkout;
+- storefront checkout or key sales;
 - price tracking/deal alerts;
 - game diary/backlog tracking;
 - wiki-scale community metadata editing;
 - automatic review-text scraping;
 - a public aggregate score.
 
-Personalization, saved games, notifications, storefront links, an API, and embeddable profiles remain possible later layers, not prerequisites for proving the core.
+Personalization, saved games, notifications, live price/deal tracking, an API,
+and embeddable profiles remain later layers. Verified ordinary storefront links
+are part of the launch profile contract; processing transactions is not.
 
 ---
 
@@ -436,16 +439,20 @@ These rules are enforced in the write layer, not merely hidden in the UI.
 
 The homepage is an **art-led, utility-first entrance to a profile-first Field
 Guide**. Registry describes the underlying retrieval behavior; it is not the
-public proposition. The entrance supports three journeys:
+public proposition. The entrance supports three separately named journeys:
 
-1. **Find a game** — title, alias and supported scope/edition retrieval;
-2. **Compare two** — select exactly two profiles and see a compact shape-first
-   preview before the full comparison;
-3. **Start with a question** — honest structured, lexical and/or curated
-   discovery whose exact MVP semantics remain a Search/Discovery P0 decision.
+1. **Search** — the dominant known-title path over titles, aliases, editions and
+   scopes;
+2. **Compare** — the major secondary action for exactly two profiles, including
+   a compact shape-first homepage preview before the full comparison;
+3. **What should I play?** — progressive needs-based discovery through curated
+   prompts, browsing/filters and bounded ordinary-language interpretation.
 
-The approximate launch navigation is Profiles, Compare, Methodology and About;
-exact labels and mobile behavior are design decisions. The homepage also owns:
+The labels are locked; capitalization, responsive treatment and exact mobile
+navigation remain design questions. Search is globally available and receives
+the greatest visual priority. Compare is immediately accessible. What should I
+play? unfolds progressively rather than competing as an equal oversized tab.
+The homepage also owns:
 
 - a compact art-led opening in which utility remains primary;
 - manually authored “Choosing between…” comparisons;
@@ -454,21 +461,26 @@ exact labels and mobile behavior are design decisions. The homepage also owns:
 - three or four evergreen decision shelves with explicitly authored membership;
 - one or two time-bounded living editorial collections with expiry and fallback.
 
-There is no ranking feed, personalized recommendation engine, generic registry
-table, automatic carousel, fake activity, or oversized search-only homepage.
+There is no ranking feed, launch personalization, generic registry table,
+automatic carousel, fake activity, or oversized search-only homepage.
 
 Planned routes/surfaces:
 
-- Search/Find behavior shared by homepage and public navigation;
+- global Search behavior shared by homepage and public navigation, including
+  published, recognized-unprofiled, ambiguous and unrecognized states;
 - `/compare` — exactly-two-profile launcher;
-- canonical two-profile comparison results, with indexing policy finalized in
-  Compare P0 before implementation;
+- canonical two-profile comparison results; pair results are noindex and remain
+  subordinate to their source profiles;
+- a durable noindex What should I play? result state supporting refinement,
+  trade-offs, sharing, refresh and browser navigation; exact route name is a
+  design/IA implementation detail;
 - `/about` — editorial identity, independence, funding, method and corrections;
 - a route to all profiles when the catalog presentation requires it.
 
-A richer `/discover` taxonomy/filter product is later unless the Search/
-Discovery P0 decision explicitly chooses a bounded version for “Start with a
-question.”
+A traditional taxonomy-first `/discover` room remains later. The launch What
+should I play? product already uses controlled facets, experience
+classifications and visible criteria; it must not be renamed to Discover or
+presented as an unrestricted AI chat.
 
 ### 5.3 Admin routes
 
@@ -495,12 +507,22 @@ introduces an aggregate, ranking, match percentage or universal verdict.
 
 The homepage preview is shape-first: comparative shape, concise deterministic
 interpretation, then the route to full Compare. An overlaid radar is currently
-preferred but provisional pending accessibility/Compare P0. Wherever comparative
-shapes appear, the product must visibly explain that a bigger shape is not
-better. The full Compare hierarchy, chart mechanics, mobile behavior, automatic
-contrast/alignment rules, URL grammar and final noindex policy remain the next
-dedicated Compare P0 work; earlier approved route/noindex work is its baseline,
-not an invitation to reopen the no-winner contract.
+preferred but remains subject to accessibility/design validation. Wherever
+comparative shapes appear, the product visibly explains that a bigger shape is
+not better.
+
+Exact values and ranges are intervals; Unknown has no interval. Each pair is
+objectively equal, intersecting, disjoint or undetermined before a separate
+presentation heuristic chooses which differences to summarize. Ranges are not
+midpointed, confidence does not change the geometric relation, and the aligned
+eight rows remain authoritative. Initial summary prominence thresholds remain
+presentational defaults to test on the validation corpus, not rubric semantics.
+
+The launcher permits arbitrary published pairs, including the same game across
+different scopes. Pair routes use scope-aware identity, canonical ordering and
+`noindex`. Artwork is absent from the entire Compare surface and share card.
+Reassess all-pair prerendering near 1,000 routes/~45 profiles or when it consumes
+more than roughly 20% of build time.
 
 Individual profiles include an editor-selected “Compare with” entry point. It
 must not be described as popular or commonly compared without usage evidence.
@@ -576,7 +598,8 @@ Every artwork row carries:
 - URL + dimensions;
 - source;
 - clearance (`production` or `evaluation`);
-- basis (`licence`, `provider-terms`, `press-kit`, `permission`, `internal-evaluation`);
+- basis (`licence`, `provider-terms`, `press-kit`, `permission`,
+  `editorial-fair-use`, `internal-evaluation`);
 - audit metadata where applicable (credit, source page, retrieval date, provider id, alt/crop data).
 
 Production clearance cannot rest on `internal-evaluation` basis. Production artwork must be auditable.
@@ -607,19 +630,24 @@ Acquisition priority is: homepage editorial features, major recent releases,
 high-interest profiles, cards where recognition materially helps, then the rest
 of the catalog. No artwork-coverage percentage is a launch gate.
 
-Before catalog-scale production art:
+Editorial fair use is now an approved independent basis for appropriate official
+promotional artwork used to identify, navigate to, or directly illustrate a
+substantive evaluation or criticism. It is not a blanket exemption for large
+decorative atmosphere, standalone/original distribution, fan art, paid
+advertising or Compare. Explicit provider terms, press-kit permission, licence
+or direct permission remain useful risk-reduction and scaling channels, not a
+precondition that displaces the approved editorial basis.
 
-1. define lawful basis per source/publisher;
-2. resolve provider terms and commercial-use questions;
-3. decide permitted hosting/proxy/hotlink strategy;
-4. retain per-asset provenance;
-5. preserve graceful artless fallback; and
-6. execute ADR 0011's deferred `editorial-fair-use` work before clearing any
-   asset on that basis: complete the one-time legal review, amend the ADR and
-   database enum through a forward migration, and update types, validation,
-   admin/import paths, fixtures and tests.
+Before the first asset is production-cleared on editorial-fair-use basis:
 
-The current basis enum remains unchanged until item 6 is completed.
+1. obtain a proportionate one-time review of the written policy by an Israeli IP
+   lawyer;
+2. amend ADR 0011 and the database basis enum through a forward migration;
+3. update application types, validation, admin/import paths, fixtures and tests;
+4. document source eligibility, placement, attribution, resolution,
+   storage/proxy/hotlink behavior and takedown;
+5. retain per-asset provenance and preserve the artless fallback; and
+6. verify that evaluation-only containment remains intact.
 
 GPT may identify candidates and prepare provenance. Codex or Claude may
 implement ingestion and validation. Tomas alone approves production basis and
@@ -627,11 +655,23 @@ final visual selection; no automated process may production-clear an asset.
 
 ### 7.4 Metadata providers/runtime
 
-Third-party providers may enrich factual metadata. They do not own canonical identity, scores, evidence, interpretation, or history.
+Discovery metadata uses provider-first layered ownership. One approved primary
+provider supplies routine facts; official publisher/developer/platform/store
+sources take precedence for critical, disputed or volatile facts; secondary
+providers fill meaningful gaps rather than being merged routinely. Imported
+values retain provenance/freshness and map into a provider-independent internal
+vocabulary. Approved corrections survive refreshes and manual records remain
+valid.
 
-Preferred initial metadata direction remains IGDB behind an adapter, subject to fresh licensing/commercial-use review. Manual entry remains valid.
+IGDB is the preferred initial candidate, not yet approved pending written
+commercial/image terms and a representative ~30-game data test. RAWG is a
+contingency. Public pages never depend on a live provider request, and provider
+ratings, popularity, classifications or artwork availability cannot alter Game
+Profile evaluations.
 
-Runtime lives under the game, cannot feed scores automatically, and must come from an approved/licensed source rather than an unofficial HowLongToBeat scraper.
+Total commitment and session suitability are separate. Runtime is scoped,
+sourced provider-backed context and cannot feed scores. HowLongToBeat remains a
+candidate only; an unofficial scraper is not an approved production source.
 
 ---
 
@@ -912,11 +952,18 @@ reports *not proven* rather than guessing in either direction.
 
 ### 9.10 Search/no extra service layer
 
-Search/Discovery P0 will settle the exact “Start with a question” contract. The
-baseline remains a build-emitted client index over approved profile identity,
-aliases, scopes and suitable editorial metadata. Postgres full-text/trigram is a
-later scaling option, not an automatic prerequisite. Do not add
-Algolia/Elastic/Typesense until measured requirements justify it.
+Global Search and What should I play? launch from locally emitted, approved
+catalog data. Search covers published profiles plus recognized factual registry
+records with an explicit availability state. What should I play? composes a
+governed vocabulary, normalized facets, experience classifications, time/session
+context, relevant dimension values, deterministic constraints and a broad
+testable language layer. Interpreted criteria remain visible and editable.
+
+The initial runtime does not depend on a paid language-model API. Postgres
+full-text/trigram, an external search service, or a hosted model may be added
+only when measured corpus/language behavior justifies it. A later model may map
+language into the same controlled concepts; it cannot invent unpublished
+claims, replace the catalog, or create a hidden universal ranking.
 
 Do not add microservices, GraphQL, a separate public API service, an event bus, or a second rendering/domain model.
 
@@ -939,7 +986,11 @@ games
           → evaluation_revisions
 ```
 
-Shared registries/metadata include rubric versions, dimensions, subcriteria, calibration rounds, tags, evidence sources, platforms, aliases, provider IDs, runtime estimates, and artwork.
+Shared registries/metadata include rubric versions, dimensions, subcriteria,
+calibration rounds, tags, evidence sources, platforms, aliases, provider IDs,
+provider provenance/overrides, faceted game types, controlled discovery
+concepts, experience classifications, total-commitment records, session
+suitability, official/store destinations, coverage-request signals and artwork.
 
 Before the candidate Scoring Protocol imports a package, the forward migrations
 registered by ADR 0024 must add durable immutable package storage and the exact
@@ -964,6 +1015,23 @@ Evaluation is one version inside a scope and includes rubric/version, mandatory 
 
 Rubric shape is registered and cross-rubric score/evidence relationships are refused. Final snapshots and rubric identity are immutable. Dimension values are derived in TypeScript and in Postgres for queryability, not stored as editable duplicate totals. Evaluation versions/supersession remain the canonical history.
 
+### 10.6 Discovery and practical-context contract
+
+Discovery criteria declare their concept, factual/normalized/editorial owner,
+constraint-eligibility tier, scopes, supported values, Unknown/not-applicable
+behavior, provenance, thresholds and language mappings. The eleven launch
+experience axes are distinct from factual facets and from the eight dimensions.
+
+Total commitment stores focused, engaged-play and completionist estimates where
+applicable; engaged play determines the public band. Session suitability stores
+useful-session window and interruption flexibility independently. Both are
+scope-aware and preserve Variable, Unknown and Not applicable.
+
+Recognized unprofiled games remain registry records only. They cannot acquire a
+canonical game-profile route or public evaluation fields until a substantive
+profile is published. Coverage requests are private bounded demand signals and
+never votes on evaluation content.
+
 ---
 
 ## 11. SEO, discoverability, and measurement
@@ -985,13 +1053,41 @@ No `Review`, `AggregateRating`, or `reviewRating` schema is published.
 Preview/design/admin surfaces stay out of the public index and sitemap; authentication, not `noindex`, protects private editorial content.
 
 Acquisition depends on stable substantive profiles and truthful editorial
-surfaces, not mass-generated combination pages or artificial categories. The
-final indexing contract for Compare results is decided in Compare P0 before the
-route ships.
+surfaces, not mass-generated combination pages or artificial categories.
+Recognized-unprofiled Search results do not create public stubs. Generated What
+should I play? results and Compare pair results are noindex and excluded from
+the sitemap; `/compare` and stable substantive editorial collections may be
+indexable.
 
-### 11.2 Initial analytics vocabulary
+### 11.2 Analytics and privacy contract
 
-When analytics is added, cover search submission/result opening, profile view, dimension expansion, methodology opening, scope switching, compare actions, discovery filters, sharing, and optional outbound store clicks.
+Purpose-governed analytics is required for quiet public release. It has four
+separate layers:
+
+1. Cloudflare Web Analytics and Search Console for traffic/acquisition;
+2. a small semantic product-event provider for core journeys;
+3. a separately governed raw-query research dataset;
+4. a first-party pseudonymous returning-browser record.
+
+The launch event registry covers Search submissions/selections/unprofiled/no
+result/coverage requests; discovery submissions/interpretation edits/result
+states/selections/constraint relaxation; Compare start/selection/view/source
+profile; and profile Compare/evidence/outbound actions. Events describe stable
+intentions, not widget names.
+
+Ordinary events never contain raw query text, form fields, keystrokes, raw DOM,
+unrestricted URLs/query strings, contact details, advertising identifiers or
+fingerprints. Raw discovery text is stored separately, is not linked to the
+persistent visitor ID by default, is access-restricted/redacted, and begins with
+a provisional 90-day unsanitized retention. The first-party visitor ID has no
+name/email or cross-site use, is resettable/opt-out, and begins with a suggested
+180-day inactivity expiry.
+
+Before raw-query or cross-session collection, publish the privacy notice and
+complete the focused lawful-basis/consent, DPA, subprocessor, data-location,
+retention, deletion/export, transfer and breach-handling review. The final event
+provider is open; provider failure must never affect the public product. No
+internal analytics console is required.
 
 ### 11.3 Operating metrics
 
@@ -1016,6 +1112,22 @@ Public methodology describes a structured, AI-assisted editorial process — not
 an AI verdict. It explains evidence collection, claim extraction, rubric
 mapping, a separate audit pass and editor approval without making the model
 vendor the subject.
+
+### 11.5 Commerce and storefront actions
+
+Every launch profile should identify supported platforms and provide verified
+official “Where to play” destinations where facts are reliable. Ordinary
+non-affiliate links are the baseline; approved affiliate links may replace or
+supplement them with clear disclosure. A paying destination never hides a
+material non-paying one, and commerce never affects evaluation, coverage,
+Search/discovery ordering or Compare.
+
+The model distinguishes game/scope, edition, platform, region, storefront,
+ordinary/affiliate URL, relationship, disclosure, source, freshness and
+staleness. Unverifiable prices/offers disappear conservatively while an official
+destination may remain. A 10–20-profile PC live-commerce pilot and broader
+availability/price/subscription integrations are later stages, not launch
+blockers.
 
 ---
 
@@ -1092,32 +1204,46 @@ production-record depth justified by measured effort.
 agent, automated publishing, outlet-score weighting, or rewriting the three
 existing calibration profiles.
 
-### Phase 3B — Remaining public-product P0 resolution and design reconciliation
+### Phase 3B — Public-product contract and design reconciliation
 
-**ACTIVE; HOMEPAGE P0 COMPLETE**
+**ACTIVE; PRODUCT CONTRACT COMPLETE, FABLE RECONCILIATION IN PROGRESS**
 
-The homepage proposition, journeys, functional hierarchy, curation ownership,
-accountability posture, catalog/launch target and artwork posture are resolved
-in the dated P0 decision record.
+The 24–25 August decision records now resolve the proposition, journey labels
+and hierarchy, Search coverage states, deterministic What should I play?
+semantics, Compare method and indexing posture, practical time concepts,
+metadata ownership, commerce baseline, launch analytics, catalog scale,
+curation, accountability, release posture, personalization sequence and
+corrected artwork basis.
 
-Remaining answer-by-answer decisions:
+**Objective:** translate that frozen product model and the existing “Should I
+Play? at Fifteen” design lock into one implementation-ready responsive public
+specification.
 
-1. Search/Discovery — exact semantics of “Start with a question,” searchable
-   fields, empty states and inline-versus-routed results;
-2. Compare — exact accessible chart, summary rules, small-difference handling,
-   full-page hierarchy, mobile, URL and indexing contract;
-3. individual profile — above-fold hierarchy, “Compare with” placement and
-   relationship among summary, dimensions, evidence and artwork;
-4. dedicated design — exact responsive composition, type/colour/motion/shape
-   application, interaction states, accessibility and component specification.
+**User value:** the next build implements a coherent decision product instead
+of accumulating disconnected utilities or redesigning settled methodology.
+
+**Deliverables:**
+
+- a retained/revised/superseded/new ledger against the existing Fable artifact;
+- final responsive hierarchy for the homepage, global Search, What should I
+  play?, Compare, profiles and About/corrections;
+- every material empty, ambiguous, unprofiled, indeterminate, range, Unknown,
+  artless, stale, error and mobile state;
+- accessible nonvisual equivalents for comparative shapes and criteria editing;
+- implementation component/state inventory, content contract, dependencies and
+  sequencing;
+- calibrated public labels for the eleven experience axes and the practical
+  time/session phrase matrix, either in design or as a short owner decision;
+- final route choice for the durable discovery-results state.
 
 **Exit criteria:** no open choice can materially change navigation, page types,
-content requirements, data contract or implementation architecture; the latest
-Fable work is reconciled rather than restarted; the result is
-implementation-ready.
+content requirements, data contract or implementation architecture; the
+existing design has been surgically reconciled rather than rediscovered; Tomas
+accepts the result as the public implementation specification.
 
-**Out of scope:** a new brand, a new rubric, rankings, personalization, broad
-admin design or copying one exploratory mockup as production.
+**Out of scope:** a new brand, a new rubric, rankings, launch personalization,
+broad admin design, a runtime chatbot, or treating one exploratory mockup as
+production without the state/handoff work.
 
 ### Phase 4 — 12–15-profile product-validation corpus
 
@@ -1126,22 +1252,33 @@ admin design or copying one exploratory mockup as production.
 **Objective:** validate the real public product and content-production system on
 a deliberately varied but bounded corpus.
 
-**User value:** a credible private preview or limited test in which Find,
-Compare, questions, shelves, profiles, evidence states, mixed artwork and mobile
-behavior can be evaluated with real content.
+**User value:** a credible private preview or limited test in which Search,
+Compare, What should I play?, shelves, profiles, evidence states, mixed artwork
+and mobile behavior can be evaluated with real content.
 
 **Deliverables:**
 
 - 12–15 substantive profiles produced through the approved manual AI-assisted
   workflow;
+- provider-independent factual records, aliases, normalized facets, eleven
+  experience classifications, total commitment, session suitability and
+  official storefront destinations for the validation corpus;
 - a measured research/scoring/editing time baseline;
 - the first real new-profile application dispatch and Live proof;
-- the resolved homepage, Search/Discovery, exactly-two Compare and individual
-  profile experience;
+- the reconciled homepage, global Search, deterministic What should I play?,
+  exactly-two Compare and individual-profile experience;
+- all four Search availability states and accountless private coverage requests;
+- verified/trade-off/near-match/indeterminate/no-match discovery behavior;
 - factual, evergreen and living editorial shelf configuration;
 - corrections/About and disclosure behavior;
+- total-commitment/session-suitability and official “Where to play” behavior;
 - representative art-led and artless states;
-- observed user decision sessions.
+- the approved artwork-basis migration/policy/legal gate if any validation asset
+  relies on editorial fair use;
+- a versioned analytics event registry and local/test instrumentation contract,
+  without enabling raw-query or cross-session collection prematurely;
+- founder-led decision scenarios, adversarial query corpus, accessibility
+  checks and production observations.
 
 **Exit criteria:** the product works coherently across real content states,
 editorial throughput is measured, no publication blocker remains, and the
@@ -1151,7 +1288,7 @@ private/limited test demonstrates what must change before scale.
 inflated categories, programmatic SEO, automated scoring, personalization or a
 curation admin console.
 
-### Phase 5 — Catalog production toward public launch
+### Phase 5 — Catalog production toward quiet public release
 
 **PENDING**
 
@@ -1166,6 +1303,12 @@ profiles without weakening evidence, transparency or design quality.
   policy;
 - comparison-rich clusters that arise from useful title selection rather than
   fabricated quotas;
+- one approved routine metadata-provider adapter or a documented manual fallback
+  that can sustain the release catalog;
+- calibrated experience classifications and practical-time records at catalog
+  scale;
+- verified official platform/store destinations with freshness and ordinary-
+  link fallback;
 - monthly-or-event-driven living editorial rotations with expiry/fallback;
 - mixed lawful artwork/artless rollout;
 - throughput improvements justified by measured bottlenecks.
@@ -1178,7 +1321,7 @@ operable, and the product is genuinely useful beyond a controlled test.
 fixed outlet weighting, arbitrary artwork-coverage quotas or building
 infrastructure merely to look scalable.
 
-### Phase 6 — Public launch readiness
+### Phase 6 — Quiet public-release readiness
 
 **PENDING**
 
@@ -1192,37 +1335,62 @@ trustworthy, comprehensible, accessible, indexable and supportable.
 - Search Console setup and representative URL inspection;
 - lawful artwork policy/operations, artless conformance and removal path;
 - public methodology, About, corrections and commercial disclosures;
-- qualitative testing of real Find, Compare and exploration decisions;
-- lightweight analytics decision and privacy review;
+- founder-led validation of real Search, Compare and What should I play?
+  decisions, including adversarial and incomplete-catalog cases;
+- Cloudflare/Search Console acquisition measurement, the approved semantic
+  event provider, event registry, operational privacy controls, and the focused
+  legal/privacy review required before any raw-query or cross-session data;
+- verified official action links and conservative stale/unavailable behavior;
 - visual-conformance review against the reconciled design specification;
 - single-editor launch and correction runbook.
 
 **Exit criteria:** the definition of done in §18 passes.
 
-### Phase 7 — Post-launch learning
+### Phase 7 — First post-launch product phase: personal matching validation
 
-**DEFERRED**
+**DEFERRED UNTIL THE QUIET PUBLIC RELEASE IS STABLE**
 
-Potential evidence-triggered work includes richer Discover/taxonomy, dynamic
-Compare scaling, custom first-party events, metadata/runtime/store providers,
-public revision history, durable curation tooling, saved preferences and
-personalization. None is scheduled merely because it appeared in an older plan.
+**Objective:** determine whether explicit player preferences create repeatable
+decision value beyond the launch discovery tools.
+
+**Deliverables:** recover the earlier questionnaire, reconcile it with the
+current dimensions/facets/experience axes, test an ephemeral no-account taste
+profile, evaluate dimension-by-dimension fit and trade-offs, and decide whether
+persistence/accounts are justified.
+
+**Exit criteria:** matching semantics are understandable and useful without a
+fit percentage, and persistence is added only if repeated use demonstrably
+benefits from saving.
+
+**Out of scope:** pre-launch promises, disabled personalization UI, opaque
+recommendation ML, social profiles, behavioral surveillance, or polygon overlap
+as a universal fit score.
+
+Other post-launch work remains evidence-triggered: richer taxonomy/browsing,
+dynamic Compare rendering, live-commerce expansion, public revision history,
+durable curation tooling and a future model-backed language interpreter over
+the same controlled concepts.
 
 ---
 
 ## 13. Current prioritized backlog
 
-### P0 — current decision/proof work
+### P0 — current design/proof/foundation work
 
 1. Record the complete owner-approved P0 decision set and reconcile the Master
    Plan. **DONE in this plan/decision-set change when merged.**
 2. Complete review of the candidate Scoring Protocol/package contract and run
    the six-development/four-holdout program. **OPEN**
-3. Resolve Search/Discovery P0 answer by answer. **OPEN**
-4. Resolve Compare P0 answer by answer. **OPEN**
-5. Resolve individual-profile P0 answer by answer. **OPEN**
-6. Reconcile the existing Fable/design work into one implementation-ready
+3. Record the later Search/discovery, metadata, time, analytics, commerce,
+   release, personalization and corrected-artwork resolutions. **DONE in the
+   25 August resolution register when merged.**
+4. Reconcile the existing Fable/design work into one implementation-ready
    responsive specification. **OPEN**
+5. Implement/test the provider-independent Search, discovery, practical-time,
+   commerce and event contracts that do not depend on unresolved visual design.
+   **OPEN**
+6. Remove known public truth drift: aggregate-like copy, pending-ledger numeric
+   counts and internal calibration language. **OPEN**
 7. Create and operationally verify corrections@shouldiplay.gg plus contextual
    profile links before About claims that route. **OPEN**
 8. Complete the one-time legal/policy/migration work before clearing any artwork
@@ -1231,30 +1399,37 @@ personalization. None is scheduled merely because it appeared in an older plan.
    Publish → dispatch → Live path. **OPEN; belongs to Phase 4**
 10. Build the 12–15-profile validation corpus and measure throughput. **OPEN**
 
-### P1 — before broad public launch
+### P1 — before quiet public release
 
 - finish the approximately-100-profile curated catalog;
 - operate the three-month, conditional six-month, twelve-month and
   material-change update policy;
 - implement Search/Discovery, exactly-two Compare and the resolved profile
   hierarchy at launch quality;
+- operate the recognized-title registry and private coverage-request path;
+- provide governed total-commitment/session-suitability records and verified
+  official storefront actions;
 - maintain factual, evergreen and living homepage collections;
 - establish mixed lawful-art/artless production;
+- approve a sustainable primary metadata path or document the manual fallback;
 - publish methodology, About, corrections and commercial disclosures;
 - complete accessibility, performance, SEO/social and qualitative decision
   testing;
-- choose only the minimum useful privacy-respecting analytics.
+- operate purpose-governed acquisition/product analytics and complete the
+  required privacy/legal controls before raw-query or cross-session collection.
 
 ### P2 — after launch evidence
 
 - richer Discover/taxonomy and a traditional catalog surface;
-- custom first-party product events;
 - dynamic/server Compare if build scale requires it;
 - three/four-profile Compare;
 - public revision history;
-- metadata, runtime and approved store-link providers;
+- richer live pricing/subscription/availability providers;
 - dedicated curation/reassessment administration;
-- personal preference vectors, saving and recommendation;
+- the explicit no-account personal-matching experiment, followed by saving only
+  if value is demonstrated;
+- optional model-backed natural-language interpretation over the controlled
+  discovery contract;
 - price context, alerts, API or embeddable profiles.
 
 ### P3 — requires a new product decision
@@ -1308,22 +1483,28 @@ The product fails acceptance if it:
 
 At the 12–15-profile milestone:
 
-- the three homepage journeys work with real content;
-- Search/Discovery has truthful no-result behavior;
+- Search, Compare and What should I play? work with real content and the locked
+  hierarchy;
+- Search exercises published, recognized-unprofiled, ambiguous and unrecognized
+  states without creating a stub profile;
+- discovery distinguishes verified, near-match, trade-off, indeterminate and
+  no-verified-match states without silently weakening a hard constraint;
 - exactly-two Compare is comprehensible on desktop and mobile;
 - users can explain shape-not-rank and find the material risk quickly;
 - factual/evergreen/living shelves behave truthfully, including expiry/fallback;
 - profile and artwork states cover long titles, scopes, Unknown/ranges,
   provisional evidence and mixed art/artless cases;
+- practical time/session records and official storefront actions remain useful
+  in missing, variable, stale and partially known states;
 - at least one new profile has completed the full publication/deployment proof;
 - production effort per profile is measured rather than guessed.
 
 ### 14.5 Launch acceptance
 
-Broad launch additionally requires the approximately-100-profile catalog,
+Quiet public release additionally requires the approximately-100-profile catalog,
 approved scoring protocol, operational update policy, accountability/corrections,
-lawful artwork operations, accessibility/performance/SEO conformance and real
-decision testing in §18.
+lawful artwork operations, verified official actions, purpose-governed analytics,
+accessibility/performance/SEO conformance and real decision testing in §18.
 
 ---
 
@@ -1362,6 +1543,30 @@ links remain authoritative.
 
 **Mitigation:** expose the bounded mechanism, use authored prompts/controlled
 metadata, and say honestly when the catalog has no suitable result.
+
+### Recognized-title coverage becomes thin SEO content
+
+**Mitigation:** unprofiled registry records exist only inside Search, carry no
+profile claims and create no route, sitemap entry, structured data or indexable
+stub. Coverage requests remain private signals without public counts or promises.
+
+### Provider metadata silently becomes editorial truth
+
+**Mitigation:** retain layered ownership, field provenance, provider-independent
+concept IDs, official-source overrides and durable manual corrections. Provider
+ratings/popularity never influence the Game Profile or result ordering.
+
+### Query learning creates disproportionate privacy risk
+
+**Mitigation:** separate raw queries from ordinary events and the persistent
+visitor ID, minimize properties/retention, provide reset/opt-out and complete the
+focused privacy/legal review before raw-query or cross-session collection.
+
+### Commerce compromises editorial independence
+
+**Mitigation:** ordinary official links are the baseline; relationships are
+disclosed; paying stores never hide material non-paying stores; commerce is
+excluded from scoring, coverage and discovery/Compare ordering.
 
 ### Editorial shelves become stale or algorithmically misleading
 
@@ -1456,15 +1661,26 @@ For each material decision:
 - Evidence/confidence/scope/provisional truth is public.
 - Sources support judgments and are not votes.
 - Profile-first Field Guide; Registry is a retrieval pattern, not proposition.
-- Homepage = art-led, utility-first entrance with Find one, Compare two and
-  Start with a question.
+- Homepage = art-led, utility-first entrance with Search dominant, Compare as
+  major secondary action and What should I play? progressively disclosed.
+- Search is global and supports published, recognized-unprofiled, ambiguous and
+  unrecognized states; unprofiled records never receive public profile stubs.
+- Coverage requests are accountless private demand signals without counts,
+  queue, ETA or coverage promise.
+- What should I play? is a deterministic, controlled-data product with visible
+  editable interpretation; Must/Prefer/Prefer-not/Must-exclude intentions;
+  governed hard eligibility; and separate indeterminate handling for Unknown.
+- There is no public match percentage or hidden universal relevance/quality
+  score.
 - Compare is launch-critical, exactly two and subordinate to profiles.
 - Homepage comparison is shape before interpretation with mandatory
   bigger-is-not-better guidance.
 - Explicit primary scope owns /games/[slug]; sibling scopes own their
   subpaths.
 - 12–15 profiles = private/limited product-validation milestone.
-- Approximately 100 substantive profiles = broad public-launch target.
+- Approximately 100 substantive profiles = quiet public-release floor.
+- Catalog expansion remains a permanent demand-weighted breadth/depth operation;
+  profiles #4–#6 establish measured simple/typical/complex throughput.
 - Claim-level rubric synthesis; GPT Chat initially scores; separate blind audit;
   Tomas approves; Codex/Claude validate/import; no automatic publication.
 - Five independent substantive evidence clusters is scarcity floor; eight to
@@ -1477,6 +1693,22 @@ For each material decision:
   disclosed; corrections use corrections@shouldiplay.gg.
 - Artwork-forward mixed launch; artless remains first-class; Compare is
   artwork-free.
+- Editorial fair use is an approved independent basis for appropriate official
+  promotional artwork after its one-time legal/implementation gate.
+- Metadata is provider-first but provider-independent: one routine provider,
+  official overrides for critical facts, secondary sources only for gaps or
+  conflicts, and manual corrections that survive refresh.
+- Total commitment and session suitability are separate practical concepts and
+  neither is a ninth dimension.
+- Purpose-governed traffic/product analytics is a public-release requirement;
+  raw-query research and pseudonymous cross-session identity are separately
+  controlled.
+- Verified official storefront actions are the launch baseline; richer live
+  commerce is incremental and never affects editorial output or ordering.
+- Quiet public release is fully public/indexable where appropriate, selectively
+  shared and monitored without a permanent beta posture.
+- Personal matching is the first major post-launch phase, with no launch promise
+  or disabled UI.
 - Public-product value dominates admin engineering.
 - Remote admin, Hyperdrive and production Live proof are operational.
 
@@ -1488,26 +1720,34 @@ For each material decision:
 - overlaid radar as the exact accessible homepage Compare visualization;
 - deterministic largest-contrast/closest-alignment presentation rules;
 - final public visual design and responsive composition;
-- analytics implementation.
+- exact calibrated labels/anchors for the eleven experience axes;
+- exact public session-summary phrase matrix;
+- IGDB as primary metadata provider and HowLongToBeat as runtime provider,
+  pending terms and representative tests;
+- analytics provider, 90-day raw-query retention and 180-day visitor inactivity
+  expiry pending focused review;
+- exact durable discovery-results route.
 
-### 17.3 Open P0 decisions
+### 17.3 Open P0 implementation/design decisions
 
-- exact “Start with a question” mechanism and Search/Discovery behavior;
-- exact full Compare chart, hierarchy, mobile, summary, URL and indexing policy;
-- exact individual-profile hierarchy and “Compare with” placement;
+- final Fable-reconciled hierarchy and behavior for Search, discovery, Compare,
+  profile additions and About/corrections;
+- exact accessible comparative visualization and nonvisual equivalents;
 - final design-system application, motion, responsive states and accessibility;
 - exact initial 12–15 and approximately-100 title lineups;
 - calibration outcome and production record-depth decision.
 
 ### 17.4 Deferred decisions
 
-- personalization, accounts and taste-based homepage content;
+- the post-launch ephemeral personalization experiment, then accounts only if
+  persistence demonstrates value;
 - automatic carousel and behavioral ranking;
 - richer Discover/taxonomy;
 - Postgres/external search service;
-- custom first-party analytics;
+- model-backed natural-language interpretation;
 - three/four-game Compare;
-- metadata/runtime/store providers;
+- dynamic/server Compare until measured pair/build scaling requires it;
+- live price/subscription/availability expansion;
 - dedicated curation/reassessment admin;
 - public revision history;
 - recommendation ML.
@@ -1522,6 +1762,14 @@ For each material decision:
 - Discover before Compare;
 - 2–4-profile MVP Compare;
 - registry/table-first or search-only homepage;
+- public journey labels Find / Compare / Start with a question;
+- three equal-priority homepage journey tabs;
+- Search limited to published profiles only;
+- indexable unprofiled game stubs;
+- custom semantic analytics deferred until after launch;
+- all store/provider work deferred until after launch;
+- personalization as an indefinite, unscheduled possibility;
+- editorial fair use awaiting another product decision;
 - full-height featured-game hero;
 - a difference list preceding comparative shape on the homepage;
 - artwork inside Compare;
@@ -1529,9 +1777,9 @@ For each material decision:
 
 ---
 
-## 18. Broad public-launch definition of done
+## 18. Quiet public-release definition of done
 
-Should I Play? is ready for broad public launch when:
+Should I Play? is ready for quiet public release when:
 
 - approximately 100 varied, substantive profiles exist;
 - the Scoring Protocol has passed its six-development/four-holdout program and
@@ -1539,26 +1787,38 @@ Should I Play? is ready for broad public launch when:
 - each new protocol profile is backed by a validated, owner-approved package;
 - released and pre-release profiles communicate confidence and maturity
   truthfully;
-- the art-led, utility-first homepage supports Find, Compare and question-led
-  exploration;
+- the art-led, utility-first homepage gives Search dominant priority, Compare
+  major secondary priority and What should I play? progressive depth;
 - exactly-two Compare is excellent on desktop and mobile and never implies a
   winner;
-- Search/Discovery works for titles, aliases, scopes and the approved question
-  mechanism, including honest no results;
+- Search works for titles, aliases, scopes, ambiguity and recognized-unprofiled
+  records, without creating public stubs, and its coverage request remains a
+  private signal;
+- What should I play? exposes editable interpretation, keeps hard constraints
+  truthful, separates Unknown/indeterminate from near matches and publishes no
+  match percentage;
 - editorial shelves remain authored, current and non-manipulative;
-- public profiles make Pull, Risk, scope, evidence and rationale legible;
+- public profiles make Pull, Risk, scope, evidence, rationale, total commitment,
+  session suitability and supported platforms legible;
+- every profile has verified official “Where to play” destinations where facts
+  are reliable, with ordinary-link fallback and commercial disclosure;
 - Methodology, About, corrections, byline and commercial disclosures are live;
 - no aggregate score exists in visible or machine-readable output;
 - one-editor publication, dispatch, Live proof, correction and reassessment
   operations are usable;
 - artwork is lawful/auditable and mixed art/artless states are visually complete;
 - public pages are fast, accessible, indexable and socially shareable;
-- real users can use the product to make Find, Compare and exploration decisions
-  without mistaking descriptive dimensions for rankings.
+- Search Console/traffic measurement and the approved semantic product-event
+  layer are operational; any raw-query or returning-browser collection has the
+  required notice, controls and focused privacy/legal review;
+- founder-led fresh-context and adversarial validation shows that people can use
+  Search, Compare and What should I play? without mistaking descriptive
+  dimensions for rankings.
 
-Launch is not blocked by native apps, accounts, social features, personalization,
-hundreds beyond the approximate-100 target, monetization, a scoring API, a
-curation console or a custom analytics platform.
+Release is not blocked by native apps, accounts, social features,
+personalization, hundreds beyond the approximate-100 target, affiliate
+agreements, live global price coverage, a formal moderated research program, a
+paid metadata provider, a scoring API or a curation/admin analytics console.
 
 ---
 
@@ -1569,6 +1829,7 @@ v0.9 reconciles:
 - Master Plan v0.8;
 - production/main after remote-admin activation and successful Live proof;
 - the complete owner P0 decision record dated 24 August 2026;
+- the later owner resolution register dated 25 August 2026;
 - the candidate Scoring Protocol/package contract and its repository review;
 - the accepted Fable/public-design history;
 - ADRs through 0024;
@@ -1587,24 +1848,37 @@ Material changes from v0.8:
    the remaining P0 sequence;
 8. factual/evergreen/living editorial curation and ownership are recorded;
 9. accountability, corrections and AI-assisted-method language are recorded;
-10. the artwork-forward mixed launch and deferred fair-use work are recorded;
-11. old 15–25/40+/Discover-first/2–4 Compare/admin-first decisions are explicitly
-    superseded.
+10. the artwork-forward mixed launch and activated editorial-fair-use basis with
+    a legal/implementation gate are recorded;
+11. Search becomes global and recognizes unprofiled registry records without
+    creating public stubs;
+12. deterministic What should I play? gains explicit intent, hard-eligibility,
+    Unknown and practical-time semantics;
+13. metadata ownership, official storefront actions and purpose-governed launch
+    analytics become public-release contracts;
+14. personal matching becomes the first major post-launch phase without any
+    launch promise;
+15. old 15–25/40+/Discover-first/2–4 Compare/admin-first and later-analytics/
+    store-provider decisions are explicitly superseded.
 
 ---
 
 ## Appendix B — immediate execution sequence
 
-1. Merge the complete P0 decision/protocol consolidation after review.
-2. Finish candidate-protocol review and run the registered development/holdout
-   calibration.
-3. Resolve Search/Discovery P0 one question at a time.
-4. Resolve Compare P0 one question at a time.
-5. Resolve individual-profile P0 one question at a time.
-6. Reconcile the latest Fable work and produce the implementation-ready public
-   specification.
-7. Build and test the public product against the 12–15-profile validation corpus.
-8. Prove the first new-profile application dispatch and Live observation.
-9. Incorporate measured learning, then scale catalog production toward
+1. Merge the integrated 24–25 August resolution/protocol consolidation after
+   review.
+2. Run the bounded Fable reconciliation against the existing design lock and
+   accept one implementation-ready responsive specification.
+3. In parallel, finish candidate-protocol review and run the registered
+   development/holdout calibration.
+4. Implement the provider-independent Search, discovery, time/session, commerce
+   and event contracts that are already frozen; remove known public truth drift.
+5. Implement the accepted Fable public surfaces without reopening the product
+   model.
+6. Build and test the full public product against the 12–15-profile validation
+   corpus, including the first new-profile dispatch and Live observation.
+7. Approve the sustainable metadata/runtime/store inputs and analytics/privacy
+   operations needed for release.
+8. Incorporate measured learning, then scale catalog production toward
    approximately 100 substantive profiles.
-10. Complete launch validation under §18.
+9. Complete quiet public-release validation under §18.
