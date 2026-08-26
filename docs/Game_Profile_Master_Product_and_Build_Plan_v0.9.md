@@ -638,16 +638,19 @@ advertising or Compare. Explicit provider terms, press-kit permission, licence
 or direct permission remain useful risk-reduction and scaling channels, not a
 precondition that displaces the approved editorial basis.
 
-Before the first asset is production-cleared on editorial-fair-use basis:
+ADR 0011, forward migration `0010_artwork_fair_use`, application types,
+validation, admin input and regression coverage are implemented in the current
+foundation change. Before the first asset is production-cleared on
+editorial-fair-use basis, the operating gate still requires:
 
 1. obtain a proportionate one-time review of the written policy by an Israeli IP
    lawyer;
-2. amend ADR 0011 and the database basis enum through a forward migration;
-3. update application types, validation, admin/import paths, fixtures and tests;
-4. document source eligibility, placement, attribution, resolution,
+2. apply the forward migration to the authoritative database before deploying
+   code that accepts the new basis;
+3. document source eligibility, placement, attribution, resolution,
    storage/proxy/hotlink behavior and takedown;
-5. retain per-asset provenance and preserve the artless fallback; and
-6. verify that evaluation-only containment remains intact.
+4. retain per-asset provenance and preserve the artless fallback; and
+5. verify that evaluation-only containment remains intact.
 
 GPT may identify candidates and prepare provenance. Codex or Claude may
 implement ingestion and validation. Tomas alone approves production basis and
@@ -1388,13 +1391,15 @@ the same controlled concepts.
    responsive specification. **OPEN**
 5. Implement/test the provider-independent Search, discovery, practical-time,
    commerce and event contracts that do not depend on unresolved visual design.
-   **OPEN**
+   **FOUNDATION IMPLEMENTED; public surfaces and persistence remain OPEN**
 6. Remove known public truth drift: aggregate-like copy, pending-ledger numeric
-   counts and internal calibration language. **OPEN**
+   counts and internal calibration language. **DONE in the foundation change
+   when merged.**
 7. Create and operationally verify corrections@shouldiplay.gg plus contextual
    profile links before About claims that route. **OPEN**
 8. Complete the one-time legal/policy/migration work before clearing any artwork
-   specifically on editorial-fair-use. **OPEN, conditional**
+   specifically on editorial-fair-use. **PARTIAL: ADR, enum migration, types,
+   validation and tests implemented; one-time legal/policy operating gate OPEN.**
 9. Produce the first real new catalog profile through the full
    Publish → dispatch → Live path. **OPEN; belongs to Phase 4**
 10. Build the 12–15-profile validation corpus and measure throughput. **OPEN**
@@ -1832,7 +1837,7 @@ v0.9 reconciles:
 - the later owner resolution register dated 25 August 2026;
 - the candidate Scoring Protocol/package contract and its repository review;
 - the accepted Fable/public-design history;
-- ADRs through 0024;
+- ADRs through 0029;
 - the explicit public-first directional correction.
 
 Material changes from v0.8:

@@ -14,17 +14,22 @@ Before beginning material product, editorial, design, data-model, or implementat
 
 1. `docs/Game_Profile_Master_Product_and_Build_Plan_v0.9.md`
 2. `docs/Should_I_Play_Public_Product_P0_Decisions_2026-08-24.md`
-3. `docs/Game_Profile_Scoring_Rubric_v1.0.md`
-4. `docs/Game_Profile_Editorial_Evidence_and_Data_Sourcing_SOP_v0.2.md`
-5. for scoring/calibration work, `docs/Game_Profile_Scoring_Protocol_v1.0_DRAFT.md`
+3. `docs/Should_I_Play_Public_Product_Resolutions_2026-08-25.md`
+4. `docs/Game_Profile_Scoring_Rubric_v1.0.md`
+5. `docs/Game_Profile_Editorial_Evidence_and_Data_Sourcing_SOP_v0.2.md`
+6. for scoring/calibration work, `docs/Game_Profile_Scoring_Protocol_v1.0_DRAFT.md`
    and its package schema — both remain candidate material until calibration
-6. the ADRs relevant to the work under `docs/decisions/`
-7. the current `README.md`, code, and tests in the area being changed
+7. the ADRs relevant to the work under `docs/decisions/`
+8. the current `README.md`, code, and tests in the area being changed
 
 Use these authority boundaries:
 
 - The Master Plan is the product, architecture, roadmap, phase-status, and decision constitution.
 - The dated Public Product P0 Decisions document owns its recorded owner decisions.
+- The dated Public Product Resolution Register owns the later Search,
+  discovery, metadata, time, analytics, commerce, release, personalization and
+  corrected-artwork decisions; where it explicitly records a later correction,
+  it supersedes the 24 August wording.
 - The Rubric exclusively owns scoring meaning, criteria, derivation, Unknown/range behavior, and evaluation rules.
 - The Evidence SOP exclusively owns evidence collection, sourcing, reconciliation, confidence, and ledger procedure.
 - The candidate Scoring Protocol operationalizes evidence-to-number work but is not governing until its calibration gates pass and Tomas approves it; its explicit proposed supersessions remain provisional meanwhile.

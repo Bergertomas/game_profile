@@ -84,9 +84,20 @@ describe("The profile page on a pending ledger", () => {
     expect(html).not.toMatch(NUMERIC_SOURCE_CLAIM);
   });
 
+  it("renders no category-count block while individual records are pending", () => {
+    const html = render(pendingProfile);
+    expect(html).not.toContain('data-evidence-counts="reconciled"');
+  });
+
   it("states the pending wording in the expanded rows", () => {
     const html = render(pendingProfile);
     expect(html).toContain("Evidence coverage recorded; source records pending");
+  });
+
+  it("describes public review status without leading with an internal calibration round", () => {
+    const html = render(pendingProfile);
+    expect(html).toContain("Editor reviewed");
+    expect(html).not.toContain("Calibration round");
   });
 
   it("does not let the rows and the evidence section contradict each other", () => {
@@ -113,6 +124,7 @@ describe("The profile page on a populated ledger", () => {
   it("does publish a count, so the pending copy is a real branch", () => {
     const html = render(populatedProfile);
     expect(html).toMatch(NUMERIC_SOURCE_CLAIM);
+    expect(html).toContain('data-evidence-counts="reconciled"');
     expect(html).not.toContain(
       "Evidence coverage recorded; source records pending",
     );

@@ -46,10 +46,10 @@ export default async function HomePage() {
             and what might make it wrong for you.
           </p>
           <p className="sip-prose mt-4 max-w-[46rem] text-[1.0625rem] text-ink-soft">
-            We never average them into an overall score. An 87 can describe a
-            beautifully written but clumsy RPG or a nearly storyless,
-            mechanically perfect action game, and those are completely different
-            purchases.
+            We never average them into an overall score. One game can stand out
+            through story and atmosphere while another earns its shape through
+            precise action and craft. Those are different experiences—and
+            different reasons to play.
           </p>
         </div>
       </section>

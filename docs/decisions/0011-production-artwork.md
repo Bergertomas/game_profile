@@ -1,20 +1,22 @@
 # ADR 0011 — Production artwork comes from the game record, or not at all
 
-**Status:** Accepted · 2026-08-07 · **Extended into the schema, 2026-08-13**
+**Status:** Accepted · 2026-08-07 · **Extended into the schema, 2026-08-13 ·
+Amended for editorial fair use, 2026-08-26**
 **Context:** Design direction D3 is artwork-led and is now the public game page.
 The artwork D3 was designed against is evaluation-only and uncleared
 ([ADR 0010](0010-design-surfaces-and-site-environment.md)).
 
 ## Decision
 
-**Artwork is game metadata, not curation.** At a few hundred games and growing,
-hand-picking every image is not a workflow, so the model assumes a provider
-supplies art automatically and a human intervenes only when one image is wrong.
+**Artwork is rights-aware game metadata, not an untracked layout choice.** At a
+few hundred games and growing, a provider or research pass may propose
+candidates, but no automated path production-clears an image. The editor
+approves the source, basis, role and final visual selection on the game record.
 
 ```
 game
  └── artwork
-      ├── cover      portrait — cards, listings, comparison
+      ├── cover      portrait — cards and listings (Compare stays artless)
       ├── hero       landscape — the profile stage
       ├── source     manual | rawg | mobygames | press-kit
       ├── externalId the provider's own id, so a record can be refreshed
@@ -178,38 +180,46 @@ Nothing about containment weakens. No seeded game carries artwork, the overlay
 stays behind its folded literal, `check:containment` still passes against the
 built production artefact, and production still renders the artless composition.
 
-**The open question at the top of this section is unchanged and is the only
-thing still blocking real artwork: the basis each publisher's art is held on.**
-That is a product and legal decision. Everything structural is now in place, and
-enabling a game is a data change on one row.
+## Amendment — editorial-fair-use basis, accepted 2026-08-26
 
-## Deferred follow-up — editorial fair-use basis, recorded 2026-08-25
+Editorial fair use is an approved independent basis for appropriate official
+publisher/developer promotional artwork used to identify, navigate to, or
+directly illustrate substantive evaluation and criticism. Provider terms,
+press-kit permission, a licence or direct permission remain preferred when
+convenient because they reduce operational risk, but the absence of those
+channels does not automatically force an otherwise appropriate editorial use
+into the artless state.
 
-The public-product consolidation selected an artwork-forward mixed launch and
-identified a further lawful-basis candidate: official publisher/developer
-promotional artwork used directly to identify, navigate to, or discuss the game
-inside a substantive editorial profile may qualify for an
-`editorial-fair-use` basis. Public availability on Steam or another storefront
-does not itself establish that basis, and community/user-uploaded artwork is
-outside this candidate policy.
+Public availability on Steam or another storefront does not itself establish
+the basis. It is a use-specific editorial judgment, not a source-site flag. The
+approved posture does not cover:
 
-This paragraph records future work; it does **not** add a production basis yet.
+- large decorative imagery without direct editorial/navigation context;
+- standalone galleries or original-resolution distribution;
+- fan/community/user-uploaded artwork without permission;
+- paid advertising creative; or
+- any artwork in Compare, which remains intentionally artless.
+
+The `artwork_basis` contract now includes `editorial-fair-use`. As with every
+basis other than `internal-evaluation`, code records the accountable human
+decision but does not pretend to provide per-asset legal clearance. Tomas alone
+may approve production clearance; automated import cannot.
+
 No asset may be marked `production` on editorial-fair-use grounds until the
-later artwork-policy phase has:
+operating gate has:
 
 1. obtained a one-time, jurisdiction-aware legal review of the intended uses,
    including profile heroes, catalog/search cards, homepage editorial links,
    crops, resolution, attribution, storage and takedown handling;
-2. amended this ADR's governing decision and the `artwork_basis` database enum
-   through a forward migration to add `editorial-fair-use`;
-3. updated every corresponding application type, validation/schema boundary,
-   admin/import path, fixture and regression test rather than treating the new
-   string as documentation-only;
-4. documented the eligible source/placement rules, required credit and source
+2. landed the forward enum migration and corresponding application type,
+   validation, admin/import, fixture and regression-test changes;
+3. documented the eligible source/placement rules, required credit and source
    page, web-appropriate resolution, prohibition on standalone downloads and
    user-uploaded art, and the rights-holder removal channel; and
-5. retained the artless fallback and existing containment rules for every asset
+4. retained the artless fallback and existing containment rules for every asset
    that does not meet the approved policy.
 
-Until that work is deliberately completed, the existing basis values and
-production-clearance rules remain authoritative.
+The fair-use policy is therefore **approved but operationally gated**. The
+artless fallback, production/evaluation containment, auditable credit/source
+page requirements and prompt takedown posture remain unchanged. This amendment
+is a product and operating decision, not legal advice or a blanket clearance.

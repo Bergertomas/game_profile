@@ -5,9 +5,9 @@
 **Should I Play?** ([shouldiplay.gg](https://shouldiplay.gg)) gives every game a
 **Game Profile**: eight fixed dimensions, each scored 0–10 against a published
 rubric, so a player can tell what kind of experience a game is before buying it.
-**There is no overall score** — a beautifully written but mechanically clumsy
-RPG and a nearly storyless, mechanically perfect action game can look equally
-strong at a glance, but they are entirely different purchases.
+**There is no overall score** — one game may stand out through story and
+atmosphere while another earns its shape through precise action and craft. They
+are different experiences and different reasons to play.
 
 *Should I Play?* is the site. *Game Profile* is the evaluation it publishes, and
 the name of the methodology. Internal identifiers (`GameProfile`, `game_profile`,
@@ -22,7 +22,9 @@ transactional publication, history, deployment requests and proof of what
 production actually serves. See the
 [Master Product & Build Plan v0.9](docs/Game_Profile_Master_Product_and_Build_Plan_v0.9.md)
 and the dated
-[Public Product P0 Decision Set](docs/Should_I_Play_Public_Product_P0_Decisions_2026-08-24.md).
+[Public Product P0 Decision Set](docs/Should_I_Play_Public_Product_P0_Decisions_2026-08-24.md)
+plus the later
+[Public Product Resolution Register](docs/Should_I_Play_Public_Product_Resolutions_2026-08-25.md).
 
 **Remote admin and production Live proof are exercised.** The current state is:
 
@@ -31,6 +33,10 @@ and the dated
 | **Implemented and deployed** | migration `0009` and its schema; deployment-request persistence; the Cloudflare Builds client; manifest generation; the `/deployment-manifest` route; the reconciliation and Live-proof machinery; the `/admin` deployment surface |
 | **Proven** | a production build from `main`; `/deployment-manifest` live on the canonical origin; corpus/digest matching the three published evaluations; behavior under workerd; migration `0009`; Access-authenticated editorial session through Hyperdrive; successful `production_verified` observation and Live state |
 | **Not yet exercised** | a real Cloudflare Builds POST from this application; a build UUID produced by that application dispatch and reconciled; one complete new-profile Publish → dispatch → Live cycle |
+
+This branch adds forward migration `0010_artwork_fair_use`. It is deliberately
+not applied to the authoritative database by repository work; apply migrations
+before building/deploying code that requires the new enum value.
 
 The remaining dispatch proof belongs to the first real catalog publication. It
 does not justify further standalone admin hardening.
@@ -95,6 +101,11 @@ components/
   profile/ScopeSwitcher.tsx    sibling navigation, only where a game has siblings
   admin/                       editorial form plumbing and panels
 lib/
+  search/registry.ts           four-state published/unprofiled coverage registry
+  discovery/                   deterministic intent, Unknown, threshold and time rules
+  metadata/provenance.ts       primary/official/manual factual precedence
+  commerce/storefront.ts       verified ordinary/affiliate action contract
+  analytics/events.ts          allowlisted semantic event registry
   rubric/                      canonical typed Rubric v1.0 — the source of truth
   scoring/derive.ts            dimension totals, unknowns, ranges
   radar/geometry.ts            pure, DOM-free chart geometry
@@ -151,7 +162,7 @@ These are product semantics, not preferences. Most are covered by a test.
 | Evidence sources are identified by key, never by title | `evidence_sources.source_key`, `tests/seed-sql.test.ts` |
 | Final snapshots cannot be rewritten through children or shared source/tag metadata | immutable snapshot triggers, [ADR 0009](docs/decisions/0009-final-evaluation-and-rubric-integrity.md) |
 | Superseded evaluations are preserved and linked, never overwritten | self-referencing FK + lineage validation, `tests/lineage.test.ts` |
-| Source counts stay hidden until the ledger is genuinely populated | `evaluations.evidence_ledger`, `tests/lineage.test.ts` |
+| All source counts stay hidden until the ledger is genuinely populated | `evaluations.evidence_ledger`, `tests/evidence-copy.test.ts` |
 | Every scored subcriterion has a rationale | publish gate, `tests/calibration.test.ts` |
 | Pre-release profiles declare evidence maturity and cannot claim High confidence | check constraints, `tests/evidence.test.ts` |
 | Pre-release recommendation blocks avoid verdict language | `lib/profile/vocabulary.ts`, `tests/evidence.test.ts` |
@@ -168,7 +179,13 @@ These are product semantics, not preferences. Most are covered by a test.
 | A profile scope is identified by a key, never by matching mode text | FK + slug check constraint |
 | Platform overrides are material deviations, and never move a dimension total | `subcriterion_platform_overrides`, [ADR 0015](docs/decisions/0015-platform-overrides-and-provenance.md) |
 | An ordinary editorial profile needs no calibration round and no schema change | `score_provenance` kind + `calibration_rounds` registry |
-| Artwork carries its clearance and basis, never a bare URL | `game_artwork`, [ADR 0011](docs/decisions/0011-production-artwork.md) |
+| Artwork carries its clearance and basis, never a bare URL | `game_artwork`, [ADR 0011](docs/decisions/0011-production-artwork.md); `editorial-fair-use` is distinct and operationally gated |
+| An unprofiled registry record never acquires a public profile route | `lib/search/registry.ts`, `tests/search-registry.test.ts` |
+| Unknown under a hard discovery constraint is neither pass nor failure | `lib/discovery/constraints.ts`, `tests/discovery-contract.test.ts` |
+| Total commitment and session suitability remain separate from all eight dimensions | `lib/discovery/time.ts`, `tests/practical-time.test.ts` |
+| Provider/official/manual metadata uses declared precedence, never votes | `lib/metadata/provenance.ts`, `tests/metadata-provenance.test.ts` |
+| Official storefront actions retain their ordinary link and require affiliate disclosure | `lib/commerce/storefront.ts`, `tests/storefront-actions.test.ts` |
+| Ordinary product events cannot carry raw query text or arbitrary properties | `lib/analytics/events.ts`, `tests/analytics-events.test.ts` |
 | All three profiles reproduce their calibration matrix exactly | `tests/calibration.test.ts` — 24 locked totals |
 
 ## Where the data comes from
@@ -674,11 +691,19 @@ not post them anywhere durable. See
 - [0022 — Deployment requests and proof of Live](docs/decisions/0022-deployment-requests-and-proof-of-live.md)
 - [0023 — Production verification from inside the Worker](docs/decisions/0023-verifying-production-from-inside-the-worker.md)
 - [0024 — Candidate scoring protocol and package contract](docs/decisions/0024-scoring-protocol-v1-and-package-contract.md) *(proposed; not governing until calibration and owner approval)*
+- [0025 — Search registry and deterministic discovery](docs/decisions/0025-search-registry-and-deterministic-discovery.md)
+- [0026 — Provider-first, provider-independent metadata](docs/decisions/0026-provider-first-metadata-ownership.md)
+- [0027 — Practical time is not a Game Profile dimension](docs/decisions/0027-practical-time-is-not-a-game-profile-dimension.md)
+- [0028 — Purpose-governed product analytics](docs/decisions/0028-purpose-governed-product-analytics.md)
+- [0029 — Official storefront actions before live commerce](docs/decisions/0029-official-storefront-actions-before-live-commerce.md)
 
 ## Not built, deliberately
 
-The resolved public homepage, Search/Discovery, `/compare`, `/about`, the
-12–15-profile validation corpus and the approximately-100-profile launch catalog
-are not built. Evaluation authoring is built. Public accounts, reviews,
-comments, social features, AI chat, recommendation ML and a public aggregate
-score remain out of current scope.
+The final public homepage, Search UI, What should I play? UI, `/compare`,
+`/about`, the 12–15-profile validation corpus and the approximately-100-profile
+quiet-release catalog are not built. Their provider-independent Search,
+discovery/time, metadata precedence, storefront-action and event contracts are
+now implemented and tested; the reconciled Fable handoff governs their visual
+implementation. Evaluation authoring is built. Public accounts, reviews,
+comments, social features, runtime AI chat, recommendation ML and a public
+aggregate score remain out of current scope.
