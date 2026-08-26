@@ -38,8 +38,10 @@ practical-time band, official-destination band or product analytics transport.
 
 ### Slice 0 — accept the design contract
 
-**Work:** review the completed Fable conformance audit and verified recovered
-HTML, freeze the durable discovery route and record Tomas's acceptance.
+**Work:** use the completed Fable contract audit and verified recovered HTML as
+inputs to the bounded canonical-screen/art-direction pass; review the resulting
+desktop/390px screen set, freeze the durable discovery route and record Tomas's
+acceptance.
 
 **Exit:** Phase 3B is complete. No remaining choice can change navigation,
 page types, content requirements or data contracts.

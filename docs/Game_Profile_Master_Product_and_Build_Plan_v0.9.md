@@ -45,15 +45,16 @@ edge case exists.
 | **Game_Profile_Scoring_Protocol_v1.0_DRAFT.md** and its package schema | Candidate operational evidence-to-number protocol and reproducibility contract; provisional until the ten-game development/holdout program passes and Tomas approves it |
 | **Game_Profile_Calibration_Round_1_Report_v0.1.md** and **Game_Profile_Calibration_Round_2_Report_v0.1.md** | Approved calibration outcomes and canonical calibration content they explicitly publish |
 | **Should_I_Play_Brand_and_SEO_Foundation_v0.2.md** | Brand/domain rationale, organic-acquisition strategy, and launch/runbook layer; current routing/hosting contracts are governed by this Plan and accepted ADRs |
-| **Game_Profile_Art_Direction_and_Anti_AI_Design_Brief_v0.1.md**, D3 record, ADR 0013, and **Should_I_Play_Fable_Reconciliation_Brief_2026-08-26.md** | Visual principles, anti-patterns, chosen production grammar, and the bounded mission that reconciles the existing Fable artifact with current decisions |
+| **Game_Profile_Art_Direction_and_Anti_AI_Design_Brief_v0.1.md**, D3 record, ADR 0013, **Should_I_Play_Fable_Reconciliation_Brief_2026-08-26.md**, **Should_I_Play_Fable_Visual_Completeness_Audit_2026-08-26.md**, and **Should_I_Play_Fable_Canonical_Screen_Mission_2026-08-26.md** | Visual principles, anti-patterns, chosen production grammar, the reconciled requirements/state source, and the bounded final canonical-screen/art-direction mission |
 | **ADRs in docs/decisions** | Accepted implementation and architecture decisions beneath the product/methodology contracts |
 | **README.md** | Operational onboarding and concise repository-as-implemented summary |
 | **Code, schema, migrations, tests** | Evidence of implementation state and enforcement; they do not silently redefine product or methodology |
 
 Historical Project Context, older Master Plan versions, and superseded Fable
 explorations are continuity records, not current authority. The latest accepted
-Fable artifact is the visual baseline but must be reconciled against both dated
-decision records before implementation.
+Fable requirements artifact is a visual-system/state baseline but does not
+become final composition authority until the visual-completeness gate and owner
+acceptance pass.
 
 ### 0.3 Authority boundaries
 
@@ -1210,7 +1211,7 @@ existing calibration profiles.
 
 ### Phase 3B — Public-product contract and design reconciliation
 
-**ACTIVE; PRODUCT CONTRACT AND FABLE CONFORMANCE COMPLETE, OWNER ACCEPTANCE PENDING**
+**ACTIVE; PRODUCT/CONTRACT CONFORMANCE COMPLETE, FINAL UI/ART-DIRECTION PASS PENDING**
 
 The 24–25 August decision records now resolve the proposition, journey labels
 and hierarchy, Search coverage states, deterministic What should I play?
@@ -1223,8 +1224,13 @@ The bounded Fable reconciliation and ten-item contract repair are complete.
 The recovered 772,155-byte HTML export is recorded in the conformance audit
 with SHA-256
 `82734bab44b7e2035628426b09d0a8d8860b199ff8ac08b4de4d49464459533d`.
-Tomas's acceptance and the associated `/play` route freeze are the remaining
-Phase 3B exit actions.
+The separate visual-completeness audit found that the artifact preserves the
+product/state contracts but does not yet execute the final visual-design
+promise in the attached resolutions. In particular, the homepage remains a
+text-first contents-page composition rather than the locked compact art-led,
+utility-first entrance, and the art-on states are not resolved with realistic
+composition. A bounded canonical-screen/art-direction pass, Tomas's acceptance
+and the associated `/play` route freeze remain Phase 3B exit actions.
 
 **Objective:** translate that frozen product model and the existing “Should I
 Play? at Fifteen” design lock into one implementation-ready responsive public
@@ -1238,6 +1244,9 @@ of accumulating disconnected utilities or redesigning settled methodology.
 - a retained/revised/superseded/new ledger against the existing Fable artifact;
 - final responsive hierarchy for the homepage, global Search, What should I
   play?, Compare, profiles and About/corrections;
+- a concise canonical desktop/390px screen set that executes the art-led
+  homepage and mixed art/artless public system rather than leaving screens
+  embedded only as annotated reconciliation specimens;
 - every material empty, ambiguous, unprofiled, indeterminate, range, Unknown,
   artless, stale, error and mobile state;
 - accessible nonvisual equivalents for comparative shapes and criteria editing;
@@ -1396,7 +1405,8 @@ the same controlled concepts.
    release, personalization and corrected-artwork resolutions. **DONE in the
    25 August resolution register when merged.**
 4. Reconcile the existing Fable/design work into one implementation-ready
-   responsive specification. **CONFORMANCE COMPLETE; OWNER ACCEPTANCE OPEN**
+   responsive specification. **CONTRACT CONFORMANCE COMPLETE; FINAL VISUAL
+   COMPLETION AND OWNER ACCEPTANCE OPEN**
 5. Implement/test the provider-independent Search, discovery, practical-time,
    commerce and event contracts that do not depend on unresolved visual design.
    **FOUNDATION IMPLEMENTED; public surfaces and persistence remain OPEN**
@@ -1880,8 +1890,9 @@ Material changes from v0.8:
 
 1. Merge the integrated 24–25 August resolution/protocol consolidation after
    review.
-2. Review the conformance-verified Fable artifact, freeze `/play` and accept one
-   implementation-ready responsive specification.
+2. Complete the bounded canonical-screen/art-direction pass against the
+   conformance-verified Fable requirements artifact, then freeze `/play` and
+   accept one implementation-ready responsive specification.
 3. In parallel, finish candidate-protocol review and run the registered
    development/holdout calibration.
 4. Implement the provider-independent Search, discovery, time/session, commerce

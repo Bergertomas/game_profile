@@ -5,8 +5,9 @@
 **Artifact:** **Should I Play - Reconciled** repaired source and recovered HTML
 export
 
-**Disposition:** Contract-conformant and ready for Tomas's acceptance; not yet
-accepted as the implementation authority.
+**Disposition:** Contract-conformant requirements/state source; not ready for
+final visual acceptance or use as the implementation authority. See the
+separate visual-completeness audit.
 
 ## Authority order
 
@@ -148,8 +149,7 @@ semantics, catalog scale, current self-funded posture or public byline.
 
 ## Final acceptance gate
 
-Phase 3B remains active only until owner acceptance. The technical/design
-conformance gates now stand as follows:
+Phase 3B remains active. The contract/export gates stand as follows:
 
 1. **PASS** — the P0 corrections are visible in the repaired Fable source;
 2. **PASS** — Fable completed the four bounded A–D verification passes without
@@ -158,8 +158,10 @@ conformance gates now stand as follows:
    rendered independently through a loopback-only local server and was scanned
    as a local file;
 4. **PASS** — the export digest is recorded here;
-5. **PENDING OWNER** — Tomas accepts the artifact as the Phase 4 implementation
-   specification and freezes `/play`.
+5. **PENDING DESIGN** — the canonical-screen/art-direction pass defined in
+   `Should_I_Play_Fable_Visual_Completeness_Audit_2026-08-26.md` completes;
+6. **PENDING OWNER** — Tomas accepts that final screen set as the Phase 4
+   implementation specification and freezes `/play`.
 
 **Final export:**
 `docs/design/artifacts/Should_I_Play_Reconciled_2026-08-26.html`

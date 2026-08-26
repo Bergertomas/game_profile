@@ -1,9 +1,10 @@
 # Should I Play? — Fable reconciliation checkpoint
 
 **Recorded:** 2026-08-26
-**Status:** Final conformance repair completed with Fable 5 / High. The repaired
-source and recovered HTML export pass the ten-item contract audit. Phase 3B is
-ready for Tomas's design acceptance; it is not yet the implementation authority.
+**Status:** Final contract repair completed with Fable 5 / High. The repaired
+source and recovered HTML export pass the ten-item contract audit. A separate
+visual-completeness audit found that the attached resolution's final UI/art-
+direction promise is not complete. Phase 3B remains active.
 
 ## Durable locations
 
@@ -21,6 +22,10 @@ ready for Tomas's design acceptance; it is not yet the implementation authority.
   `docs/Should_I_Play_Public_Product_Resolutions_2026-08-25.md`
 - Conformance audit:
   `docs/design/Should_I_Play_Fable_Conformance_Audit_2026-08-26.md`
+- Visual-completeness audit:
+  `docs/design/Should_I_Play_Fable_Visual_Completeness_Audit_2026-08-26.md`
+- Canonical-screen mission:
+  `docs/design/Should_I_Play_Fable_Canonical_Screen_Mission_2026-08-26.md`
 - Phase 4 repository implementation map:
   `docs/design/Should_I_Play_Phase_4_Implementation_Map_2026-08-26.md`
 - Verified recovered HTML:
@@ -128,8 +133,14 @@ The repaired source file and the recovered local HTML above are authoritative.
 
 ## Next contract
 
-Tomas should review the repaired artifact as one whole and either accept it as
-the Phase 4 implementation specification or identify a bounded remaining
-design conflict. Acceptance freezes the provisional `/play` route. Until then,
-do not begin wholesale UI implementation, push the branch, apply migrations,
-deploy or change production without the separately required approvals.
+Resume the same project with **Fable 5 / High** for a bounded visual-completion
+pass. Use the repaired artifact as the governing requirements/state source and
+produce the concise canonical desktop/390px route screen set defined in the
+visual-completeness audit. Do not reopen brand, product hierarchy, methodology,
+Search/discovery semantics, Compare rules or roadmap scale.
+
+Tomas reviews that screen set—not the current reconciliation document—as the
+Phase 4 implementation specification. Acceptance freezes the provisional
+`/play` route. Until then, do not begin wholesale UI implementation, push the
+branch, apply migrations, deploy or change production without the separately
+required approvals.
