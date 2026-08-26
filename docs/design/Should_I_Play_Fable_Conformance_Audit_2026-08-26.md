@@ -112,6 +112,9 @@ static route architecture. Preserve server-rendered shelves and all-profile
 fallbacks; progressive Search and discovery may enhance them on the client.
 Keep synthetic Fable data in fixtures/tests only.
 
+The repository-level file/component sequence is recorded in
+`Should_I_Play_Phase_4_Implementation_Map_2026-08-26.md`.
+
 The recommended Phase 4 build sequence remains:
 
 1. trust/orientation and shared public tokens;

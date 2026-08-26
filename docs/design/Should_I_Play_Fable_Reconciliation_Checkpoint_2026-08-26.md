@@ -21,6 +21,8 @@ displayed 22:20 Asia/Jerusalem reset. Do not restart the mission.
   `docs/Should_I_Play_Public_Product_Resolutions_2026-08-25.md`
 - Conformance audit:
   `docs/design/Should_I_Play_Fable_Conformance_Audit_2026-08-26.md`
+- Phase 4 repository implementation map:
+  `docs/design/Should_I_Play_Phase_4_Implementation_Map_2026-08-26.md`
 
 The authenticated self-contained HTML export of **Should I Play? at Fifteen**
 was uploaded to the project. Fable read the real baseline rather than
