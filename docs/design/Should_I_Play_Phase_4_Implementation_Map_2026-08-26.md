@@ -38,8 +38,8 @@ practical-time band, official-destination band or product analytics transport.
 
 ### Slice 0 — accept the design contract
 
-**Work:** close the Fable conformance audit, validate the native export, freeze
-the durable discovery route and record Tomas's acceptance.
+**Work:** review the completed Fable conformance audit and verified recovered
+HTML, freeze the durable discovery route and record Tomas's acceptance.
 
 **Exit:** Phase 3B is complete. No remaining choice can change navigation,
 page types, content requirements or data contracts.

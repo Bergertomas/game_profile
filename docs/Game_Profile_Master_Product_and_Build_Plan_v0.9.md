@@ -1210,7 +1210,7 @@ existing calibration profiles.
 
 ### Phase 3B — Public-product contract and design reconciliation
 
-**ACTIVE; PRODUCT CONTRACT COMPLETE, FABLE ARTIFACT IN FINAL CONFORMANCE REVIEW**
+**ACTIVE; PRODUCT CONTRACT AND FABLE CONFORMANCE COMPLETE, OWNER ACCEPTANCE PENDING**
 
 The 24–25 August decision records now resolve the proposition, journey labels
 and hierarchy, Search coverage states, deterministic What should I play?
@@ -1218,6 +1218,13 @@ semantics, Compare method and indexing posture, practical time concepts,
 metadata ownership, commerce baseline, launch analytics, catalog scale,
 curation, accountability, release posture, personalization sequence and
 corrected artwork basis.
+
+The bounded Fable reconciliation and ten-item contract repair are complete.
+The recovered 772,155-byte HTML export is recorded in the conformance audit
+with SHA-256
+`82734bab44b7e2035628426b09d0a8d8860b199ff8ac08b4de4d49464459533d`.
+Tomas's acceptance and the associated `/play` route freeze are the remaining
+Phase 3B exit actions.
 
 **Objective:** translate that frozen product model and the existing “Should I
 Play? at Fifteen” design lock into one implementation-ready responsive public
@@ -1389,7 +1396,7 @@ the same controlled concepts.
    release, personalization and corrected-artwork resolutions. **DONE in the
    25 August resolution register when merged.**
 4. Reconcile the existing Fable/design work into one implementation-ready
-   responsive specification. **OPEN**
+   responsive specification. **CONFORMANCE COMPLETE; OWNER ACCEPTANCE OPEN**
 5. Implement/test the provider-independent Search, discovery, practical-time,
    commerce and event contracts that do not depend on unresolved visual design.
    **FOUNDATION IMPLEMENTED; public surfaces and persistence remain OPEN**
@@ -1873,8 +1880,8 @@ Material changes from v0.8:
 
 1. Merge the integrated 24–25 August resolution/protocol consolidation after
    review.
-2. Run the bounded Fable reconciliation against the existing design lock and
-   accept one implementation-ready responsive specification.
+2. Review the conformance-verified Fable artifact, freeze `/play` and accept one
+   implementation-ready responsive specification.
 3. In parallel, finish candidate-protocol review and run the registered
    development/holdout calibration.
 4. Implement the provider-independent Search, discovery, time/session, commerce

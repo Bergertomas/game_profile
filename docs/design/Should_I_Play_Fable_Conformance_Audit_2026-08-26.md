@@ -2,10 +2,11 @@
 
 **Audit date:** 2026-08-26
 
-**Artifact:** **Should I Play - Reconciled (standalone)**
+**Artifact:** **Should I Play - Reconciled** repaired source and recovered HTML
+export
 
-**Disposition:** Conditionally accepted for direction; not yet accepted as the
-implementation authority.
+**Disposition:** Contract-conformant and ready for Tomas's acceptance; not yet
+accepted as the implementation authority.
 
 ## Authority order
 
@@ -71,20 +72,20 @@ The repaired artifact correctly preserves or now states:
 - Phase 2 admin work in support mode and public-product value governing the
   roadmap.
 
-## Required corrections before design lock
+## Corrections verified in the final repair
 
-| Priority | Surface | Required correction | Governing source |
-| --- | --- | --- | --- |
-| P0 | Discovery | Delete the `<= 0.5` dimension-Must rescue. A hard dimension miss contradicts; crossing range, Unknown or Low confidence is indeterminate. | ADR 0025 |
-| P0 | Discovery/time | Define near/borderline through the session-budget-inside-useful-window rule and show one concrete specimen. | ADR 0027 |
-| P0 | Homepage | Re-band the 12-hour Halo specimen from Brief to Moderate. | ADR 0027 |
-| P0 | Search | State that only an exact, scope-correct published result precedes ambiguity. | ADR 0025 |
-| P0 | Handoff | Remove stale request-storage, `post-2E` and unapplied-amendment claims. | Resolution register; Master Plan v0.9 |
-| P1 | Accessibility | Include Near matches in the result-heading outline; omit empty `Meets:` labels. | WCAG 2.1 AA; copy truthfulness |
-| P1 | Performance | Separate network transfer from local parse/hydration and use a measured validation-corpus budget. | Master Plan performance gate |
-| P1 | Trust copy | Replace the repeatability overclaim with “reviewed by the editor against the same published rubric.” | ADR 0009; public trust posture |
-| P1 | Commerce | Make commission marking future-only in responsive guidance. | ADR 0029; current funding truth |
-| P1 | Request error | Offer retry unless a verified distinct receiver exists; do not route coverage failure to corrections by implication. | ADR 0025; resolution T3 |
+| Priority | Surface | Verified correction | Governing source | Result |
+| --- | --- | --- | --- | --- |
+| P0 | Discovery | Deleted the `<= 0.5` dimension-Must rescue. A hard dimension miss contradicts; crossing range, Unknown or Low confidence is indeterminate. | ADR 0025 | PASS |
+| P0 | Discovery/time | Defined near/borderline through the session-budget-inside-useful-window rule and added the 90-minute/60–120-minute specimen. | ADR 0027 | PASS |
+| P0 | Homepage | Re-banded the 12-hour Halo specimen from Brief to Moderate. | ADR 0027 | PASS |
+| P0 | Search | Stated that only an exact, scope-correct published identity may open directly; genuine ambiguity otherwise precedes recognized/unrecognized. | ADR 0025 | PASS |
+| P0 | Handoff | Removed stale request-storage, `post-2E` and unapplied-amendment claims. | Resolution register; Master Plan v0.9 | PASS |
+| P1 | Accessibility | Included Near matches in the result-heading outline and specified omission of empty `Meets:` labels. | WCAG 2.1 AA; copy truthfulness | PASS |
+| P1 | Performance | Separated network transfer from local parse/hydration; retained `50 ms` only as a provisional local target pending measurement. | Master Plan performance gate | PASS |
+| P1 | Trust copy | Replaced the repeatability overclaim with “reviewed against the same published rubric.” | ADR 0009; public trust posture | PASS |
+| P1 | Commerce | Made commission marking future-only and specified no commission marks at launch. | ADR 0029; current funding truth | PASS |
+| P1 | Request error | Made failure retry-only and explicitly excluded the corrections mailbox as a coverage-request channel. | ADR 0025; resolution T3 | PASS |
 
 ## Accessibility acceptance contract
 
@@ -147,14 +148,33 @@ semantics, catalog scale, current self-funded posture or public byline.
 
 ## Final acceptance gate
 
-Phase 3B remains active until:
+Phase 3B remains active only until owner acceptance. The technical/design
+conformance gates now stand as follows:
 
-1. the P0 corrections are visible in the Fable project;
-2. the final interaction verifier completes without a contract regression;
-3. the native exported HTML/archive renders independently;
-4. the export digest is recorded here; and
-5. Tomas accepts the artifact as the Phase 4 implementation specification.
+1. **PASS** — the P0 corrections are visible in the repaired Fable source;
+2. **PASS** — Fable completed the four bounded A–D verification passes without
+   a reported contract regression;
+3. **PASS** — the recovered generated HTML plus its sibling support bundle
+   rendered independently through a loopback-only local server and was scanned
+   as a local file;
+4. **PASS** — the export digest is recorded here;
+5. **PENDING OWNER** — Tomas accepts the artifact as the Phase 4 implementation
+   specification and freezes `/play`.
 
-**Final export:** pending session reset and conformance repair.
+**Final export:**
+`docs/design/artifacts/Should_I_Play_Reconciled_2026-08-26.html`
 
-**SHA-256:** pending.
+**Size:** 772,155 bytes
+
+**SHA-256:**
+`82734bab44b7e2035628426b09d0a8d8860b199ff8ac08b4de4d49464459533d`
+
+**Required support bundle:** `docs/design/artifacts/support.js` — 69,150 bytes
+
+**Support bundle SHA-256:**
+`8fe7df74405f3c55f49b7249c74ea1397e65d07dea2b1bd3b4a489bec2e28cbe`
+
+**Cache note:** the older persistent **Should I Play - Reconciled
+(standalone)** project page did not refresh to the repaired content and is not
+the final acceptance source. The repaired **Should I Play - Reconciled** source
+and recovered HTML above govern the review.

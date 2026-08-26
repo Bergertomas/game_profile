@@ -63,17 +63,18 @@ destination bands, curated homepage system, mixed-artwork catalog and governed
 analytics transport. It has three profiles, not the 12–15 validation corpus or
 the approximately-100 quiet-release catalog.
 
-The final Fable artifact exists and is substantially reconciled. Ten bounded
-conformance corrections and a completed verifier/export remain before Tomas
-can accept it as the implementation specification.
+The final Fable source has received the ten bounded conformance corrections.
+The repaired 772,155-byte HTML and its support bundle were recovered, rendered
+independently, scanned and digested. Tomas's acceptance is the only remaining
+Phase 3B gate before it becomes the implementation specification.
 
 ### Where the Master Plan stands
 
 - **Phase 2:** substantially complete; support mode only.
 - **Phase 3A:** candidate Scoring Protocol calibration; active in parallel and
   required before bulk catalog scoring.
-- **Phase 3B:** product contract complete; Fable artifact in final conformance
-  review.
+- **Phase 3B:** product contract and Fable conformance complete; owner
+  acceptance pending.
 - **Phase 4:** pending; build and privately validate the complete public product
   on 12–15 deliberately varied profiles.
 - **Phase 5:** pending; grow to approximately 100 substantive profiles.
@@ -81,8 +82,9 @@ can accept it as the implementation specification.
 
 ### Next product milestone
 
-Close and accept Phase 3B, then begin Phase 4 with the trust/orientation shell
-and practical-time/official-destination profile value. In parallel, finish
+Review and accept the repaired Phase 3B artifact, then begin Phase 4 with the
+trust/orientation shell and practical-time/official-destination profile value.
+In parallel, finish
 Protocol v1 calibration and select the 12–15-profile validation corpus. The
 first real new profile should prove the remaining publication/deployment path
 as part of catalog work.
@@ -109,7 +111,7 @@ as part of catalog work.
 | 25 Aug, analytics resolutions | “No analytics” and “analytics later” were replaced by a purpose-limited release contract. | Raw queries and returning-browser identity were split into separate higher-risk layers. | Minimum traffic and semantic journey analytics are required for quiet release; raw-query/cross-session collection stays gated. |
 | 25 Aug, personalization | Taste profiling/recommendations were attractive but premature. | Moved to the first major post-launch phase with prerequisites. | Deferred; no launch promise or disabled “coming soon” control. |
 | 26 Aug, ADRs 0024–0029/Master Plan v0.9 | Converted resolutions into accepted protocol, Search/discovery, metadata, time, analytics and storefront contracts; made public-first sequencing explicit. | No later reversal. | Governing repository and roadmap constitution. |
-| 26 Aug, Fable reconciliation | Existing **at Fifteen** artifact was surgically reconciled into **From Fifteen to a Hundred** with sixteen sections and 390px specimens. | Independent audit forced a major truth/semantics/accessibility repair; ten smaller issues remain. | Phase 3B is in final conformance review, not complete until export verification and Tomas acceptance. |
+| 26 Aug, Fable reconciliation | Existing **at Fifteen** artifact was surgically reconciled into **From Fifteen to a Hundred** with sixteen sections and 390px specimens. | Independent audit forced a major truth/semantics/accessibility repair; Fable 5 / High then applied the final ten bounded fixes and the recovered HTML passed an independent contract scan. | Conformance is complete; Phase 3B awaits Tomas's artifact acceptance. |
 
 ## 3. Decision register
 
@@ -157,7 +159,7 @@ as part of catalog work.
 | Personalization | First major post-launch product phase | **DEFERRED** | No | Reopen only with catalog/taste/validation prerequisites |
 | Content descriptors | Violence/phobia descriptors excluded from launch vocabulary | **DEFERRED** | No | Requires explicit later policy |
 | Extra admin hardening | No SaaS-grade work absent a public/integrity blocker | **DEFERRED** | No | One-editor limitations accepted |
-| Reconciled Fable artifact | Direction accepted conditionally; ten fixes/export/owner acceptance pending | **PROVISIONAL** | Conditional | Does not outrank ADRs |
+| Reconciled Fable artifact | Contract-conformant repaired source/export; owner acceptance pending | **PROVISIONAL** | Conditional | Does not outrank ADRs; acceptance makes it the Phase 4 visual/interaction specification |
 
 ## 4. Conflict / contradiction register
 
@@ -210,13 +212,14 @@ operational.
 
 ### Phase 3B closure — accept one public specification
 
-**Objective:** repair and accept the reconciled Fable artifact.
+**Objective:** accept the repaired reconciled Fable artifact.
 
 **User value:** engineering implements one coherent product rather than a mix of
 old mockups and newer contracts.
 
-**Deliverables:** ten conformance corrections, completed interaction/WCAG pass,
-native offline-validated export, frozen discovery route and Tomas acceptance.
+**Deliverables:** owner review of the conformance-verified artifact, frozen
+discovery route and Tomas acceptance. The ten corrections and verified local
+HTML are complete.
 
 **Exit criteria:** no open choice can change navigation, page types, content or
 data contracts.
@@ -361,11 +364,11 @@ opt-in test and evidence that it improves decisions.
 **Why it matters:** it freezes composition, responsive behavior, component
 states and copy hierarchy.
 
-**Prior constraints:** D3/Field Guide system is locked; ten conformance fixes are
-mandatory; the artifact does not outrank ADRs.
+**Prior constraints:** D3/Field Guide system is locked; the ten conformance
+fixes are complete; the artifact does not outrank ADRs.
 
-**Recommendation:** finish the surgical repair with Fable 5 / Max, verify and
-export, then review one artifact—not individual old screens.
+**Recommendation:** review the repaired artifact as one whole—not individual
+old screens—and either accept it or record a bounded remaining conflict.
 
 **Tomas choice:** accept it as the Phase 4 implementation specification or name
 specific remaining visual objections.
@@ -566,42 +569,38 @@ activity and oversized search-only composition remain rejected.
 
 ## 9. Fable reconciliation plan
 
-The efficient Fable mission is now:
+The efficient Fable mission from this point is now:
 
-1. preserve the existing project and repaired standalone file;
-2. apply only the conformance-audit corrections;
-3. rerun interaction and WCAG verification;
-4. export native project HTML and validate it independently;
-5. have Tomas accept the result as the Phase 4 specification;
-6. during implementation, use Fable for bounded responsive-state or art-
+1. preserve the existing project, repaired source and verified recovered HTML;
+2. have Tomas accept the result as the Phase 4 specification;
+3. during implementation, use Fable for bounded responsive-state or art-
    direction questions without rediscovering the product;
-7. after each major surface and before Phase 4 exit, compare the real
+4. after each major surface and before Phase 4 exit, compare the real
    implementation against the accepted artifact and log intentional drift.
 
-Use **Fable 5 / Max** inside the existing Claude Design project for the final
-visual repair. A separate Claude Opus product-discovery pass is unnecessary and
-would spend tokens reopening settled decisions. Opus is useful later only for a
-fresh-context copy/accessibility critique against the frozen artifact; ADR
-conformance remains a Codex/repository review.
+The final repair used **Fable 5 / High** inside the existing Claude Design
+project. Do not rerun discovery. Fable High remains the default for bounded
+visual/state work. Opus Extra is useful only for a fresh-context
+copy/accessibility critique against the frozen artifact; ADR conformance
+remains a Codex/repository review.
 
 ## 10. Immediate next agenda
 
-1. **Finish the ten Fable conformance corrections and native export.**
-2. **Review one final artifact with Tomas; accept it and freeze `/play`.**
-3. **Approve the 12–15-profile validation lineup and its diversity/adversarial
+1. **Review one final artifact with Tomas; accept it and freeze `/play`.**
+2. **Approve the 12–15-profile validation lineup and its diversity/adversarial
    coverage.**
-4. **Run Phase 4 Slice 1: public shell, About, byline/provenance, reading key and
+3. **Run Phase 4 Slice 1: public shell, About, byline/provenance, reading key and
    contextual corrections.**
-5. **Choose/approve the practical-time source and add minimal time/storefront
+4. **Choose/approve the practical-time source and add minimal time/storefront
    persistence plus profile bands.**
-6. **Choose the request receiver/privacy contract and build the four-state
+5. **Choose the request receiver/privacy contract and build the four-state
    global Search.**
-7. **Implement the curated homepage grammar and exactly-two Compare.**
-8. **Calibrate vocabulary/experience anchors on the validation corpus and build
+6. **Implement the curated homepage grammar and exactly-two Compare.**
+7. **Calibrate vocabulary/experience anchors on the validation corpus and build
    deterministic What should I play?.**
-9. **Complete the 12–15-profile private test, including the first real new-
+8. **Complete the 12–15-profile private test, including the first real new-
    profile Publish -> dispatch -> Live proof.**
-10. **Finish Protocol v1 calibration, incorporate measured learning and begin
+9. **Finish Protocol v1 calibration, incorporate measured learning and begin
     approximately-100-profile catalog production.**
 
 ## Governing companion documents

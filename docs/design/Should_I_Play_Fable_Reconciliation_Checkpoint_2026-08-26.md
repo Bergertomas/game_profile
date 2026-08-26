@@ -1,9 +1,9 @@
 # Should I Play? — Fable reconciliation checkpoint
 
 **Recorded:** 2026-08-26
-**Status:** Complete artifact produced; final conformance repair and verifier are
-paused by the Claude session limit. Resume the existing project after the
-displayed 22:20 Asia/Jerusalem reset. Do not restart the mission.
+**Status:** Final conformance repair completed with Fable 5 / High. The repaired
+source and recovered HTML export pass the ten-item contract audit. Phase 3B is
+ready for Tomas's design acceptance; it is not yet the implementation authority.
 
 ## Durable locations
 
@@ -23,6 +23,10 @@ displayed 22:20 Asia/Jerusalem reset. Do not restart the mission.
   `docs/design/Should_I_Play_Fable_Conformance_Audit_2026-08-26.md`
 - Phase 4 repository implementation map:
   `docs/design/Should_I_Play_Phase_4_Implementation_Map_2026-08-26.md`
+- Verified recovered HTML:
+  `docs/design/artifacts/Should_I_Play_Reconciled_2026-08-26.html`
+- Required sibling support bundle:
+  `docs/design/artifacts/support.js`
 
 The authenticated self-contained HTML export of **Should I Play? at Fifteen**
 was uploaded to the project. Fable read the real baseline rather than
@@ -32,7 +36,7 @@ reconstructing it from screenshots or the brief alone.
 
 - Claude Design / Fable
 - Model: **Fable 5**
-- Effort: **Max**
+- Effort: **High** for the final bounded repair
 - No repository, database or production access was granted to Claude.
 
 ## What is complete
@@ -68,10 +72,10 @@ incorrect discovery defaults and thresholds, misleading privacy claims,
 expired-content staleness, admin-first sequencing and multiple accessibility
 omissions.
 
-## What remains before acceptance
+## Final conformance repair
 
-The final verifier did not run because usage credits were exhausted. A bounded
-manual audit found the following remaining contract mismatches:
+The post-reset repair applied and independently rechecked all ten previously
+recorded mismatches:
 
 1. Change the homepage's **Brief — around 12 h engaged** example to
    **Moderate — around 12 h engaged**.
@@ -98,25 +102,34 @@ manual audit found the following remaining contract mismatches:
 10. Replace the request-failure fallback “tell us by mail” with a retry-only
     state unless a distinct, verified coverage-request receiver exists.
 
-These are conformance corrections, not new product discovery. The governing
-ADRs and resolution register win if the artifact conflicts.
+These were conformance corrections, not new product discovery. The governing
+ADRs and resolution register continue to win if the artifact conflicts.
 
 ## Export state
 
-Claude retains both project files. An authenticated rendered-DOM capture was
-made for audit continuity, but it contains session-bound blob resource URLs and
-is not a trustworthy standalone source artifact; it is deliberately not
-committed. After the reset, use Claude's native **Share -> Project HTML** export
-and retain the resulting project archive or standalone HTML only after an
-offline render/interaction check.
+Claude's generated standalone-download UI did not expose a normal browser
+download event, so the exact repaired artifact served by the authenticated
+project was recovered from Claude's generated artifact URL and then checked as
+a local HTML file. It is 772,155 bytes and contains the required corrected
+strings with none of the ten stale contract strings. The 69,150-byte sibling
+`support.js` was recovered from the same generated project and the pair rendered
+independently through a loopback-only local server.
 
-## Resume contract
+- Local artifact:
+  `docs/design/artifacts/Should_I_Play_Reconciled_2026-08-26.html`
+- SHA-256:
+  `82734bab44b7e2035628426b09d0a8d8860b199ff8ac08b4de4d49464459533d`
+- Support bundle SHA-256:
+  `8fe7df74405f3c55f49b7249c74ea1397e65d07dea2b1bd3b4a489bec2e28cbe`
 
-Resume this exact project with **Fable 5 / Max**. Apply only the ten corrections
-above, preserve the existing visual system and all already-corrected sections,
-then run the interaction verifier and a WCAG 2.1 AA conformance pass. Export the
-final project HTML and record its digest in the conformance audit.
+The older persistent **Should I Play - Reconciled (standalone)** project page
+remained cached on its pre-repair content and is not the acceptance artifact.
+The repaired source file and the recovered local HTML above are authoritative.
 
-Do not implement the public UI from a known-conflicting artifact. Do not push
-the branch, apply migrations, deploy or change production without the
-separately required approvals.
+## Next contract
+
+Tomas should review the repaired artifact as one whole and either accept it as
+the Phase 4 implementation specification or identify a bounded remaining
+design conflict. Acceptance freezes the provisional `/play` route. Until then,
+do not begin wholesale UI implementation, push the branch, apply migrations,
+deploy or change production without the separately required approvals.
