@@ -20,6 +20,9 @@ Postgres at build time; the Access-protected editorial tool covers games,
 rights-aware artwork, scopes, evaluation authoring, preview, validation,
 transactional publication, history, deployment requests and proof of what
 production actually serves. See the
+[Project Consolidation Report](docs/Should_I_Play_Project_Consolidation_Report_2026-08-26.md)
+for the reconstructed chronology, current decision/conflict registers and
+immediate product agenda; the governing documents are the
 [Master Product & Build Plan v0.9](docs/Game_Profile_Master_Product_and_Build_Plan_v0.9.md)
 and the dated
 [Public Product P0 Decision Set](docs/Should_I_Play_Public_Product_P0_Decisions_2026-08-24.md)

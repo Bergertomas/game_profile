@@ -36,6 +36,7 @@ edge case exists.
 
 | Document | Authority |
 |---|---|
+| **Should_I_Play_Project_Consolidation_Report_2026-08-26.md** | Reader-facing reconstructed chronology, decision/conflict register, plan audit and immediate agenda; navigation aid only, with no independent authority over the documents below |
 | **Game_Profile_Master_Product_and_Build_Plan_v0.9.md** | Product scope, positioning, public/admin IA, roadmap, current phase status, architecture direction, and cross-system product contracts |
 | **Should_I_Play_Public_Product_P0_Decisions_2026-08-24.md** | Governing owner decisions for the homepage, scoring-protocol direction, catalog/launch target, homepage curation, accountability, and artwork posture |
 | **Should_I_Play_Public_Product_Resolutions_2026-08-25.md** | Later governing decisions for Search, What should I play?, metadata, time/session guidance, analytics, commerce, catalog operation, release posture, personalization sequencing, and the corrected artwork basis |
