@@ -43,6 +43,17 @@ function contrast(foreground: string, background: string): number {
 const PAPER = ["page", "page-sunk"];
 const GRAPHITE = ["graphite", "graphite-deep"];
 
+/**
+ * The public opening's grounds, added with the cinema surface.
+ *
+ * Checked as a THIRD ground rather than folded into `GRAPHITE`, because they
+ * are a third ground: the bone ramp has to clear AA on all four dark surfaces
+ * independently, and a token that only passed on the average of them would be a
+ * token that fails on one real screen.
+ */
+const CINEMA = ["cinema", "cinema-panel"];
+const DARK = [...GRAPHITE, ...CINEMA];
+
 describe("site colour tokens", () => {
   it("keeps the whole ink ramp above WCAG AA on both paper grounds", () => {
     for (const ink of ["ink", "ink-soft", "ink-quiet"]) {
@@ -55,9 +66,9 @@ describe("site colour tokens", () => {
     }
   });
 
-  it("keeps the whole bone ramp above WCAG AA on both graphite grounds", () => {
+  it("keeps the whole bone ramp above WCAG AA on every dark ground", () => {
     for (const bone of ["bone", "bone-soft", "bone-quiet"]) {
-      for (const ground of GRAPHITE) {
+      for (const ground of DARK) {
         expect(
           contrast(token(bone), token(ground)),
           `${bone} on ${ground}`,
@@ -73,7 +84,7 @@ describe("site colour tokens", () => {
    * right in a mock-up. `signal-ink` is the paper-ground equivalent.
    */
   it("holds the brand signal to the ground it belongs on", () => {
-    for (const ground of GRAPHITE) {
+    for (const ground of DARK) {
       expect(
         contrast(token("signal"), token(ground)),
         `signal on ${ground}`,
@@ -91,13 +102,62 @@ describe("site colour tokens", () => {
     }
   });
 
-  it("carries one typographic system, not two", () => {
+  /**
+   * `wayfind` is the second dark-only colour, and it gets the same two-sided
+   * proof `signal` does: legible on every dark ground, and demonstrably NOT
+   * usable on paper. The negative half is the one that matters — a cyan that
+   * looks correct in a dark mock-up is exactly the token somebody reaches for
+   * on the light side, where it measures 1.72:1.
+   */
+  it("holds the wayfinding accent to the dark grounds", () => {
+    for (const ground of DARK) {
+      expect(
+        contrast(token("wayfind"), token(ground)),
+        `wayfind on ${ground}`,
+      ).toBeGreaterThanOrEqual(4.5);
+    }
+    for (const ground of PAPER) {
+      expect(
+        contrast(token("wayfind"), token(ground)),
+        `wayfind must not be used on ${ground}`,
+      ).toBeLessThan(3);
+    }
+  });
+
+  it("carries one typographic system, not three", () => {
     // Fraunces and Inter were the old system. Two typographic systems in one
     // product was the bug the visual pass existed to fix, so a stray @font-face
     // reintroducing either is a regression, not a variant.
+    //
+    // JetBrains Mono joined with the public opening and is deliberately a third
+    // FACE and not a third system: it sets key caps and fixed measurement cues
+    // and nothing else. Listing it here is the decision, so adding a fourth
+    // stays a decision too rather than a drive-by @font-face.
     const families = [...css.matchAll(/font-family:\s*"([^"]+)"/g)].map(
       (match) => match[1],
     );
-    expect(new Set(families)).toEqual(new Set(["Archivo", "Newsreader"]));
+    expect(new Set(families)).toEqual(
+      new Set(["Archivo", "Newsreader", "JetBrains Mono"]),
+    );
+  });
+
+  /**
+   * The production stylesheet may not reach into `public/fonts/design-lab/`.
+   * That directory exists to be deleted with the lab, and a production
+   * `@font-face` pointing into it would take the public opening's notation
+   * voice with it — or, worse, keep an unreviewed lab asset alive in the
+   * deployed bundle because one stylesheet still referenced it.
+   */
+  it("loads every production face from the production font directory", () => {
+    const sources = [...css.matchAll(/src:\s*url\("([^"]+)"\)/g)].map(
+      (match) => match[1],
+    );
+    expect(sources.length).toBeGreaterThan(0);
+    for (const source of sources) {
+      expect(source, `${source} must not come from the design lab`).not.toContain(
+        "design-lab",
+      );
+      expect(source).toMatch(/^\/fonts\/[^/]+\.woff2$/);
+    }
   });
 });

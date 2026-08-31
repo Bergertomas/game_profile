@@ -36,6 +36,10 @@
    is allowed to run, because those surfaces are prose and should feel written
    rather than reported.
 
+   JetBrains Mono is the notation voice, and it is a third face rather than a
+   third system: it sets keys and measurement cues only — never a sentence, a
+   heading or a label. See its own note below.
+
    Fraunces and Inter were the old system and are gone, along with their font
    files. Two typographic systems in one product is the bug, not a hedge.
    --------------------------------------------------------------------------- */
@@ -55,6 +59,26 @@
   font-weight: 300 700;
   font-display: swap;
   src: url("/fonts/newsreader-latin.woff2") format("woff2");
+}
+
+/* JetBrains Mono is the INSTRUMENT voice, and it earns its place by doing a job
+   neither of the other two can: printing keys. `/`, `esc`, the arrow glyphs and
+   the "8 dimensions · 0–10" cue are notation, not prose, and notation set in a
+   proportional face reads as a word rather than a key. It is rationed to
+   exactly that — key caps, the keyboard legend under the search field, and the
+   small measurement cues on the opening. It never sets a sentence.
+
+   Promoted from public/fonts/design-lab/ on the same terms Archivo and
+   Newsreader were (public/fonts/LICENSES.md). The production path is
+   `/fonts/jetbrains-mono.woff2`; the lab copy is a separate file and this
+   stylesheet must never reference it, because the lab directory has to stay
+   deletable on its own. */
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url("/fonts/jetbrains-mono.woff2") format("woff2");
 }
 
 @theme {
@@ -96,8 +120,38 @@
   --color-signal: #e2a33f;
   --color-signal-ink: #7e5f26;
 
+  /* -- The cinema ground, and the one accent that wayfinds on it -----------
+     ADDITIVE, AND DELIBERATELY SO. The public opening is darker and more
+     cinematic than the chrome — it is the one surface where the product is
+     allowed to look like a product about videogames before it looks like an
+     instrument. That is a new surface, so it gets new tokens.
+
+     What it is NOT is a redefinition of graphite, bone or signal. Those are
+     load-bearing on the profile page, the methodology page, the card mark and
+     the trust band, all of which are accepted work; moving them to make one new
+     screen darker would restyle every screen that already shipped, silently,
+     and the contrast proofs in lib/profile/accent.ts would be measuring
+     grounds that no longer exist. Every value above this comment is unchanged.
+
+     `cinema` is the opening's ground and `cinema-panel` the search well that
+     sits on it. `wayfind` is the cyan that marks the keyboard affordances —
+     the `/` cap, the arrow legend, the focus ring on the dark surfaces. Like
+     `signal` it is a DARK-GROUND COLOUR and nothing else: it measures 10.02:1
+     on cinema and 1.72:1 on paper, and tests/accessibility-tokens.test.ts
+     asserts both halves so nobody reaches for it on the light side.
+
+     Neither accent ever encodes a judgement. `wayfind` marks a key you can
+     press; `signal` marks the brand's question mark. No score, confidence or
+     status is ever carried by either. */
+  --color-cinema: #0b0c0f;
+  --color-cinema-panel: #101116;
+  --color-rule-cinema: rgba(237, 235, 231, 0.14);
+  --color-rule-cinema-strong: rgba(237, 235, 231, 0.28);
+  --color-wayfind: #5bc8de;
+
   --font-display: "Archivo", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-prose: "Newsreader", Georgia, "Times New Roman", serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
   --text-micro: 0.75rem;
   --text-micro--line-height: 1.35;
@@ -181,6 +235,28 @@
   .sip-prose {
     font-family: var(--font-prose);
     line-height: 1.55;
+  }
+
+  /* `sip-key` is a printed key cap, and `sip-note` the notation line beside it
+     — the two jobs JetBrains Mono exists for. Both are notation: they name a
+     key a person can press, or a fixed measurement cue ("8 dimensions · 0–10").
+     Neither ever carries prose, and neither is the only statement of anything
+     it marks — the search field's keyboard legend is decoration over behaviour
+     that works with no legend at all. */
+  .sip-key {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.75rem;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sip-note {
+    font-family: var(--font-mono);
+    font-weight: 400;
+    font-size: 0.6875rem;
+    line-height: 1.45;
+    text-transform: uppercase;
   }
 
   /* -- The wordmark -------------------------------------------------------

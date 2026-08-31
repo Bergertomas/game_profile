@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { GameCard } from "@/components/GameCard";
+import { HomeOpening } from "@/components/home/HomeOpening";
 import { ProfileRadar } from "@/components/profile/radar";
 import { full } from "@/components/profile/radar-layout";
 import { listGameProfiles } from "@/lib/data/games";
@@ -12,9 +13,9 @@ import type { CSSProperties } from "react";
  * The front door.
  *
  * It is a LIBRARY ENTRANCE, not a landing page. The order of the page is the
- * argument: the proposition in two lines, then the games, then — for anyone
- * curious enough to have scrolled past a shelf of covers — what a Game Profile
- * actually is.
+ * argument: the question and the field that answers it, then the games, then —
+ * for anyone curious enough to have scrolled past a shelf of covers — what a
+ * Game Profile actually is.
  *
  * That order is deliberate and was the main thing wrong with the previous
  * homepage, which explained the methodology at length above three small
@@ -25,7 +26,21 @@ import type { CSSProperties } from "react";
  *
  * What is deliberately NOT here: a feature triptych, a gradient hero, a
  * newsletter box, statistics about ourselves, or navigation to rooms that do
- * not exist. Search, Discover and Compare are real plans and are not built.
+ * not exist. Compare and "What should I play?" are accepted and unbuilt, and
+ * the opening names them without pretending to offer them.
+ *
+ * ── The opening replaced a prose proposition, and why ──────────────────────
+ *
+ * The page used to begin with two paragraphs explaining the eight dimensions.
+ * That is the right ARGUMENT and the wrong FIRST MOVE: the overwhelmingly
+ * common visitor already has a game in mind, and the fastest honest thing the
+ * page can do is let them type its name. So the decision interface comes first
+ * and the reasoning follows it — the explainer below still makes the case, to
+ * somebody who has already seen what the product does.
+ *
+ * The field's index is not built here: the public layout reads it once and
+ * provides it to the whole document, so it is serialised once per page rather
+ * than once per field.
  */
 export default async function HomePage() {
   const profiles = await listGameProfiles();
@@ -33,26 +48,7 @@ export default async function HomePage() {
 
   return (
     <>
-      {/* ── The proposition. Two lines, then out of the way. ──────────────── */}
-      <section className="border-b border-rule">
-        <div className="mx-auto w-full max-w-[74rem] px-5 py-12 sm:px-8 sm:py-16">
-          <h1 className="sip-display max-w-[20ch] text-[2.5rem] sm:text-[3.5rem] lg:text-[4.25rem]">
-            Not just whether a game is good.
-          </h1>
-          <p className="sip-prose mt-5 max-w-[46rem] text-[1.25rem] leading-[1.45] text-ink sm:text-[1.5rem]">
-            <em>What kind of good is it?</em> Every game here gets a Game
-            Profile: the same eight dimensions, scored 0–10 each against a
-            published rubric, so you can see what a game is actually good at —
-            and what might make it wrong for you.
-          </p>
-          <p className="sip-prose mt-4 max-w-[46rem] text-[1.0625rem] text-ink-soft">
-            We never average them into an overall score. An 87 can describe a
-            beautifully written but clumsy RPG or a nearly storyless,
-            mechanically perfect action game, and those are completely different
-            purchases.
-          </p>
-        </div>
-      </section>
+      <HomeOpening profiles={profiles} />
 
       {/* ── The shelf. The reason the page exists. ────────────────────────── */}
       <section aria-labelledby="catalogue" className="border-b border-rule">

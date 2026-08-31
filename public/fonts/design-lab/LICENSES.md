@@ -14,8 +14,14 @@ so they describe the exact binaries committed here.
 
 The faces remaining in this directory are used **only** by the `/design-lab`
 routes and are loaded solely by `app/design-lab/design-lab.css`. Archivo and
-Newsreader were promoted to production with direction D3 and now live in
+Newsreader were promoted to production with direction D3, and JetBrains Mono
+with the public opening on 31 August 2026; all three now also live in
 `public/fonts/` with their notices in `public/fonts/LICENSES.md`.
+
+JetBrains Mono is the one face present in both places. The lab copy stays
+because this directory has to remain deletable on its own, and the production
+stylesheet may not reach into it — `app/globals.css` loads
+`/fonts/jetbrains-mono.woff2` and never the lab path.
 
 Under OFL 1.1 §1 and §2 this notice, the copyright statements below and the full
 licence text must travel with the font files. Do not move, rename or delete a

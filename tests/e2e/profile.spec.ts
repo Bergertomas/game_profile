@@ -247,11 +247,27 @@ test("keyboard focus reaches every score row and drives the radar", async ({
 test("home page contrasts three distinct silhouettes", async ({ page }) => {
   await page.goto("/");
   // One instrument mark per game card. Counted through the card, not through
-  // every <svg> on the page, so the explainer radar beneath the shelf is not
-  // mistaken for a fourth game.
+  // every <svg> on the page, so neither the explainer radar beneath the shelf
+  // nor the opening's fingerprints are mistaken for a fourth game.
   await expect(page.locator("article svg")).toHaveCount(SLUGS.length);
+
+  // Scoped to the shelf. Every game is now reachable from two places on this
+  // page — the opening mosaic and its card — and both are correct; what this
+  // asserts is that the SHELF still lists all three at their canonical
+  // addresses.
+  const shelf = page.locator("section", { has: page.locator("#catalogue") });
   for (const slug of SLUGS) {
-    await expect(page.locator(`a[href="/games/${slug}"]`)).toBeVisible();
+    await expect(shelf.locator(`a[href="/games/${slug}"]`)).toBeVisible();
+  }
+});
+
+test("the opening links each featured game to its canonical address", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const opening = page.locator(".sip-open");
+  for (const slug of SLUGS) {
+    await expect(opening.locator(`a[href="/games/${slug}"]`)).toBeVisible();
   }
 });
 
