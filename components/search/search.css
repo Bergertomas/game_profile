@@ -199,7 +199,7 @@
 .sip-search__meta {
   grid-column: 1;
   min-width: 0;
-  font-size: var(--text-note);
+  font-size: var(--text-small);
   color: var(--color-text-quiet);
   overflow-wrap: anywhere;
 }
@@ -208,7 +208,7 @@
   grid-column: 2;
   grid-row: 1 / span 2;
   align-self: center;
-  font-size: var(--text-note);
+  font-size: var(--text-small);
   color: var(--color-brand-evidence-cyan);
   white-space: nowrap;
 }
