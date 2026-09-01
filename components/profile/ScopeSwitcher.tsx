@@ -67,7 +67,6 @@ export function ScopeSwitcher({
             {scope.isCurrent ? (
               <span aria-current="page" className="gp-scopes__item is-current">
                 {scope.label}
-                <span className="sr-only"> — the one you are reading</span>
               </span>
             ) : (
               <Link href={scope.href as Route} className="gp-scopes__item">

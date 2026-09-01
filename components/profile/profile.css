@@ -884,7 +884,7 @@ a.gp-scopes__item:hover {
   font-size: var(--text-minimum);
   line-height: 1.35;
   text-transform: uppercase;
-  white-space: nowrap;
+  text-align: left;
   color: var(--color-text-primary);
   background: transparent;
   border: var(--border-thin) solid var(--color-border-control);

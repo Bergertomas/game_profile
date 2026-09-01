@@ -354,8 +354,16 @@ test.describe("uncertainty and platform states, in a browser", () => {
     const override = page.locator(".gp", { hasText: "Platform-override fixture" }).first();
     await expect(override.getByText("Varies by platform").first()).toBeVisible();
     await override.locator(".gp-row__why").nth(5).click();
+    // Stated inside the row's panel, and again in the platform section.
     await expect(
-      override.getByText("PC: 1.0 on this platform, against a base of 2.0."),
+      override
+        .locator(".gp-row__panel")
+        .getByText("PC: 1.0 on this platform, against a base of 2.0."),
+    ).toBeVisible();
+    await expect(
+      override
+        .locator(".gp-variance")
+        .getByText("PC: 1.0 on this platform, against a base of 2.0."),
     ).toBeVisible();
     // The base total did not move.
     await expect(override.locator(".gp-row__num").nth(5)).toHaveText("9.0");
