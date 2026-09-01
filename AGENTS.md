@@ -10,6 +10,11 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # Project authority and required reading
 
+First read `docs/Should_I_Play_Working_Agreement.md`. It is the canonical
+cross-chat process for task framing, routine Git authority, review thresholds,
+verification depth, integration, and production approval. It governs how work is
+done; it does not override the product authorities below.
+
 Before beginning material product, editorial, design, data-model, or implementation work, read:
 
 1. `docs/Game_Profile_Master_Product_and_Build_Plan_v0.9.md`
@@ -21,6 +26,11 @@ Before beginning material product, editorial, design, data-model, or implementat
    and its package schema — both remain candidate material until calibration
 7. the ADRs relevant to the work under `docs/decisions/`
 8. the current `README.md`, code, and tests in the area being changed
+
+For a narrow correction, reuse already verified governing context and reload
+only the authorities and implementation surfaces affected by the change. For
+cross-cutting product decisions, integration, or release work, read the full
+relevant governing set above.
 
 Use these authority boundaries:
 
