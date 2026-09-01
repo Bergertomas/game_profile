@@ -2,6 +2,8 @@
 
 **Consolidated:** 2026-08-26
 
+**Checkpoint amended:** 2026-08-31
+
 **Public product:** **Should I Play?**
 
 **Domain:** `shouldiplay.gg`
@@ -11,6 +13,40 @@
 This report is the reader-facing entry point to the current project. It
 reconstructs and reconciles the decisions; it does not replace the accepted
 ADRs, the resolution register or Master Product and Build Plan v0.9.
+
+## 0. 28–31 August checkpoint amendment
+
+Gate A is complete. Fable **Should I Play - Canonical Screens.dc.html** A1/A2
+Rev 5.1 is the accepted canonical homepage visual and interaction direction
+under ADR 0030. This supersedes this report's earlier statements that the final
+homepage/art-direction pass and owner acceptance were pending.
+
+The acceptance freezes the decision-first proposition, dark cinematic
+direction, Search-first opening, exact three journey labels, three-game
+artwork/fingerprint mosaic, “Start somewhere interesting” rail, authored shelf
+sequence, secondary “Choosing between…” module, expanded-art continuity and
+desktop/mobile conceptual hierarchy. It does not approve prototype scores,
+polygons, copy, dates, roster, artwork rights or production conformance.
+
+The read-only score/radar audit, implementation-ready Gate B brief and Fable
+High A3–A6 pass are complete. Tomas accepted Gate B on 30 August. The Fable
+background verifier did not post, so acceptance rests on the 15/15 self-check,
+independent inspection and owner review. ADR 0013 is superseded; ADRs 0030/0032
+govern A1–A6. ADR 0031 selects an editorially governed static build-time Search
+index. Tomas approved the first Compare candidate's URL/index recommendation
+but did not accept its artwork-free visual direction. ADR 0033 locks the URL
+policy. The bounded art-led C1–C4 revision uses a central radar, visually
+stronger relations, canonical shared/unique tags and complete artless parity.
+After independent checks and a crop/scrim balance correction, Tomas accepted it
+on 31 August; ADR 0034 closes the full Compare design gate. The
+[shared handoff](design/Should_I_Play_Shared_Design_System_and_Interaction_Handoff_v1.0_2026-08-31.md),
+[semantic token map](design/handoff/should-i-play.tokens.v1.json) and
+[accessibility/conformance matrix](design/Should_I_Play_Accessibility_and_Conformance_Matrix_v1.0_2026-08-31.md)
+are complete. The next public engineering slice is the shared foundation plus
+static Search; homepage, profile and full Compare follow.
+Public-product value continues to dominate; admin work
+remains support-only unless it blocks integrity, security, truthful publication
+or deployment proof, publishing or the public product.
 
 ## 1. Executive state
 
@@ -63,20 +99,19 @@ destination bands, curated homepage system, mixed-artwork catalog and governed
 analytics transport. It has three profiles, not the 12–15 validation corpus or
 the approximately-100 quiet-release catalog.
 
-The final Fable source has received the ten bounded conformance corrections.
-The repaired 772,155-byte HTML and its support bundle were recovered, rendered
-independently, scanned and digested. A separate visual-completeness audit found
-that it preserves the product/state contracts but does not complete the final
-UI/art direction required by the attached resolutions. Phase 3B therefore
-remains active.
+The repaired contract/state artifact remains the requirements baseline. The
+later Fable A1/A2 Rev 5.1 screens lock Gate A's homepage direction, A3–A6 close
+Gate B, and accepted C1–C4/C-rail close the full Compare design pass. The shared
+design-system and interaction handoff is complete. Engineering now begins with
+the shared foundation and static Search before bounded homepage/profile and
+full Compare implementation.
 
 ### Where the Master Plan stands
 
 - **Phase 2:** substantially complete; support mode only.
 - **Phase 3A:** candidate Scoring Protocol calibration; active in parallel and
   required before bulk catalog scoring.
-- **Phase 3B:** product/contract conformance complete; bounded canonical-screen
-  and art-direction pass pending before owner acceptance.
+- **Phase 3B:** complete; accepted visual gates and shared handoff recorded.
 - **Phase 4:** pending; build and privately validate the complete public product
   on 12–15 deliberately varied profiles.
 - **Phase 5:** pending; grow to approximately 100 substantive profiles.
@@ -84,12 +119,15 @@ remains active.
 
 ### Next product milestone
 
-Complete and accept the final canonical public screen set, then begin Phase 4
-with the trust/orientation shell and practical-time/official-destination profile
-value. In parallel, finish
-Protocol v1 calibration and select the 12–15-profile validation corpus. The
-first real new profile should prove the remaining publication/deployment path
-as part of catalog work.
+Resolve the recorded generated-artifact lint scope and rerun the database gates
+on the CI-equivalent Node 22/PostgreSQL runner when that environment is
+available. In public-product work, implement the completed shared foundation
+and static Search contract, including the bounded homepage hero-height
+refinement, before full Compare. In
+parallel, finish Protocol v1
+calibration and select the 12–15-profile validation corpus.
+The first real new profile should prove the remaining publication/deployment
+path as part of catalog work.
 
 ## 2. Chronological decision reconstruction
 
@@ -98,22 +136,22 @@ as part of catalog work.
 | 6 Aug, Master Plan v0.4/v0.6 | **Game Profile** was both working product title and evaluation framework; methodology and calibration dominated. | Brand/product separation followed. | Historical foundation only. Game Profile now names the method. |
 | Early Aug, rubric/evidence/scope ADRs | Eight dimensions, subcriteria-derived scores, explicit evidence/confidence, no unsupported certainty. | Later public design made the consequences more legible; it did not change the method. | Locked: eight dimensions, no aggregate, descriptive lows, range/Unknown/confidence/scope truth. |
 | 13 Aug, Master Plan v0.7 | Public brand became **Should I Play?** at `shouldiplay.gg`; Game Profile remained the evaluation construct. | No later reversal. | Locked. Do not reopen. |
-| 13–20 Aug, D3/ADR 0013 and public design | D3 became the individual-profile foundation; the product adopted Archivo + Newsreader, graphite + warm paper, ruled hierarchy and game-led accents. | Fable expanded the system to library/Search/Compare/mobile; later work preserved rather than rediscovered it. | Locked visual foundation; composition/states were reconciled in Phase 3B. |
+| 13–20 Aug, D3/ADR 0013 and public design | D3 became the then-current individual-profile foundation; the product adopted Archivo + Newsreader, graphite + warm paper, ruled hierarchy and game-led accents. | Accepted A1–A6 subsequently replaced its public visual-system authority while retaining relevant semantic safeguards. | Historical lineage only. ADRs 0030/0032 govern the accepted homepage/profile direction. |
 | c. 20 Aug, Fable **Should I Play? at Fifteen** | Profile-first Field Guide, substantive catalog, trust design, two-game Compare, mobile Compare and deliberate art direction were explored in a large interactive artifact. | Some labels, launch scale, discovery, Search states, time, commerce and sequencing became obsolete after 24–25 Aug decisions. | Visual baseline, now superseded where the reconciled artifact explicitly changes it. |
 | Earlier roadmap | Compare was deferred until profiles/catalog/search were established. | Homepage and product P0 work found that a small catalog gains decision value from direct pair comparison. | Superseded: exactly-two Compare is launch-critical but subordinate to profiles. |
 | Earlier roadmap | MVP/launch was discussed as roughly 10–15, sometimes 15–25 profiles. | 24–25 Aug separated product validation from credible public usefulness. | 12–15 is private/limited validation; approximately 100 substantive profiles is the quiet-release floor. |
 | 24 Aug, P0 owner decisions | Homepage became an art-led, utility-first entrance to a profile-first Field Guide with Find one, Compare two and Start with a question. Shape precedes interpretation; curated “Choosing between…” adds small-catalog value. | 25 Aug froze final journey labels and discovery semantics. | Homepage metaphor and hierarchy retained; labels are Search / Compare / What should I play?. |
 | 24 Aug, P0 owner decisions | Authentic artwork should materially participate while preserving a complete artless fallback; exact legal route remained unresolved. | 25 Aug corrected the basis: editorial fair use may be used after implementation/policy/legal gates, alongside licensed/permissioned assets. | Mixed art/artless launch is locked; migration and legal/policy gate remain uncompleted. |
 | 24 Aug, public-first correction | Phase 2 hardening had reached diminishing returns; public value should dominate. | Master Plan v0.9 moved Phase 2 to support mode. | Governing roadmap rule: admin work only for integrity, security, truthful publication/proof, content publication or public-product blockers. |
-| 25 Aug, Search resolutions | Replace Find with global **Search** over published profiles and recognized factual identities. | Four availability states and private requests were specified. | Locked: published, recognized-unprofiled, ambiguous, unrecognized; no thin public stubs, public demand counts, queue or ETA. |
+| 25 Aug, Search resolutions | Replace Find with global **Search** over published profiles and recognized factual identities. | Four availability states and private requests were specified; ADR 0031 selected a static build-time index with editorial registry control. | Locked: published, recognized-unprofiled, ambiguous, unrecognized; no thin public stubs, public demand counts, queue or ETA. |
 | 25 Aug, discovery resolutions | Replace vague Start with a question/Discover framing with a bounded product using controlled data and visible interpretation. | Intent, hard-eligibility, Unknown and time semantics were frozen. | Locked: **What should I play?**, deterministic at launch, no runtime LLM, editable criteria, no match percentage. |
-| 25 Aug, Compare resolutions | Exactly two, difference/trade-off explanation, artwork-free, pair results noindex. | Shape-first homepage preview and interval-aware authoritative rows reconciled earlier Compare explorations. | Locked; all-pair prerendering is an implementation strategy subject to measured scale. |
+| 25 Aug, Compare resolutions | Exactly two, difference/trade-off explanation and an artwork-free full experience. | 31 August owner review accepted the order-preserving URL/index recommendation, superseded the artwork-free rule with an art-led primary state plus complete artless parity, then accepted the revised C1–C4/C-rail result. | Exactly two, no winner and exact rows remain locked; ADR 0033 governs URL/index and ADR 0034 closes the visual gate. |
 | 25 Aug, practical-time resolutions | Time needed separate public treatment. | Old 15–25/40+/Vast language was replaced by exact bands and two session fields. | Locked outside the eight dimensions: Brief <=10, Moderate >10–25, Substantial >25–50, Long >50–100, Extensive >100, plus special states; useful window + interruption flexibility. |
 | 25 Aug, metadata/commerce resolutions | Use a provider as a factual backbone without letting a provider own product meaning; complete the decision with official destinations. | Provider and affiliate choices remained open. | Provider-first/manual fallback locked; ordinary verified official links required; no live prices or affiliates are required for release. |
 | 25 Aug, analytics resolutions | “No analytics” and “analytics later” were replaced by a purpose-limited release contract. | Raw queries and returning-browser identity were split into separate higher-risk layers. | Minimum traffic and semantic journey analytics are required for quiet release; raw-query/cross-session collection stays gated. |
 | 25 Aug, personalization | Taste profiling/recommendations were attractive but premature. | Moved to the first major post-launch phase with prerequisites. | Deferred; no launch promise or disabled “coming soon” control. |
 | 26 Aug, ADRs 0024–0029/Master Plan v0.9 | Converted resolutions into accepted protocol, Search/discovery, metadata, time, analytics and storefront contracts; made public-first sequencing explicit. | No later reversal. | Governing repository and roadmap constitution. |
-| 26 Aug, Fable reconciliation | Existing **at Fifteen** artifact was surgically reconciled into **From Fifteen to a Hundred** with sixteen sections and 390px specimens. | Independent audit forced a major truth/semantics/accessibility repair; Fable 5 / High then applied the final ten bounded fixes and the recovered HTML passed an independent contract scan. A separate visual audit found that the attached resolution's art-led homepage and final canonical UI synthesis were not completed. | The artifact governs requirements/states, not final composition. Phase 3B needs one bounded visual-completion pass and owner acceptance. |
+| 26–30 Aug, Fable reconciliation and Gates A/B | Existing **at Fifteen** artifact was surgically reconciled into **From Fifteen to a Hundred**; the later **Canonical Screens** file received bounded homepage and profile passes. | A1/A2 Rev 5.1 was accepted on 28 August; A3–A6 was accepted on 30 August. The promised final Fable verifier message was not posted. | ADRs 0030/0032 govern A1–A6; illustrative data, artwork rights and production conformance do not. |
 
 ## 3. Decision register
 
@@ -126,7 +164,7 @@ as part of catalog work.
 | Evidence | Scope, confidence, range, Unknown and provisional status stay explicit | **LOCKED** | Yes | Sources are not votes |
 | Primary scope | Explicit durable primary scope, never display-order inference | **LOCKED** | Yes | Canonical URLs follow ADR 0016 |
 | Product shape | Profile-first Field Guide/library, not rankings | **LOCKED** | Yes | Registry is an internal retrieval metaphor |
-| Homepage | Art-led, utility-first entrance; compact art supports utility | **LOCKED** | Yes | Full-height featured hero superseded |
+| Homepage | A1/A2 Rev 5.1: decision-first dark cinematic Search-first opening, three-game artwork/fingerprint mosaic, “Start somewhere interesting”, authored shelves and secondary “Choosing between…” | **LOCKED** | Yes | Illustrative content and production conformance remain provisional |
 | Journeys | Search / Compare / What should I play? | **LOCKED** | Yes | Ranked, not three equal tabs |
 | Search states | Published / recognized-unprofiled / ambiguous / unrecognized | **LOCKED** | Yes | Global Search is launch-critical |
 | Unprofiled games | Search-only factual record, no public stub route | **LOCKED** | Yes | Private request only |
@@ -135,8 +173,9 @@ as part of catalog work.
 | Discovery | Deterministic controlled-data interpreter with editable criteria | **LOCKED** | Yes | No runtime model or match percentage |
 | Durable discovery route | Fable recommends `/play` | **PROVISIONAL** | Conditional | Freezes with Phase 3B acceptance |
 | Experience taxonomy | Eleven balanced axes, descriptive not quality | **LOCKED** | Yes | Public anchors/labels need corpus calibration |
-| Compare | Exactly two; differences not winners; artless; pair noindex | **LOCKED** | Yes | Profiles/rows remain authoritative |
-| Compare prerender strategy | Prerender while measured corpus/pair cost is sensible | **PROVISIONAL** | Conditional | Dynamic/server fallback only when justified |
+| Compare | Exactly two; differences not winners; accepted art-led C1/C2 plus complete artless-parity C3/C4, central radar, exact rows and canonical tag relations | **LOCKED** | Yes | ADRs 0033/0034; first artless candidate is history |
+| Compare URL/index strategy | Order-preserving query share state; pair URLs noindex/follow and outside sitemap/schema; no all-pair prerender | **LOCKED** | Yes | ADR 0033 |
+| Search architecture | Editorially governed static build-time index | **LOCKED** | Yes | Search engineering precedes full Compare engineering |
 | Validation corpus | 12–15 substantive, deliberately varied profiles | **LOCKED** | Yes | Private/limited product validation |
 | Quiet-release floor | Approximately 100 substantive profiles | **LOCKED** | Yes | Provisional may stand when truthfully tagged |
 | Curation | Objective, evergreen authored and living expiring shelves | **LOCKED** | Yes | No fake activity or ranking feed |
@@ -161,7 +200,7 @@ as part of catalog work.
 | Personalization | First major post-launch product phase | **DEFERRED** | No | Reopen only with catalog/taste/validation prerequisites |
 | Content descriptors | Violence/phobia descriptors excluded from launch vocabulary | **DEFERRED** | No | Requires explicit later policy |
 | Extra admin hardening | No SaaS-grade work absent a public/integrity blocker | **DEFERRED** | No | One-editor limitations accepted |
-| Reconciled Fable artifact | Contract-conformant requirements/state reference; final UI/art direction incomplete | **PROVISIONAL** | Conditional | Does not outrank ADRs and is not yet the Phase 4 visual authority |
+| Fable artifacts | Reconciled file governs requirements/states; A1/A2 Rev 5.1 and A3–A6 govern homepage/profile direction | **LOCKED** | Yes | ADRs 0030/0032 supersede ADR 0013 for public visual direction; no Fable time specimen/art rights become publication truth |
 
 ## 4. Conflict / contradiction register
 
@@ -193,10 +232,10 @@ as part of catalog work.
 | First application dispatch/full Live cycle | REORDER | Prove it through the first real new catalog publication in Phase 4, not another isolated admin project. |
 | Generic multi-user/admin SaaS hardening | REMOVE | It has no present public value and the tool has one editor. |
 | Phase 3A Protocol calibration | KEEP | Necessary before bulk scoring and for sustainable human-time measurement. Run in parallel with public implementation. |
-| Phase 3B Fable reconciliation | MODIFY | Contract conformance/export are complete. Add one bounded canonical-screen/art-direction pass, then Tomas acceptance; no product rediscovery. |
+| Phase 3B design gates | COMPLETE | Gates A/B, the dedicated full Compare pass and shared handoff are complete; no product rediscovery. |
 | Provider-independent public contracts | KEEP | Already implemented as foundations; connect them to persistence/build projections and surfaces during Phase 4. |
 | Phase 4 12–15 corpus | MODIFY | Treat as private product validation across all real states, not public launch. Include the first new-profile E2E proof. |
-| Phase 4 internal order | REORDER | Trust/orientation -> time/storefront -> Search -> homepage -> Compare -> discovery -> hardening, while protocol/content work proceeds in parallel. |
+| Phase 4 internal order | REORDER | Static Search -> accepted homepage/profile slices -> full Compare implementation -> discovery -> hardening, while protocol/content work proceeds in parallel. |
 | Minimal public-data authoring | ADD | Add only persistence/admin inputs that block truthful time, destination, Search registry, disclosure or curation publication. |
 | Phase 5 approximately-100 production | KEEP | This is the scale/content operation needed for credible quiet release. |
 | Phase 6 release readiness | MODIFY | Include operational Search Console, traffic measurement, approved semantic events, truthful sitemap/canonical checks and final privacy gates. |
@@ -212,21 +251,23 @@ operational.
 
 ## 6. Proposed Master Plan vNext
 
-### Phase 3B closure — complete and accept one public specification
+### Phase 3B closure — accepted Gates A/B and completed shared handoff
 
-**Objective:** turn the contract-conformant artifact into a concise canonical
-screen set and accept it.
+**Objective:** translate accepted A1–A6 and C1–C4/C-rail into a cross-surface
+handoff before engineering begins. **Complete 31 August 2026.**
 
 **User value:** engineering implements one coherent product rather than a mix of
 old mockups and newer contracts.
 
-**Deliverables:** canonical desktop/390px screens for the public routes and
-material states; a genuinely art-led, utility-first homepage; realistic mixed
-art/artless composition; frozen discovery route; and Tomas acceptance. The ten
-contract corrections and verified local HTML are complete inputs.
+**Deliverables:** accepted A3/A4 art-led profile, A5/A6 complete artless profile,
+exact and accessible eight-dimension instrument, provisional/range/Unknown and
+scope/platform states, the exactly-two art-led Compare pass with complete
+artless parity and
+a concise cross-surface component/interaction handoff.
 
-**Exit criteria:** no open choice can change navigation, page types, content or
-data contracts.
+**Exit criteria:** the accepted homepage/profile/Compare system is specified
+with measured tokens, complete states, responsive behavior, truth fallbacks and
+accessibility before implementation.
 
 **Out of scope:** new brand, rubric, product discovery or implementation polish.
 
@@ -271,9 +312,10 @@ expired curation cannot render; no thin routes or fake activity exist.
 **User value:** two candidates can be understood through meaningful differences
 without a winner score.
 
-**Deliverables:** launcher, canonical pair route, artwork-free identities,
-interval-aware rows, concise deterministic summary, mobile sticky identity,
-noindex/social-card behavior and profile exits.
+**Deliverables:** launcher, accepted order-preserving pair route, two equal
+artwork identities plus complete artless/mixed-art states, central radar,
+canonical shared/unique tag map, interval-aware rows, concise deterministic
+summary, mobile identity, noindex behavior and profile exits.
 
 **Exit criteria:** exact/range/Unknown/asymmetric-confidence/scope-pair cases and
 nonvisual equivalents pass.
@@ -550,9 +592,13 @@ operational cost is trivial.
 
 ## 8. Design readiness
 
-Yes: the project is finally ready for the dedicated UI/UX/art-direction phase.
-The reconciled Fable artifact completed the contract/state foundation, but the
-actual final-composition phase is not complete.
+Yes: Gate A, Gate B, the dedicated full Compare design pass and the shared
+implementation handoff are complete.
+The first full Compare candidate established the data/state foundation but was
+not visually accepted. ADR 0033 directed the bounded art-led revision; Tomas
+accepted its C1–C4/C-rail result under ADR 0034. The shared implementation
+handoff now resolves tokens, components, responsive/stress states, truth
+fallbacks and accessibility; no further concept pass is active.
 
 The foundation is stable because identity, methodology, route/scoping model,
 journey hierarchy, Search/discovery/Compare semantics, catalog milestones,
@@ -560,61 +606,70 @@ time, artwork, trust, SEO, analytics, commerce and admin boundaries are now
 explicit contracts. The repository also has the real D3 visual/profile system
 and provider-independent domain foundations.
 
-Before implementation, Fable must produce the bounded canonical screen set
-defined in the visual-completeness audit; Tomas and ChatGPT then settle Phase
-3B acceptance and the `/play` route. The ten audit corrections are not new
-owner questions. Provider, time-source, request-receiver and catalog choices
-can be made during Phase 4 before their dependent slices ship.
+Fable High revised A3–A6 against the completed score/radar audit; Tomas accepted
+the result on 30 August. Fable High then completed the exactly-two,
+artwork-free first Compare candidate; independent inspection confirmed its
+permanent paired values, accessible game/value/confidence groups,
+order-preserving share policy and unchanged A1–A6. Tomas approved that URL/index
+policy but directed a more alluring art-led visual pass, then accepted that
+revision after independent inspection. The shared handoff is complete; Search
+now precedes Compare in engineering. Provider, time-source, request-receiver and catalog
+choices can be made during Phase 4 before their dependent slices ship.
 
 Design can still answer exact spacing, responsive composition, interaction
 polish, copy rhythm and component variants. It cannot invent new scoring,
 ranking, funding, privacy, evidence or availability semantics.
 
-The prior **Should I Play? at Fifteen** artifact remains the visual-system
-baseline; the reconciled **From Fifteen to a Hundred** file is the governing
-requirements/state successor. Neither is yet the final canonical screen set.
+The prior **Should I Play? at Fifteen** artifact remains visual history; the
+reconciled **From Fifteen to a Hundred** file is the requirements/state
+successor; A1/A2 Rev 5.1 and A3–A6 are the accepted homepage/profile direction.
 Generic AI/SaaS aesthetics, bento/card soup, glass, neon HUD treatment, fake
 activity and oversized search-only composition remain rejected.
 
 ## 9. Fable reconciliation plan
 
-The efficient Fable mission from this point is now:
+The efficient design mission from this point is now:
 
-1. preserve the existing project, repaired source and verified recovered HTML;
-2. use the visual-completeness audit to produce the canonical desktop/390px
-   public screen set without reopening product discovery;
-3. use realistic controlled artwork composition to finish the art-led homepage
-   and mixed art/artless system;
-4. have Tomas accept the result as the Phase 4 specification and freeze
-   `/play`;
-5. during implementation, use Fable for bounded responsive-state or art-
-   direction questions without rediscovering the product;
-6. after each major surface and before Phase 4 exit, compare the real
-   implementation against the accepted artifact and log intentional drift.
+1. preserve the accepted A1/A2 Rev 5.1 direction and its bounded hero-height
+   refinement;
+2. preserve the accepted A3–A6 direction and completed shared handoff;
+3. keep the practical-time specimen, private artwork and superseded A7 wording
+   out of publication truth;
+4. preserve the accepted full Compare desktop/mobile pass;
+5. use the completed design-system/interaction handoff across A1–A6/C1–C4;
+6. during implementation, use Fable only for bounded conformance questions;
+7. after each major surface and before Phase 4 exit, compare implementation
+   against the accepted artifact and log intentional drift.
 
-Use **Fable 5 / High** inside the existing Claude Design project for the visual-
-completion pass. Do not rerun discovery. Opus Extra is useful only for a fresh-
-context copy/accessibility critique of the completed canonical screen set; ADR
-conformance remains a Codex/repository review.
+If an actual bounded design defect requires another Fable pass, use **Fable
+High** inside the existing project. Do not use Fable Max or rerun discovery.
+ADR conformance remains a repository review.
 
 ## 10. Immediate next agenda
 
-1. **Run the bounded Fable High canonical-screen/art-direction pass.**
-2. **Review that final screen set with Tomas; accept it and freeze `/play`.**
-3. **Approve the 12–15-profile validation lineup and its diversity/adversarial
+1. **Preserve the completed pre-code baseline and its archived engineering
+   readiness evidence; close the recorded lint/database runner gaps in the
+   appropriate implementation environment.**
+2. **Preserve the completed A1–A6/C1–C4 design-system and interaction handoff,
+   including A7 reconciliation and the bounded homepage hero-height refinement.**
+3. **Implement the shared public foundation and editorially governed static
+   Search contract.**
+4. **Implement the accepted homepage/profile slices without fabricating Fable
+   specimen values.**
+5. **Implement the accepted full Compare experience.**
+6. **Approve the 12–15-profile validation lineup and its diversity/adversarial
    coverage.**
-4. **Run Phase 4 Slice 1: public shell, About, byline/provenance, reading key and
+7. **Run Phase 4 Slice 1: public shell, About, byline/provenance, reading key and
    contextual corrections.**
-5. **Choose/approve the practical-time source and add minimal time/storefront
+8. **Choose/approve the practical-time source and add minimal time/storefront
    persistence plus profile bands.**
-6. **Choose the request receiver/privacy contract and build the four-state
-   global Search.**
-7. **Implement the curated homepage grammar and exactly-two Compare.**
-8. **Calibrate vocabulary/experience anchors on the validation corpus and build
+9. **Choose the request receiver/privacy contract before enabling Search
+   coverage requests.**
+10. **Calibrate vocabulary/experience anchors on the validation corpus and build
    deterministic What should I play?.**
-9. **Complete the 12–15-profile private test, including the first real new-
+11. **Complete the 12–15-profile private test, including the first real new-
    profile Publish -> dispatch -> Live proof.**
-10. **Finish Protocol v1 calibration, incorporate measured learning and begin
+13. **Finish Protocol v1 calibration, incorporate measured learning and begin
     approximately-100-profile catalog production.**
 
 ## Governing companion documents
@@ -628,6 +683,12 @@ conformance remains a Codex/repository review.
 - `decisions/0027-practical-time-is-not-a-game-profile-dimension.md`
 - `decisions/0028-purpose-governed-product-analytics.md`
 - `decisions/0029-official-storefront-actions-before-live-commerce.md`
+- `decisions/0030-gate-a-homepage-direction.md`
+- `decisions/0031-static-build-time-search-index.md`
+- `decisions/0032-gate-b-profile-direction.md`
+- `decisions/0033-compare-url-index-and-art-direction.md`
+- `decisions/0034-accepted-full-compare-direction.md`
+- `audits/Should_I_Play_Opus_Engineering_Readiness_Audit_2026-08-30.md`
 - `design/Should_I_Play_Fable_Conformance_Audit_2026-08-26.md`
 - `design/Should_I_Play_Fable_Visual_Completeness_Audit_2026-08-26.md`
 - `design/Should_I_Play_Fable_Canonical_Screen_Mission_2026-08-26.md`

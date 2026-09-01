@@ -7,10 +7,10 @@
 **Product and project orchestration:** ChatGPT
 **Engineering:** Codex and Claude
 **Public product design:** Tomas, ChatGPT, and the reconciled Fable design work
-**Status:** Current product and roadmap constitution — public-product decisions resolved through 25 August and Scoring Protocol calibration
-**Current checkpoint:** Phase 2's editorial/publishing architecture is substantially complete. Cloudflare Access protects the real remote admin; Hyperdrive carries authenticated editorial traffic with caching disabled; preview, validation, transactional publication, history, deployment requests, manifest proof, N1 recovery/concurrency hardening, and the production self-fetch correction are merged and deployed. A successful `production_verified` observation now proves the current three-profile production artifact Live. The first application-originated Cloudflare Builds dispatch and one complete new-profile Publish → dispatch → Live cycle remain unexercised and will be proved by the first real catalog publication, not by further standalone admin hardening.
-**Public-product state:** the current site still exposes three calibration profiles and does not yet implement the resolved homepage, global Search, deterministic What should I play?, exactly-two Compare, accountability, catalog, time/session guidance, storefront actions, governed analytics, or mixed-artwork product. The 12–15-profile corpus is a private catalog/design validation milestone. Quiet public release requires approximately 100 substantive profiles.
-**Date:** 2026-08-26
+**Status:** Current product and roadmap constitution — amended through accepted Gate A, Gate B and full Compare public design direction, the static Search architecture decision, ADRs 0033/0034 and the completed shared implementation handoff on 31 August 2026; Scoring Protocol calibration remains active
+**Current checkpoint:** Phase 2's editorial/publishing architecture is substantially complete and in support mode. Gate A A1/A2 Rev 5.1, Gate B A3–A6 and full Compare C1–C4/C-rail are accepted as the homepage, profile and Compare design direction. The pre-code governance/readiness pass is recorded: ADR 0013 is superseded, Search uses an editorially governed static build-time index, and the installed baseline is archived in the Opus audit record. Tomas approved Compare's order-preserving URL/noindex policy under ADR 0033 and accepted the revised art-led-with-artless-parity direction under ADR 0034. The cross-surface design-system and interaction handoff is complete: A7 is reconciled, semantic tokens, responsive behavior, truth fallbacks, component ownership and accessibility acceptance are specified. The next public-product slice is the shared public foundation plus static Search, followed by the accepted homepage, profile and full Compare implementation. Application source checks, unit/browser tests, preview build, containment and preview Worker verification pass; the composite gate remains red only because tracked generated Fable support code is inside lint scope, while PostgreSQL-dependent production gates require a database-equipped Node 22 runner. The first application-originated Cloudflare Builds dispatch and one complete new-profile Publish → dispatch → Live cycle remain unexercised and will be proved by the first real catalog publication, not by further standalone admin hardening.
+**Public-product state:** the current site still exposes the earlier three-profile production experience and does not yet implement the accepted A1–A6 direction, global Search, deterministic What should I play?, exactly-two Compare, accountability, catalog, time/session guidance, storefront actions, governed analytics, or mixed-artwork product. Accepted design is authority, not deployment proof. The 12–15-profile corpus is a private catalog/design validation milestone. Quiet public release requires approximately 100 substantive profiles.
+**Date:** 2026-08-26 · **Gate A amendment:** 2026-08-28 · **Gate B/Search amendment:** 2026-08-30 · **Compare acceptance:** 2026-08-31
 
 ---
 
@@ -42,19 +42,27 @@ edge case exists.
 | **Should_I_Play_Public_Product_Resolutions_2026-08-25.md** | Later governing decisions for Search, What should I play?, metadata, time/session guidance, analytics, commerce, catalog operation, release posture, personalization sequencing, and the corrected artwork basis |
 | **Game_Profile_Scoring_Rubric_v1.0.md** | Scoring semantics: dimensions, subcriteria, score meanings, scope rules, Unknown/range behavior, platform-sensitive scoring, and rubric versioning |
 | **Game_Profile_Editorial_Evidence_and_Data_Sourcing_SOP_v0.2.md** | Evidence operations: source collection, mapping, confidence practice, transparency, and pre-release workflow |
-| **Game_Profile_Scoring_Protocol_v1.0_DRAFT.md** and its package schema | Candidate operational evidence-to-number protocol and reproducibility contract; provisional until the ten-game development/holdout program passes and Tomas approves it |
+| **Game_Profile_Scoring_Protocol_v1.0_DRAFT.md**, its package schema and ADR 0024 | Owner-approved candidate evidence-to-number protocol and reproducibility contract authorized for calibration; not governing until the ten-game development/holdout program and deferred gates pass and Tomas gives final approval |
 | **Game_Profile_Calibration_Round_1_Report_v0.1.md** and **Game_Profile_Calibration_Round_2_Report_v0.1.md** | Approved calibration outcomes and canonical calibration content they explicitly publish |
 | **Should_I_Play_Brand_and_SEO_Foundation_v0.2.md** | Brand/domain rationale, organic-acquisition strategy, and launch/runbook layer; current routing/hosting contracts are governed by this Plan and accepted ADRs |
-| **Game_Profile_Art_Direction_and_Anti_AI_Design_Brief_v0.1.md**, D3 record, ADR 0013, **Should_I_Play_Fable_Reconciliation_Brief_2026-08-26.md**, **Should_I_Play_Fable_Visual_Completeness_Audit_2026-08-26.md**, and **Should_I_Play_Fable_Canonical_Screen_Mission_2026-08-26.md** | Visual principles, anti-patterns, chosen production grammar, the reconciled requirements/state source, and the bounded final canonical-screen/art-direction mission |
+| **Game_Profile_Art_Direction_and_Anti_AI_Design_Brief_v0.1.md**, D3 record, superseded ADR 0013, **Should_I_Play_Fable_Reconciliation_Brief_2026-08-26.md**, **Should_I_Play_Fable_Visual_Completeness_Audit_2026-08-26.md**, and **Should_I_Play_Fable_Canonical_Screen_Mission_2026-08-26.md** | Historical visual principles, anti-patterns and reconciliation evidence. ADR 0013 no longer governs the public visual system |
+| Fable **Should I Play - Canonical Screens.dc.html**, A1–A6/C1–C4 and rails, plus ADRs 0030, 0032, 0033 and 0034 | Accepted homepage/profile/full Compare visual and interaction direction. The artifact complements this Plan; it does not replace product, methodology, evidence, data, artwork, or implementation contracts |
+| **Should_I_Play_Shared_Design_System_and_Interaction_Handoff_v1.0_2026-08-31.md**, its token JSON and accessibility/conformance matrix | Current cross-surface implementation specification beneath the accepted visual ADRs: semantic tokens, components, states, responsive behavior, truth fallbacks, focus/keyboard behavior and conformance acceptance |
+| **Should_I_Play_Score_and_Radar_Audit_2026-08-28.md**, **Should_I_Play_Gate_B_Profile_Brief_2026-08-28.md**, and **Should_I_Play_Gate_B_Fable_Result_Review_2026-08-29.md** | Read-only calibration/visualization findings, the bounded A3–A6 implementation contract and its acceptance evidence. The audit diagnoses existing values; it does not authorize score changes |
+| ADR 0031 | Governing MVP Search architecture: editorially included static build-time index, no request-time public database/service |
+| **Should_I_Play_Opus_Engineering_Readiness_Audit_2026-08-30.md** | Evidence-backed repository audit and reconciliation record; useful implementation evidence but not governing authority |
 | **ADRs in docs/decisions** | Accepted implementation and architecture decisions beneath the product/methodology contracts |
 | **README.md** | Operational onboarding and concise repository-as-implemented summary |
 | **Code, schema, migrations, tests** | Evidence of implementation state and enforcement; they do not silently redefine product or methodology |
 
-Historical Project Context, older Master Plan versions, and superseded Fable
-explorations are continuity records, not current authority. The latest accepted
-Fable requirements artifact is a visual-system/state baseline but does not
-become final composition authority until the visual-completeness gate and owner
-acceptance pass.
+Historical Project Context, older Master Plan versions, ADR 0013 and superseded
+Fable explorations are continuity records, not current visual authority. Within
+the current Fable project, A1/A2 Rev 5.1 governs the homepage, A3–A6 governs
+the profile direction and C1–C4/C-rail governs full Compare. A7 is reconciled
+by the shared handoff and remains subordinate to that implementation contract.
+Example values, polygons, copy, dates, roster, practical time and
+artwork in any Fable screen are illustrative unless independently grounded by
+canonical content and evidence records.
 
 ### 0.3 Authority boundaries
 
@@ -450,18 +458,30 @@ public proposition. The entrance supports three separately named journeys:
 3. **What should I play?** — progressive needs-based discovery through curated
    prompts, browsing/filters and bounded ordinary-language interpretation.
 
-The labels are locked; capitalization, responsive treatment and exact mobile
-navigation remain design questions. Search is globally available and receives
-the greatest visual priority. Compare is immediately accessible. What should I
-play? unfolds progressively rather than competing as an equal oversized tab.
-The homepage also owns:
+The labels and the A1/A2 Rev 5.1 conceptual hierarchy are locked. Search is
+embedded into the opening composition and selected by default. Compare remains
+immediately available but never becomes the default homepage subject. What
+should I play? unfolds progressively rather than competing as an equal
+oversized tab. The accepted homepage composition is:
 
-- a compact art-led opening in which utility remains primary;
-- manually authored “Choosing between…” comparisons;
-- an artwork-led profile shelf;
-- objective automatically fresh shelves where dates genuinely support them;
-- three or four evergreen decision shelves with explicitly authored membership;
-- one or two time-bounded living editorial collections with expiry and fallback.
+- the decision-first **“Should you play it?”** proposition;
+- a dark, cinematic and deliberately art-directed opening;
+- the exact journey labels **Search / Compare / What should I play?**;
+- a three-game artwork mosaic with integrated Game Profile fingerprints;
+- expanded interactions that keep artwork visible;
+- a general **“Start somewhere interesting”** poster rail;
+- authored factual, evergreen and living discovery shelves after that rail;
+- **“Choosing between…”** retained as a secondary curated module;
+- the same conceptual hierarchy on desktop and mobile.
+
+The freeze is directional and structural. Exact publication copy, game roster,
+dates, scores, polygons and artwork rights do not become true because they
+appear in the prototype.
+
+The opening hero/artwork composition may be modestly shorter in production so
+Search carries greater visual prominence. This is a bounded conformance
+refinement: it must preserve the accepted composition, fingerprints, artwork
+continuity and first-viewport Search availability.
 
 There is no ranking feed, launch personalization, generic registry table,
 automatic carousel, fake activity, or oversized search-only homepage.
@@ -469,10 +489,12 @@ automatic carousel, fake activity, or oversized search-only homepage.
 Planned routes/surfaces:
 
 - global Search behavior shared by homepage and public navigation, including
-  published, recognized-unprofiled, ambiguous and unrecognized states;
+  published, recognized-unprofiled, ambiguous and unrecognized states. ADR
+  0031 governs an editorially included static build-time index; there is no
+  request-time public database or provider call;
 - `/compare` — exactly-two-profile launcher;
-- canonical two-profile comparison results; pair results are noindex and remain
-  subordinate to their source profiles;
+- canonical two-profile comparison results subordinate to their source
+  profiles. The dedicated Compare pass decides URL shape and index policy;
 - a durable noindex What should I play? result state supporting refinement,
   trade-offs, sharing, refresh and browser navigation; exact route name is a
   design/IA implementation detail;
@@ -521,10 +543,21 @@ eight rows remain authoritative. Initial summary prominence thresholds remain
 presentational defaults to test on the validation corpus, not rubric semantics.
 
 The launcher permits arbitrary published pairs, including the same game across
-different scopes. Pair routes use scope-aware identity, canonical ordering and
-`noindex`. Artwork is absent from the entire Compare surface and share card.
-Reassess all-pair prerendering near 1,000 routes/~45 profiles or when it consumes
-more than roughly 20% of build time.
+different scopes. Scope-aware identity is required. ADR 0033 fixes an
+order-preserving `/compare?games=<left>,<right>` share state: pair URLs are
+`noindex, follow`, absent from the sitemap and rating/review schema, and are not
+all prerendered. Unordered normalization is internal-only and never reorders
+the displayed sides.
+
+The primary full Compare composition is art-led: two equal artwork territories
+frame a central two-profile radar, visually prominent differences/alignments
+and canonical Shared/left-only/right-only tags. Art never indicates a winner.
+Every pair must also have a complete artless parity state, and all values,
+relations, tags and evidence remain understandable without imagery.
+
+Exactly two is the MVP and resolved public contract. Older two-to-four language
+is superseded for MVP; three/four-game Compare remains deferred and requires a
+new product decision.
 
 Individual profiles include an editor-selected “Compare with” entry point. It
 must not be described as popular or commonly compared without usage evidence.
@@ -533,27 +566,53 @@ must not be described as popular or commonly compared without usage evidence.
 
 ## 6. Public Game Profile and visual system
 
-### 6.1 Chosen direction
+### 6.1 Chosen direction and gate boundary
 
-D3 — **Game-Led Profile** — remains the canonical profile foundation.
+ADR 0013 is superseded. The accepted Fable A1–A6 screens and ADRs 0030/0032
+govern the public visual, information-hierarchy and interaction direction:
 
-> authentic game identity/artwork → game-derived accent → attached graphite analytical field → bespoke radar + exact score instrument → editorial interpretation/evidence
+> decision answer → game/scope identity → Pull/Tax/fit/practical commitment → fixed-scale profile instrument → trust/platform detail → useful exits
 
-The site is the frame; games carry color. The wider public product now follows
-the art-led, utility-first Field Guide direction in the P0 decision record. The
-existing Fable artifact and five newer homepage concepts are research/design
-inputs; none is a final implementation specification. The next design starts
-from their recorded synthesis rather than selecting one mockup wholesale.
+A1/A2 Rev 5.1 governs the homepage and must not be redesigned or rediscovered.
+A3–A6 governs the art-led/artless desktop/mobile profile and is accepted. D3
+and ADR 0013 remain historical implementation lineage, not authority over the
+new screens.
+
+The accepted screens do **not** approve illustrative scores or radar shapes,
+specimen practical time, profile copy not grounded in canonical content, dates,
+example roster, destination records, or artwork clearance. They authorize
+implementation of hierarchy and behavior, not fabrication of publication
+facts.
+
+Production must resolve the known Gate A cautions:
+
+- desktop expanded radar labels shown near 9px require a genuinely readable
+  size or an aligned supporting value list;
+- expanded-state controls require coherent semantics and keyboard order,
+  including the secondary profile link, without a focus trap;
+- mobile Search must remain available without introductory scrolling at
+  390×667, narrower widths and text zoom;
+- artwork remains subject to the lawful-artwork policy and the complete no-art
+  fallback;
+- no missing Fable verifier message may be treated as production proof;
+- unfinished dimension values and their polygons must not be copied into
+  production.
 
 ### 6.2 Visual constitution
 
-- Site chrome is achromatic graphite and warm paper.
-- Amber is a restrained brand signal, not a general light-surface accent.
+- The public opening is dark, cinematic and deliberately art-directed.
+- Gate A's coral brand voice, cyan evidence role and JetBrains Mono
+  evidence/numeric voice supersede ADR 0013's amber-led shared system.
+- Gate B may use warm-paper reading grounds and Newsreader for extended
+  editorial prose inside the accepted profile composition; shared token roles
+  are finalized in the handoff, not inferred from A7.
 - Each game contributes one identity accent; color never means quality.
-- Archivo is the display/label/numeric family; Newsreader is prose.
-- Typography and ruled separation carry hierarchy.
+- Archivo remains the primary display/label face. Typography, contrast and
+  ruled separation carry hierarchy.
 - No card soup, generic SaaS dashboard language, glassmorphism, neon gamer styling, HUD decoration, black-purple gradients, generic component-library identity, or green/red quality semantics.
 - One canonical radar implementation serves the product.
+- Production token values must be contrast-measured on their actual grounds;
+  historical ADR 0013 ratios cannot be copied onto the dark system.
 
 Admin may be denser and more utilitarian than the public site. It receives no
 broad design pass unless usability blocks real content production.
@@ -563,16 +622,31 @@ broad design pass unless usability blocks real content production.
 A profile presents:
 
 - game identity/hero stage;
+- explicit evaluated scope/build, full platform identities and evidence state;
 - one-line experience;
-- pre-release uncertainty notice where applicable;
-- full radar;
-- eight exact score rows and rationales;
-- Primary Pull / Primary Risk;
-- recommendation blocks;
-- scope, confidence, evidence, and provenance;
+- balanced public Pull / Tax;
+- concise fit guidance;
+- approved total commitment and useful-session facts, or truthful Unknown/
+  omission where the record does not support them;
+- full labelled radar plus eight permanent exact rows, confidence and
+  rationales;
+- pre-release/provisional/range/Unknown treatment where applicable;
+- detailed fit, evidence, corrections and provenance;
+- material platform warning, performance note, subcriterion platform note and
+  platform override wherever it changes the playing decision;
 - sibling switcher where applicable;
 - an editor-selected “Compare with” entry point;
 - additional profiles as the exit.
+
+Poster/profile components must never derive a commitment band from Fable's
+Alan Wake 2 specimen. Practical-time values require an approved scope-aware
+record; otherwise render `Unknown` or omit an optional summary. Platform notes
+and overrides are a Gate B truthfulness requirement and never change base
+dimension totals.
+
+The public meaning and data source for **Evaluated** remains open: implementation
+must explicitly choose `evidence_cutoff_at`, `published_at` or a separately
+modelled field and align the label to that meaning.
 
 ### 6.4 Artwork intent and fallback
 
@@ -582,11 +656,12 @@ a binary requirement for every profile. Cleared authentic artwork and the
 deliberately designed artless state coexist in the launch catalog.
 
 Cover and hero are separate roles; a cover is never stretched into a landscape
-hero. Search, cards, profiles and authored homepage collections may use artwork
-under the approved policy. Compare remains intentionally artwork-free. Missing
-artwork must not create a placeholder, empty frame, layout hole or inferior
-card. Artwork must remain rights-aware and cannot render publicly without
-production clearance.
+hero. Search, cards, profiles, authored homepage collections and the art-led
+Compare composition may use artwork under the approved policy. Compare uses two
+equal artwork territories and a complete artless parity state under ADR 0033.
+Missing artwork must not create a placeholder, empty frame, layout hole or
+inferior surface. Artwork must remain rights-aware and cannot render publicly
+without production clearance.
 
 ---
 
@@ -635,24 +710,36 @@ of the catalog. No artwork-coverage percentage is a launch gate.
 Editorial fair use is now an approved independent basis for appropriate official
 promotional artwork used to identify, navigate to, or directly illustrate a
 substantive evaluation or criticism. It is not a blanket exemption for large
-decorative atmosphere, standalone/original distribution, fan art, paid
-advertising or Compare. Explicit provider terms, press-kit permission, licence
-or direct permission remain useful risk-reduction and scaling channels, not a
+decorative atmosphere, standalone/original distribution, fan art or paid
+advertising. Compare artwork is eligible only under ADR 0033 when it directly
+identifies the two works inside a substantive comparison and the complete
+artless state remains available. Explicit provider terms, press-kit permission,
+licence or direct permission remain useful risk-reduction and scaling channels, not a
 precondition that displaces the approved editorial basis.
 
-ADR 0011, forward migration `0010_artwork_fair_use`, application types,
-validation, admin input and regression coverage are implemented in the current
-foundation change. Before the first asset is production-cleared on
-editorial-fair-use basis, the operating gate still requires:
+The lawful artwork path remains seven explicit steps. Completed code or an
+accepted art-led design does not collapse the operating gate:
 
-1. obtain a proportionate one-time review of the written policy by an Israeli IP
-   lawyer;
-2. apply the forward migration to the authoritative database before deploying
-   code that accepts the new basis;
-3. document source eligibility, placement, attribution, resolution,
-   storage/proxy/hotlink behavior and takedown;
-4. retain per-asset provenance and preserve the artless fallback; and
-5. verify that evaluation-only containment remains intact.
+1. **Legal review — OPEN:** obtain a proportionate, jurisdiction-aware review
+   of the intended written editorial-fair-use policy and placements.
+2. **ADR — DONE:** ADR 0011 records editorial fair use as a bounded basis.
+3. **Enum migration — PARTIAL:** forward migration
+   `0010_artwork_fair_use` exists; apply it to the authoritative database before
+   deploying code or data that relies on the value.
+4. **Types and validation — DONE:** application/schema validation and guarded
+   production-clearance semantics recognize the explicit basis.
+5. **Admin/import path — DONE IN FOUNDATION:** the one-editor input path can
+   record the basis; no import may production-clear an asset automatically.
+6. **Written operating policy — OPEN:** document source eligibility, editorial
+   placement, attribution, resolution, storage/proxy/hotlink behavior,
+   standalone-download prohibition, dispute handling and takedown.
+7. **Containment re-verification — OPEN FOR REAL ASSETS:** retain per-asset
+   provenance and the complete artless fallback, then re-run production
+   containment against the first real cleared assets and every material path
+   change.
+
+No production asset may rely on editorial fair use until all seven steps are
+closed for the relevant operating state.
 
 GPT may identify candidates and prepare provenance. Codex or Claude may
 implement ingestion and validation. Tomas alone approves production basis and
@@ -957,18 +1044,28 @@ reports *not proven* rather than guessing in either direction.
 
 ### 9.10 Search/no extra service layer
 
-Global Search and What should I play? launch from locally emitted, approved
-catalog data. Search covers published profiles plus recognized factual registry
-records with an explicit availability state. What should I play? composes a
-governed vocabulary, normalized facets, experience classifications, time/session
-context, relevant dimension values, deterministic constraints and a broad
-testable language layer. Interpreted criteria remain visible and editable.
+ADR 0031 governs MVP Search as an editorially controlled static build-time
+index. The build emits approved canonical titles, aliases, published profiles
+and explicitly included recognized-but-unprofiled registry records. The browser
+searches that artifact; the public request path performs no Postgres, provider,
+hosted-search or language-model call. Imports may propose registry entries but
+cannot make them publicly searchable without an editorial inclusion decision.
 
-The initial runtime does not depend on a paid language-model API. Postgres
-full-text/trigram, an external search service, or a hosted model may be added
-only when measured corpus/language behavior justifies it. A later model may map
-language into the same controlled concepts; it cannot invent unpublished
-claims, replace the catalog, or create a hidden universal ranking.
+Search covers published, recognized-unprofiled, ambiguous and unrecognized
+states. Unprofiled entries create no route, sitemap entry, structured profile
+data, score, artwork, commitment band or coverage promise.
+
+What should I play? launches from the same locally emitted approved catalog
+data and composes a governed vocabulary, normalized facets, experience
+classifications, time/session context, relevant dimension values, deterministic
+constraints and a broad testable language layer. Interpreted criteria remain
+visible and editable.
+
+The initial runtime does not depend on a paid language-model API. Request-time
+Postgres full-text/trigram, an external search service, or a hosted model may be
+added only when measured corpus/language behavior justifies a new decision. A
+later model may map language into the same controlled concepts; it cannot invent
+unpublished claims, replace the catalog, or create a hidden universal ranking.
 
 Do not add microservices, GraphQL, a separate public API service, an event bus, or a second rendering/domain model.
 
@@ -1037,6 +1134,12 @@ canonical game-profile route or public evaluation fields until a substantive
 profile is published. Coverage requests are private bounded demand signals and
 never votes on evaluation content.
 
+Do not begin the scope-grain session-suitability, normalized-facet or eleven-
+experience-axis schema expansions before the first real editorial trial. Use
+profiles #4–#6 to measure authoring cost and expose missing states first. This
+does not block the static Search index, which can begin with canonical titles,
+approved aliases, publication state and explicit editorial registry inclusion.
+
 ---
 
 ## 11. SEO, discoverability, and measurement
@@ -1060,9 +1163,10 @@ Preview/design/admin surfaces stay out of the public index and sitemap; authenti
 Acquisition depends on stable substantive profiles and truthful editorial
 surfaces, not mass-generated combination pages or artificial categories.
 Recognized-unprofiled Search results do not create public stubs. Generated What
-should I play? results and Compare pair results are noindex and excluded from
-the sitemap; `/compare` and stable substantive editorial collections may be
-indexable.
+should I play? results are noindex and excluded from the sitemap. The dedicated
+Compare pass decides Compare URL, canonical and index policy; until then no
+pair-result indexing or all-pair prerender contract is assumed. Stable
+substantive editorial collections may be indexable.
 
 ### 11.2 Analytics and privacy contract
 
@@ -1189,6 +1293,25 @@ accepted.
 repeatable, auditable and operationally affordable without pretending
 qualitative judgment is mathematically objective.
 
+Tomas approved the candidate Protocol v1.0 and ADR 0024 on 25 August 2026 as
+the basis for Appendix B calibration. That authorizes the exercise; it does not
+make the candidate governing. Rubric v1.0, Evidence SOP v0.2 and the current
+data contract remain in force meanwhile.
+
+Four gates remain explicit:
+
+1. run six development games and four untouched holdouts, then record final
+   governing approval or return the protocol to development;
+2. after development evidence and before holdout, decide ADR 0024 §4's Rubric
+   v1.1 required-facet path;
+3. before migration 4 or the first package import, decide the immutable-package
+   approval lifecycle recorded in ADR 0024 §6; and
+4. at final approval, use measured time and effort to choose the full or a
+   deliberately reduced production record.
+
+Calibration may use disclosed `parameter_unavailable` pairs under ADR 0024 §8.
+That is an accepted calibration condition, not an unrecorded deferral.
+
 **Deliverables:**
 
 - candidate Protocol v1.0, package schema, ADR 0024 and behavioral validation;
@@ -1209,61 +1332,77 @@ production-record depth justified by measured effort.
 agent, automated publishing, outlet-score weighting, or rewriting the three
 existing calibration profiles.
 
-### Phase 3B — Public-product contract and design reconciliation
+### Phase 3B — Public-product design gates
 
-**ACTIVE; PRODUCT/CONTRACT CONFORMANCE COMPLETE, FINAL UI/ART-DIRECTION PASS PENDING**
+**COMPLETE — VISUAL GATES AND SHARED HANDOFF**
 
-The 24–25 August decision records now resolve the proposition, journey labels
-and hierarchy, Search coverage states, deterministic What should I play?
-semantics, Compare method and indexing posture, practical time concepts,
-metadata ownership, commerce baseline, launch analytics, catalog scale,
-curation, accountability, release posture, personalization sequence and
-corrected artwork basis.
+The 24–25 August decision records resolve the product contract. Gate A resolves
+the homepage composition and interaction direction under ADR 0030. Gate B
+resolves the A3–A6 profile direction under ADR 0032. No further homepage or
+profile concept exploration is authorized. Accepted artifacts are not
+publication truth for specimen time, private artwork, unresolved dates,
+destinations or unsupported content, and they are not proof that production
+matches the design.
 
-The bounded Fable reconciliation and ten-item contract repair are complete.
-The recovered 772,155-byte HTML export is recorded in the conformance audit
-with SHA-256
-`82734bab44b7e2035628426b09d0a8d8860b199ff8ac08b4de4d49464459533d`.
-The separate visual-completeness audit found that the artifact preserves the
-product/state contracts but does not yet execute the final visual-design
-promise in the attached resolutions. In particular, the homepage remains a
-text-first contents-page composition rather than the locked compact art-led,
-utility-first entrance, and the art-on states are not resolved with realistic
-composition. A bounded canonical-screen/art-direction pass, Tomas's acceptance
-and the associated `/play` route freeze remain Phase 3B exit actions.
+**Gate B objective:** revise the existing A3–A6 profile screens into one
+implementation-ready desktop/mobile specification that is compatible with
+Gate A and makes “Should I play this?” rapidly answerable.
 
-**Objective:** translate that frozen product model and the existing “Should I
-Play? at Fifteen” design lock into one implementation-ready responsive public
-specification.
+**Required Gate B inputs and deliverables:**
 
-**User value:** the next build implements a coherent decision product instead
-of accumulating disconnected utilities or redesigning settled methodology.
+- a read-only audit of the canonical eight dimensions, fixed scale, current
+  calibration values, distributions, compression, relationships and anchors;
+- a three-level radar contract for compact homepage fingerprint, full labelled
+  profile instrument and exactly-two Compare overview, with exact accessible
+  values outside the chart;
+- A3 art-led desktop profile and A4 art-led mobile profile;
+- A5 complete artless desktop profile and A6 complete artless mobile profile;
+- resolved hierarchy among identity/scope, decision answer, public Pull/Tax
+  (mapped from Primary Pull/Risk), fit guidance, practical commitment and the
+  eight-dimension instrument;
+- exact values, dimension explanations, evidence confidence, ranges, Unknown,
+  provisional status, scope/build/platform differences and platform logos;
+- useful session length and total commitment outside the eight dimensions;
+- editorial voice and trust/evidence that do not turn the page into a report;
+- mobile reading order, keyboard behavior and complete artwork/no-art parity;
+- an implementation component/state inventory and acceptance criteria.
 
-**Deliverables:**
+Gate B uses Fable High and revises the existing screens. It does not spend
+design usage on A1/A2, a new brand, a new rubric, rankings, launch
+personalization, broad admin design or a runtime chatbot.
 
-- a retained/revised/superseded/new ledger against the existing Fable artifact;
-- final responsive hierarchy for the homepage, global Search, What should I
-  play?, Compare, profiles and About/corrections;
-- a concise canonical desktop/390px screen set that executes the art-led
-  homepage and mixed art/artless public system rather than leaving screens
-  embedded only as annotated reconciliation specimens;
-- every material empty, ambiguous, unprofiled, indeterminate, range, Unknown,
-  artless, stale, error and mobile state;
-- accessible nonvisual equivalents for comparative shapes and criteria editing;
-- implementation component/state inventory, content contract, dependencies and
-  sequencing;
-- calibrated public labels for the eleven experience axes and the practical
-  time/session phrase matrix, either in design or as a short owner decision;
-- final route choice for the durable discovery-results state.
+The read-only [score/radar audit](design/Should_I_Play_Score_and_Radar_Audit_2026-08-28.md),
+[implementation-ready brief](design/Should_I_Play_Gate_B_Profile_Brief_2026-08-28.md)
+and [self-contained Fable High prompt](design/Should_I_Play_Gate_B_Fable_High_Prompt_2026-08-28.md)
+are complete. On 29 August, Fable High applied the bounded A3–A6 pass and a
+subsequent truth correction to remove unsupported play-log and completion-time
+source claims. Fable reported 15/15 checklist items passing; independent review
+confirmed the canonical values, permanent exact rows, semantic disclosures,
+art/artless parity, absence of the unsupported claims and preservation of the
+design-specimen warning. The separate background verifier still did not post a
+result. The candidate, evidence and remaining caveats are recorded in the
+[Gate B candidate review](design/Should_I_Play_Gate_B_Fable_Result_Review_2026-08-29.md).
 
-**Exit criteria:** no open choice can materially change navigation, page types,
-content requirements, data contract or implementation architecture; the
-existing design has been surgically reconciled rather than rediscovered; Tomas
-accepts the result as the public implementation specification.
+Tomas accepted the Gate B candidate on 30 August 2026 as good enough to proceed.
+The homepage hero-height observation is a bounded implementation refinement,
+not a reopened gate. A7's older token card is reconciled by the completed
+cross-surface design-system/interaction handoff.
 
-**Out of scope:** a new brand, a new rubric, rankings, launch personalization,
-broad admin design, a runtime chatbot, or treating one exploratory mockup as
-production without the state/handoff work.
+**Gate A/Gate B exit criteria:** met. Fable High completed a first dedicated
+Compare candidate and an independent review found its data/accessibility checks
+satisfied while A1–A6 remained unchanged. Tomas accepted its URL/index policy
+but rejected its artwork-free visual direction. The [first candidate
+review](design/Should_I_Play_Full_Compare_Fable_Result_Review_2026-08-31.md)
+records that split decision; ADR 0033 governs the art-led revision and URL/index
+policy. Tomas accepted the [revised art-led candidate](design/Should_I_Play_Full_Compare_Art_Led_Result_Review_2026-08-31.md)
+on 31 August 2026; ADR 0034 closes the full Compare design gate. The
+[shared design-system/interaction handoff](design/Should_I_Play_Shared_Design_System_and_Interaction_Handoff_v1.0_2026-08-31.md),
+[semantic tokens](design/handoff/should-i-play.tokens.v1.json) and
+[accessibility/conformance matrix](design/Should_I_Play_Accessibility_and_Conformance_Matrix_v1.0_2026-08-31.md)
+are complete. They reconcile A7's stale two-face/artwork-free rules, specify the
+bounded hero-height refinement and make the accepted surfaces implementation-
+ready. Within engineering, the shared foundation and static Search move ahead
+of homepage, profile and full Compare under ADR 0031.
 
 ### Phase 4 — 12–15-profile product-validation corpus
 
@@ -1395,32 +1534,46 @@ the same controlled concepts.
 
 ## 13. Current prioritized backlog
 
-### P0 — current design/proof/foundation work
+### P0 — current public-product design/proof work
 
-1. Record the complete owner-approved P0 decision set and reconcile the Master
-   Plan. **DONE in this plan/decision-set change when merged.**
-2. Complete review of the candidate Scoring Protocol/package contract and run
-   the six-development/four-holdout program. **OPEN**
-3. Record the later Search/discovery, metadata, time, analytics, commerce,
-   release, personalization and corrected-artwork resolutions. **DONE in the
-   25 August resolution register when merged.**
-4. Reconcile the existing Fable/design work into one implementation-ready
-   responsive specification. **CONTRACT CONFORMANCE COMPLETE; FINAL VISUAL
-   COMPLETION AND OWNER ACCEPTANCE OPEN**
-5. Implement/test the provider-independent Search, discovery, practical-time,
-   commerce and event contracts that do not depend on unresolved visual design.
-   **FOUNDATION IMPLEMENTED; public surfaces and persistence remain OPEN**
-6. Remove known public truth drift: aggregate-like copy, pending-ledger numeric
-   counts and internal calibration language. **DONE in the foundation change
-   when merged.**
-7. Create and operationally verify corrections@shouldiplay.gg plus contextual
+1. Record A1/A2 Rev 5.1 as the accepted Gate A homepage direction in the Master
+   Plan, decision register and ADR 0030. **DONE when this amendment merges.**
+2. Complete the read-only score/radar audit without modifying scores,
+   normalizing the catalog, adding a dimension or deriving an aggregate.
+   **DONE in the 28 August audit**
+3. Prepare and accept the Gate B A3–A6 profile-page revision in Fable High.
+   **DONE; accepted 30 August under ADR 0032**
+4. Reconcile the governing documents, archive the Opus readiness evidence,
+   correct operational documentation and run the dependency-installed baseline
+   gates before product code. **DONE; results and remaining runner/lint gaps are
+   recorded in the audit**
+5. Review the revised full Compare visual candidate under ADR 0033:
+   exactly two games, art-led with complete artless parity, central radar,
+   striking but non-judgmental difference/alignment and shared/unique tag
+   treatment. The URL/index policy is accepted. **DONE; accepted 31 August
+   under ADR 0034**
+6. Produce the cross-surface design-system/interaction handoff. **DONE;
+   v1.0 handoff, token JSON and conformance matrix recorded 31 August**
+7. Implement the dominant static Search journey under ADR 0031 before full
+   Compare implementation. **OPEN; first public engineering slice**
+8. Implement the accepted homepage/profile composition in bounded vertical
+   slices, including truthful platform projections and no fabricated practical
+   time. **OPEN**
+9. Complete review of the candidate Scoring Protocol/package contract and run
+   the six-development/four-holdout program. **OPEN IN PARALLEL; precondition to
+   bulk catalog production**
+10. Create and operationally verify corrections@shouldiplay.gg plus contextual
    profile links before About claims that route. **OPEN**
-8. Complete the one-time legal/policy/migration work before clearing any artwork
+11. Complete the seven-step lawful artwork path before clearing any artwork
    specifically on editorial-fair-use. **PARTIAL: ADR, enum migration, types,
    validation and tests implemented; one-time legal/policy operating gate OPEN.**
-9. Produce the first real new catalog profile through the full
-   Publish → dispatch → Live path. **OPEN; belongs to Phase 4**
-10. Build the 12–15-profile validation corpus and measure throughput. **OPEN**
+12. Produce the first real new catalog profile through the full Publish →
+   dispatch → Live path and build the 12–15-profile validation corpus.
+   **OPEN; belongs to Phase 4**
+
+Admin work remains out of this sequence unless it blocks integrity, security,
+truthful publication/deployment proof, the ability to publish or the public
+product.
 
 ### P1 — before quiet public release
 
@@ -1686,6 +1839,18 @@ For each material decision:
 - Profile-first Field Guide; Registry is a retrieval pattern, not proposition.
 - Homepage = art-led, utility-first entrance with Search dominant, Compare as
   major secondary action and What should I play? progressively disclosed.
+- Gate A A1/A2 Rev 5.1 = canonical homepage visual and interaction direction:
+  “Should you play it?”, dark cinematic opening, Search selected by default,
+  three-game artwork/fingerprint mosaic, “Start somewhere interesting” rail,
+  authored shelves, secondary “Choosing between…”, visible artwork during
+  expansion and a shared desktop/mobile conceptual hierarchy.
+- ADR 0013 is superseded; A1–A6 plus ADRs 0030/0032 govern the accepted
+  homepage/profile visual, while C1–C4/C-rail plus ADRs 0033/0034 govern the
+  accepted Compare URL/index, hierarchy and interaction direction.
+- Gate B A3–A6 = accepted art-led/artless desktop/mobile profile direction;
+  decision answer precedes the fixed-scale instrument and permanent exact rows.
+- MVP Search = editorially governed static build-time index with no public
+  request-time database/provider/service; registry inclusion is explicit.
 - Search is global and supports published, recognized-unprofiled, ambiguous and
   unrecognized states; unprofiled records never receive public profile stubs.
 - Coverage requests are accountless private demand signals without counts,
@@ -1696,6 +1861,9 @@ For each material decision:
 - There is no public match percentage or hidden universal relevance/quality
   score.
 - Compare is launch-critical, exactly two and subordinate to profiles.
+- Full Compare = accepted art-led C1/C2 and complete artless-parity C3/C4,
+  with two equal artwork territories, central radar, permanent exact rows and
+  canonical shared/unique tags under ADR 0034.
 - Homepage comparison is shape before interpretation with mandatory
   bigger-is-not-better guidance.
 - Explicit primary scope owns /games/[slug]; sibling scopes own their
@@ -1714,8 +1882,8 @@ For each material decision:
   small version-controlled configuration.
 - Byline = “the editor”; independence, self-funding and commercial posture are
   disclosed; corrections use corrections@shouldiplay.gg.
-- Artwork-forward mixed launch; artless remains first-class; Compare is
-  artwork-free.
+- Artwork-forward mixed launch; artless remains first-class; Compare uses two
+  equal artwork territories with complete artless parity under ADR 0033.
 - Editorial fair use is an approved independent basis for appropriate official
   promotional artwork after its one-time legal/implementation gate.
 - Metadata is provider-first but provider-independent: one routine provider,
@@ -1739,10 +1907,7 @@ For each material decision:
 
 - exact Scoring Protocol anchors, formulas, package contract and implementation
   changes until calibration/approval;
-- homepage eyebrow/headline/explanation wording;
-- overlaid radar as the exact accessible homepage Compare visualization;
-- deterministic largest-contrast/closest-alignment presentation rules;
-- final public visual design and responsive composition;
+- publication copy within the accepted homepage hierarchy;
 - exact calibrated labels/anchors for the eleven experience axes;
 - exact public session-summary phrase matrix;
 - IGDB as primary metadata provider and HowLongToBeat as runtime provider,
@@ -1753,10 +1918,7 @@ For each material decision:
 
 ### 17.3 Open P0 implementation/design decisions
 
-- final Fable-reconciled hierarchy and behavior for Search, discovery, Compare,
-  profile additions and About/corrections;
-- exact accessible comparative visualization and nonvisual equivalents;
-- final design-system application, motion, responsive states and accessibility;
+- public meaning/data source of the **Evaluated** date label;
 - exact initial 12–15 and approximately-100 title lineups;
 - calibration outcome and production record-depth decision.
 
@@ -1852,10 +2014,12 @@ v0.9 reconciles:
 - Master Plan v0.8;
 - production/main after remote-admin activation and successful Live proof;
 - the complete owner P0 decision record dated 24 August 2026;
-- the later owner resolution register dated 25 August 2026;
+- all 27 locked records in the later owner resolution source dated 25 August
+  2026, revalidated through the canonical register at SHA-256
+  `29d4b2db2c04679d696411a7dd1bb1e2235061f168dd7756762890e1f8037e64`;
 - the candidate Scoring Protocol/package contract and its repository review;
-- the accepted Fable/public-design history;
-- ADRs through 0029;
+- the accepted Gate A A1/A2 and Gate B A3–A6 Fable direction;
+- ADRs through 0034, with ADR 0013 superseded;
 - the explicit public-first directional correction.
 
 Material changes from v0.8:
@@ -1867,8 +2031,8 @@ Material changes from v0.8:
 5. the claim-level scoring protocol/calibration program becomes the precondition
    to bulk catalog production;
 6. the homepage becomes the art-led three-journey Field Guide entrance;
-7. Search/Discovery, exactly-two Compare, profile and design questions become
-   the remaining P0 sequence;
+7. the dedicated exactly-two Compare design pass and shared handoff precede
+   engineering, where static Search moves ahead of full Compare implementation;
 8. factual/evergreen/living editorial curation and ownership are recorded;
 9. accountability, corrections and AI-assisted-method language are recorded;
 10. the artwork-forward mixed launch and activated editorial-fair-use basis with
@@ -1883,26 +2047,41 @@ Material changes from v0.8:
     launch promise;
 15. old 15–25/40+/Discover-first/2–4 Compare/admin-first and later-analytics/
     store-provider decisions are explicitly superseded.
+16. Gate A and Gate B close homepage/profile rediscovery while preserving
+    illustrative-content, artwork, truthfulness and conformance boundaries;
+17. Compare remains exactly two; its URL/index and accepted visual direction
+    are governed by ADRs 0033/0034, while the public **Evaluated** label remains
+    an explicit copy/data decision.
 
 ---
 
 ## Appendix B — immediate execution sequence
 
-1. Merge the integrated 24–25 August resolution/protocol consolidation after
-   review.
-2. Complete the bounded canonical-screen/art-direction pass against the
-   conformance-verified Fable requirements artifact, then freeze `/play` and
-   accept one implementation-ready responsive specification.
-3. In parallel, finish candidate-protocol review and run the registered
+1. Preserve the accepted A1/A2 Rev 5.1 homepage direction; do not revise or
+   rediscover it.
+2. Preserve accepted Gate B A3–A6; do not publish specimen time or private
+   artwork as facts.
+3. Complete the pre-code governance/readiness baseline: ADR supersession,
+   static Search decision, README/current-state reconciliation, Opus evidence
+   archive and all installed repository gates.
+4. Preserve the accepted ADR 0034 exactly-two,
+   art-led-with-artless-parity full Compare direction and ADR 0033 URL/index
+   policy; do not reopen them.
+5. Preserve the completed design-system and interaction handoff across A1–A6
+   and C1–C4, including its A7 reconciliation and modest homepage hero-height
+   refinement.
+6. Implement the static Search index and its four truthful states before full
+   Compare implementation; build the accepted homepage/profile slices and then
+   the accepted Compare experience.
+7. Run visual-conformance and accessibility review against the accepted system
+   after each relevant implementation slice.
+8. In parallel, finish candidate-protocol review and the registered
    development/holdout calibration.
-4. Implement the provider-independent Search, discovery, time/session, commerce
-   and event contracts that are already frozen; remove known public truth drift.
-5. Implement the accepted Fable public surfaces without reopening the product
-   model.
-6. Build and test the full public product against the 12–15-profile validation
-   corpus, including the first new-profile dispatch and Live observation.
-7. Approve the sustainable metadata/runtime/store inputs and analytics/privacy
+9. Run the first real editorial trial before session/facet/eleven-axis schema
+   expansion; build and test the public product against the 12–15-profile
+   validation corpus, including the first new-profile dispatch and Live
+   observation.
+10. Approve the sustainable metadata/runtime/store inputs and analytics/privacy
    operations needed for release.
-8. Incorporate measured learning, then scale catalog production toward
-   approximately 100 substantive profiles.
-9. Complete quiet public-release validation under §18.
+11. Incorporate measured learning, scale toward approximately 100 substantive
+    profiles and complete quiet public-release validation under §18.

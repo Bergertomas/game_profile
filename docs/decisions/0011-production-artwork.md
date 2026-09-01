@@ -1,7 +1,8 @@
 # ADR 0011 — Production artwork comes from the game record, or not at all
 
 **Status:** Accepted · 2026-08-07 · **Extended into the schema, 2026-08-13 ·
-Amended for editorial fair use, 2026-08-26**
+Amended for editorial fair use, 2026-08-26 · Compare-placement rule superseded
+by ADR 0033, 2026-08-31**
 **Context:** Design direction D3 is artwork-led and is now the public game page.
 The artwork D3 was designed against is evaluation-only and uncleared
 ([ADR 0010](0010-design-surfaces-and-site-environment.md)).
@@ -16,7 +17,7 @@ approves the source, basis, role and final visual selection on the game record.
 ```
 game
  └── artwork
-      ├── cover      portrait — cards and listings (Compare stays artless)
+      ├── cover      portrait — cards and listings (Compare under ADR 0033)
       ├── hero       landscape — the profile stage
       ├── source     manual | rawg | mobygames | press-kit
       ├── externalId the provider's own id, so a record can be refreshed
@@ -223,3 +224,16 @@ The fair-use policy is therefore **approved but operationally gated**. The
 artless fallback, production/evaluation containment, auditable credit/source
 page requirements and prompt takedown posture remain unchanged. This amendment
 is a product and operating decision, not legal advice or a blanket clearance.
+
+## Amendment — art-led Compare placement, accepted 2026-08-31
+
+[ADR 0033](0033-compare-url-index-and-art-direction.md) supersedes only this
+record's earlier prohibition on artwork in Compare. The primary Compare state
+may use two rights-aware game artworks because each directly identifies one of
+the two evaluated works and supports a substantive decision comparison.
+
+All other controls in this ADR remain unchanged: per-asset provenance and human
+clearance, the production/evaluation boundary, the seven-step lawful-artwork
+path, containment, credits, appropriate crops, takedown handling and a complete
+artless parity state. No design artifact or evaluation-only asset becomes
+production-cleared through this amendment.

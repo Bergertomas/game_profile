@@ -1,0 +1,163 @@
+{
+  "$description": "Should I Play? shared public-product design tokens. Governs implementation of accepted A1-A6 and C1-C4 screens; specimen content is not publication truth.",
+  "color": {
+    "surface": {
+      "canvas": { "$type": "color", "$value": "#0B0C0F" },
+      "stage": { "$type": "color", "$value": "#0C0B0A" },
+      "chrome": { "$type": "color", "$value": "#101116" },
+      "panel": { "$type": "color", "$value": "#111217" },
+      "panelRaised": { "$type": "color", "$value": "#15161B" },
+      "editorial": { "$type": "color", "$value": "#EDE7DA" }
+    },
+    "text": {
+      "primary": { "$type": "color", "$value": "#F2F1EE" },
+      "secondary": { "$type": "color", "$value": "#E3E2DF" },
+      "muted": { "$type": "color", "$value": "#B9BBC0" },
+      "quiet": { "$type": "color", "$value": "#8D9095" },
+      "onEditorial": { "$type": "color", "$value": "#26221B" },
+      "onEditorialMuted": { "$type": "color", "$value": "#453F35" },
+      "inverse": { "$type": "color", "$value": "#0B0C0F" }
+    },
+    "brand": {
+      "coral": { "$type": "color", "$value": "#F2704D" },
+      "coralHover": { "$type": "color", "$value": "#FA8565" },
+      "evidenceCyan": { "$type": "color", "$value": "#5BC8DE" }
+    },
+    "border": {
+      "subtle": { "$type": "color", "$value": "rgba(242, 241, 238, 0.10)" },
+      "default": { "$type": "color", "$value": "rgba(242, 241, 238, 0.18)" },
+      "control": { "$type": "color", "$value": "rgba(242, 241, 238, 0.42)" },
+      "strong": { "$type": "color", "$value": "rgba(242, 241, 238, 0.62)" },
+      "onEditorial": { "$type": "color", "$value": "rgba(38, 34, 27, 0.24)" }
+    },
+    "overlay": {
+      "scrimSoft": { "$type": "color", "$value": "rgba(11, 12, 15, 0.28)" },
+      "scrimStrong": { "$type": "color", "$value": "rgba(11, 12, 15, 0.78)" },
+      "modal": { "$type": "color", "$value": "rgba(0, 0, 0, 0.72)" }
+    },
+    "state": {
+      "focus": { "$type": "color", "$value": "{color.brand.evidenceCyan}" },
+      "provisional": { "$type": "color", "$value": "#E0B23A" },
+      "unknown": { "$type": "color", "$value": "#9FA4AD" },
+      "range": { "$type": "color", "$value": "#B7A7D8" },
+      "equal": { "$type": "color", "$value": "#D8D6D0" },
+      "close": { "$type": "color", "$value": "{color.brand.evidenceCyan}" },
+      "difference": { "$type": "color", "$value": "{color.brand.coral}" },
+      "indeterminate": { "$type": "color", "$value": "#9FA4AD" }
+    },
+    "game": {
+      "alanWake2": {
+        "base": { "$type": "color", "$value": "#A8341B" },
+        "lift": { "$type": "color", "$value": "#EE7454" }
+      },
+      "returnal": {
+        "base": { "$type": "color", "$value": "#6F5400" },
+        "lift": { "$type": "color", "$value": "#E0B23A" }
+      },
+      "redfall": {
+        "base": { "$type": "color", "$value": "#27547B" },
+        "lift": { "$type": "color", "$value": "#5C9EDE" }
+      },
+      "fallback": {
+        "base": { "$type": "color", "$value": "#3F4A57" },
+        "lift": { "$type": "color", "$value": "#9FB3C8" }
+      }
+    }
+  },
+  "font": {
+    "family": {
+      "ui": { "$type": "fontFamily", "$value": "Archivo, system-ui, sans-serif" },
+      "editorial": { "$type": "fontFamily", "$value": "Newsreader, Georgia, serif" },
+      "evidence": { "$type": "fontFamily", "$value": "JetBrains Mono, ui-monospace, monospace" }
+    },
+    "weight": {
+      "regular": { "$type": "fontWeight", "$value": 400 },
+      "medium": { "$type": "fontWeight", "$value": 500 },
+      "semibold": { "$type": "fontWeight", "$value": 600 },
+      "bold": { "$type": "fontWeight", "$value": 700 }
+    },
+    "size": {
+      "minimum": { "$type": "dimension", "$value": "0.75rem" },
+      "small": { "$type": "dimension", "$value": "0.8125rem" },
+      "label": { "$type": "dimension", "$value": "0.875rem" },
+      "body": { "$type": "dimension", "$value": "1rem" },
+      "bodyLarge": { "$type": "dimension", "$value": "1.125rem" },
+      "lead": { "$type": "dimension", "$value": "1.375rem" },
+      "headingSmall": { "$type": "dimension", "$value": "1.5rem" },
+      "headingMedium": { "$type": "dimension", "$value": "2rem" },
+      "heroMobile": { "$type": "dimension", "$value": "2.1rem" },
+      "profileTitleMobile": { "$type": "dimension", "$value": "2.5rem" },
+      "heroDesktop": { "$type": "dimension", "$value": "3.8rem" },
+      "profileTitleDesktop": { "$type": "dimension", "$value": "4.2rem" }
+    },
+    "lineHeight": {
+      "tight": { "$type": "number", "$value": 1.05 },
+      "heading": { "$type": "number", "$value": 1.12 },
+      "body": { "$type": "number", "$value": 1.5 },
+      "editorial": { "$type": "number", "$value": 1.6 }
+    },
+    "tracking": {
+      "normal": { "$type": "dimension", "$value": "0em" },
+      "kicker": { "$type": "dimension", "$value": "0.14em" }
+    }
+  },
+  "space": {
+    "0": { "$type": "dimension", "$value": "0rem" },
+    "1": { "$type": "dimension", "$value": "0.4rem" },
+    "2": { "$type": "dimension", "$value": "0.6rem" },
+    "3": { "$type": "dimension", "$value": "0.8rem" },
+    "4": { "$type": "dimension", "$value": "1rem" },
+    "5": { "$type": "dimension", "$value": "1.2rem" },
+    "6": { "$type": "dimension", "$value": "1.6rem" },
+    "7": { "$type": "dimension", "$value": "2rem" },
+    "8": { "$type": "dimension", "$value": "2.5rem" },
+    "9": { "$type": "dimension", "$value": "3rem" },
+    "10": { "$type": "dimension", "$value": "3.5rem" },
+    "11": { "$type": "dimension", "$value": "4rem" }
+  },
+  "size": {
+    "contentMax": { "$type": "dimension", "$value": "82rem" },
+    "gutterDesktop": { "$type": "dimension", "$value": "2.5rem" },
+    "gutterMobile": { "$type": "dimension", "$value": "1rem" },
+    "controlMinimum": { "$type": "dimension", "$value": "2.75rem" },
+    "heroDesktopMaximum": { "$type": "dimension", "$value": "27.5rem" },
+    "heroMobileTarget": { "$type": "dimension", "$value": "25.5rem" },
+    "radarCompact": { "$type": "dimension", "$value": "4.5rem" },
+    "radarCompactMobile": { "$type": "dimension", "$value": "4rem" },
+    "radarProfileDesktop": { "$type": "dimension", "$value": "22.5rem" },
+    "radarProfileMobile": { "$type": "dimension", "$value": "15rem" },
+    "radarCompareDesktop": { "$type": "dimension", "$value": "21.25rem" },
+    "radarCompareMobile": { "$type": "dimension", "$value": "8rem" }
+  },
+  "radius": {
+    "structural": { "$type": "dimension", "$value": "0rem" },
+    "control": { "$type": "dimension", "$value": "0.625rem" },
+    "media": { "$type": "dimension", "$value": "0.875rem" },
+    "feature": { "$type": "dimension", "$value": "1.125rem" },
+    "pill": { "$type": "dimension", "$value": "999rem" }
+  },
+  "border": {
+    "thin": { "$type": "dimension", "$value": "0.0625rem" },
+    "focus": { "$type": "dimension", "$value": "0.1875rem" }
+  },
+  "motion": {
+    "duration": {
+      "fast": { "$type": "duration", "$value": "150ms" },
+      "standard": { "$type": "duration", "$value": "220ms" },
+      "media": { "$type": "duration", "$value": "320ms" },
+      "reveal": { "$type": "duration", "$value": "600ms" },
+      "reduced": { "$type": "duration", "$value": "0ms" }
+    },
+    "easing": {
+      "standard": { "$type": "cubicBezier", "$value": [0.2, 0, 0, 1] },
+      "emphasized": { "$type": "cubicBezier", "$value": [0.2, 0.8, 0.2, 1] }
+    }
+  },
+  "breakpoint": {
+    "minimum": { "$type": "dimension", "$value": "20rem" },
+    "mobileReference": { "$type": "dimension", "$value": "24.375rem" },
+    "content": { "$type": "dimension", "$value": "40rem" },
+    "wide": { "$type": "dimension", "$value": "64rem" },
+    "desktopReference": { "$type": "dimension", "$value": "90rem" }
+  }
+}

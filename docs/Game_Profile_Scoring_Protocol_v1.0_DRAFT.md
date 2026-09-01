@@ -2,7 +2,7 @@
 
 - **Product:** Should I Play?
 - **Methodology:** Game Profile
-- **Status:** Candidate protocol — requires blind development/holdout calibration
+- **Status:** Owner-approved candidate — authorized for Appendix B calibration; not governing pending its gates and final approval
 - **Date:** 2026-08-25
 - **Owner/final editorial authority:** Tomas
 - **Primary scoring editor:** Approved GPT scoring agent (initially GPT Chat)
@@ -30,8 +30,8 @@ This protocol does not alter the eight dimensions, create an aggregate score,
 or turn sources into votes. Authority is subject-specific:
 
 - Rubric v1.0 owns the scale, dimensions and subcriteria.
-- This protocol, once approved, owns the operational path from evidence to a
-  rubric value.
+- This protocol, once finally approved after Appendix B, owns the operational
+  path from evidence to a rubric value.
 - The product/data contracts own persistence, derivation, history, validation
   and publication integrity.
 - The Evidence SOP continues to govern evidence practice except where a later
@@ -57,8 +57,14 @@ every entry so none happens silently:
   The stored editorial input becomes the facts; the label becomes arithmetic
   over them.
 
-Each superseded document should be amended when this protocol is approved; this
-candidate does not pretend the older wording never existed.
+Each superseded document should be amended when this protocol is finally
+approved for governing use; this candidate does not pretend the older wording
+never existed.
+
+**Owner approval to calibrate — 2026-08-25.** Tomas approved this candidate and
+ADR 0024 as the basis for Appendix B. This is not the final governing approval
+in Appendix B step 10. The remaining calibration, Rubric v1.1, persistence and
+production-record decisions are tracked in Master Plan v0.9 Phase 3A.
 
 The protocol is intended for:
 
@@ -1454,6 +1460,10 @@ minor revision.
 
 #### Draft changelog
 
+- **2026-08-25 — owner approval to enter calibration.** The candidate protocol
+  and ADR 0024 are approved as the Appendix B basis, without making either
+  governing. Master Plan v0.9 Phase 3A records the deferred gates and ADR 0024
+  states the approval scope.
 - **2026-08-25 — pre-approval revision after repository review.** Sampling
   independence (§1.4, §2.3, §13, §15.1); recurrence bands and the four-unit
   frame minimum (§6.1); adjacent-tie precedence (§6.1/§8.3); the supersession

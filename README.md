@@ -29,6 +29,14 @@ and the dated
 plus the later
 [Public Product Resolution Register](docs/Should_I_Play_Public_Product_Resolutions_2026-08-25.md).
 
+The accepted A1–A6/C1–C4 public direction is now implementation-ready through
+the [Shared Design-System and Interaction Handoff v1.0](docs/design/Should_I_Play_Shared_Design_System_and_Interaction_Handoff_v1.0_2026-08-31.md),
+its [semantic token map](docs/design/handoff/should-i-play.tokens.v1.json) and
+the [accessibility/conformance matrix](docs/design/Should_I_Play_Accessibility_and_Conformance_Matrix_v1.0_2026-08-31.md).
+The next public engineering slice is the shared foundation plus the
+editorially governed static Search; no public-product code has yet been changed
+to match the accepted screens.
+
 **Remote admin and production Live proof are exercised.** The current state is:
 
 | | |
@@ -36,6 +44,12 @@ plus the later
 | **Implemented and deployed** | migration `0009` and its schema; deployment-request persistence; the Cloudflare Builds client; manifest generation; the `/deployment-manifest` route; the reconciliation and Live-proof machinery; the `/admin` deployment surface |
 | **Proven** | a production build from `main`; `/deployment-manifest` live on the canonical origin; corpus/digest matching the three published evaluations; behavior under workerd; migration `0009`; Access-authenticated editorial session through Hyperdrive; successful `production_verified` observation and Live state |
 | **Not yet exercised** | a real Cloudflare Builds POST from this application; a build UUID produced by that application dispatch and reconciled; one complete new-profile Publish → dispatch → Live cycle |
+
+**Activation checkpoint revalidated 30 August 2026:** the deployment tables are
+not empty and Live proof is complete for the current three-profile artifact.
+The remaining gap is specifically application-originated dispatch and the first
+new-profile end-to-end cycle; it is not remote-admin activation or general
+production proof.
 
 This branch adds forward migration `0010_artwork_fair_use`. It is deliberately
 not applied to the authoritative database by repository work; apply migrations
@@ -682,7 +696,7 @@ not post them anywhere durable. See
 - [0010 — Design surfaces are gated by site environment, not `NODE_ENV`](docs/decisions/0010-design-surfaces-and-site-environment.md)
 - [0011 — Artwork is game metadata, and clearance decides where it renders](docs/decisions/0011-production-artwork.md)
 - [0012 — `noindex` is not access control](docs/decisions/0012-preview-access-and-artwork-exposure.md)
-- [0013 — One Should I Play? visual system](docs/decisions/0013-visual-system.md)
+- [0013 — Historical visual system](docs/decisions/0013-visual-system.md) *(superseded by 0030; profile direction completed by 0032)*
 - [0014 — A game has profile scopes, and each one has its own history](docs/decisions/0014-profile-scopes.md)
 - [0015 — Platform overrides, and provenance that describes ordinary work](docs/decisions/0015-platform-overrides-and-provenance.md)
 - [0016 — A game's primary profile scope owns its canonical URL](docs/decisions/0016-canonical-scope-urls.md)
@@ -699,14 +713,21 @@ not post them anywhere durable. See
 - [0027 — Practical time is not a Game Profile dimension](docs/decisions/0027-practical-time-is-not-a-game-profile-dimension.md)
 - [0028 — Purpose-governed product analytics](docs/decisions/0028-purpose-governed-product-analytics.md)
 - [0029 — Official storefront actions before live commerce](docs/decisions/0029-official-storefront-actions-before-live-commerce.md)
+- [0030 — Accepted Gate A homepage and public visual direction](docs/decisions/0030-gate-a-homepage-direction.md) *(supersedes 0013)*
+- [0031 — Editorially governed static build-time Search index](docs/decisions/0031-static-build-time-search-index.md)
+- [0032 — Accepted Gate B profile direction](docs/decisions/0032-gate-b-profile-direction.md)
+- [0033 — Compare URL/index policy and art-led revision direction](docs/decisions/0033-compare-url-index-and-art-direction.md)
+- [0034 — Accepted full Compare direction](docs/decisions/0034-accepted-full-compare-direction.md)
 
 ## Not built, deliberately
 
-The final public homepage, Search UI, What should I play? UI, `/compare`,
-`/about`, the 12–15-profile validation corpus and the approximately-100-profile
-quiet-release catalog are not built. Their provider-independent Search,
-discovery/time, metadata precedence, storefront-action and event contracts are
-now implemented and tested; the reconciled Fable handoff governs their visual
-implementation. Evaluation authoring is built. Public accounts, reviews,
-comments, social features, runtime AI chat, recommendation ML and a public
-aggregate score remain out of current scope.
+The accepted A1–A6 and C1–C4 public design, Search UI/static index, What should I play?
+UI, `/compare`, `/about`, the 12–15-profile validation corpus and the
+approximately-100-profile quiet-release catalog are not built. Their provider-
+independent Search, discovery/time, metadata precedence, storefront-action and
+event contracts are implemented and tested as foundations; ADRs 0030–0034, the
+accepted Fable screens and the completed shared handoff govern upcoming public
+implementation. Evaluation
+authoring is built. Public accounts, reviews, comments, social features,
+runtime AI chat, recommendation ML and a public aggregate score remain out of
+current scope.

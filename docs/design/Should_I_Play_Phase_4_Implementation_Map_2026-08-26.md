@@ -2,13 +2,17 @@
 
 **Date:** 2026-08-26
 
-**Status:** Ready to execute after Phase 3B design acceptance. This map turns
-the reconciled product/design contracts into repository work; it does not
-replace the Master Plan or authorize deployment.
+**Status:** Historical implementation-planning record. Its component inventory
+remains useful, but its visual baseline, Compare artwork rule and slice order
+are superseded by ADRs 0030–0034 and the
+[`Shared Design-System and Interaction Handoff v1.0`](Should_I_Play_Shared_Design_System_and_Interaction_Handoff_v1.0_2026-08-31.md).
+Do not execute this document as the current sequence. Current engineering
+begins with the shared foundation and static Search, then the accepted
+homepage, profile and exactly-two Compare slices.
 
 ## Starting point
 
-The repository already has the public D3 profile foundation, the shared
+The repository already has the public D3 profile foundation, the then-current
 Archivo/Newsreader and graphite/warm-paper system, scope-correct profile routes,
 DB-backed published-profile reads, canonical SEO behavior and the accepted
 provider-independent Search, discovery, practical-time, analytics and
@@ -23,18 +27,25 @@ practical-time band, official-destination band or product analytics transport.
 
 | Product concern | Reuse | Add or extend |
 | --- | --- | --- |
-| Visual system | `app/globals.css`, `components/profile/profile.css`, game accents | Public component tokens only where a repeated state proves a missing token; no parallel design system |
+| Visual system | `app/globals.css`, `components/profile/profile.css`, game accents | Migrate through the accepted dark-first shared token contract; keep one semantic public system rather than preserving D3 appearance or creating parallel component-local themes |
 | Public shell | `app/(public)/layout.tsx`, `components/SiteChrome.tsx` | Ranked navigation, global Search trigger/sheet, About and Compare links, mobile behavior |
 | Homepage | `app/(public)/page.tsx`, `components/GameCard.tsx`, profile radar | Three-journey hierarchy, compact art strip, objective/evergreen/living shelves, curated Compare preview, release-scale all-profiles affordance |
 | Profiles | `components/profile/*`, canonical game routes | Public byline/provenance, practical time, Where to play, corrections context, access disclosure, stale-evidence copy and Compare exits |
 | Search truth | `lib/search/registry.ts` | Build-emitted index, matcher/suggestions, accessible combobox, mobile dialog and the four rendered states |
 | Discovery truth | `lib/discovery/contracts.ts`, `constraints.ts`, `time.ts` | Versioned vocabulary/index projection, interpreter, editable ledger, evidence buckets, durable noindex results route and relax behavior |
-| Compare truth | Existing profile/radar/ordering contracts | Exactly-two launcher/result routes, interval relation rows, artwork-free identities, nonvisual equivalent and pair canonicalization/noindex |
+| Compare truth | Existing profile/radar/ordering contracts | Exactly-two launcher/result routes, interval relation rows, art-led identities with complete mixed/artless parity, nonvisual equivalent and order-preserving query state/noindex |
 | Commerce | `lib/commerce/storefront.ts` | Minimal persistence/authoring needed to publish verified official destinations and render launch truth |
 | Analytics | `lib/analytics/events.ts` | Local/test instrumentation first; provider transport only after provider/privacy approval |
 | SEO | Existing metadata, structured-data and sitemap helpers | About/Compare/discovery metadata, pair-result noindex, truthful social cards; never `AggregateRating` |
 
 ## Implementation sequence
+
+**Supersession note:** the numbered slices below preserve the 26 August
+planning rationale. For execution use the handoff's current order: shared
+foundation/static Search → accepted homepage → accepted profile → accepted
+full Compare → conformance closure. Trust, practical-time, storefront and data
+work enter only when they block a truthful slice; they do not precede Search as
+standalone polishing.
 
 ### Slice 0 — accept the design contract
 
@@ -134,14 +145,15 @@ candidate games without a universal winner.
 **Work:**
 
 - implement the indexable `/compare` launcher and canonical pair result route;
-- keep results artwork-free and pair pages `noindex`;
+- implement art-led pair identity with complete one-art/no-art parity and keep
+  pair pages `noindex,follow`;
 - align identities, scope/build/evidence state, all eight authoritative rows,
   Pull/Risk, experience tags and material platform caveats;
 - compute interval relations directly, preserving ranges and Unknown;
 - treat summary prominence as presentation only; never compute an aggregate,
   match percentage or winner;
-- prerender validation/release pairs while measured scale permits, with a
-  server/dynamic fallback only when pair growth justifies it.
+- preserve order in a shareable query state, omit pair pages from sitemap and
+  schema, and do not prerender the all-pairs combination space.
 
 **Tests:** canonical pair ordering, self-pair redirect, missing-half 404,
 range/Unknown/asymmetric confidence, screen-reader row prose, mobile sticky

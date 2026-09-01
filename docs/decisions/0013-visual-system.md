@@ -1,10 +1,34 @@
 # ADR 0013 — One Should I Play? visual system
 
-**Status:** Accepted · 2026-08-09
+**Status:** Superseded · 2026-08-28 by ADR 0030; profile direction completed by
+ADR 0032 on 2026-08-30
 **Context:** [ADR 0010](0010-design-surfaces-and-site-environment.md) made design
 work reviewable. [ADR 0011](0011-production-artwork.md) modelled artwork as game
 metadata. D3 became the canonical game page (PR #12). What remained was that the
 *product* had never been art-directed — only one page of it had.
+
+## Supersession amendment — 30 August 2026
+
+This ADR is retained as design history and as evidence for several durable
+semantic safeguards, but it no longer governs the public visual system.
+
+Owner acceptance of Gate A A1/A2 Rev 5.1 superseded this ADR's warm-paper-led
+site composition, amber brand signal, typography allocation and homepage/card
+volume rules. [ADR 0030](0030-gate-a-homepage-direction.md) is the governing
+homepage and shared public visual direction. Owner acceptance of the Gate B
+A3–A6 profile pass is recorded in
+[ADR 0032](0032-gate-b-profile-direction.md).
+
+The following principles survive because they are repeated by the later
+decisions or by semantic/accessibility ADRs: one fixed-scale radar contract,
+no aggregate or quality colour, exact nonvisual values, game identity rather
+than dashboard chrome, complete artless states, rights-aware artwork and
+reduced-motion/focus safeguards. Where this historical text conflicts with
+ADR 0030, ADR 0032 or the accepted screens, the later records govern.
+
+Production still implements parts of this historical system. That is recorded
+implementation drift to be removed through the public design-system handoff;
+code does not regain authority merely because migration is incomplete.
 
 ## The problem
 

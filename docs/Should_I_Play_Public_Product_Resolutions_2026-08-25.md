@@ -1,10 +1,10 @@
 # Should I Play? — Public Product Resolution Register
 
-- **Decision dates:** 24–25 August 2026
-- **Recorded:** 26 August 2026
+- **Decision dates:** 24–25 August 2026; Gate A accepted 28 August; Gate B and static Search architecture accepted 30 August; Compare URL/index, art-led revision direction, revised full Compare screens and the shared implementation handoff completed 31 August 2026
+- **Recorded:** 26 August 2026; amendments recorded 28, 30 and 31 August 2026
 - **Status:** Governing product decisions unless a row is explicitly marked otherwise
 - **Source record:** `p_resolutions.md`, SHA-256 `29d4b2db2c04679d696411a7dd1bb1e2235061f168dd7756762890e1f8037e64`
-- **Scope:** public journeys, Search, discovery, metadata, time, analytics, commerce, validation, catalog operation, personalization posture, and the corrected artwork basis
+- **Scope:** public journeys, Gate A homepage direction, Gate B profile direction, Compare, shared implementation system, Search, discovery, metadata, time, analytics, commerce, validation, catalog operation, personalization posture, and the corrected artwork basis
 
 This record integrates the resolutions made after
 `Should_I_Play_Public_Product_P0_Decisions_2026-08-24.md`. It is deliberately
@@ -14,9 +14,112 @@ catalog milestone correction, curation, accountability, and mixed-artwork
 posture. Where this record is more specific or explicitly records a later
 correction, this record governs.
 
-The source file contained repeated explanations, intermediate options, and a
-later correction to the artwork decision. Those passages are evidence of the
-decision process; they are not separate competing requirements.
+The source file contained 27 locked decision records, repeated explanations,
+intermediate options, and a later correction to the artwork decision. The
+source hash was revalidated on 30 August 2026. All 27 records are represented in
+this register and Master Plan v0.9; historical passages are evidence of the
+decision process, not separate competing requirements.
+
+## Gate A amendment — 28 August 2026
+
+The Fable **Should I Play - Canonical Screens.dc.html** A1/A2 Rev 5.1 screens
+are accepted as the canonical homepage visual and interaction direction. This
+is a direction, IA and interaction freeze; it is not approval of illustrative
+content and it is not production-conformance proof.
+
+The freeze governs:
+
+- the decision-first **“Should you play it?”** proposition;
+- the dark, cinematic and deliberately art-directed visual language;
+- Search embedded in the opening composition and selected by default;
+- exact journey labels **Search / Compare / What should I play?**;
+- the three-game artwork mosaic with integrated Game Profile fingerprints;
+- the general **“Start somewhere interesting”** poster rail;
+- authored discovery shelves following that rail;
+- **“Choosing between…”** as a secondary curated module;
+- Compare never becoming the default homepage subject;
+- artwork remaining visible through expanded interactions;
+- the shared desktop/mobile conceptual hierarchy;
+- no rankings, winner, aggregate score, popularity or trending mechanics.
+
+The following remain provisional or require production proof:
+
+- all example values, radar polygons, profile copy, dates and game roster;
+- artwork rights, asset selection and the complete no-art state;
+- readable chart typography or an aligned supporting value list;
+- coherent expanded-state semantics and keyboard order without a focus trap;
+- immediate Search availability at 390×667, narrower widths and text zoom;
+- the final Fable verifier result, which was not posted;
+- public code, responsive conformance and accessibility.
+
+ADR 0030 supersedes ADR 0013 as the governing public visual-system decision.
+ADR 0013 remains historical evidence. Gate B's accepted A3–A6 profile direction
+is recorded in ADR 0032.
+
+The owner has one non-blocking implementation refinement: modestly reduce the
+opening hero/artwork height so Search has greater visual prominence, without
+changing the accepted composition or first-viewport availability.
+
+## Gate B and Search amendment — 30 August 2026
+
+Tomas accepted the Fable High A3–A6 art-led/artless profile direction as good
+enough to proceed. Gate B is closed. Specimen practical time, private artwork,
+unresolved destination records and unsupported copy remain non-publication
+material.
+
+MVP Search uses an editorially governed static build-time index under ADR 0031.
+Published profiles and explicitly included recognized-but-unprofiled registry
+records may appear. Provider/import presence alone never makes a title publicly
+searchable. Search performs no request-time public database, provider, hosted-
+search or language-model call.
+
+The dedicated full Compare design pass and shared handoff follow Gate B.
+Within engineering, Search moves ahead of full Compare in implementation
+priority. At the 30 August checkpoint, Compare remained exactly two and
+artwork-free while URL/index policy remained open. The 31 August amendment
+below supersedes those two open points.
+
+## Compare amendment — 31 August 2026
+
+Tomas approved the dedicated Compare URL/index recommendation under ADR 0033:
+
+- share state is `/compare?games=<left-slug>,<right-slug>`;
+- visible and shareable left/right order is preserved;
+- unordered normalization is internal-only and cannot reorder the UI;
+- parameterized pair states are `noindex, follow`, omitted from the sitemap and
+  rating/review schema;
+- `/compare` may be indexed only as a substantive standalone journey page;
+- no all-pair prerender requirement.
+
+Tomas did not accept the first artwork-free C1/C2 visual candidate. The revised
+direction is art-led: two equal artworks frame a central two-profile radar that
+feels connected to both games; differences, alignments and canonical
+Shared/left-only/right-only tags become more visually striking. Colour and
+brightness may improve comprehension but never replace text, shape, pattern or
+exact values and never encode good/bad. A complete artless parity state remains
+mandatory. The first candidate is evidence, not the accepted Compare design.
+
+Tomas subsequently accepted the revised C1/C2 art-led, C3/C4 artless-parity
+and C-rail result on 31 August 2026. ADR 0034 closes the dedicated full Compare
+design gate. The accepted direction freezes the balanced two-artwork stage,
+central radar, distinct difference/alignment/caveat grammar, permanent exact
+rows, canonical shared/unique tag map, mobile conceptual order and complete
+artless parity. Specimen artwork/rights, copy, facts, precise motion and
+production conformance remain provisional.
+
+## Shared implementation handoff amendment — 31 August 2026
+
+The cross-surface A1–A6/C1–C4 design-system and interaction handoff is complete.
+It records the semantic token map, three functional type roles, deliberate warm
+editorial-surface exception, 12px meaningful-text floor, 44px target floor,
+bounded homepage hero-height reduction, component/state inventory, all artwork
+fallbacks, three radar levels, truthful data fallbacks, responsive behavior and
+keyboard/screen-reader acceptance.
+
+The handoff supersedes A7's stale “two faces” and artwork-free Compare wording.
+The accepted Fable structure remains the visual authority; the handoff governs
+implementation detail beneath it. Production conformance remains to be proved
+in engineering. Static Search is the next public-product slice.
 
 ---
 
@@ -45,7 +148,7 @@ The following remain unchanged:
 - profiles as the substantive public objects;
 - exactly two profiles in launch Compare;
 - differences and trade-offs, never a winner;
-- artwork-free Compare;
+- art-led Compare with two equal artwork territories and complete artless parity;
 - 12–15 substantive profiles as private/limited validation;
 - approximately 100 substantive profiles as the first credible quiet-public-release floor;
 - continuous demand-weighted catalog expansion after release;
@@ -712,8 +815,10 @@ Rights-basis hierarchy:
 
 Fair use is not a blanket exemption. Large decorative imagery without direct
 editorial context, standalone galleries/original downloads, fan art without
-permission, paid advertisements, and Compare artwork remain outside the
-approved posture.
+permission and paid advertisements remain outside the approved posture.
+Compare artwork is eligible only when it directly identifies the two works in
+a substantive comparison under ADR 0033 and passes the complete lawful-artwork
+gate.
 
 Before the first production asset is cleared on this basis:
 
@@ -733,10 +838,13 @@ This is a product/operating decision, not legal advice or per-asset clearance.
 
 ## 14. Remaining open implementation and due-diligence items
 
-These are real open items; they do not reopen the product model:
+These are real open items; they do not reopen the product model or Gate A:
 
-- exact final public copy, responsive composition, and interaction design;
-- Fable reconciliation against this record;
+- publication copy and illustrative content within the accepted homepage
+  hierarchy;
+- the public meaning/data source of the **Evaluated** date label;
+- implementation and production conformance against the completed
+  cross-surface A1–A6/C1–C4 handoff;
 - exact route name for durable discovery results;
 - calibrated definitions/anchors for the eleven experience axes;
 - session-suitability public labels and controlled phrase matrix wording;
@@ -759,7 +867,16 @@ These are real open items; they do not reopen the product model:
 |---|---|---|
 | Public journeys | Search / Compare / What should I play? | LOCKED |
 | Homepage hierarchy | Search dominant; Compare secondary; discovery progressive | LOCKED |
+| Gate A homepage direction | A1/A2 Rev 5.1 proposition, art direction, opening composition, artwork/fingerprint mosaic, rail/shelf order, expanded-art continuity and desktop/mobile hierarchy | LOCKED |
+| Gate A illustrative content | Scores, polygons, copy, dates, roster and artwork rights | PROVISIONAL |
+| Gate B profile screens | A3–A6 art-led/artless desktop/mobile direction accepted; specimen time/artwork excluded from publication truth | LOCKED |
+| Full Compare design | Revised C1/C2 art-led, C3/C4 artless-parity and C-rail direction accepted; exact rows and non-colour meaning remain authoritative | LOCKED — ADR 0034 |
+| Compare URL/index policy | Order-preserving query share URL; pair states noindex/follow and absent from sitemap/schema; no all-pair prerender | LOCKED — ADR 0033 |
+| Shared implementation handoff | Semantic tokens, three type roles, warm editorial exception, 12px/44px floors, responsive/stress states, truthful fallbacks and accessibility contract | COMPLETE — 31 AUGUST |
+| Evaluated date semantics | Exact public label and source field | OPEN |
+| Search architecture | Editorially governed static build-time index; no request-time public DB/provider/service | LOCKED |
 | Search registry | Published, recognized-unprofiled, ambiguous, unrecognized states | LOCKED |
+| Registry Search inclusion | Explicit editorial flag; provider/import presence cannot publish a title into Search | LOCKED |
 | Unprofiled routing | Inline unavailable result; no public stub route | LOCKED |
 | Coverage request | Accountless one-action private demand signal | LOCKED |
 | Discovery runtime | Deterministic controlled-data interpretation | LOCKED |
@@ -787,4 +904,3 @@ These are real open items; they do not reopen the product model:
 | Profile production | Human-governed, evidence-assisted | LOCKED |
 | Personalization | First major post-launch phase; no launch promise | DEFERRED |
 | Editorial fair use | Approved basis after implementation/legal gate | LOCKED |
-
