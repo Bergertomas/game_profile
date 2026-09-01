@@ -1,4 +1,5 @@
 import type { GameWithEvaluation, SubcriterionEntry } from "@/lib/profile/types";
+import type { RegisteredGame } from "@/lib/search/registry";
 import { returnal } from "./games/returnal";
 
 /**
@@ -131,4 +132,42 @@ function firstStructureKeyShifted(
         "Synthetic fixture value. An endless tower is a different shape from a run-based campaign.",
     },
   };
+}
+
+/* ==========================================================================
+   THE SYNTHETIC RECOGNISED REGISTRY
+
+   A second named corpus, for the same reason the multi-scope one exists: a
+   state that cannot otherwise be reached in a browser.
+
+   `content/search-registry.ts` ships EMPTY and must stay empty — a row there is
+   a public editorial claim about a real product, and no approved list of launch
+   identities exists. So with the real registry the search field's
+   recognised-but-unprofiled branch is unreachable in a real browser, and only
+   its absence branch ever runs.
+
+   These entries are deliberately, visibly synthetic. They name no real game.
+   Nothing here is an editorial claim, a coverage promise, or a statement about
+   any actual product, and none of it may ever be published: the guard in
+   lib/search/test-registry.ts refuses a production build outright rather than
+   ignoring the variable.
+   ========================================================================== */
+export const TEST_REGISTRY_CORPUS_NAME = "recognized-registry";
+
+/** Synthetic recognised titles. Not games. Not claims. */
+export function recognizedRegistryAdditions(): RegisteredGame[] {
+  return [
+    {
+      id: "test-corpus-lantern-parade",
+      title: "Test Corpus: Lantern Parade",
+      aliases: ["lantern parade", "tclp"],
+      note: "Recognised, not yet evaluated.",
+    },
+    {
+      id: "test-corpus-quiet-harbour",
+      title: "Test Corpus: Quiet Harbour",
+      aliases: ["quiet harbour"],
+      note: "Recognised, not yet evaluated.",
+    },
+  ];
 }

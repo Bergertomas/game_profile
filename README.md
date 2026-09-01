@@ -33,9 +33,11 @@ The accepted A1–A6/C1–C4 public direction is now implementation-ready throug
 the [Shared Design-System and Interaction Handoff v1.0](docs/design/Should_I_Play_Shared_Design_System_and_Interaction_Handoff_v1.0_2026-08-31.md),
 its [semantic token map](docs/design/handoff/should-i-play.tokens.v1.json) and
 the [accessibility/conformance matrix](docs/design/Should_I_Play_Accessibility_and_Conformance_Matrix_v1.0_2026-08-31.md).
-The next public engineering slice is the shared foundation plus the
-editorially governed static Search; no public-product code has yet been changed
-to match the accepted screens.
+Engineering Slice 1 now implements the shared foundation, the editorially
+governed static Search, its four truthful states, accessible inline/header
+Search and the bounded accepted homepage opening on this integration branch.
+Production remains on the earlier three-profile experience until this branch is
+reviewed, merged and deliberately deployed.
 
 **Remote admin and production Live proof are exercised.** The current state is:
 
@@ -721,13 +723,12 @@ not post them anywhere durable. See
 
 ## Not built, deliberately
 
-The accepted A1–A6 and C1–C4 public design, Search UI/static index, What should I play?
-UI, `/compare`, `/about`, the 12–15-profile validation corpus and the
-approximately-100-profile quiet-release catalog are not built. Their provider-
-independent Search, discovery/time, metadata precedence, storefront-action and
-event contracts are implemented and tested as foundations; ADRs 0030–0034, the
-accepted Fable screens and the completed shared handoff govern upcoming public
-implementation. Evaluation
-authoring is built. Public accounts, reviews, comments, social features,
-runtime AI chat, recommendation ML and a public aggregate score remain out of
-current scope.
+The remaining accepted homepage composition, A3–A6 profile migration, C1–C4
+Compare, What should I play? UI, `/about`, the 12–15-profile validation corpus
+and the approximately-100-profile quiet-release catalog are not built. Static
+Search and the accepted opening are implemented on this integration branch;
+their production deployment is not. The provider-independent discovery/time,
+metadata precedence, storefront-action and event contracts are implemented and
+tested as foundations. Evaluation authoring is built. Public accounts, reviews,
+comments, social features, runtime AI chat, recommendation ML and a public
+aggregate score remain out of current scope.

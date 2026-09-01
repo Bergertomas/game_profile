@@ -7,10 +7,10 @@
 **Product and project orchestration:** ChatGPT
 **Engineering:** Codex and Claude
 **Public product design:** Tomas, ChatGPT, and the reconciled Fable design work
-**Status:** Current product and roadmap constitution — amended through accepted Gate A, Gate B and full Compare public design direction, the static Search architecture decision, ADRs 0033/0034 and the completed shared implementation handoff on 31 August 2026; Scoring Protocol calibration remains active
-**Current checkpoint:** Phase 2's editorial/publishing architecture is substantially complete and in support mode. Gate A A1/A2 Rev 5.1, Gate B A3–A6 and full Compare C1–C4/C-rail are accepted as the homepage, profile and Compare design direction. The pre-code governance/readiness pass is recorded: ADR 0013 is superseded, Search uses an editorially governed static build-time index, and the installed baseline is archived in the Opus audit record. Tomas approved Compare's order-preserving URL/noindex policy under ADR 0033 and accepted the revised art-led-with-artless-parity direction under ADR 0034. The cross-surface design-system and interaction handoff is complete: A7 is reconciled, semantic tokens, responsive behavior, truth fallbacks, component ownership and accessibility acceptance are specified. The next public-product slice is the shared public foundation plus static Search, followed by the accepted homepage, profile and full Compare implementation. Application source checks, unit/browser tests, preview build, containment and preview Worker verification pass; the composite gate remains red only because tracked generated Fable support code is inside lint scope, while PostgreSQL-dependent production gates require a database-equipped Node 22 runner. The first application-originated Cloudflare Builds dispatch and one complete new-profile Publish → dispatch → Live cycle remain unexercised and will be proved by the first real catalog publication, not by further standalone admin hardening.
-**Public-product state:** the current site still exposes the earlier three-profile production experience and does not yet implement the accepted A1–A6 direction, global Search, deterministic What should I play?, exactly-two Compare, accountability, catalog, time/session guidance, storefront actions, governed analytics, or mixed-artwork product. Accepted design is authority, not deployment proof. The 12–15-profile corpus is a private catalog/design validation milestone. Quiet public release requires approximately 100 substantive profiles.
-**Date:** 2026-08-26 · **Gate A amendment:** 2026-08-28 · **Gate B/Search amendment:** 2026-08-30 · **Compare acceptance:** 2026-08-31
+**Status:** Current product and roadmap constitution — amended through accepted Gate A, Gate B and full Compare direction, the completed shared handoff and integrated Engineering Slice 1; Scoring Protocol calibration remains active
+**Current checkpoint:** Phase 2's editorial/publishing architecture is substantially complete and in support mode. Gate A A1/A2 Rev 5.1, Gate B A3–A6 and full Compare C1–C4/C-rail are accepted. ADR 0013 is superseded; ADR 0031 governs the static Search index; ADRs 0033/0034 govern Compare. The cross-surface design-system and interaction handoff is complete. Engineering Slice 1 now implements the canonical shared tokens/font foundation, the editorially governed static Search and its four truthful states, accessible inline/header Search, and the bounded accepted homepage opening on the integration line. The remaining accepted homepage composition, profile experience and full Compare follow. The first application-originated Cloudflare Builds dispatch and one complete new-profile Publish → dispatch → Live cycle remain unexercised and will be proved by the first real catalog publication, not by further standalone admin hardening.
+**Public-product state:** production still exposes the earlier three-profile experience. The new shared foundation, Search and homepage opening exist on the integration line but are not deployed. The remaining homepage, accepted A3–A6 profile migration, deterministic What should I play?, exactly-two Compare, accountability, catalog, time/session guidance, storefront actions, governed analytics and mixed-artwork product remain unbuilt. The 12–15-profile corpus is a private validation milestone; quiet public release requires approximately 100 substantive profiles.
+**Date:** 2026-08-26 · **Gate A amendment:** 2026-08-28 · **Gate B/Search amendment:** 2026-08-30 · **Compare acceptance:** 2026-08-31 · **Slice 1 integration:** 2026-09-01
 
 ---
 
@@ -1555,7 +1555,8 @@ the same controlled concepts.
 6. Produce the cross-surface design-system/interaction handoff. **DONE;
    v1.0 handoff, token JSON and conformance matrix recorded 31 August**
 7. Implement the dominant static Search journey under ADR 0031 before full
-   Compare implementation. **OPEN; first public engineering slice**
+   Compare implementation. **DONE ON THE INTEGRATION LINE; pending merge and
+   deliberate deployment**
 8. Implement the accepted homepage/profile composition in bounded vertical
    slices, including truthful platform projections and no fabricated practical
    time. **OPEN**
@@ -2070,9 +2071,8 @@ Material changes from v0.8:
 5. Preserve the completed design-system and interaction handoff across A1–A6
    and C1–C4, including its A7 reconciliation and modest homepage hero-height
    refinement.
-6. Implement the static Search index and its four truthful states before full
-   Compare implementation; build the accepted homepage/profile slices and then
-   the accepted Compare experience.
+6. Preserve the integrated static Search index and its four truthful states;
+   complete the remaining accepted homepage, then profile, then Compare slices.
 7. Run visual-conformance and accessibility review against the accepted system
    after each relevant implementation slice.
 8. In parallel, finish candidate-protocol review and the registered

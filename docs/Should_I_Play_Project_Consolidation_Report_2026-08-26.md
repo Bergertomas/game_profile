@@ -42,8 +42,9 @@ on 31 August; ADR 0034 closes the full Compare design gate. The
 [shared handoff](design/Should_I_Play_Shared_Design_System_and_Interaction_Handoff_v1.0_2026-08-31.md),
 [semantic token map](design/handoff/should-i-play.tokens.v1.json) and
 [accessibility/conformance matrix](design/Should_I_Play_Accessibility_and_Conformance_Matrix_v1.0_2026-08-31.md)
-are complete. The next public engineering slice is the shared foundation plus
-static Search; homepage, profile and full Compare follow.
+are complete. Engineering Slice 1 now implements the shared foundation, static
+Search and bounded accepted homepage opening on the integration line; the
+remaining homepage, profile and full Compare work follows.
 Public-product value continues to dominate; admin work
 remains support-only unless it blocks integrity, security, truthful publication
 or deployment proof, publishing or the public product.
@@ -102,9 +103,10 @@ the approximately-100 quiet-release catalog.
 The repaired contract/state artifact remains the requirements baseline. The
 later Fable A1/A2 Rev 5.1 screens lock Gate A's homepage direction, A3–A6 close
 Gate B, and accepted C1–C4/C-rail close the full Compare design pass. The shared
-design-system and interaction handoff is complete. Engineering now begins with
-the shared foundation and static Search before bounded homepage/profile and
-full Compare implementation.
+design-system and interaction handoff is complete. The integration line now
+contains the shared foundation, static Search and bounded accepted homepage
+opening. The remaining homepage composition, profile and full Compare
+implementation are next; production still serves the earlier experience.
 
 ### Where the Master Plan stands
 
@@ -119,13 +121,10 @@ full Compare implementation.
 
 ### Next product milestone
 
-Resolve the recorded generated-artifact lint scope and rerun the database gates
-on the CI-equivalent Node 22/PostgreSQL runner when that environment is
-available. In public-product work, implement the completed shared foundation
-and static Search contract, including the bounded homepage hero-height
-refinement, before full Compare. In
-parallel, finish Protocol v1
-calibration and select the 12–15-profile validation corpus.
+Land and verify the integrated shared foundation, static Search and bounded
+homepage opening. Then complete the remaining accepted homepage composition,
+profile experience and full Compare in that order. In parallel, finish Protocol
+v1 calibration and select the 12–15-profile validation corpus.
 The first real new profile should prove the remaining publication/deployment
 path as part of catalog work.
 

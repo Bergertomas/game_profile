@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SearchDialog } from "@/components/search/SearchDialog";
 import { SITE_NAME, SITE_TAGLINE } from "@/lib/site";
 
 /**
@@ -27,17 +28,26 @@ const WORDMARK = SITE_NAME.replace(/\?+$/, "");
  * do — and nodding when you point at it. A solemn newspaper masthead would be
  * a more impressive piece of design and a worse fit for what this is.
  *
- * ── Why there are two links and not six ────────────────────────────────────
+ * ── Why there are three controls and not six ───────────────────────────────
  *
- * Because there are two destinations. Search, Discover and Compare are real
- * plans and are not built, and navigation that promises rooms that do not
- * exist is the fastest way to make a small product feel like a mock-up.
+ * Because there are three things behind them. Search is built, and it is here
+ * as a real control with the `/` key that reaches it from anywhere. "How we
+ * score" is a real page. Compare and "What should I play?" are accepted work
+ * and are NOT built, so they are not in the header: navigation that promises
+ * rooms which do not exist is the fastest way to make a small product feel like
+ * a mock-up.
+ *
+ * The search trigger renders only when this build could actually read the
+ * catalogue. It reads that from the layout's provider rather than from a prop,
+ * so a runtime with no index — the deployed Worker answering an unknown
+ * `/games/*` URL — gets a header with no search rather than a search that
+ * cannot find anything. See app/(public)/layout.tsx.
  */
 
 export function SiteHeader() {
   return (
     <header className="border-b border-rule-bone bg-graphite text-bone">
-      <div className="mx-auto flex w-full max-w-[74rem] items-center justify-between gap-4 px-5 py-3.5 sm:px-8">
+      <div className="mx-auto flex w-full max-w-[82rem] items-center justify-between gap-4 px-4 py-3.5 sm:px-10">
         <Link href="/" className="flex items-baseline gap-3">
           <span className="sip-wordmark text-[1.0625rem] sm:text-[1.1875rem]">
             {WORDMARK}
@@ -47,14 +57,17 @@ export function SiteHeader() {
             {SITE_TAGLINE}
           </span>
         </Link>
-        <nav aria-label="Primary">
-          <Link
-            href="/methodology"
-            className="sip-label text-bone-soft underline decoration-transparent decoration-2 underline-offset-[6px] transition-colors duration-150 hover:text-bone hover:decoration-signal"
-          >
-            How we score
-          </Link>
-        </nav>
+        <div className="flex items-center gap-3 sm:gap-4">
+          <SearchDialog />
+          <nav aria-label="Primary">
+            <Link
+              href="/methodology"
+              className="sip-label text-bone-soft underline decoration-transparent decoration-2 underline-offset-[6px] transition-colors duration-150 hover:text-bone hover:decoration-signal"
+            >
+              How we score
+            </Link>
+          </nav>
+        </div>
       </div>
     </header>
   );
@@ -63,7 +76,7 @@ export function SiteHeader() {
 export function SiteFooter() {
   return (
     <footer className="mt-auto border-t border-rule-bone bg-graphite text-bone">
-      <div className="mx-auto w-full max-w-[74rem] px-5 py-10 sm:px-8">
+      <div className="mx-auto w-full max-w-[82rem] px-4 py-10 sm:px-10">
         <p className="sip-wordmark text-[1.0625rem]">
           {WORDMARK}
           <span className="text-signal">?</span>

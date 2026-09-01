@@ -1,83 +1,121 @@
 import { describe, expect, it } from "vitest";
-import {
-  normalizeSearchTerm,
-  resolveRegistrySearch,
-  type SearchIndexRecord,
-} from "@/lib/search/registry";
+import { RECOGNIZED_GAMES } from "@/content/search-registry";
+import { SEED_PROFILES } from "@/content";
+import { buildProfileView } from "@/lib/profile/build";
+import { indexFrom } from "@/lib/search/public-index";
+import { announce, resolve } from "@/lib/search/resolve";
+import { toRecognizedEntries, type RegisteredGame } from "@/lib/search/registry";
 
-const RECORDS: readonly SearchIndexRecord[] = [
-  {
-    registryId: "alan-wake-2",
-    canonicalTitle: "Alan Wake 2",
-    searchTerms: ["Alan Wake II", "AW2"],
-    availability: "published",
-    route: "/games/alan-wake-2",
-  },
-  {
-    registryId: "silksong",
-    canonicalTitle: "Hollow Knight: Silksong",
-    searchTerms: ["Silksong"],
-    availability: "unprofiled",
-  },
-  {
-    registryId: "doom-1993",
-    canonicalTitle: "Doom",
-    disambiguation: "1993 original",
-    availability: "published",
-    route: "/games/doom-1993",
-  },
-  {
-    registryId: "doom-2016",
-    canonicalTitle: "Doom",
-    disambiguation: "2016 reboot",
-    availability: "unprofiled",
-  },
-];
+/**
+ * The recognised-but-unprofiled registry.
+ *
+ * Two halves, and both matter. The first asserts what the repository actually
+ * ships — nothing — because an empty registry is a deliberate editorial
+ * position and not an oversight to be helpfully filled in. The second drives
+ * the state from a fixture, so the behaviour is proven without publishing a
+ * single fabricated identity.
+ */
 
-describe("Global Search registry states", () => {
-  it("resolves canonical titles and approved aliases to a published profile", () => {
-    expect(resolveRegistrySearch("AW2", RECORDS)).toMatchObject({
-      state: "published",
-      record: { route: "/games/alan-wake-2" },
-    });
+const profiles = SEED_PROFILES.map(buildProfileView);
+
+describe("what this repository publishes", () => {
+  it("ships an empty registry", () => {
+    // No approved list of launch identities exists. Adding rows to make the
+    // search box feel fuller would publish invented editorial claims about real
+    // products, in the one place a visitor is most likely to believe them.
+    expect(RECOGNIZED_GAMES).toEqual([]);
   });
 
-  it("recognizes an unprofiled game without inventing a route", () => {
-    expect(resolveRegistrySearch("silksong", RECORDS)).toMatchObject({
-      state: "unprofiled",
-      record: { registryId: "silksong" },
-    });
+  it("therefore answers an unprofiled game with `unrecognized`, not a stub", () => {
+    const index = indexFrom(profiles, RECOGNIZED_GAMES);
+    expect(index.recognized).toEqual([]);
+    expect(resolve(index, "hollow knight silksong").state).toBe("unrecognized");
+  });
+});
+
+describe("a registry row, when one is approved", () => {
+  const rows: RegisteredGame[] = [
+    {
+      id: "silksong",
+      title: "Hollow Knight: Silksong",
+      aliases: ["silksong"],
+      note: "Recognised, not yet evaluated.",
+    },
+  ];
+
+  it("becomes a searchable entry with no address", () => {
+    const index = indexFrom(profiles, rows);
+    const outcome = resolve(index, "silksong");
+
+    expect(outcome.state).toBe("recognized");
+    expect(outcome.suggestions).toHaveLength(1);
+
+    const entry = outcome.suggestions[0]!;
+    expect(entry.kind).toBe("recognized");
+    expect(entry.title).toBe("Hollow Knight: Silksong");
+    // The whole point of the state: it is findable and it is not a page.
+    expect(entry).not.toHaveProperty("path");
+    expect(outcome.exact).toBeNull();
   });
 
-  it("returns an explicit ambiguous state", () => {
-    const result = resolveRegistrySearch("Doom", RECORDS);
-    expect(result.state).toBe("ambiguous");
-    if (result.state !== "ambiguous") return;
-    expect(result.candidates.map((candidate) => candidate.disambiguation)).toEqual(
-      ["1993 original", "2016 reboot"],
+  it("is matched on its aliases as well as its title", () => {
+    const index = indexFrom(profiles, rows);
+    expect(resolve(index, "hollow knight").state).toBe("recognized");
+  });
+
+  it("says something true to a screen reader", () => {
+    const index = indexFrom(profiles, rows);
+    expect(announce(resolve(index, "silksong"))).toBe(
+      "1 recognised game, not yet profiled.",
     );
+    expect(announce(resolve(index, "zzzzzzzz"))).toBe("No match.");
   });
 
-  it("returns unrecognized rather than a fabricated fuzzy result", () => {
-    expect(resolveRegistrySearch("a game that is not here", RECORDS)).toEqual({
-      state: "unrecognized",
-    });
+  it("disappears once the catalogue profiles that game", () => {
+    // A registry row is a claim about our coverage, and the claim expires the
+    // moment it stops being true. Showing both rows would have the product
+    // contradict itself inside one listbox.
+    const stale: RegisteredGame[] = [
+      { id: "returnal", title: "Returnal", note: "Recognised, not yet evaluated." },
+    ];
+    const index = indexFrom(profiles, stale);
+    expect(index.recognized).toEqual([]);
+    expect(resolve(index, "returnal").state).toBe("published");
   });
+});
 
-  it("normalizes punctuation, case and diacritics", () => {
-    expect(normalizeSearchTerm("  POKÉMON—Legends  ")).toBe("pokemon legends");
-  });
-
-  it("refuses a public route on an unprofiled registry record", () => {
+describe("the registry refuses to ship a malformed row", () => {
+  it("rejects a duplicate id", () => {
     expect(() =>
-      resolveRegistrySearch("No profile", [
-        {
-          registryId: "no-profile",
-          canonicalTitle: "No profile",
-          availability: "unprofiled",
-          route: "/games/no-profile",
-        },
+      toRecognizedEntries([
+        { id: "same", title: "One", note: "Not yet." },
+        { id: "same", title: "Two", note: "Not yet." },
       ]),
-    ).toThrow(/cannot have a public route/);
+    ).toThrow(/duplicate id/i);
+  });
+
+  it("rejects a row with no note", () => {
+    // The note is the whole of what the product says about a recognised game,
+    // because it gets no page to say anything else on.
+    expect(() =>
+      toRecognizedEntries([{ id: "x", title: "X", note: "  " }]),
+    ).toThrow(/no note/i);
+  });
+
+  it("rejects a title nothing could ever match", () => {
+    expect(() =>
+      toRecognizedEntries([{ id: "x", title: "!!!", note: "Not yet." }]),
+    ).toThrow(/no searchable title/i);
+  });
+
+  it("orders rows deterministically whatever order they were authored in", () => {
+    const authored: RegisteredGame[] = [
+      { id: "b", title: "Beta", note: "Not yet." },
+      { id: "a", title: "Alpha", note: "Not yet." },
+    ];
+    expect(toRecognizedEntries(authored).map((entry) => entry.id)).toEqual([
+      "a",
+      "b",
+    ]);
   });
 });

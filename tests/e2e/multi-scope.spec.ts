@@ -138,3 +138,55 @@ test("a single-scope game shows no switcher", async ({ page }) => {
     page.getByRole("navigation", { name: /Evaluated experiences/i }),
   ).toHaveCount(0);
 });
+
+/**
+ * Search against a game that publishes two evaluated experiences.
+ *
+ * This is the only corpus in which the scope half of the search contract is
+ * reachable at all: with one scope per game, "several valid readings of what
+ * you typed" cannot be produced, and the branch that shows candidates instead
+ * of guessing is dead code in a browser.
+ */
+test.describe("search across two scopes", () => {
+  const field = (page: import("@playwright/test").Page) =>
+    page.getByRole("combobox", { name: "Search" });
+
+  test("offers both scopes, and names the one that is not the primary", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await field(page).fill("returna");
+
+    const options = page.getByRole("option");
+    await expect(options).toHaveCount(2);
+    // The sibling is identified by its scope, because "Returnal" alone would be
+    // two rows saying the same thing about two different evaluations.
+    await expect(options.filter({ hasText: "Tower of Sisyphus" })).toHaveCount(1);
+
+    // A prefix of two profiles opens neither.
+    await field(page).press("Enter");
+    await page.waitForTimeout(150);
+    await expect(page).toHaveURL(/\/$/);
+  });
+
+  test("opens a scope when the query names that scope exactly", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await field(page).fill("Returnal Tower of Sisyphus");
+    await field(page).press("Enter");
+    await expect(page).toHaveURL(new RegExp(`${SIBLING}$`));
+  });
+
+  test("the game's own name opens the game's canonical address", async ({
+    page,
+  }) => {
+    // ADR 0016: the primary scope owns the bare title, and the profile served
+    // there carries the switcher to its siblings. That is the canonical answer
+    // to "Returnal", not a guess between two evaluations.
+    await page.goto("/");
+    await field(page).fill("Returnal");
+    await field(page).press("Enter");
+    await expect(page).toHaveURL(new RegExp(`${GAME}$`));
+  });
+});

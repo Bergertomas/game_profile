@@ -1,6 +1,10 @@
 import { SEED_PROFILES } from "@/content";
 import { canonicallyOrdered } from "@/lib/profile/canonical-order";
-import { multiScopeAdditions, TEST_CORPUS_NAME } from "@/content/test-corpus";
+import {
+  multiScopeAdditions,
+  TEST_CORPUS_NAME,
+  TEST_REGISTRY_CORPUS_NAME,
+} from "@/content/test-corpus";
 import type { GameWithEvaluation } from "@/lib/profile/types";
 import type { RubricVersion } from "@/lib/rubric";
 import { SITE_ENV } from "@/lib/site";
@@ -46,17 +50,21 @@ export function readFixtureProfiles(
    */
   return [
     ...published(SEED_PROFILES),
-    ...(testCorpusRequested() ? published(multiScopeAdditions()) : []),
+    ...(requestedTestCorpus() === TEST_CORPUS_NAME
+      ? published(multiScopeAdditions())
+      : []),
   ].map(canonicallyOrdered);
 }
 
 /**
- * Whether this build was asked for the synthetic multi-scope corpus.
+ * Which synthetic corpus this build was asked for, if any.
  *
- * Every seeded game has one evaluated experience, so the public scope switcher
- * has no way to be exercised in a browser against the real corpus. `PROFILE_
- * TEST_CORPUS=multi-scope` adds a synthetic sibling scope (content/test-corpus.ts)
- * for the Playwright project that proves it.
+ * Two exist, and both exist for the same reason: a state the real corpus cannot
+ * reach in a browser. `multi-scope` adds a synthetic sibling scope so the public
+ * scope switcher has something to switch between. `recognized-registry` fills
+ * the recognised-but-unprofiled registry, which ships empty and must, so the
+ * search field's registry branch is reachable at all. Neither adds profiles and
+ * scopes at the same time — one corpus, one question.
  *
  * A PRODUCTION BUILD REFUSES RATHER THAN IGNORING IT. Silently dropping the
  * variable would be the safe-looking choice and the wrong one: it makes a
@@ -66,9 +74,9 @@ export function readFixtureProfiles(
  * be loud. `SITE_ENV` folds to a literal at build time, so this branch is not
  * even reachable in a production bundle.
  */
-function testCorpusRequested(): boolean {
+export function requestedTestCorpus(): string | null {
   const requested = process.env.PROFILE_TEST_CORPUS?.trim();
-  if (!requested) return false;
+  if (!requested) return null;
 
   if (SITE_ENV === "production") {
     throw new Error(
@@ -79,12 +87,13 @@ function testCorpusRequested(): boolean {
     );
   }
 
-  if (requested !== TEST_CORPUS_NAME) {
+  const known = [TEST_CORPUS_NAME, TEST_REGISTRY_CORPUS_NAME];
+  if (!known.includes(requested)) {
     throw new Error(
       `PROFILE_TEST_CORPUS=${requested} is not a corpus this build knows. ` +
-        `The only value is "${TEST_CORPUS_NAME}".`,
+        `The values are ${known.map((name) => `"${name}"`).join(" and ")}.`,
     );
   }
 
-  return true;
+  return requested;
 }

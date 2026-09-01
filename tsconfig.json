@@ -36,7 +36,9 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     ".next-multi-scope/types/**/*.ts",
-    ".next-multi-scope/dev/types/**/*.ts"
+    ".next-multi-scope/dev/types/**/*.ts",
+    ".next-recognized-registry/types/**/*.ts",
+    ".next-recognized-registry/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
