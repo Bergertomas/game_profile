@@ -33,11 +33,15 @@ The accepted A1–A6/C1–C4 public direction is now implementation-ready throug
 the [Shared Design-System and Interaction Handoff v1.0](docs/design/Should_I_Play_Shared_Design_System_and_Interaction_Handoff_v1.0_2026-08-31.md),
 its [semantic token map](docs/design/handoff/should-i-play.tokens.v1.json) and
 the [accessibility/conformance matrix](docs/design/Should_I_Play_Accessibility_and_Conformance_Matrix_v1.0_2026-08-31.md).
-Engineering Slice 1 now implements the shared foundation, the editorially
-governed static Search, its four truthful states, accessible inline/header
-Search and the bounded accepted homepage opening on this integration branch.
-Production remains on the earlier three-profile experience until this branch is
-reviewed, merged and deliberately deployed.
+**Engineering Slice 1 is merged on `main`**: the shared token/font foundation,
+the editorially governed static Search and its four truthful states, accessible
+inline/header Search, and the bounded accepted homepage opening. Engineering
+Slice 2 completes the accepted homepage system on top of it — the
+"Start somewhere interesting" poster rail, the authored-shelf grammar and the
+bounded "Choosing between…" presentation contract, whose editorial
+configurations ship empty pending owner-approved membership. **Production
+deployment remains pending**: the deployed site still serves the earlier
+three-profile experience until `main` is deliberately deployed.
 
 **Remote admin and production Live proof are exercised.** The current state is:
 
@@ -98,12 +102,13 @@ app/
   layout.tsx                   the html shell only — no surface owns the root
   (public)/                    the published product. A route group: no URL has it in it
     layout.tsx                 site chrome, skip link, site-wide structured data
-    page.tsx                   the library entrance — proposition, shelf, explainer
+    page.tsx                   the accepted homepage: opening, rail, shelves, pairs
     games/[slug]/page.tsx      the game's primary profile, then more games
     games/[slug]/[scope]/      a sibling profile scope; the primary key 308s
     games/[slug]/opengraph-image  prerendered share card, silhouette and all
     methodology/page.tsx       renders itself from the typed rubric
     dev/radar-states/          unknown/range harness, non-production only
+    dev/home-states/           rail, shelf and curated-pair harness, non-production only
   admin/                       the editorial tool. Authenticated, noindex, never prerendered
     layout.tsx                 the shell, and the guard every page passes through
     actions.ts                 every editorial mutation, one transaction each
@@ -114,12 +119,19 @@ app/
 components/
   SiteChrome.tsx               header and footer — achromatic, so games carry colour
   GameCard.tsx                 the one card grammar every list of games will use
+  home/HomeOpening.tsx         the accepted opening: proposition, Search, mosaic
+  home/PosterRail.tsx          the rail's controls and scroll position; no autoplay, ever
+  home/ProfilePoster.tsx       one poster: art-led or artless, one link, one disclosure
+  home/EditorialShelf.tsx      the authored shelves, or nothing at all
+  home/CuratedCompare.tsx      two identities, one decision, and a deferred CTA
   profile/radar.tsx            the only radar in the product, at three sizes
   profile/instrument.tsx       score rows, disclosure and hover linking
   profile/GameProfile.tsx      the canonical profile, with profile.css beside it
   profile/ScopeSwitcher.tsx    sibling navigation, only where a game has siblings
   admin/                       editorial form plumbing and panels
 lib/
+  home/shelves.ts              objective/evergreen/living shelves, windows, fallback
+  home/curated-compare.ts      the curated-pair contract, without full Compare
   search/registry.ts           four-state published/unprofiled coverage registry
   discovery/                   deterministic intent, Unknown, threshold and time rules
   metadata/provenance.ts       primary/official/manual factual precedence
@@ -149,6 +161,8 @@ lib/
   site.ts                      canonical origin, brand strings, build environment
   seo/                         JSON-LD graphs and share-card geometry
 content/games/                 seeded evaluations
+content/home-shelves.ts        approved homepage collections — objective only, for now
+content/curated-compare.ts     approved "Choosing between…" pairs — empty, deliberately
 docs/decisions/                ADRs
 tests/                         unit (vitest) and e2e (playwright)
 ```
@@ -206,6 +220,13 @@ These are product semantics, not preferences. Most are covered by a test.
 | Official storefront actions retain their ordinary link and require affiliate disclosure | `lib/commerce/storefront.ts`, `tests/storefront-actions.test.ts` |
 | Ordinary product events cannot carry raw query text or arbitrary properties | `lib/analytics/events.ts`, `tests/analytics-events.test.ts` |
 | All three profiles reproduce their calibration matrix exactly | `tests/calibration.test.ts` — 24 locked totals |
+| The homepage never moves on its own: no autoplay, no loop, no timer | `components/home/PosterRail.tsx`, `tests/e2e/homepage.spec.ts` |
+| A shelf with no members renders nothing — never a heading over an empty track | `lib/home/shelves.ts`, `tests/home-shelves.test.ts` |
+| An objective shelf that would hold the whole catalogue has selected nothing, and disappears | `lib/home/shelves.ts`, P0.3's no-padding rule |
+| A collection naming a profile this build does not publish fails the build | `lib/home/shelves.ts`, `lib/home/curated-compare.ts` |
+| A time-bounded shelf expires into its evergreen fallback, never into stale copy | publication window + `fallbackId`, `tests/home-shelves.test.ts` |
+| The curated pair publishes no route into Compare until Compare exists | `components/home/CuratedCompare.tsx`, `tests/curated-compare.test.ts` |
+| A missing, slow or failed image resolves to the authored artless composition | the sleeve renders under the artwork, never instead of it |
 
 ## Where the data comes from
 
@@ -723,11 +744,16 @@ not post them anywhere durable. See
 
 ## Not built, deliberately
 
-The remaining accepted homepage composition, A3–A6 profile migration, C1–C4
-Compare, What should I play? UI, `/about`, the 12–15-profile validation corpus
-and the approximately-100-profile quiet-release catalog are not built. Static
-Search and the accepted opening are implemented on this integration branch;
-their production deployment is not. The provider-independent discovery/time,
+The A3–A6 profile migration, C1–C4 Compare, What should I play? UI, `/about`,
+the 12–15-profile validation corpus and the approximately-100-profile
+quiet-release catalog are not built — so the homepage's curated-Compare module
+publishes no route into Compare, and says so rather than linking to a page that
+does not exist. Static Search and the accepted homepage system are merged on
+`main`; their production deployment is not. The authored evergreen/living
+shelves and the "Choosing between…" entries have their grammar, configuration
+contract and tests, and no content: every entry either would carry is a
+qualitative editorial claim Tomas approves, so both configurations ship empty
+rather than inventing one (P0.3). The provider-independent discovery/time,
 metadata precedence, storefront-action and event contracts are implemented and
 tested as foundations. Evaluation authoring is built. Public accounts, reviews,
 comments, social features, runtime AI chat, recommendation ML and a public

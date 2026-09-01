@@ -31,10 +31,11 @@ import { describe, expect, it } from "vitest";
 
 const GLOBALS = "app/globals.css";
 
-/** The stylesheets this slice owns. */
+/** The stylesheets the public homepage and Search slices own. */
 const SHEETS = [
   "components/search/search.css",
   "components/home/home-opening.css",
+  "components/home/home-sections.css",
 ] as const;
 
 /** `--name:` declarations in a stylesheet. */

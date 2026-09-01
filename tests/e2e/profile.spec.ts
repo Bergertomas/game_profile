@@ -246,18 +246,17 @@ test("keyboard focus reaches every score row and drives the radar", async ({
 
 test("home page contrasts three distinct silhouettes", async ({ page }) => {
   await page.goto("/");
-  // One instrument mark per game card. Counted through the card, not through
-  // every <svg> on the page, so neither the explainer radar beneath the shelf
-  // nor the opening's fingerprints are mistaken for a fourth game.
+  // One instrument mark per poster. Counted through the poster's own article,
+  // not through every <svg> on the page, so neither the explainer radar below
+  // the rail nor the opening's fingerprints is mistaken for a fourth game.
   await expect(page.locator("article svg")).toHaveCount(SLUGS.length);
 
-  // Scoped to the shelf. Every game is now reachable from two places on this
-  // page — the opening mosaic and its card — and both are correct; what this
-  // asserts is that the SHELF still lists all three at their canonical
-  // addresses.
-  const shelf = page.locator("section", { has: page.locator("#catalogue") });
+  // Scoped to the rail. Every game is reachable from two places on this page —
+  // the opening mosaic and its poster — and both are correct; what this asserts
+  // is that the RAIL still lists all three at their canonical addresses.
+  const rail = page.locator("section", { has: page.locator("#catalogue") });
   for (const slug of SLUGS) {
-    await expect(shelf.locator(`a[href="/games/${slug}"]`)).toBeVisible();
+    await expect(rail.locator(`a[href="/games/${slug}"]`)).toBeVisible();
   }
 });
 
@@ -271,31 +270,44 @@ test("the opening links each featured game to its canonical address", async ({
   }
 });
 
-test("a game card leads with the game, not with its numbers", async ({
-  page,
-}) => {
+test("a poster leads with the game, not with its numbers", async ({ page }) => {
   await page.goto("/");
-  const card = page.locator("article").first();
+  const poster = page.locator("li.sip-poster").first();
 
-  // The card's own heading is the game and nothing else. If a score or a
-  // dimension name were reaching the heading, the hierarchy the card exists to
+  // The poster's own heading is the game and nothing else. If a score or a
+  // dimension name were reaching the heading, the hierarchy the rail exists to
   // enforce would have inverted.
-  // textContent, not innerText: the display face is uppercased in CSS, and the
-  // assertion is about the words in the document, not about the rendering.
-  const heading = (await card.locator("h3").textContent()) ?? "";
+  // textContent, not innerText: the display face may be transformed in CSS, and
+  // the assertion is about the words in the document, not about the rendering.
+  const heading = (await poster.locator("h3").textContent()) ?? "";
   expect(heading).toMatch(/^Alan Wake 2\b/);
   expect(heading).not.toMatch(/\d\.\d/);
   expect(heading).not.toMatch(/Atmosphere|Strongest|Weakest/);
 
-  // The mark carries no text of its own, so the card owes exact values in
+  // The mark carries no text of its own, so the poster owes its distribution in
   // words — nothing in this product is communicated by shape alone.
-  await expect(card.locator("dt").first()).toContainText("Strongest");
-  await expect(card.locator("dd").first()).toHaveText(/\d+\.\d/);
+  // The poster's own shape sentence, not the labels inside its two controls.
+  await expect(poster.locator("> .sr-only")).toContainText(
+    /Profile across 8 dimensions, each scored 0 to 10 independently/,
+  );
 
   // And no aggregate, here or anywhere.
   const body = await page.content();
   expect(body).not.toMatch(/overall score:\s*\d/);
   expect(body).not.toMatch(/average score/);
+});
+
+test("the card grammar still leads with the game on a profile page", async ({
+  page,
+}) => {
+  // `GameCard` left the homepage with the accepted rail, and it is still the
+  // grammar every other list of games uses. Asserted where it now lives.
+  await page.goto("/games/alan-wake-2");
+  const card = page.locator("article.group").first();
+  const heading = (await card.locator("h3").textContent()) ?? "";
+  expect(heading).not.toMatch(/\d\.\d/);
+  await expect(card.locator("dt").first()).toContainText("Strongest");
+  await expect(card.locator("dd").first()).toHaveText(/\d+\.\d/);
 });
 
 /**
