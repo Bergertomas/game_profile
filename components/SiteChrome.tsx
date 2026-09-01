@@ -47,9 +47,16 @@ const WORDMARK = SITE_NAME.replace(/\?+$/, "");
 export function SiteHeader() {
   return (
     <header className="border-b border-rule-bone bg-graphite text-bone">
-      <div className="mx-auto flex w-full max-w-[82rem] items-center justify-between gap-4 px-4 py-3.5 sm:px-10">
-        <Link href="/" className="flex items-baseline gap-3">
-          <span className="sip-wordmark text-[1.0625rem] sm:text-[1.1875rem]">
+      {/* `flex-wrap` and the `min-w-0`s below are the 200%-zoom contract, not
+          layout taste. At 390 CSS pixels with the root font doubled, the
+          wordmark, the Search opener and "How we score" cannot share one line,
+          and a header that refuses to wrap scrolls the whole document sideways
+          on every page of the site — which handoff §3.4 forbids outright. At
+          every ordinary size nothing wraps and this is still the one compact
+          row §5.1 asks for. */}
+      <div className="mx-auto flex w-full max-w-[82rem] flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3.5 sm:px-10">
+        <Link href="/" className="flex min-w-0 items-baseline gap-3">
+          <span className="sip-wordmark break-words text-[1.0625rem] sm:text-[1.1875rem]">
             {WORDMARK}
             <span className="sip-wordmark__q">?</span>
           </span>
@@ -57,7 +64,7 @@ export function SiteHeader() {
             {SITE_TAGLINE}
           </span>
         </Link>
-        <div className="flex items-center gap-3 sm:gap-4">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 sm:gap-x-4">
           <SearchDialog />
           <nav aria-label="Primary">
             <Link

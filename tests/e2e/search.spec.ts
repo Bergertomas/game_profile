@@ -78,11 +78,15 @@ test.describe("the opening", () => {
     await page.goto("/");
     // Alan Wake 2 carries a hero and no cover, deliberately, so the mixed state
     // is reviewed on every preview. A cover is never demoted into this role.
-    const sleeves = page.locator(".sip-open__sleeve");
-    await expect(sleeves).toHaveCount(1);
-    // And the tile is still a complete, readable card rather than a hole.
     const artless = page.locator(".sip-open__tile.is-artless");
+    await expect(artless).toHaveCount(1);
+    // And the tile is still a complete, readable card rather than a hole.
     await expect(artless.getByRole("link")).toBeVisible();
+
+    // The sleeve is UNDER every tile, not only the artless one: `cleared`,
+    // `loading`, `failed` and `absent` then all resolve to the same authored
+    // composition rather than to an empty black rectangle (handoff §4.2).
+    await expect(page.locator(".sip-open__sleeve")).toHaveCount(3);
   });
 });
 

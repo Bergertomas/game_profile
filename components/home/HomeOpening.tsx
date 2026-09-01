@@ -193,7 +193,12 @@ function Tile({ profile, lead }: { profile: ProfileView; lead: boolean }) {
       }
     >
       <div className="sip-open__art">
-        {cover ? (
+        {/* The sleeve is always under the artwork rather than an alternative to
+            it, so `cleared`, `loading`, `failed` and `absent` all resolve to the
+            same authored composition instead of to an empty black rectangle
+            (handoff §4.2). */}
+        <span className="sip-open__sleeve" aria-hidden="true" />
+        {cover && (
           /* A plain <img>, for the reason GameCard gives: optimising art hosted
              by somebody else would need a remotePatterns entry that would ship
              to production and outlive its reason (ADR 0011). */
@@ -205,8 +210,6 @@ function Tile({ profile, lead }: { profile: ProfileView; lead: boolean }) {
             height={cover.height}
             style={{ objectPosition: cover.objectPosition }}
           />
-        ) : (
-          <span className="sip-open__sleeve" aria-hidden="true" />
         )}
         <span className="sip-open__scrim" aria-hidden="true" />
       </div>

@@ -311,7 +311,12 @@ try {
     );
   }
 
-  const DESIGN_SURFACES = ["/dev/radar-states", "/design-lab", "/design-lab/d3/alan-wake-2"];
+  const DESIGN_SURFACES = [
+    "/dev/radar-states",
+    "/dev/home-states",
+    "/design-lab",
+    "/design-lab/d3/alan-wake-2",
+  ];
   for (const path of DESIGN_SURFACES) {
     const res = await get(path);
     if (PREVIEW) {

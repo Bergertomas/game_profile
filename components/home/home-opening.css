@@ -189,6 +189,10 @@
 }
 
 .sip-open__art img {
+  /* Positioned, so it stacks over the sleeve rather than replacing it. An
+     image that never arrives leaves the authored artless composition showing. */
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
@@ -339,4 +343,10 @@
   font-size: var(--text-minimum);
   line-height: var(--leading-body);
   color: var(--color-text-quiet);
+  /* The rights notice for review-clearance artwork carries the URL the asset
+     was loaded from, and a URL is one unbreakable token. Without this it sets a
+     min-content floor wider than the column and scrolls the whole document
+     sideways at 200% text — a preview-only credit line becoming a WCAG 1.4.10
+     failure on the homepage. */
+  overflow-wrap: anywhere;
 }

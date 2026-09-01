@@ -1,8 +1,14 @@
 import Link from "next/link";
-import { GameCard } from "@/components/GameCard";
+import { CuratedCompare } from "@/components/home/CuratedCompare";
+import { EditorialShelves } from "@/components/home/EditorialShelf";
 import { HomeOpening } from "@/components/home/HomeOpening";
+import { ProfileRail } from "@/components/home/ProfileRail";
 import { ProfileRadar } from "@/components/profile/radar";
 import { full } from "@/components/profile/radar-layout";
+import { CURATED_COMPARISONS } from "@/content/curated-compare";
+import { HOME_SHELVES } from "@/content/home-shelves";
+import { resolveCuratedPairs } from "@/lib/home/curated-compare";
+import { resolveShelves } from "@/lib/home/shelves";
 import { listGameProfiles } from "@/lib/data/games";
 import { accentFor } from "@/lib/profile/accent";
 import type { ProfileView } from "@/lib/profile/build";
@@ -10,33 +16,43 @@ import { dimensionsInRadarOrder } from "@/lib/rubric";
 import type { CSSProperties } from "react";
 
 /**
- * The front door.
+ * The front door — the accepted A1/A2 homepage system.
  *
- * It is a LIBRARY ENTRANCE, not a landing page. The order of the page is the
- * argument: the question and the field that answers it, then the games, then —
- * for anyone curious enough to have scrolled past a shelf of covers — what a
- * Game Profile actually is.
+ * The order of the page is the argument, and it is the one ADR 0030 froze:
  *
- * That order is deliberate and was the main thing wrong with the previous
- * homepage, which explained the methodology at length above three small
- * report-shaped cards. Methodology is why this product is worth trusting; it is
- * not why anyone arrives. Curiosity should pull a visitor into the rigour, not
- * the other way round. Somebody should get here and think "what does that game
- * look like", not "I understand the analytical framework".
+ *   1. the decision-first proposition, with Search inside it and the three
+ *      journeys named — the opening (components/home/HomeOpening.tsx);
+ *   2. the general "Start somewhere interesting" poster rail;
+ *   3. the authored shelves that follow that rail;
+ *   4. "Choosing between…" as a SECONDARY curated module — Compare is never
+ *      the default homepage subject;
+ *   5. what a Game Profile actually is, for anyone still reading.
  *
- * What is deliberately NOT here: a feature triptych, a gradient hero, a
- * newsletter box, statistics about ourselves, or navigation to rooms that do
- * not exist. Compare and "What should I play?" are accepted and unbuilt, and
- * the opening names them without pretending to offer them.
+ * Search comes first and stays dominant because it is the one journey a
+ * visitor with a game in mind can finish. Everything below it is browsing, and
+ * browsing is what you offer somebody who did not arrive with a title.
  *
- * ── The opening replaced a prose proposition, and why ──────────────────────
+ * ── What is deliberately absent, and why that is the design ────────────────
  *
- * The page used to begin with two paragraphs explaining the eight dimensions.
- * That is the right ARGUMENT and the wrong FIRST MOVE: the overwhelmingly
- * common visitor already has a game in mind, and the fastest honest thing the
- * page can do is let them type its name. So the decision interface comes first
- * and the reasoning follows it — the explainer below still makes the case, to
- * somebody who has already seen what the product does.
+ * Sections 3 and 4 render nothing today. Both are driven by version-controlled
+ * editorial configuration (P0.3), and both configurations ship empty because
+ * every entry they could carry is a qualitative editorial claim that only
+ * Tomas approves — see content/home-shelves.ts and content/curated-compare.ts.
+ * The objective shelves that ARE configured resolve to nothing against a
+ * three-profile catalogue, by the rule in lib/home/shelves.ts: a collection
+ * that would contain the entire catalogue has selected nothing, and reprinting
+ * the rail under a second heading is padding.
+ *
+ * So the page shows what the corpus can honestly support and no more. That is
+ * the accepted composition working correctly, not an unfinished one: the
+ * grammar is built, unit-tested and reviewable against labelled fixtures at
+ * `/dev/home-states`. Nothing here is fabricated to fill a frame.
+ *
+ * The warm-paper "In the library" card grid that used to sit here is gone. It
+ * was the pre-Gate-A library entrance, and the accepted composition puts the
+ * poster rail in its place — two full catalogue listings on one homepage is not
+ * a composition anybody accepted. `#catalogue` still resolves: the rail's
+ * heading carries the id Search's recovery link points at.
  *
  * The field's index is not built here: the public layout reads it once and
  * provides it to the whole document, so it is serialised once per page rather
@@ -46,36 +62,55 @@ export default async function HomePage() {
   const profiles = await listGameProfiles();
   const example = profiles[0];
 
+  /*
+   * Build time is the only "now" a static artifact has.
+   *
+   * Rolling ranges and publication windows are resolved here, once, while the
+   * page is prerendered — there is no request-time data on the public path
+   * (ADR 0017, 0031). A living shelf therefore closes at the first build after
+   * its `until` date. Publication triggers a build, which is what keeps the two
+   * in step.
+   */
+  const shelves = resolveShelves(HOME_SHELVES, profiles, new Date());
+  const pairs = resolveCuratedPairs(CURATED_COMPARISONS, profiles);
+
   return (
     <>
       <HomeOpening profiles={profiles} />
 
-      {/* ── The shelf. The reason the page exists. ────────────────────────── */}
-      <section aria-labelledby="catalogue" className="border-b border-rule">
-        <div className="mx-auto w-full max-w-[82rem] px-4 py-10 sm:px-10 sm:py-14">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
-            <h2 id="catalogue" className="sip-display sip-display--section text-[1.75rem]">
-              In the library
-            </h2>
-            <p className="sip-label text-ink-quiet">
-              {profiles.length} profiles · Rubric v1.0
-            </p>
-          </div>
+      {/* ── The rail. The catalogue, as posters. ─────────────────────────── */}
+      <ProfileRail
+        heading="Start somewhere interesting"
+        headingId="catalogue"
+        note={railNote(profiles.length)}
+        profiles={profiles}
+      />
 
-          <ul className="mt-8 grid list-none grid-cols-1 gap-x-6 gap-y-10 p-0 min-[30rem]:grid-cols-2 sm:gap-x-8 sm:gap-y-12 lg:grid-cols-3">
-            {profiles.map((profile) => (
-              <li key={profile.game.slug} className="flex min-w-0">
-                <GameCard profile={profile} />
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
+      <EditorialShelves shelves={shelves} />
+
+      {/* Compare is accepted and unbuilt, so no route is passed and the module
+          says so rather than publishing a link to a page that does not exist.
+          Slice 4 supplies `compareRouteFor` and the accepted CTA appears. */}
+      <CuratedCompare pairs={pairs} />
 
       {/* ── Now that you have seen the games: what the mark on them means. ── */}
       {example && <ProfileExplainer example={example} />}
     </>
   );
+}
+
+/**
+ * What puts a profile on the general rail: publication, and nothing else.
+ *
+ * Stated rather than implied, because a horizontal row of games is the exact
+ * shape a reader has learned to read as a chart. It is not one. There is no
+ * ranking, no popularity, no editorial preference and no trending signal in
+ * this order — it is the catalogue, alphabetically.
+ */
+function railNote(count: number): string {
+  return count === 1
+    ? "The one published Game Profile. Not a ranking."
+    : `All ${count} published Game Profiles, in catalogue order. Not a ranking, and nothing here moves on its own.`;
 }
 
 /**

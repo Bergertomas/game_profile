@@ -25,6 +25,23 @@ const PAGES = [
   { name: "redfall", path: "/games/redfall" },
   { name: "methodology", path: "/methodology" },
   { name: "radar-states", path: "/dev/radar-states" },
+  { name: "home-states", path: "/dev/home-states" },
+];
+
+/**
+ * The conformance envelope from the accessibility/visual matrix §1.
+ *
+ * These are not "more sizes" — they are the specific stress cases the accepted
+ * homepage has to survive: the short phone where Search must be reachable
+ * without scrolling past a picture, the narrowest supported width, and 200%
+ * text at both a desktop and a phone baseline. Captured viewport-only, because
+ * what is being evidenced is what fits in a first viewport.
+ */
+const CONFORMANCE = [
+  { name: "home-390x667", path: "/", width: 390, height: 667 },
+  { name: "home-320", path: "/", width: 320, height: 568 },
+  { name: "home-200pc-1280", path: "/", width: 1280, height: 800, rootFontPx: 32 },
+  { name: "home-200pc-390", path: "/", width: 390, height: 844, rootFontPx: 32 },
 ];
 
 mkdirSync(OUT, { recursive: true });
@@ -67,6 +84,43 @@ for (const viewport of [VIEWPORTS[0], VIEWPORTS[3]]) {
     await page.screenshot({
       path: `${OUT}/fold-${target.name}-${viewport.name}.png`,
     });
+  }
+  await context.close();
+}
+
+// The conformance envelope. Viewport-only and at device scale 1, so a capture
+// is directly comparable with the CSS pixel budgets the matrix states.
+for (const shot of CONFORMANCE) {
+  const context = await browser.newContext({
+    viewport: { width: shot.width, height: shot.height },
+  });
+  const page = await context.newPage();
+  await page.goto(`${BASE}${shot.path}`, { waitUntil: "networkidle" });
+  if (shot.rootFontPx) {
+    await page.evaluate((size) => {
+      document.documentElement.style.fontSize = `${size}px`;
+    }, shot.rootFontPx);
+  }
+  await page.evaluate(() => document.fonts.ready);
+  await page.screenshot({ path: `${OUT}/${shot.name}.png` });
+  await context.close();
+}
+
+// The poster preview open, at the phone reference. The one state a full-page
+// capture cannot show, and the one the disclosure contract is about.
+{
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 2,
+  });
+  const page = await context.newPage();
+  await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
+  const disclosure = page.locator(".sip-poster__disclose").first();
+  if (await disclosure.count()) {
+    await disclosure.scrollIntoViewIfNeeded();
+    await disclosure.click();
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: `${OUT}/home-preview-open-mobile.png` });
   }
   await context.close();
 }
