@@ -748,13 +748,12 @@ The A3–A6 profile migration, C1–C4 Compare, What should I play? UI, `/about`
 the 12–15-profile validation corpus and the approximately-100-profile
 quiet-release catalog are not built — so the homepage's curated-Compare module
 publishes no route into Compare, and says so rather than linking to a page that
-does not exist. Static
-Static Search and the accepted homepage system are merged on `main`; their
-production deployment is not. The authored evergreen/living shelves and the
-"Choosing between…" entries have their grammar, configuration contract and
-tests, and no content: every entry either would carry is a qualitative
-editorial claim Tomas approves, so both configurations ship empty rather than
-inventing one (P0.3). The provider-independent discovery/time,
+does not exist. Static Search and the accepted homepage system are merged on
+`main`; their production deployment is not. The authored evergreen/living
+shelves and the "Choosing between…" entries have their grammar, configuration
+contract and tests, and no content: every entry either would carry is a
+qualitative editorial claim Tomas approves, so both configurations ship empty
+rather than inventing one (P0.3). The provider-independent discovery/time,
 metadata precedence, storefront-action and event contracts are implemented and
 tested as foundations. Evaluation authoring is built. Public accounts, reviews,
 comments, social features, runtime AI chat, recommendation ML and a public

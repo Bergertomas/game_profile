@@ -254,6 +254,62 @@ describe("authored shelves", () => {
     expect(titles(shelf!.profiles)).toEqual(["new-one", "new-two"]);
   });
 
+  it("rejects two references that resolve to the same published profile", () => {
+    /*
+     * The duplicate the configuration check cannot see.
+     *
+     * A member naming a scope explicitly and a member omitting it are two
+     * different references, and they are the SAME profile whenever that scope
+     * is the game's primary one. Only resolution can tell, so only resolution
+     * can refuse it — and it must, for the same reason as any other duplicate:
+     * the poster would render twice and count twice towards the minimum.
+     */
+    expect(() =>
+      resolveShelves(
+        [
+          {
+            id: "evergreen",
+            kind: "evergreen",
+            heading: "Story first",
+            note: "Authored membership.",
+            members: [
+              { slug: "new-one" },
+              { slug: "new-one", scope: alanWake2.scope.key },
+            ],
+            minimumMembers: 2,
+          },
+        ],
+        CATALOGUE,
+        AUGUST,
+      ),
+    ).toThrow(/already on the shelf under its other address/);
+  });
+
+  it("does not let a repeat carry a shelf over its minimum", () => {
+    // The consequence the rule exists to prevent, stated as its own case: one
+    // real member and one repeat of it is one member, and a shelf needing two
+    // does not get there by naming the same profile twice.
+    expect(() =>
+      resolveShelves(
+        [
+          {
+            id: "padded",
+            kind: "evergreen",
+            heading: "Padded",
+            note: "Authored membership.",
+            members: [
+              { slug: "new-one", scope: alanWake2.scope.key },
+              { slug: "new-one" },
+            ],
+            minimumMembers: 2,
+          },
+        ],
+        CATALOGUE,
+        AUGUST,
+      ),
+    ).toThrow(/more than once/);
+  });
+
   it("fails the build rather than quietly becoming a different collection", () => {
     expect(() =>
       resolveShelves(
@@ -383,6 +439,66 @@ describe("configuration that must fail the build", () => {
     ).toThrow(/not a shelf/);
   });
 
+  /**
+   * A count is a whole positive number, and the values below are the ones a
+   * bare `< 1` comparison lets through. Each has its own failure mode: a
+   * fraction can never equal a member count, an infinity disables the shelf
+   * forever, and `NaN` makes every comparison false — so a shelf with a `NaN`
+   * minimum renders whatever it has and its configured floor is decoration.
+   */
+  it.each([0, -1, -0.5, 1.5, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
+    "rejects minimumMembers %p",
+    (minimumMembers) => {
+      expect(() =>
+        assertShelvesAreWellFormed([{ ...base, minimumMembers }]),
+      ).toThrow(/whole number of at least 1/);
+    },
+  );
+
+  it("accepts a whole positive minimum", () => {
+    expect(() =>
+      assertShelvesAreWellFormed([{ ...base, minimumMembers: 3 }]),
+    ).not.toThrow();
+  });
+
+  it.each([0, -5, 2.5, Number.NaN, Number.POSITIVE_INFINITY])(
+    "rejects a rolling range of %p days",
+    (days) => {
+      for (const rule of ["profiled-within-days", "released-within-days"] as const) {
+        expect(() =>
+          assertShelvesAreWellFormed([
+            {
+              id: "objective",
+              kind: "objective",
+              heading: "Objective",
+              note: "Restates a record.",
+              membership: { rule, days },
+              minimumMembers: 2,
+            },
+          ]),
+          `${rule} with ${days} days`,
+        ).toThrow(/whole number of at least 1/);
+      }
+    },
+  );
+
+  it("asks no day count of the rule that counts no days", () => {
+    // `reassessed` reads a supersession, not a window. It has no `days` to
+    // validate and must not be required to invent one.
+    expect(() =>
+      assertShelvesAreWellFormed([
+        {
+          id: "reassessed",
+          kind: "objective",
+          heading: "Recently reassessed",
+          note: "Republished after a new evaluation.",
+          membership: { rule: "reassessed" },
+          minimumMembers: 2,
+        },
+      ]),
+    ).not.toThrow();
+  });
+
   it("rejects a window that closes before it opens", () => {
     expect(() =>
       assertShelvesAreWellFormed([
@@ -399,20 +515,109 @@ describe("configuration that must fail the build", () => {
     ).toThrow(/closes .* before it opens/);
   });
 
+  const livingWindow = (from: string, until: string): ShelfDefinition => ({
+    id: "living",
+    kind: "living",
+    heading: "Living",
+    note: "Authored.",
+    members: [{ slug: "new-one" }],
+    window: { from, until },
+    minimumMembers: 1,
+  });
+
   it("rejects a non-ISO window bound", () => {
+    expect(() =>
+      assertShelvesAreWellFormed([livingWindow("1 August 2026", "2026-09-30")]),
+    ).toThrow(/ISO YYYY-MM-DD/);
+  });
+
+  /**
+   * A shape that matches the pattern and names no day.
+   *
+   * This is the failure the pattern alone could not see. `Date.UTC` does not
+   * reject an impossible date, it ROLLS IT OVER — so a window written
+   * `2026-02-30` used to open on 2 March, and `2026-99-99` somewhere in 2034.
+   * Silently, on a day nobody chose, for a collection somebody approved.
+   */
+  it.each([
+    "2026-99-99",
+    "2026-13-01",
+    "2026-00-10",
+    "2026-01-32",
+    "2026-01-00",
+    "2026-02-30",
+    "2026-04-31",
+    "2026-02-29",
+    "0050-01-01",
+  ])("rejects %s, which is not a day", (from) => {
+    expect(() =>
+      assertShelvesAreWellFormed([livingWindow(from, "2027-01-01")]),
+    ).toThrow(/real ISO YYYY-MM-DD calendar date/);
+  });
+
+  it("checks both ends of the window, not only the first", () => {
+    expect(() =>
+      assertShelvesAreWellFormed([livingWindow("2026-08-01", "2026-06-31")]),
+    ).toThrow(/real ISO YYYY-MM-DD calendar date/);
+  });
+
+  it.each(["2026-01-01", "2026-12-31", "2028-02-29", "2026-02-28"])(
+    "accepts %s, which is a day",
+    (from) => {
+      // Including a real leap day, so the check cannot be tightened into
+      // rejecting 29 February wholesale.
+      expect(() =>
+        assertShelvesAreWellFormed([livingWindow(from, "2029-01-01")]),
+      ).not.toThrow();
+    },
+  );
+
+  it("rejects the same member written twice on one shelf", () => {
+    // Not a cosmetic mistake: the poster renders twice, and the shelf counts it
+    // twice towards the minimum that decides whether it renders at all — so a
+    // collection too thin to publish could be padded into existence by
+    // repeating a member.
     expect(() =>
       assertShelvesAreWellFormed([
         {
-          id: "living",
-          kind: "living",
-          heading: "Living",
-          note: "Authored.",
-          members: [{ slug: "new-one" }],
-          window: { from: "1 August 2026", until: "2026-09-30" },
-          minimumMembers: 1,
+          ...base,
+          minimumMembers: 2,
+          members: [{ slug: "new-one" }, { slug: "new-one" }],
         },
       ]),
-    ).toThrow(/ISO YYYY-MM-DD/);
+    ).toThrow(/names new-one more than once/);
+  });
+
+  it("rejects a repeated sibling scope too", () => {
+    expect(() =>
+      assertShelvesAreWellFormed([
+        {
+          ...base,
+          minimumMembers: 2,
+          members: [
+            { slug: "two-scopes", scope: "wintermute" },
+            { slug: "two-scopes", scope: "wintermute" },
+          ],
+        },
+      ]),
+    ).toThrow(/scope "wintermute"\) more than once/);
+  });
+
+  it("allows two different scopes of one game", () => {
+    // Two evaluated experiences of a game are two profiles, and a collection
+    // may legitimately carry both.
+    expect(() =>
+      assertShelvesAreWellFormed([
+        {
+          ...base,
+          minimumMembers: 2,
+          members: [
+            { slug: "two-scopes", scope: "survival" },
+            { slug: "two-scopes", scope: "wintermute" },
+          ],
+        },
+      ]),
+    ).not.toThrow();
   });
 
   it("rejects a fallback that is not configured", () => {

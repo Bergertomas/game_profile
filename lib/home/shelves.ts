@@ -145,10 +145,56 @@ function daysBefore(from: string, days: number): string {
   return new Date(at - days * 86_400_000).toISOString().slice(0, 10);
 }
 
-/** ISO days compare correctly as strings, which is why the format is fixed. */
+/**
+ * ISO days compare correctly as strings, which is why the format is fixed —
+ * and the shape is only half the check.
+ *
+ * `2026-99-99` and `2026-02-30` both match the pattern and neither is a day.
+ * A shape-only check let them through to `daysBefore`, where `Date.UTC` rolls
+ * them silently into some other real date: a publication window nobody wrote,
+ * opening or closing on a day nobody chose. So the value must also ROUND-TRIP
+ * — build the UTC day it names, print it back, and require the same string.
+ * Rollover changes the printed day, so it cannot survive the comparison.
+ *
+ * Two-digit years are rejected by the same rule rather than by a special case:
+ * `Date.UTC` maps years 0–99 into the 1900s, so "0050-01-01" prints back as
+ * "1950-01-01" and fails. Failing closed on a year no editorial window will
+ * ever carry is the right side to err on.
+ */
 function assertIsoDay(value: string, where: string): void {
-  if (!ISO_DAY.test(value)) {
-    throw new Error(`Shelf ${where} must be an ISO YYYY-MM-DD date, got "${value}".`);
+  const invalid = () => {
+    throw new Error(
+      `Shelf ${where} must be a real ISO YYYY-MM-DD calendar date, got "${value}".`,
+    );
+  };
+
+  if (!ISO_DAY.test(value)) invalid();
+
+  const at = new Date(
+    Date.UTC(
+      Number(value.slice(0, 4)),
+      Number(value.slice(5, 7)) - 1,
+      Number(value.slice(8, 10)),
+    ),
+  );
+  if (Number.isNaN(at.getTime()) || dayOf(at) !== value) invalid();
+}
+
+/**
+ * A count of things, and things do not come in halves or minus signs.
+ *
+ * `Number.isInteger` is the whole guard: it is false for `NaN`, for both
+ * infinities and for every fraction, which is exactly the set that survives a
+ * bare `< 1` comparison. A fractional minimum would compare against a member
+ * count that can never equal it; an infinite one silently disables a shelf
+ * forever; `NaN` makes every comparison false, so a shelf with a `NaN` minimum
+ * renders whatever it has and its configured floor is a decoration.
+ */
+function assertWholeCount(value: number, where: string, because: string): void {
+  if (!Number.isInteger(value) || value < 1) {
+    throw new Error(
+      `Shelf ${where} is ${value}; it must be a whole number of at least 1, ${because}`,
+    );
   }
 }
 
@@ -167,11 +213,45 @@ export function assertShelvesAreWellFormed(
     if (byId.has(shelf.id)) {
       throw new Error(`Two homepage shelves share the id "${shelf.id}".`);
     }
-    if (shelf.minimumMembers < 1) {
-      throw new Error(
-        `Shelf "${shelf.id}" has minimumMembers ${shelf.minimumMembers}; a shelf with no members is not a shelf.`,
+    assertWholeCount(
+      shelf.minimumMembers,
+      `"${shelf.id}" minimumMembers`,
+      "because a shelf with no members is not a shelf.",
+    );
+
+    if (shelf.kind === "objective" && shelf.membership.rule !== "reassessed") {
+      assertWholeCount(
+        shelf.membership.days,
+        `"${shelf.id}" membership.days`,
+        "because a rolling range is counted in whole days.",
       );
     }
+
+    // The same profile named twice in one authored collection.
+    //
+    // A duplicate is a configuration mistake with two visible consequences: the
+    // poster renders twice on one shelf, and the shelf counts it twice towards
+    // the minimum that decides whether it renders at all. So a collection that
+    // would have been too thin to publish can be padded into existence by
+    // repeating a member — which is precisely what P0.3's no-padding rule
+    // forbids. Caught here on the written reference; `resolveMembers` catches
+    // the other spelling of it, where two different references resolve to one
+    // published profile.
+    if (shelf.kind !== "objective") {
+      const named = new Set<string>();
+      for (const member of shelf.members) {
+        const key = `${member.slug}/${member.scope ?? ""}`;
+        if (named.has(key)) {
+          throw new Error(
+            `Homepage shelf "${shelf.id}" names ${member.slug}` +
+              (member.scope ? ` (scope "${member.scope}")` : "") +
+              ` more than once. A member appears on a shelf once.`,
+          );
+        }
+        named.add(key);
+      }
+    }
+
     byId.set(shelf.id, shelf);
   }
 
@@ -229,19 +309,40 @@ function resolveMembers(
   shelf: EvergreenShelf | LivingShelf,
   catalogue: Catalogue,
 ): ProfileView[] {
+  /*
+   * The second spelling of a duplicate.
+   *
+   * `assertShelvesAreWellFormed` rejects the same reference written twice. It
+   * cannot see this one, because it has no catalogue: a member naming a scope
+   * explicitly and a member omitting it are two different references that
+   * resolve to ONE published profile whenever that scope is the game's primary
+   * one. Left alone, the poster renders twice and counts twice towards the
+   * minimum that decides whether the shelf renders at all.
+   */
+  const resolved = new Set<ProfileView>();
+
   return shelf.members.map((member) => {
+    const named =
+      `${member.slug}` + (member.scope ? ` (scope "${member.scope}")` : "");
     const found = member.scope
       ? catalogue.byScope.get(`${member.slug}/${member.scope}`)
       : catalogue.primary.get(member.slug);
     if (!found) {
       throw new Error(
-        `Homepage shelf "${shelf.id}" names ${member.slug}` +
-          (member.scope ? ` (scope "${member.scope}")` : "") +
+        `Homepage shelf "${shelf.id}" names ${named}` +
           `, which this build does not publish. Correct the collection in ` +
           `content/home-shelves.ts rather than letting the shelf quietly ` +
           `become a different collection.`,
       );
     }
+    if (resolved.has(found)) {
+      throw new Error(
+        `Homepage shelf "${shelf.id}" names ${named} more than once — it is ` +
+          `already on the shelf under its other address. A member appears on ` +
+          `a shelf once.`,
+      );
+    }
+    resolved.add(found);
     return found;
   });
 }
