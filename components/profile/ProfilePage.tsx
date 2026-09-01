@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { GameCard } from "@/components/GameCard";
+import { ProfileRail } from "@/components/home/ProfileRail";
 import { GameProfile } from "@/components/profile/GameProfile";
 import type { ScopeLink } from "@/components/profile/ScopeSwitcher";
 import { JsonLd } from "@/components/JsonLd";
@@ -17,9 +17,9 @@ import { gameTitle, profilePath, profileUrl } from "@/lib/site";
  * evaluated experience, so they are the same component — a second copy would
  * be a second place for the profile's semantics to drift.
  *
- * The presentation is design direction D3: the game arrives first at full
- * width, the profile answers it on a graphite field attached to the stage, and
- * everything about how the evaluation was made is collected below.
+ * The presentation is the accepted A3–A6 profile system (ADR 0032): the
+ * decision before the instrument, art-led where artwork is cleared and
+ * complete without it, and a rail of every other profile as the exit.
  */
 export async function ProfilePageBody({ profile }: { profile: ProfileView }) {
   return (
@@ -30,7 +30,7 @@ export async function ProfilePageBody({ profile }: { profile: ProfileView }) {
         artwork={heroArtworkFor(profile.game)}
         scopes={await siblingScopes(profile)}
       />
-      <MoreInTheLibrary current={profile} />
+      <MoreProfiles current={profile} />
     </>
   );
 }
@@ -38,9 +38,10 @@ export async function ProfilePageBody({ profile }: { profile: ProfileView }) {
 /**
  * Every published profile of this game, for the scope switcher.
  *
- * Resolved here rather than inside `GameProfile` because that component is a
- * client component: it cannot read the data layer, and passing it a ready list
- * of links keeps the switcher's markup static.
+ * Resolved here rather than inside `GameProfile` so the profile component
+ * stays a pure function of the data it is handed and never reads the corpus
+ * itself — the admin preview renders it from an editorial connection, where
+ * the public data layer would be the wrong answer.
  *
  * Each entry carries that profile's own canonical address — the primary scope's
  * is the bare game URL, a sibling's is its scoped path. Never a query parameter
@@ -62,19 +63,22 @@ async function siblingScopes(profile: ProfileView): Promise<ScopeLink[]> {
 }
 
 /**
- * Everything else in the catalogue.
+ * The exit: everything else in the catalogue, as the accepted poster rail.
  *
- * Not a recommendation engine and not pretending to be one — no similarity, no
- * ranking, no personalisation. It is the shelf, minus the profile you are
- * already reading, so a page ends on somewhere to go rather than on a
- * provenance table.
+ * Not a recommendation engine and not pretending to be one — no similarity,
+ * no ranking, no personalisation. It is the catalogue in catalogue order,
+ * minus the profile you are already reading, so a page ends on somewhere to
+ * go rather than on a provenance table. The same rail grammar the homepage
+ * uses, so one game is recognisably itself in both places.
  *
- * Excludes the current *profile*, not the current game: a game's sibling scope
- * is a genuinely different evaluated experience and belongs on the shelf. When
- * the catalogue outgrows a strip this becomes a real selection; the card
- * grammar it renders does not change.
+ * Excludes the current *profile*, not the current game: a game's sibling
+ * scope is a genuinely different evaluated experience and belongs here.
+ *
+ * "Compare with" is not offered: full Compare is Slice 4 and no editor-selected
+ * pair exists, and a control that goes nowhere is worse than an honest
+ * absence.
  */
-async function MoreInTheLibrary({ current }: { current: ProfileView }) {
+async function MoreProfiles({ current }: { current: ProfileView }) {
   const others = (await listGameProfiles()).filter(
     (other) =>
       !(
@@ -82,26 +86,17 @@ async function MoreInTheLibrary({ current }: { current: ProfileView }) {
         other.scope.key === current.scope.key
       ),
   );
-  if (others.length === 0) return null;
 
   return (
-    <section aria-labelledby="more-games" className="border-t border-rule bg-page">
-      <div className="mx-auto w-full max-w-[74rem] px-5 py-12 sm:px-8 sm:py-14">
-        <h2 id="more-games" className="sip-display text-[1.5rem]">
-          More in the library
-        </h2>
-        <ul className="mt-7 grid list-none grid-cols-1 gap-x-6 gap-y-10 p-0 min-[30rem]:grid-cols-2 sm:gap-x-8 sm:gap-y-12 lg:grid-cols-3">
-          {others.map((other) => (
-            <li
-              key={`${other.game.slug}/${other.scope.key}`}
-              className="flex min-w-0"
-            >
-              <GameCard profile={other} />
-            </li>
-          ))}
-        </ul>
-      </div>
-    </section>
+    <ProfileRail
+      heading="More profiles"
+      note={
+        others.length === 1
+          ? "The one other published Game Profile. Not a ranking."
+          : `Every other published Game Profile, in catalogue order. Not a ranking, and nothing here moves on its own.`
+      }
+      profiles={others}
+    />
   );
 }
 

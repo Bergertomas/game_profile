@@ -39,9 +39,16 @@ inline/header Search, and the bounded accepted homepage opening. Engineering
 Slice 2 completes the accepted homepage system on top of it — the
 "Start somewhere interesting" poster rail, the authored-shelf grammar and the
 bounded "Choosing between…" presentation contract, whose editorial
-configurations ship empty pending owner-approved membership. **Production
-deployment remains pending**: the deployed site still serves the earlier
-three-profile experience until `main` is deliberately deployed.
+configurations ship empty pending owner-approved membership — and is merged on
+`main` too. Engineering Slice 3 implements the accepted A3–A6 profile system
+on this integration branch: the decision before the instrument, complete
+art-led/artless parity, the labelled radar with eight permanent exact rows,
+Range/Unknown/Provisional/confidence as words, and the restored platform
+warning, platform-note and override projection. Practical time and store
+destinations render only from approved records, and none exists yet, so
+neither appears. **Production deployment remains pending**: the deployed site
+still serves the earlier three-profile experience until `main` is deliberately
+deployed.
 
 **Remote admin and production Live proof are exercised.** The current state is:
 
@@ -103,12 +110,14 @@ app/
   (public)/                    the published product. A route group: no URL has it in it
     layout.tsx                 site chrome, skip link, site-wide structured data
     page.tsx                   the accepted homepage: opening, rail, shelves, pairs
-    games/[slug]/page.tsx      the game's primary profile, then more games
+    games/[slug]/page.tsx      the game's primary profile, then the rail of the rest
     games/[slug]/[scope]/      a sibling profile scope; the primary key 308s
     games/[slug]/opengraph-image  prerendered share card, silhouette and all
     methodology/page.tsx       renders itself from the typed rubric
     dev/radar-states/          unknown/range harness, non-production only
     dev/home-states/           rail, shelf and curated-pair harness, non-production only
+    dev/profile-states/        art-led/artless, range/unknown, provisional, override,
+                               practical-time and long-title profile states, non-production only
   admin/                       the editorial tool. Authenticated, noindex, never prerendered
     layout.tsx                 the shell, and the guard every page passes through
     actions.ts                 every editorial mutation, one transaction each
@@ -124,14 +133,21 @@ components/
   home/ProfilePoster.tsx       one poster: art-led or artless, one link, one disclosure
   home/EditorialShelf.tsx      the authored shelves, or nothing at all
   home/CuratedCompare.tsx      two identities, one decision, and a deferred CTA
-  profile/radar.tsx            the only radar in the product, at three sizes
-  profile/instrument.tsx       score rows, disclosure and hover linking
-  profile/GameProfile.tsx      the canonical profile, with profile.css beside it
+  profile/GameProfile.tsx      the canonical A3–A6 profile, server-rendered, profile.css beside it
+  profile/IdentityStage.tsx    identity stage (art-led or artless), platforms, scope and evidence state
+  profile/DecisionBand.tsx     the answer, the pull and the tax, fit guidance, practical commitment
+  profile/ProfileInstrument.tsx the one client leaf: labelled radar, eight exact rows, disclosures
+  profile/instrument.tsx       one exact row: value, confidence, gloss, platform truth, rationale
+  profile/radar.tsx            the only radar in the product, at three levels
+  profile/ProfileDetail.tsx    platform notes and overrides, experience traits
+  profile/TrustBand.tsx        how this profile was made: scope record, evidence, credits
   profile/ScopeSwitcher.tsx    sibling navigation, only where a game has siblings
   admin/                       editorial form plumbing and panels
 lib/
   home/shelves.ts              objective/evergreen/living shelves, windows, fallback
   home/curated-compare.ts      the curated-pair contract, without full Compare
+  profile/platform.ts          warning, platform notes and overrides, projected without moving a total
+  profile/practical.ts         practical time from an approved record, Unknown, or nothing
   search/registry.ts           four-state published/unprofiled coverage registry
   discovery/                   deterministic intent, Unknown, threshold and time rules
   metadata/provenance.ts       primary/official/manual factual precedence
@@ -182,6 +198,11 @@ These are product semantics, not preferences. Most are covered by a test.
 | Scores are 0–2 in 0.5 increments | schema check constraints, `tests/scoring.test.ts` |
 | `unknown` is never zero, on screen or in the database | `NULL` in Postgres, `null` vertex in geometry, [ADR 0004](docs/decisions/0004-unknown-and-range-scores.md) |
 | Exact scores are readable without hover or interaction | `components/profile/instrument.tsx`, asserted in e2e |
+| The profile answers before it explains: identity, scope, answer, pull/tax, fit, instrument, detail, trust — in DOM order at every width | `components/profile/GameProfile.tsx`, `tests/profile-composition.test.ts`, `tests/e2e/profile-conformance.spec.ts` |
+| Art-led and artless profiles carry identical content in identical order; no artwork never reserves a hole | `components/profile/IdentityStage.tsx`, asserted in both suites |
+| Platform warning, subcriterion platform notes and overrides reach the page without moving a total | `lib/profile/platform.ts`, `tests/platform-projection.test.ts` |
+| Practical time renders only from an approved record — a band, `Unknown`, or nothing; never the design specimen | `lib/profile/practical.ts`, `tests/practical-presentation.test.ts` |
+| The unresolved "Evaluated" label does not ship; the record's own "Evidence cut-off" does | `components/profile/IdentityStage.tsx`, `tests/profile-composition.test.ts` |
 | Radar axis order is globally fixed | `lib/rubric/v1.ts`, `tests/rubric.test.ts` |
 | No good/bad colour semantics | one per-game accent, identity only; the same hue marks a 4.0 and a 10.0 |
 | Nothing is communicated by shape or colour alone | the label-free card mark is `aria-hidden`; the card states its extremes as exact figures |
@@ -744,12 +765,16 @@ not post them anywhere durable. See
 
 ## Not built, deliberately
 
-The A3–A6 profile migration, C1–C4 Compare, What should I play? UI, `/about`,
-the 12–15-profile validation corpus and the approximately-100-profile
-quiet-release catalog are not built — so the homepage's curated-Compare module
-publishes no route into Compare, and says so rather than linking to a page that
-does not exist. Static Search and the accepted homepage system are merged on
-`main`; their production deployment is not. The authored evergreen/living
+C1–C4 Compare, What should I play? UI, `/about`, the 12–15-profile validation
+corpus and the approximately-100-profile quiet-release catalog are not built —
+so the homepage's curated-Compare module publishes no route into Compare, and
+the profile offers no "Compare with" and no "Where to play": no editor-selected
+pair and no verified storefront destination exist, and a control that goes
+nowhere is worse than an honest absence. Static Search and the accepted
+homepage system are merged on `main`; the accepted profile system is on its
+integration branch; none of it is deployed to production. No profile carries an
+approved practical-time record, so no profile shows total commitment or a
+useful-session window; the component renders them from a record or not at all. The authored evergreen/living
 shelves and the "Choosing between…" entries have their grammar, configuration
 contract and tests, and no content: every entry either would carry is a
 qualitative editorial claim Tomas approves, so both configurations ship empty

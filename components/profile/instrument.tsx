@@ -1,59 +1,82 @@
 "use client";
 
 /**
- * The interactive half of the profile instrument: the score rows beside the
- * radar, and the reading scale inside each one.
+ * One exact row of the profile instrument, and the reading scale inside it.
  *
- * Promoted from design-lab direction D3 after review. The measurement system,
- * uncertainty states and disclosure behaviour came through Direction D
- * unchanged and are unchanged again here.
+ * ── What a row permanently shows ────────────────────────────────────────────
  *
- * The radar itself is ./radar.tsx and is deliberately not a client component:
- * it holds no state, and a card grid has to be able to render it on the server.
- * This module owns everything that needs an event handler.
+ * Every row shows, with no interaction: the full dimension name, the exact
+ * value, the published range, or "Not scored"; the confidence in words; and
+ * the rubric's one-line plain-language gloss of what the dimension measures
+ * (brief §7.2, handoff §9.2). The value is never hover-only and never lives
+ * only in the chart — the row is the authoritative representation and the
+ * radar is its picture.
+ *
+ * ── The disclosure ──────────────────────────────────────────────────────────
+ *
+ * "Why this score?" is an explicit button beside the reading, not the row
+ * itself. A whole-row button would make a screen reader's accessible name for
+ * the control the entire reading, gloss included; a small explicit trigger
+ * keeps the reading as text and the control as a control. It carries
+ * `aria-expanded` and `aria-controls`, its panel follows it in DOM order, focus
+ * stays on it when it toggles, and nothing traps or moves focus (matrix P-08).
+ * The panel is always in the DOM and hidden with `hidden`, so the IDREF never
+ * dangles while closed. Rows open independently.
+ *
+ * ── Platform truth on the row ───────────────────────────────────────────────
+ *
+ * Where a subcriterion carries a platform note or a material override, the
+ * row says so beside its value — "Varies by platform" — and the panel states
+ * the note under the subcriterion it belongs to and each override with its
+ * platform, its value and the base it deviates from. The base total does not
+ * move (ADR 0015); the row is where a reader deciding between builds needs to
+ * know it varies (ADR 0032).
  */
 
+import { useState } from "react";
 import type { DimensionView } from "@/lib/profile/build";
-import { CONFIDENCE_LABEL, linkedEvidenceSummary } from "@/lib/profile/vocabulary";
+import {
+  describeOverride,
+  platformsForDimension,
+  type PlatformProjection,
+} from "@/lib/profile/platform";
 import type { EvidenceLedgerState } from "@/lib/profile/types";
+import { CONFIDENCE_LABEL, linkedEvidenceSummary } from "@/lib/profile/vocabulary";
 import { formatScore } from "@/lib/scoring/derive";
 
 /* ========================================================================== */
 
-export function ScaleReading({
-  score,
-  accent,
-}: {
-  score: DimensionView["score"];
-  accent: string;
-}) {
+/**
+ * The shared 0–10 reading: a hairline baseline, a measured rule to the value,
+ * an accent tick — and for a range, a dotted reach to its ceiling with an open
+ * tick at the end. A ruler, not a filled bar. Unknown is a dashed baseline with
+ * no rule at all: never a rule to zero.
+ */
+export function ScaleReading({ score }: { score: DimensionView["score"] }) {
   if (score.kind === "insufficient") {
-    return <span className="gp__scale gp__scale--unknown" aria-hidden="true" />;
+    return <span className="gp-scale gp-scale--unknown" aria-hidden="true" />;
   }
 
   const low = score.kind === "exact" ? score.score : score.low;
   const high = score.kind === "exact" ? score.score : score.high;
 
   return (
-    <span className="gp__scale" aria-hidden="true">
-      <span className="gp__measure" style={{ width: `${(low / 10) * 100}%` }} />
+    <span className="gp-scale" aria-hidden="true">
+      <span className="gp-scale__measure" style={{ width: `${(low / 10) * 100}%` }} />
       {score.kind === "range" && (
         <span
-          className="gp__reach"
+          className="gp-scale__reach"
           style={{
             left: `${(low / 10) * 100}%`,
             width: `${((high - low) / 10) * 100}%`,
           }}
         />
       )}
-      <span
-        className="gp__tick"
-        style={{ left: `${(low / 10) * 100}%`, background: accent }}
-      />
+      <span className="gp-scale__tick" style={{ left: `${(low / 10) * 100}%` }} />
       {score.kind === "range" && (
         <span
-          className="gp__tick gp__tick--open"
-          style={{ left: `${(high / 10) * 100}%`, borderColor: accent }}
+          className="gp-scale__tick gp-scale__tick--open"
+          style={{ left: `${(high / 10) * 100}%` }}
         />
       )}
     </span>
@@ -62,126 +85,163 @@ export function ScaleReading({
 
 /* ========================================================================== */
 
-/**
- * A collapsed row carries three things: dimension, measurement, exact value.
- * Confidence and linked evidence live inside the panel, read once and in
- * context, rather than repeating quietly across all eight rows.
- */
-export function ScoreRow({
+export function DimensionRow({
+  idBase,
   view,
-  isActive,
-  isOpen,
-  accent,
   ledger,
+  platforms,
+  isActive,
   onHover,
   onFocus,
-  onToggle,
 }: {
+  idBase: string;
   view: DimensionView;
-  isActive: boolean;
-  isOpen: boolean;
-  accent: string;
   /**
    * Whether the evidence ledger holds individual source records yet. The panel
    * may only publish a count when it does — see `linkedEvidenceSummary`.
    */
   ledger: EvidenceLedgerState;
+  platforms: PlatformProjection;
+  isActive: boolean;
   onHover: (key: string | null) => void;
   onFocus: (key: string | null) => void;
-  onToggle: (key: string) => void;
 }) {
   const { dimension, display, score, subcriteria, confidence } = view;
-  const panelId = `gp-why-${dimension.key}`;
+  const panelId = `${idBase}-why-${dimension.key}`;
+  const [open, setOpen] = useState(false);
+  const variance = platformsForDimension(platforms, view);
+  const varies = variance.notes.length > 0 || variance.overrides.length > 0;
 
   return (
-    <li className="gp__row-wrap">
-      <button
-        type="button"
-        className="gp__row"
-        data-active={isActive}
-        aria-expanded={isOpen}
-        aria-controls={panelId}
-        onClick={() => onToggle(dimension.key)}
-        onMouseEnter={() => onHover(dimension.key)}
-        onMouseLeave={() => onHover(null)}
-        onFocus={() => onFocus(dimension.key)}
-        onBlur={() => onFocus(null)}
-      >
-        <span className="gp__row-name text-[0.9375rem] font-medium sm:truncate">
-          {dimension.name}
-        </span>
-        <span className="gp__row-scale">
-          <ScaleReading score={score} accent={accent} />
-        </span>
-        <span className="gp__row-value sm:text-right">
-          {score.kind === "insufficient" ? (
-            <span className="gp__label whitespace-nowrap">Not scored</span>
-          ) : (
-            <span className="gp__num text-[1.0625rem]">{display}</span>
-          )}
-        </span>
-        <span className="gp-sr">Why this score?</span>
-      </button>
-
-      <div id={panelId} hidden={!isOpen} className="gp__panel px-3 py-4 sm:px-4">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
-          <h3 className="gp__label gp__label--bone">Why this score?</h3>
-          <span className="gp__label">
-            {CONFIDENCE_LABEL[confidence]} confidence ·{" "}
-            {linkedEvidenceSummary(ledger, view.linkedSources.length)}
-          </span>
+    <li
+      className="gp-row"
+      data-active={isActive || undefined}
+      data-kind={score.kind}
+      data-confidence={confidence}
+      onMouseEnter={() => onHover(dimension.key)}
+      onMouseLeave={() => onHover(null)}
+    >
+      <div className="gp-row__head">
+        <div className="gp-row__lead">
+          <h3 className="gp-row__name">{dimension.name}</h3>
+          <p className="gp-row__gloss">{dimension.summary}</p>
         </div>
 
-        <p className="gp__prose mt-2 max-w-[46rem] text-[0.9375rem] text-[var(--gp-bone-soft)]">
-          {dimension.coreQuestion}
+        <div className="gp-row__reading">
+          <ScaleReading score={score} />
+          <p className="gp-row__value">
+            {score.kind === "insufficient" ? (
+              <>
+                <span className="gp-row__notscored">Not scored</span>
+                <span className="sr-only">
+                  {" "}
+                  — insufficient evidence; no total is published, and this is
+                  not zero.
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="sip-num gp-row__num">{display}</span>
+                <span className="sr-only"> out of 10</span>
+                {score.kind === "range" && (
+                  <span className="gp-row__kind"> range</span>
+                )}
+              </>
+            )}
+          </p>
+          <p className="gp-row__confidence">
+            {CONFIDENCE_LABEL[confidence]} confidence
+            {varies && (
+              <>
+                {" · "}
+                <span className="gp-row__varies">Varies by platform</span>
+              </>
+            )}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          className="gp-row__why"
+          aria-expanded={open}
+          aria-controls={panelId}
+          onClick={() => setOpen((was) => !was)}
+          onFocus={() => onFocus(dimension.key)}
+          onBlur={() => onFocus(null)}
+        >
+          Why this score?
+          <span className="sr-only"> — {dimension.name}</span>
+          <span className="gp-row__chevron" aria-hidden="true">
+            &#8964;
+          </span>
+        </button>
+      </div>
+
+      <div id={panelId} hidden={!open} className="gp-row__panel">
+        <p className="sip-prose gp-row__question">{dimension.coreQuestion}</p>
+        <p className="gp-row__evidence">
+          {linkedEvidenceSummary(ledger, view.linkedSources.length)}
         </p>
 
-        <ol className="mt-3 list-none p-0">
-          {subcriteria.map((sub) => (
-            <li
-              key={sub.key}
-              className="gp__sub grid grid-cols-[minmax(0,1fr)_3rem] gap-x-3 py-2.5"
-            >
-              <span>
-                <span className="block text-[0.9375rem] font-medium text-[var(--gp-bone)]">
-                  {sub.name}
-                </span>
-                <span className="gp__prose mt-1 block max-w-[42rem] text-[0.9375rem] text-[var(--gp-bone-soft)]">
+        <ol className="gp-subs">
+          {subcriteria.map((sub) => {
+            const overrides = variance.overrides.filter(
+              (override) => override.subcriterionKey === sub.key,
+            );
+            return (
+              <li key={sub.key} className="gp-sub">
+                <div className="gp-sub__head">
+                  <span className="gp-sub__name">{sub.name}</span>
+                  <span className="sip-num gp-sub__value">
+                    {sub.entry.value === "unknown" ? (
+                      <span className="gp-sub__unknown">Unknown</span>
+                    ) : (
+                      formatScore(sub.entry.value)
+                    )}
+                  </span>
+                </div>
+                <p className="sip-prose gp-sub__rationale">
                   {sub.entry.rationale ||
                     "No evidence available for this subcriterion."}
-                </span>
-              </span>
-              <span className="gp__num text-right text-[0.9375rem] text-[var(--gp-bone)]">
-                {sub.entry.value === "unknown" ? (
-                  <span className="gp__label">Unknown</span>
-                ) : (
-                  formatScore(sub.entry.value)
+                </p>
+                {sub.entry.platformNote && (
+                  <p className="gp-sub__platform">
+                    <strong>Platform note.</strong> {sub.entry.platformNote}
+                  </p>
                 )}
-              </span>
-            </li>
-          ))}
+                {overrides.length > 0 && (
+                  <ul className="gp-sub__overrides">
+                    {overrides.map((override) => (
+                      <li key={override.platform.slug}>
+                        <strong>{describeOverride(override)}</strong>{" "}
+                        {override.rationale}
+                        {override.confidence && (
+                          <> ({CONFIDENCE_LABEL[override.confidence]} confidence.)</>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            );
+          })}
         </ol>
 
-        <p className="gp__prose gp__sub mt-2.5 pt-2.5 text-[0.9375rem] text-[var(--gp-bone-soft)]">
-          {derivationSentence(view)}
-        </p>
+        <p className="sip-prose gp-row__derivation">{derivationSentence(view)}</p>
 
         {view.linkedSources.length > 0 && (
-          <ul className="mt-3 list-none space-y-1 p-0">
+          <ul className="gp-row__sources">
             {/* Named to match what the ledger actually holds, so this list and
                 the evidence section at the foot describe the same thing. */}
-            <li className="gp__label">
+            <li className="gp-row__sources-label">
               {ledger === "pending"
                 ? "Evidence classes bearing on this dimension"
                 : "Sources linked to this dimension"}
             </li>
             {view.linkedSources.map((source) => (
-              <li
-                key={source.id}
-                className="text-[0.875rem] text-[var(--gp-bone-quiet)]"
-              >
+              <li key={source.id}>
                 {source.title}
-                <span className="gp__label"> Tier {source.tier}</span>
+                <span className="gp-row__tier"> Tier {source.tier}</span>
               </li>
             ))}
           </ul>

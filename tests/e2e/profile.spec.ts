@@ -5,7 +5,9 @@ import { expect, test } from "@playwright/test";
  *
  * These assert the product rules that are easy to break by accident:
  * no aggregate score anywhere, scores readable without hover, the eight rows
- * always present, and no horizontal overflow at phone width.
+ * always present, and no horizontal overflow at phone width. The accepted
+ * A3–A6 composition's own contract — order, parity, zoom, keyboard — is
+ * asserted in tests/e2e/profile-conformance.spec.ts.
  */
 
 const SLUGS = ["alan-wake-2", "returnal", "redfall"] as const;
@@ -45,43 +47,46 @@ for (const slug of SLUGS) {
     }) => {
       await page.goto(`/games/${slug}`);
 
-      const rows = page.locator(".gp__row");
+      const rows = page.locator(".gp-row");
       await expect(rows).toHaveCount(8);
-      for (const name of DIMENSION_NAMES) {
-        await expect(
-          rows.locator(".gp__row-name").filter({ hasText: name }).first(),
-        ).toBeVisible();
+      // In the fixed public order, every name visible.
+      const names = await rows.locator(".gp-row__name").allTextContents();
+      expect(names).toEqual(DIMENSION_NAMES);
+      for (const row of await rows.all()) {
+        await expect(row.locator(".gp-row__name")).toBeVisible();
       }
 
       // Every row shows its exact value with no hover and no click. Reading a
       // score must never require an interaction.
-      const scores = await rows.locator(".gp__num").allTextContents();
+      const scores = await rows.locator(".gp-row__num").allTextContents();
       expect(scores.length).toBe(8);
       for (const score of scores) {
         expect(score).toMatch(/^\d{1,2}\.\d$/);
+      }
+      // And its confidence, in words, beside it.
+      for (const confidence of await rows
+        .locator(".gp-row__confidence")
+        .allTextContents()) {
+        expect(confidence).toMatch(/^(Low|Medium|High) confidence/);
       }
     });
 
     test("subcriteria and rationales are reachable", async ({ page }) => {
       await page.goto(`/games/${slug}`);
-      const row = page.locator(".gp__row-wrap").first();
-      const panel = row.locator(".gp__panel");
+      const row = page.locator(".gp-row").first();
+      const button = row.locator(".gp-row__why");
+      const panel = row.locator(".gp-row__panel");
 
       // Collapsed by default: in the DOM for search and assistive tech, not
       // shown until asked for.
       await expect(panel).toBeHidden();
-      await expect(row.locator(".gp__row")).toHaveAttribute(
-        "aria-expanded",
-        "false",
-      );
+      await expect(button).toHaveAttribute("aria-expanded", "false");
+      await expect(button).toHaveAttribute("aria-controls", await panel.getAttribute("id") ?? "");
 
-      await row.locator(".gp__row").click();
+      await button.click();
       await expect(panel).toBeVisible();
-      await expect(row.locator(".gp__row")).toHaveAttribute(
-        "aria-expanded",
-        "true",
-      );
-      await expect(panel.locator("ol > li")).toHaveCount(5);
+      await expect(button).toHaveAttribute("aria-expanded", "true");
+      await expect(panel.locator(".gp-sub")).toHaveCount(5);
     });
 
     test("publishes no aggregate or overall score", async ({ page }) => {
@@ -127,6 +132,17 @@ for (const slug of SLUGS) {
         await expect(trust.getByText(term, { exact: true }).first()).toBeVisible();
       }
       await expect(trust.getByText("v1.0", { exact: true })).toBeVisible();
+
+      // And the same status and confidence stand before the answer, in words.
+      const status = page.locator(".gp-status");
+      await expect(status.getByText("Scope", { exact: true })).toBeVisible();
+      await expect(status.locator(".gp-status__state")).toHaveText(
+        /^(Verified|Provisional|Pre-release)$/,
+      );
+      await expect(status).toContainText(/(Low|Medium|High) confidence/);
+      await expect(status).toContainText("Evidence cut-off");
+      // The unresolved label never ships (ADR 0032).
+      expect(await page.locator(".gp").innerText()).not.toMatch(/\bEvaluated\b/);
     });
 
     test("says the totals are derived, and never that they are calculated from sources", async ({
@@ -139,18 +155,18 @@ for (const slug of SLUGS) {
       expect(body).toMatch(/derived from those five, never entered by hand/i);
       // Nor may the shape be presented as a quantity.
       expect(body).toMatch(/nothing is\s+calculated from the area/i);
+      expect(body).toMatch(/a bigger shape is not a better game/i);
     });
 
     test("exposes Why this score? with per-dimension confidence", async ({
       page,
     }) => {
       await page.goto(`/games/${slug}`);
-      const row = page.locator(".gp__row-wrap").first();
-      await row.locator(".gp__row").click();
-      const panel = row.locator(".gp__panel");
+      const row = page.locator(".gp-row").first();
+      await row.locator(".gp-row__why").click();
+      const panel = row.locator(".gp-row__panel");
 
-      await expect(panel.getByText("Why this score?")).toBeVisible();
-      await expect(panel.getByText(/(Low|Medium|High) confidence/)).toBeVisible();
+      await expect(row.getByText(/(Low|Medium|High) confidence/)).toBeVisible();
       // The published total must be reproducible from the five values shown.
       await expect(panel.getByText(/Derived, not entered/)).toBeVisible();
     });
@@ -176,6 +192,29 @@ for (const slug of SLUGS) {
       expect(await trust.innerText()).not.toMatch(
         /\b\d+\s+(?:linked\s+)?sources?\b/i,
       );
+    });
+
+    test("carries no practical-time specimen and no invented destination", async ({
+      page,
+    }) => {
+      // No approved record exists for any profile, so the band is absent —
+      // not a placeholder, not the accepted screens' layout specimen (ADR
+      // 0032, ADR 0027). No storefront or Compare destination exists either.
+      await page.goto(`/games/${slug}`);
+      await expect(page.locator(".gp-practical")).toHaveCount(0);
+      const text = await page.locator(".gp").innerText();
+      for (const specimen of [
+        "Substantial",
+        "45–90",
+        "Needs room to breathe",
+        "Total commitment",
+        "Useful session",
+        "Where to play",
+        "Compare with",
+      ]) {
+        expect(text, specimen).not.toContain(specimen);
+      }
+      await expect(page.locator('.gp a[href*="compare"]')).toHaveCount(0);
     });
   });
 }
@@ -222,24 +261,29 @@ test("every game page canonicalises to its own address", async ({ page }) => {
   }
 });
 
-test("keyboard focus reaches every score row and drives the radar", async ({
+test("keyboard focus reaches every disclosure and lights its axis", async ({
   page,
 }) => {
   await page.goto("/games/alan-wake-2");
 
-  // The polygon is aria-hidden decoration; its text equivalent describes the
+  // The figure is aria-hidden decoration; its text equivalent describes the
   // distribution and must not imply a rating.
-  const shape = page.locator(".gp-sr").first();
-  await expect(shape).toContainText("scored 0 to 10 independently");
+  const shape = page.locator(".gp-instrument .sr-only", {
+    hasText: "scored 0 to 10 independently",
+  });
+  await expect(shape).toHaveCount(1);
 
-  // Every row is a real button: reachable, operable and expandable by keyboard.
-  const first = page.locator(".gp__row").first();
+  // Every disclosure is a real button: reachable, operable by keyboard, and
+  // its row's axis is marked while it holds focus.
+  const first = page.locator(".gp-row__why").first();
   await first.focus();
   await expect(first).toBeFocused();
-  await expect(first).toHaveAttribute("data-active", "true");
+  await expect(page.locator(".gp-row").first()).toHaveAttribute("data-active", "true");
 
   await page.keyboard.press("Enter");
   await expect(first).toHaveAttribute("aria-expanded", "true");
+  // Focus stays where it was: no trap, no jump into the panel.
+  await expect(first).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(first).toHaveAttribute("aria-expanded", "false");
 });
@@ -297,17 +341,20 @@ test("a poster leads with the game, not with its numbers", async ({ page }) => {
   expect(body).not.toMatch(/average score/);
 });
 
-test("the card grammar still leads with the game on a profile page", async ({
+test("a profile exits onto the rest of the catalogue, never onto itself", async ({
   page,
 }) => {
-  // `GameCard` left the homepage with the accepted rail, and it is still the
-  // grammar every other list of games uses. Asserted where it now lives.
+  // The accepted exit is the poster rail — the same grammar as the homepage —
+  // carrying every OTHER published profile at its canonical address. No
+  // similarity, no ranking, no "Compare with" until Slice 4 gives it a route.
   await page.goto("/games/alan-wake-2");
-  const card = page.locator("article.group").first();
-  const heading = (await card.locator("h3").textContent()) ?? "";
-  expect(heading).not.toMatch(/\d\.\d/);
-  await expect(card.locator("dt").first()).toContainText("Strongest");
-  await expect(card.locator("dd").first()).toHaveText(/\d+\.\d/);
+  const rail = page.locator(".sip-rail");
+  await expect(rail).toHaveCount(1);
+  await expect(rail.getByRole("heading", { name: "More profiles" })).toBeVisible();
+  await expect(rail.locator('a[href="/games/returnal"]')).toBeVisible();
+  await expect(rail.locator('a[href="/games/redfall"]')).toBeVisible();
+  await expect(rail.locator('a[href="/games/alan-wake-2"]')).toHaveCount(0);
+  await expect(rail).toContainText("Not a ranking");
 });
 
 /**
@@ -321,15 +368,17 @@ test("the card grammar still leads with the game on a profile page", async ({
  * proving it needs a second build in a different environment, and because the
  * runtime is the only witness that has ever caught a regression in it.
  */
-test("the development radar harness is reachable for review, unindexed", async ({
+test("the development harnesses are reachable for review, unindexed", async ({
   page,
 }) => {
-  const response = await page.goto("/dev/radar-states");
-  expect(response?.status()).toBe(200);
-  await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
-    "content",
-    /noindex/,
-  );
+  for (const route of ["/dev/radar-states", "/dev/profile-states"]) {
+    const response = await page.goto(route);
+    expect(response?.status(), route).toBe(200);
+    await expect(page.locator('meta[name="robots"]'), route).toHaveAttribute(
+      "content",
+      /noindex/,
+    );
+  }
 });
 
 test("every design-lab route is reachable for review, and none is indexable", async ({
@@ -385,8 +434,8 @@ test("evaluation artwork renders in preview, and says on what basis", async ({
     expect(body).toContain("Not cleared for production");
   }
 
-  // The shelf shows covers on a review surface for the same reason the profile
-  // shows a hero: the card grammar cannot be reviewed without them.
+  // The rail shows covers on a review surface for the same reason the profile
+  // shows a hero: the poster grammar cannot be reviewed without them.
   const home = await (await request.get("/")).text();
   expect(home).toMatch(/steamstatic\.com/);
 

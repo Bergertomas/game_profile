@@ -109,6 +109,7 @@ describe("control boundaries and focus (matrix X-04)", () => {
     for (const sheet of [
       "components/search/search.css",
       "components/home/home-opening.css",
+      "components/profile/profile.css",
     ]) {
       const source = readFileSync(sheet, "utf8");
       for (const match of source.matchAll(/outline:\s*([^;]+);/g)) {
@@ -167,6 +168,7 @@ describe("motion (handoff §3.5)", () => {
       "app/globals.css",
       "components/search/search.css",
       "components/home/home-opening.css",
+      "components/profile/profile.css",
     ]) {
       const source = readFileSync(sheet, "utf8");
       const literals = [...source.matchAll(/transition:[^;]*?(\d+)ms/g)];
@@ -191,6 +193,7 @@ describe("the type system", () => {
     for (const sheet of [
       "components/search/search.css",
       "components/home/home-opening.css",
+      "components/profile/profile.css",
     ]) {
       const source = readFileSync(sheet, "utf8");
       for (const match of source.matchAll(/font-size:\s*([\d.]+)rem/g)) {

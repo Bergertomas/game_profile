@@ -1,21 +1,27 @@
 /**
  * Radar layout presets for the profile instrument.
  *
- * ONE INSTRUMENT, THREE SIZES. There is a single radar implementation in this
+ * ONE INSTRUMENT, THREE LEVELS. There is a single radar implementation in this
  * product (components/profile/radar.tsx); everything below is geometry handed
  * to it. The homepage used to run a second, independently written `MiniRadar`
  * with its own rings, its own stroke weights and its own idea of what a bridged
  * segment looked like — which meant the site had two answers to "what does an
  * unknown axis look like". It has one now.
  *
- * A single SVG scaled down to phone width renders its labels at roughly 7px,
- * which fails the brief's "radar labels must remain readable" rule (§17). The
- * profile page therefore renders two instances — a compact one below 640px and
- * a full one above — swapped with CSS so there is no resize observer, no layout
- * shift and no hydration mismatch.
+ * The three levels the handoff names (§9.2):
  *
- * The compact geometry was verified legible at 390px, which is the narrowest
- * viewport the page supports.
+ *   compact   `MARK` — the homepage fingerprint and the poster mark, label-free;
+ *             the surface around it states the values.
+ *   profile   `PROFILE` — the full instrument on the profile page. The SVG
+ *             carries the geometry only; its eight labels are HTML text placed
+ *             around it by components/profile/ProfileInstrument.tsx, so they
+ *             are real text at a real size rather than SVG text scaled down
+ *             with the viewBox. That is what holds the 12px floor at every
+ *             width and at 200% zoom, which a scaled SVG label cannot do.
+ *   compare   Slice 4.
+ *
+ * `COMPACT` and `full()` remain for the design-lab record and the homepage
+ * explainer, which still draw their labels inside the SVG.
  */
 export interface RadarLayout {
   readonly width: number;
@@ -31,10 +37,11 @@ export interface RadarLayout {
    */
   readonly rings: readonly number[];
   /**
-   * Whether each axis carries its name and value. False only where the text
-   * would be smaller than the 12px floor — and where it is false, the surface
-   * around the radar is obliged to state the values instead. Nothing in this
-   * product is ever communicated by shape alone.
+   * Whether each axis carries its name and value inside the SVG. False where
+   * the text would be smaller than the 12px floor, or where the surface draws
+   * the labels itself — and where it is false, the surface around the radar is
+   * obliged to state the values instead. Nothing in this product is ever
+   * communicated by shape alone.
    */
   readonly labels: boolean;
 }
@@ -74,6 +81,23 @@ export const MARK: RadarLayout = {
   nameSize: 0,
   valueSize: 0,
   rings: [5, 10],
+  labels: false,
+};
+
+/**
+ * The profile instrument's geometry: a square box with the outer ring at
+ * 100/110 of the half-width, so the vertex marks on a 10.0 have room to
+ * paint. Labels are HTML, positioned by the instrument (see the header note).
+ */
+export const PROFILE: RadarLayout = {
+  width: 220,
+  height: 220,
+  center: { x: 110, y: 110 },
+  radius: 100,
+  labelRadius: 0,
+  nameSize: 0,
+  valueSize: 0,
+  rings: FULL_RINGS,
   labels: false,
 };
 
