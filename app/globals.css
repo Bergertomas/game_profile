@@ -83,118 +83,193 @@
 
 @theme {
   /* ======================================================================
-     CANONICAL SHARED TOKEN SYSTEM v1.
+     THE CANONICAL TOKEN CONTRACT — v1.
 
-     Promoted from the accepted canonical screens and the A7 reconciliation.
-     This is now the product's foundation, not an additive layer beside an
-     older one: the brand affordance is CORAL, the evidence and focus accent is
-     CYAN, and the display language is restrained Archivo rather than condensed
-     all-caps. Amber survives in exactly one role — a per-game accent, chosen
-     because it is Returnal's own colour (lib/profile/accent.ts) — and no
-     longer as a brand colour anywhere.
+     Every declaration between here and the compatibility layer below is a
+     literal transcription of docs/design/handoff/should-i-play.tokens.v1.json.
+     Values are copied, not chosen; names are derived from the token path by one
+     mechanical rule (camelCase segments to kebab-case, joined with `-`, under
+     the namespace for their group). tests/design-tokens.test.ts reads that JSON
+     and fails if any token is missing, renamed, or carries a different value,
+     so this block cannot drift from the contract by hand-editing.
 
-     Every pairing below is proved in tests/accessibility-tokens.test.ts
-     against the ground it is actually used on, and the type scale has a hard
-     12px floor that tests/e2e/type-floor.spec.ts enforces in a real browser.
+     An earlier pass INFERRED these values from the accepted screens and got
+     them wrong in specific, consequential ways — a canvas one step too dark, a
+     text step that does not exist, a solid border ramp where the contract uses
+     alpha, and a radius and motion scale invented whole. Nothing here is
+     inferred. Where this file needs something the contract does not define, it
+     is a local alias in the compatibility layer that resolves to approved
+     tokens, and it is named so that it cannot be mistaken for canon.
      ====================================================================== */
 
-  /* -- Surfaces, darkest to lightest -------------------------------------
-     The canonical product is dark. `canvas` is the page ground, `surface` the
-     ground beneath a composition, `surface-raised` a panel or well sitting on
-     it, `surface-sunk` an inset. `stage` sits behind artwork so an image
-     loading over it never flashes light. */
-  --color-canvas: #08090b;
-  --color-surface: #0b0c0f;
-  --color-surface-raised: #101116;
-  --color-surface-sunk: #15161b;
-  --color-stage: #0c0b0a;
+  /* color.surface */
+  --color-surface-canvas: #0B0C0F;
+  --color-surface-stage: #0C0B0A;
+  --color-surface-chrome: #101116;
+  --color-surface-panel: #111217;
+  --color-surface-panel-raised: #15161B;
+  --color-surface-editorial: #EDE7DA;
 
-  /* -- Text, brightest to quietest ---------------------------------------
-     Five steps, all AA or better on every surface above. `quiet` is the floor
-     of the ramp and still clears 5.38:1 on the lightest dark ground. */
-  --color-text-bright: #f5f4f1;
-  --color-text: #f2f1ee;
-  --color-text-strong: #e3e2df;
-  --color-text-muted: #b9bbc0;
-  --color-text-quiet: #8d9095;
+  /* color.text */
+  --color-text-primary: #F2F1EE;
+  --color-text-secondary: #E3E2DF;
+  --color-text-muted: #B9BBC0;
+  --color-text-quiet: #8D9095;
+  --color-text-on-editorial: #26221B;
+  --color-text-on-editorial-muted: #453F35;
+  --color-text-inverse: #0B0C0F;
 
-  /* -- Borders ------------------------------------------------------------ */
-  --color-border: #26282e;
-  --color-border-strong: #2a2c32;
-  --color-border-stronger: #3a3d45;
-  /* The border of something focused or currently chosen. */
-  --color-border-active: #39525b;
+  /* color.brand */
+  --color-brand-coral: #F2704D;
+  --color-brand-coral-hover: #FA8565;
+  --color-brand-evidence-cyan: #5BC8DE;
 
-  /* -- Brand, and evidence -----------------------------------------------
-     CORAL is the brand and the primary affordance: the question mark in the
-     wordmark, the mark on a chosen thing, the selection colour. CYAN is
-     evidence and focus: the focus ring, the keyboard legend, the cue that says
-     a thing is measured or reachable.
+  /* color.border */
+  --color-border-subtle: rgba(242, 241, 238, 0.10);
+  --color-border-default: rgba(242, 241, 238, 0.18);
+  --color-border-control: rgba(242, 241, 238, 0.42);
+  --color-border-strong: rgba(242, 241, 238, 0.62);
+  --color-border-on-editorial: rgba(38, 34, 27, 0.24);
 
-     Neither ever encodes a judgement. No score, confidence, ranking or status
-     is carried by either — those are words, always.
+  /* color.overlay */
+  --color-overlay-scrim-soft: rgba(11, 12, 15, 0.28);
+  --color-overlay-scrim-strong: rgba(11, 12, 15, 0.78);
+  --color-overlay-modal: rgba(0, 0, 0, 0.72);
 
-     Both are DARK-GROUND colours: coral measures 6.83:1 on canvas and 2.58:1
-     on paper, cyan 10.21:1 and 1.72:1. `brand-ink` is the paper-ground coral
-     for the reading surface that has not migrated yet. */
-  --color-brand: #f2704d;
-  --color-brand-ink: #98301a;
-  --color-evidence: #5bc8de;
+  /* color.state */
+  --color-state-focus: var(--color-brand-evidence-cyan);
+  --color-state-provisional: #E0B23A;
+  --color-state-unknown: #9FA4AD;
+  --color-state-range: #B7A7D8;
+  --color-state-equal: #D8D6D0;
+  --color-state-close: var(--color-brand-evidence-cyan);
+  --color-state-difference: var(--color-brand-coral);
+  --color-state-indeterminate: #9FA4AD;
 
-  /* -- Radius -------------------------------------------------------------
-     The canonical system is not square. `xs` is the focus ring's own corner,
-     `md` the default for a panel or a row, `pill` for a key cap or a chip. */
-  --radius-xs: 4px;
-  --radius-sm: 8px;
-  --radius-md: 10px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-  --radius-pill: 99px;
+  /* color.game */
+  --color-game-alan-wake2-base: #A8341B;
+  --color-game-alan-wake2-lift: #EE7454;
+  --color-game-returnal-base: #6F5400;
+  --color-game-returnal-lift: #E0B23A;
+  --color-game-redfall-base: #27547B;
+  --color-game-redfall-lift: #5C9EDE;
+  --color-game-fallback-base: #3F4A57;
+  --color-game-fallback-lift: #9FB3C8;
 
-  /* -- Elevation ---------------------------------------------------------- */
-  --shadow-raised: 0 24px 70px rgb(0 0 0 / 0.5);
-  --shadow-overlay: 0 18px 50px rgb(0 0 0 / 0.55);
+  /* font.family */
+  --font-ui: Archivo, system-ui, sans-serif;
+  --font-editorial: Newsreader, Georgia, serif;
+  --font-evidence: JetBrains Mono, ui-monospace, monospace;
 
-  /* -- Motion -------------------------------------------------------------
-     One easing and three durations. Every one of them is stripped entirely
-     under `prefers-reduced-motion`, which the block at the foot of this file
-     enforces globally. */
-  --ease-standard: cubic-bezier(0.22, 0.61, 0.36, 1);
-  --motion-fast: 120ms;
-  --motion-base: 180ms;
-  --motion-slow: 260ms;
+  /* font.weight */
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
 
-  /* -- Type scale ---------------------------------------------------------
-     `micro` IS THE FLOOR AND IT IS 12px. Nothing visible is set smaller —
-     not a key cap, not a caption, not a measurement cue. A design that needs
-     8px to fit needs less text, not smaller text. */
-  --font-display: "Archivo", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-prose: "Newsreader", Georgia, "Times New Roman", serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* font.size */
+  --text-minimum: 0.75rem;
+  --text-small: 0.8125rem;
+  --text-label: 0.875rem;
+  --text-body: 1rem;
+  --text-body-large: 1.125rem;
+  --text-lead: 1.375rem;
+  --text-heading-small: 1.5rem;
+  --text-heading-medium: 2rem;
+  --text-hero-mobile: 2.1rem;
+  --text-profile-title-mobile: 2.5rem;
+  --text-hero-desktop: 3.8rem;
+  --text-profile-title-desktop: 4.2rem;
 
-  --text-micro: 0.75rem;
-  --text-micro--line-height: 1.35;
-  --text-note: 0.8125rem;
-  --text-body: 0.9375rem;
-  --text-lead: 1.0625rem;
-  --text-title-sm: 1.1875rem;
-  --text-title: 1.25rem;
-  --text-title-lg: 1.5rem;
+  /* font.lineHeight */
+  --leading-tight: 1.05;
+  --leading-heading: 1.12;
+  --leading-body: 1.5;
+  --leading-editorial: 1.6;
+
+  /* font.tracking */
+  --tracking-normal: 0em;
+  --tracking-kicker: 0.14em;
+
+  /* space */
+  --space-0: 0rem;
+  --space-1: 0.4rem;
+  --space-2: 0.6rem;
+  --space-3: 0.8rem;
+  --space-4: 1rem;
+  --space-5: 1.2rem;
+  --space-6: 1.6rem;
+  --space-7: 2rem;
+  --space-8: 2.5rem;
+  --space-9: 3rem;
+  --space-10: 3.5rem;
+  --space-11: 4rem;
+
+  /* size */
+  --size-content-max: 82rem;
+  --size-gutter-desktop: 2.5rem;
+  --size-gutter-mobile: 1rem;
+  --size-control-minimum: 2.75rem;
+  --size-hero-desktop-maximum: 27.5rem;
+  --size-hero-mobile-target: 25.5rem;
+  --size-radar-compact: 4.5rem;
+  --size-radar-compact-mobile: 4rem;
+  --size-radar-profile-desktop: 22.5rem;
+  --size-radar-profile-mobile: 15rem;
+  --size-radar-compare-desktop: 21.25rem;
+  --size-radar-compare-mobile: 8rem;
+
+  /* radius */
+  --radius-structural: 0rem;
+  --radius-control: 0.625rem;
+  --radius-media: 0.875rem;
+  --radius-feature: 1.125rem;
+  --radius-pill: 999rem;
+
+  /* border */
+  --border-thin: 0.0625rem;
+  --border-focus: 0.1875rem;
+
+  /* motion.duration */
+  --duration-fast: 150ms;
+  --duration-standard: 220ms;
+  --duration-media: 320ms;
+  --duration-reveal: 600ms;
+  --duration-reduced: 0ms;
+
+  /* motion.easing */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* breakpoint */
+  --breakpoint-minimum: 20rem;
+  --breakpoint-mobile-reference: 24.375rem;
+  --breakpoint-content: 40rem;
+  --breakpoint-wide: 64rem;
+  --breakpoint-desktop-reference: 90rem;
 
   /* ======================================================================
-     THE LEGACY READING SURFACE — EXPLICITLY PROVISIONAL.
+     COMPATIBILITY LAYER — NOT PART OF THE CANONICAL NAMESPACE.
 
-     The game profile (A3–A6) and the methodology page still read on warm
-     paper with a graphite measurement field. Migrating those surfaces to the
-     canonical dark system is profile-page work and is deliberately NOT in this
-     slice; until it happens they need their grounds, and deleting these would
-     break accepted screens rather than promote anything.
+     The game profile, the methodology page and the editorial tool have not
+     migrated to the canonical system. They are unmigrated regions, not a second
+     design system, and this block exists so they keep rendering until their own
+     slice moves them. Nothing new may reach for a name below this line.
 
-     They are provisional, not preserved: nothing new may reach for them, and
-     `signal` — the old amber brand token — now resolves to the canonical coral
-     so that the brand affordance is correct on those pages too, without this
-     slice repainting them.
+     Two rules make it safe to keep:
+
+       1. Every name here is outside the canonical namespaces above, so no
+          canonical token can be shadowed by a legacy one.
+       2. Where a legacy name has a canonical equivalent it ALIASES that token
+          rather than repeating a value, so the unmigrated surfaces inherit
+          corrections automatically. `signal` is the brand mark; it resolves to
+          the canonical coral, which is why the profile and methodology pages
+          already carry the correct affordance.
      ====================================================================== */
+
+  /* Warm reading grounds and their ink. The canonical contract has its own
+     editorial surface (`--color-surface-editorial`); these are the OLD ones and
+     are kept only until the profile slice replaces them. */
   --color-page: #f1f1ee;
   --color-page-sunk: #e7e7e2;
   --color-graphite: #191b1f;
@@ -213,12 +288,21 @@
   --color-rule-bone: rgba(237, 235, 231, 0.16);
   --color-rule-bone-strong: rgba(237, 235, 231, 0.32);
 
-  /* Retargeted, not retained. Every existing `text-signal` / `decoration-
-     signal` on the profile and methodology pages now paints the canonical
-     coral, so the brand affordance is one colour across the whole product
-     while those surfaces wait their turn. Amber is gone as a brand value. */
-  --color-signal: var(--color-brand);
-  --color-signal-ink: var(--color-brand-ink);
+  /* Aliases onto the contract. `stage` is the same colour in both systems, so
+     it resolves rather than repeating the hex. */
+  --color-stage: var(--color-surface-stage);
+  --color-signal: var(--color-brand-coral);
+  /* The one legacy value with no canonical counterpart: a dark mark on the old
+     paper ground, used by /admin only. The editorial tool is not a public
+     surface and is not part of this promotion. */
+  --color-signal-ink: #7e5f26;
+
+  --font-display: var(--font-ui);
+  --font-prose: var(--font-editorial);
+  --font-mono: var(--font-evidence);
+
+  --text-micro: var(--text-minimum);
+  --text-micro--line-height: 1.35;
 }
 
 @layer base {
@@ -248,13 +332,13 @@
     font-feature-settings: "tnum" 1;
   }
 
-  /* The canonical focus ring: evidence cyan, 2px, offset 3px, with the
-     canonical corner. It is never suppressed anywhere — only re-coloured
-     where a surface needs it, and no surface needs it. */
+  /* The canonical focus indicator. Width is `border.focus` — 3px, not the 2px
+     an earlier pass inferred — and the colour is `state.focus`, which the
+     contract aliases to the evidence cyan. Never suppressed anywhere. */
   :focus-visible {
-    outline: 2px solid var(--color-evidence);
+    outline: var(--border-focus) solid var(--color-state-focus);
     outline-offset: 3px;
-    border-radius: var(--radius-xs);
+    border-radius: var(--radius-control);
   }
 
   ::selection {
@@ -280,40 +364,40 @@
 
      `sip-prose` is the reading voice. */
   .sip-display {
-    font-family: var(--font-display);
+    font-family: var(--font-ui);
     font-stretch: 100%;
-    font-weight: 500;
-    line-height: 1.05;
+    font-weight: var(--font-weight-medium);
+    line-height: var(--leading-tight);
     text-wrap: balance;
   }
 
   /* Section headings sit a step up in weight from a hero line, which is the
      canonical relationship: the biggest type is the lightest. */
   .sip-display--section {
-    font-weight: 600;
-    line-height: 1.1;
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--leading-heading);
   }
 
   .sip-label {
-    font-family: var(--font-display);
+    font-family: var(--font-ui);
     font-stretch: 100%;
-    font-weight: 600;
-    font-size: var(--text-micro);
+    font-weight: var(--font-weight-semibold);
+    font-size: var(--text-minimum);
     line-height: 1.35;
     text-transform: uppercase;
   }
 
   .sip-num {
-    font-family: var(--font-display);
+    font-family: var(--font-ui);
     font-stretch: 100%;
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum" 1;
   }
 
   .sip-prose {
-    font-family: var(--font-prose);
-    line-height: 1.55;
+    font-family: var(--font-editorial);
+    line-height: var(--leading-editorial);
   }
 
   /* `sip-key` is a printed key cap, and `sip-note` the notation line beside it
@@ -323,9 +407,9 @@
      it marks — the search field's keyboard legend is decoration over behaviour
      that works with no legend at all. */
   .sip-key {
-    font-family: var(--font-mono);
-    font-weight: 500;
-    font-size: var(--text-micro);
+    font-family: var(--font-evidence);
+    font-weight: var(--font-weight-medium);
+    font-size: var(--text-minimum);
     line-height: 1;
     font-variant-numeric: tabular-nums;
   }
@@ -334,10 +418,11 @@
      product; "it is only a cue" is exactly the reasoning that puts unreadable
      text on a page. */
   .sip-note {
-    font-family: var(--font-mono);
-    font-weight: 400;
-    font-size: var(--text-micro);
+    font-family: var(--font-evidence);
+    font-weight: var(--font-weight-regular);
+    font-size: var(--text-minimum);
     line-height: 1.45;
+    letter-spacing: var(--tracking-kicker);
     text-transform: uppercase;
   }
 
@@ -346,7 +431,7 @@
      The mark is the words, set condensed and tight, with the question mark
      doing the work a logo would otherwise do. No glyph, no lockup, no badge. */
   .sip-wordmark {
-    font-family: var(--font-display);
+    font-family: var(--font-ui);
     font-stretch: 72%;
     font-weight: 800;
     text-transform: uppercase;
@@ -358,7 +443,7 @@
     /* The one piece of motion in the chrome, and it is a nod rather than an
        animation: the mark acknowledges the pointer and settles. */
     display: inline-block;
-    transition: transform var(--motion-slow) var(--ease-standard);
+    transition: transform var(--duration-standard) var(--ease-standard);
   }
 
   a:hover > .sip-wordmark__q,
@@ -372,8 +457,8 @@
      you rather than as an effect. Reduced-motion strips all of it below. */
   .sip-lift {
     transition:
-      transform var(--motion-slow) var(--ease-standard),
-      background-color var(--motion-base) linear;
+      transform var(--duration-standard) var(--ease-standard),
+      background-color var(--duration-fast) linear;
   }
 
   .sip-crop {
@@ -386,7 +471,7 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition: transform var(--motion-slow) var(--ease-standard);
+    transition: transform var(--duration-media) var(--ease-standard);
   }
 
   .group:hover .sip-crop img,

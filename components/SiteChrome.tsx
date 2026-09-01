@@ -47,7 +47,7 @@ const WORDMARK = SITE_NAME.replace(/\?+$/, "");
 export function SiteHeader() {
   return (
     <header className="border-b border-rule-bone bg-graphite text-bone">
-      <div className="mx-auto flex w-full max-w-[74rem] items-center justify-between gap-4 px-5 py-3.5 sm:px-8">
+      <div className="mx-auto flex w-full max-w-[82rem] items-center justify-between gap-4 px-4 py-3.5 sm:px-10">
         <Link href="/" className="flex items-baseline gap-3">
           <span className="sip-wordmark text-[1.0625rem] sm:text-[1.1875rem]">
             {WORDMARK}
@@ -76,7 +76,7 @@ export function SiteHeader() {
 export function SiteFooter() {
   return (
     <footer className="mt-auto border-t border-rule-bone bg-graphite text-bone">
-      <div className="mx-auto w-full max-w-[74rem] px-5 py-10 sm:px-8">
+      <div className="mx-auto w-full max-w-[82rem] px-4 py-10 sm:px-10">
         <p className="sip-wordmark text-[1.0625rem]">
           {WORDMARK}
           <span className="text-signal">?</span>

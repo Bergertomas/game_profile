@@ -52,7 +52,7 @@ export default async function HomePage() {
 
       {/* ── The shelf. The reason the page exists. ────────────────────────── */}
       <section aria-labelledby="catalogue" className="border-b border-rule">
-        <div className="mx-auto w-full max-w-[74rem] px-5 py-10 sm:px-8 sm:py-14">
+        <div className="mx-auto w-full max-w-[82rem] px-4 py-10 sm:px-10 sm:py-14">
           <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
             <h2 id="catalogue" className="sip-display sip-display--section text-[1.75rem]">
               In the library
@@ -101,7 +101,7 @@ function ProfileExplainer({ example }: { example: ProfileView }) {
         } as CSSProperties
       }
     >
-      <div className="mx-auto w-full max-w-[74rem] px-5 py-12 sm:px-8 sm:py-16">
+      <div className="mx-auto w-full max-w-[82rem] px-4 py-12 sm:px-10 sm:py-16">
         <h2 id="read-a-profile" className="sip-display sip-display--section text-[1.75rem]">
           What you are looking at
         </h2>

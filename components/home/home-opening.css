@@ -13,24 +13,25 @@
    ========================================================================== */
 
 .sip-open {
-  background: var(--color-canvas);
-  color: var(--color-text);
-  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-canvas);
+  color: var(--color-text-primary);
+  border-bottom: 1px solid var(--color-border-default);
 }
 
 .sip-open__grid {
   width: 100%;
-  max-width: 74rem;
+  max-width: var(--size-content-max);
   margin: 0 auto;
-  padding: 2rem 1.25rem 2.25rem;
+  padding: var(--space-7) var(--size-gutter-mobile) var(--space-7);
   display: grid;
   gap: 2rem;
   align-items: start;
 }
 
+/* The contract's content breakpoint. */
 @media (min-width: 40rem) {
   .sip-open__grid {
-    padding: 3rem 2rem 3.25rem;
+    padding: var(--space-9) var(--size-gutter-desktop) var(--space-9);
   }
 }
 
@@ -63,23 +64,22 @@
 
 .sip-open__eyebrow {
   margin: 0;
-  color: var(--color-evidence);
-  letter-spacing: 0.1em;
+  color: var(--color-brand-evidence-cyan);
 }
 
 .sip-open__headline {
   margin: 0.55rem 0 0;
   /* Ramps from 390px to desktop. The floor is chosen so the line still reads
      as a poster at 320px without pushing the field below the fold. */
-  font-size: clamp(2.125rem, 8.5vw, 4rem);
-  color: var(--color-text-bright);
+  font-size: clamp(var(--text-hero-mobile), 8.5vw, var(--text-hero-desktop));
+  color: var(--color-text-primary);
   text-wrap: balance;
 }
 
 .sip-open__lead {
   margin: 0.85rem 0 0;
   max-width: 34ch;
-  font-size: clamp(1rem, 3.4vw, 1.1875rem);
+  font-size: clamp(var(--text-body), 3.4vw, var(--text-body-large));
   line-height: 1.45;
   color: var(--color-text-muted);
   text-wrap: pretty;
@@ -88,7 +88,7 @@
 .sip-open__sub {
   margin: 0.5rem 0 0;
   max-width: 40ch;
-  font-size: 0.9375rem;
+  font-size: var(--text-label);
   color: var(--color-text-quiet);
 }
 
@@ -120,15 +120,15 @@
 /* Where you are. Marked with a rule as well as a colour, so the current path is
    identifiable without perceiving the tint. */
 .sip-open__path.is-current {
-  color: var(--color-text-bright);
-  border-bottom: 2px solid var(--color-brand);
+  color: var(--color-text-primary);
+  border-bottom: 0.125rem solid var(--color-brand-coral);
   padding-bottom: 0.2rem;
 }
 
 .sip-open__paths-note {
   margin: 0.6rem 0 0;
-  font-size: 0.8125rem;
-  line-height: 1.5;
+  font-size: var(--text-small);
+  line-height: var(--leading-body);
   color: var(--color-text-quiet);
   text-wrap: pretty;
 }
@@ -162,8 +162,8 @@
   min-height: min(8.5rem, 22vh);
   overflow: hidden;
   background: var(--color-stage);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border: var(--border-thin) solid var(--color-border-default);
+  border-radius: var(--radius-media);
 }
 
 .sip-open__tile.is-lead {
@@ -172,7 +172,7 @@
 
 /* One column at the narrowest widths: two tiles side by side at 320px are two
    tiles nobody can read. */
-@media (max-width: 26rem) {
+@media (max-width: 40rem) {
   .sip-open__tiles {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -216,10 +216,10 @@
     ),
     linear-gradient(
       150deg,
-      color-mix(in oklab, var(--sip-accent-lift) 26%, var(--color-canvas)) 0%,
-      color-mix(in oklab, var(--sip-accent-lift) 7%, var(--color-canvas)) 68%
+      color-mix(in oklab, var(--sip-accent-lift) 26%, var(--color-surface-canvas)) 0%,
+      color-mix(in oklab, var(--sip-accent-lift) 7%, var(--color-surface-canvas)) 68%
     );
-  border-left: 4px solid var(--sip-accent-lift);
+  border-left: 0.25rem solid var(--sip-accent-lift);
 }
 
 .sip-open__scrim {
@@ -227,9 +227,9 @@
   inset: 0;
   background: linear-gradient(
     0deg,
-    rgb(11 12 15 / 0.96) 0%,
-    rgb(11 12 15 / 0.6) 38%,
-    rgb(11 12 15 / 0) 66%
+    var(--color-overlay-scrim-strong) 0%,
+    var(--color-overlay-scrim-soft) 44%,
+    transparent 70%
   );
 }
 
@@ -249,15 +249,15 @@
   margin: 0;
   font-family: var(--font-display);
   font-stretch: 100%;
-  font-weight: 600;
-  line-height: 1.1;
-  font-size: var(--text-lead);
-  color: var(--color-text-bright);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--leading-heading);
+  font-size: var(--text-body-large);
+  color: var(--color-text-primary);
   overflow-wrap: anywhere;
 }
 
 .sip-open__tile.is-lead .sip-open__title {
-  font-size: var(--text-title);
+  font-size: var(--text-heading-small);
 }
 
 .sip-open__title a {
@@ -275,18 +275,18 @@
 .sip-open__title a:hover {
   text-decoration: underline;
   text-underline-offset: 5px;
-  text-decoration-color: var(--color-brand);
+  text-decoration-color: var(--color-brand-coral);
 }
 
 .sip-open__title a:focus-visible {
-  outline: 2px solid var(--color-evidence);
+  outline: var(--border-focus) solid var(--color-state-focus);
   outline-offset: 3px;
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-control);
 }
 
 .sip-open__line {
   margin: 0.25rem 0 0;
-  font-size: 0.8125rem;
+  font-size: var(--text-small);
   line-height: 1.35;
   color: var(--color-text-muted);
   overflow-wrap: anywhere;
@@ -298,8 +298,7 @@
    fits. Tracking comes down as the size goes up so it still reads as notation. */
 .sip-open__cue {
   margin: 0.4rem 0 0;
-  font-size: var(--text-micro);
-  letter-spacing: 0.06em;
+  font-size: var(--text-minimum);
   color: var(--color-text-quiet);
 }
 
@@ -316,8 +315,8 @@
   /* A soft well, so the polygon stays legible over any artwork under it. */
   background: radial-gradient(
     closest-side,
-    rgb(11 12 15 / 0.9) 42%,
-    rgb(11 12 15 / 0) 100%
+    var(--color-overlay-scrim-strong) 42%,
+    transparent 100%
   );
 }
 
@@ -329,15 +328,15 @@
 
 .sip-open__caption {
   margin: 0.7rem 0 0;
-  font-size: 0.8125rem;
-  line-height: 1.5;
+  font-size: var(--text-small);
+  line-height: var(--leading-body);
   color: var(--color-text-quiet);
   text-wrap: pretty;
 }
 
 .sip-open__rights {
   margin: 0.4rem 0 0;
-  font-size: 0.75rem;
-  line-height: 1.5;
+  font-size: var(--text-minimum);
+  line-height: var(--leading-body);
   color: var(--color-text-quiet);
 }
