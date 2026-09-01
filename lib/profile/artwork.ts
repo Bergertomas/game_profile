@@ -5,12 +5,11 @@ import type { Game, GameArtwork, GameImage } from "@/lib/profile/types";
 /**
  * Artwork resolution for the public site.
  *
- * ARTWORK IS METADATA, NOT CURATION. At a few hundred games and growing,
- * hand-picking every image is not a workflow, so the model assumes a provider
- * supplies art automatically and a human only intervenes when a specific image
- * is wrong. Nothing in the product knows or cares which provider that is: a
- * surface asks for a cover or a hero, gets one or doesn't, and composes either
- * way.
+ * ARTWORK IS RIGHTS-AWARE GAME METADATA. A provider, press kit or research pass
+ * may propose candidates at catalog scale, but no automated path production-
+ * clears an image: the editor approves its source, basis, role and final visual
+ * selection. Rendering remains provider-independent—a surface asks for a cover
+ * or hero, gets one or does not, and composes either way.
  *
  * Two image roles, because they are two different jobs:
  *
@@ -36,9 +35,10 @@ import type { Game, GameArtwork, GameImage } from "@/lib/profile/types";
  *                previews, never production.
  *
  * *Why* an asset is cleared — a licence, a provider's API terms, a press-kit
- * grant, direct permission — is recorded separately in `basis`, for the humans
- * who have to answer for it. No rendering code reads it, because "licensed" is
- * a claim the application is in no position to make on a publisher's behalf.
+ * grant, direct permission, or the approved editorial-fair-use policy — is
+ * recorded separately in `basis`, for the humans who have to answer for it. No
+ * rendering code reads it, because "licensed" is a claim the application is in
+ * no position to make on a publisher's behalf.
  *
  * A game moves from uncleared to cleared by changing one field, with no code
  * change and no window in which the uncleared image could reach production.
@@ -47,7 +47,7 @@ import type { Game, GameArtwork, GameImage } from "@/lib/profile/types";
  */
 
 /** Where an image came from. Free-form so a new provider needs no code change. */
-export type ArtworkSource = "manual" | "rawg" | "mobygames" | "press-kit";
+export type ArtworkSource = string;
 
 /**
  * Whether an asset may render on the public production site. This is an
@@ -67,6 +67,7 @@ export type ArtworkBasis =
   | "provider-terms"
   | "press-kit"
   | "permission"
+  | "editorial-fair-use"
   | "internal-evaluation";
 
 export interface ProfileArtwork {

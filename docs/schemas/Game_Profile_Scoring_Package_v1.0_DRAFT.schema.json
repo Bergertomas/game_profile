@@ -1,0 +1,1901 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shouldiplay.gg/schemas/game-profile-scoring-package/1.0-draft",
+  "title": "Game Profile scoring package v1.0 draft",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "package_schema_version",
+    "package_id",
+    "scoring_content",
+    "content_digest",
+    "owner_approval"
+  ],
+  "properties": {
+    "package_schema_version": { "const": "1.0-draft" },
+    "package_id": { "$ref": "#/$defs/id" },
+    "scoring_content": { "$ref": "#/$defs/scoringContent" },
+    "content_digest": { "$ref": "#/$defs/sha256" },
+    "owner_approval": { "$ref": "#/$defs/ownerApproval" }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullableString": {
+      "type": ["string", "null"]
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "pattern": "^\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])$"
+    },
+    "dateTime": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])T([01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(\\.\\d+)?(Z|[+-]([01]\\d|2[0-3]):[0-5]\\d)$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "subcriterionKey": {
+      "enum": [
+        "story_hook",
+        "character_investment",
+        "narrative_coherence",
+        "narrative_momentum",
+        "world_lore_integration",
+        "dramatic_execution",
+        "gameplay_execution",
+        "technical_stability",
+        "production_cohesion",
+        "consistency",
+        "structural_intentionality",
+        "navigation_legibility",
+        "repetition_control",
+        "ux_friction",
+        "content_focus",
+        "moment_to_moment",
+        "toolset_depth",
+        "reward_rhythm",
+        "failure_fairness",
+        "capability_balance",
+        "opening_effectiveness",
+        "momentum_maintenance",
+        "runtime_justification",
+        "session_rhythm",
+        "content_density",
+        "sense_of_place",
+        "mood_strength",
+        "audiovisual_identity",
+        "world_coherence",
+        "memory_residue",
+        "thematic_clarity",
+        "emotional_power",
+        "theme_character_integration",
+        "philosophical_weight",
+        "lasting_impact",
+        "mechanics_meaning",
+        "player_recontextualization",
+        "interactive_revelation",
+        "medium_irreplaceability",
+        "meaningful_agency"
+      ]
+    },
+    "dimensionKey": {
+      "enum": [
+        "story",
+        "execution",
+        "structure",
+        "agency",
+        "pacing",
+        "atmosphere",
+        "thematic",
+        "craft"
+      ]
+    },
+    "numericScore": {
+      "enum": [0, 0.5, 1, 1.5, 2]
+    },
+    "facetKey": {
+      "enum": [
+        "development_momentum",
+        "payoff",
+        "causality_feedback",
+        "proportionality_recovery",
+        "capability_counterplay",
+        "pressure_fit",
+        "progress_unit_legibility",
+        "closure_resumption_loss",
+        "agent_situation_embodiment",
+        "thematic_testing_consequence",
+        "rule_behavior",
+        "meaning_consequence"
+      ]
+    },
+    "confidence": {
+      "enum": ["High", "Medium", "Low"]
+    },
+    "scoringContent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol_version",
+        "rubric_version",
+        "tag_registry_version",
+        "evaluation_kind",
+        "baseline_package_digest",
+        "evaluation_scope",
+        "corpus",
+        "primary_pass",
+        "audit_pass",
+        "adjudication",
+        "derived_dimensions",
+        "overall_confidence",
+        "interpretation",
+        "audit_summary",
+        "reassessment_record"
+      ],
+      "properties": {
+        "protocol_version": { "const": "1.0" },
+        "rubric_version": { "const": "1.0" },
+        "tag_registry_version": { "const": "1.0" },
+        "evaluation_kind": {
+          "enum": ["initial", "reassessment_affected", "reassessment_full"]
+        },
+        "baseline_package_digest": {
+          "oneOf": [
+            { "$ref": "#/$defs/sha256" },
+            { "type": "null" }
+          ]
+        },
+        "evaluation_scope": { "$ref": "#/$defs/evaluationScope" },
+        "corpus": { "$ref": "#/$defs/corpus" },
+        "primary_pass": { "$ref": "#/$defs/scoringPass" },
+        "audit_pass": { "$ref": "#/$defs/scoringPass" },
+        "adjudication": { "$ref": "#/$defs/adjudication" },
+        "derived_dimensions": {
+          "type": "array",
+          "minItems": 8,
+          "maxItems": 8,
+          "items": { "$ref": "#/$defs/derivedDimension" }
+        },
+        "overall_confidence": { "$ref": "#/$defs/overallConfidence" },
+        "interpretation": { "$ref": "#/$defs/interpretation" },
+        "audit_summary": { "$ref": "#/$defs/auditSummary" },
+        "reassessment_record": {
+          "oneOf": [
+            { "$ref": "#/$defs/reassessmentRecord" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "evaluation_kind": { "const": "initial" } },
+            "required": ["evaluation_kind"]
+          },
+          "then": {
+            "properties": {
+              "baseline_package_digest": { "type": "null" },
+              "reassessment_record": { "type": "null" }
+            }
+          },
+          "else": {
+            "properties": {
+              "baseline_package_digest": { "$ref": "#/$defs/sha256" },
+              "reassessment_record": { "$ref": "#/$defs/reassessmentRecord" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "evaluation_kind": { "enum": ["initial", "reassessment_full"] }
+            },
+            "required": ["evaluation_kind"]
+          },
+          "then": {
+            "properties": {
+              "primary_pass": {
+                "properties": { "decisions": { "minItems": 40, "maxItems": 40 } }
+              },
+              "audit_pass": {
+                "properties": { "decisions": { "minItems": 40, "maxItems": 40 } }
+              },
+              "adjudication": {
+                "properties": { "final_decisions": { "minItems": 40, "maxItems": 40 } }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "evaluation_kind": { "const": "reassessment_affected" } },
+            "required": ["evaluation_kind"]
+          },
+          "then": {
+            "properties": {
+              "reassessment_record": {
+                "allOf": [
+                  { "$ref": "#/$defs/reassessmentRecord" },
+                  { "properties": { "disposition": { "const": "affected_set_revision" } } }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "evaluation_kind": { "const": "reassessment_full" } },
+            "required": ["evaluation_kind"]
+          },
+          "then": {
+            "properties": {
+              "reassessment_record": {
+                "allOf": [
+                  { "$ref": "#/$defs/reassessmentRecord" },
+                  { "properties": { "disposition": { "const": "full_revision" } } }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "evaluationScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "canonical_slug",
+        "canonical_title",
+        "scope_key",
+        "edition",
+        "mode",
+        "included_platforms",
+        "build_cutoff",
+        "release_state",
+        "pre_release_playable_basis",
+        "evidence_status",
+        "evaluation_maturity",
+        "public_release_date",
+        "evidence_cutoff",
+        "direct_play",
+        "known_exclusions",
+        "profile_stability_state",
+        "global_scope_state"
+      ],
+      "properties": {
+        "canonical_slug": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "canonical_title": { "$ref": "#/$defs/nonEmptyString" },
+        "scope_key": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "edition": { "$ref": "#/$defs/nonEmptyString" },
+        "mode": { "$ref": "#/$defs/nonEmptyString" },
+        "included_platforms": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        },
+        "build_cutoff": { "$ref": "#/$defs/nonEmptyString" },
+        "release_state": {
+          "enum": ["announced", "showcased", "pre_release_playable", "released"]
+        },
+        "pre_release_playable_basis": {
+          "enum": ["hands_on", "review_code", null]
+        },
+        "evidence_status": {
+          "enum": ["verified", "provisional", "pre_release"]
+        },
+        "evaluation_maturity": {
+          "enum": ["pre_release", "newly_released", "mature"]
+        },
+        "public_release_date": {
+          "oneOf": [{ "$ref": "#/$defs/date" }, { "type": "null" }]
+        },
+        "evidence_cutoff": { "$ref": "#/$defs/date" },
+        "direct_play": { "$ref": "#/$defs/directPlay" },
+        "known_exclusions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        },
+        "profile_stability_state": {
+          "enum": ["stable", "bounded_change", "actively_changing", "unknown"]
+        },
+        "global_scope_state": { "enum": ["sound", "threatened"] }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "release_state": { "enum": ["announced", "showcased", "pre_release_playable"] }
+            },
+            "required": ["release_state"]
+          },
+          "then": {
+            "properties": {
+              "evaluation_maturity": { "const": "pre_release" },
+              "public_release_date": { "type": "null" },
+              "evidence_status": { "const": "pre_release" }
+            }
+          },
+          "else": {
+            "properties": {
+              "evaluation_maturity": { "enum": ["newly_released", "mature"] },
+              "public_release_date": { "$ref": "#/$defs/date" },
+              "evidence_status": { "enum": ["verified", "provisional"] }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "release_state": { "const": "pre_release_playable" }
+            },
+            "required": ["release_state"]
+          },
+          "then": {
+            "properties": {
+              "pre_release_playable_basis": { "enum": ["hands_on", "review_code"] }
+            }
+          },
+          "else": {
+            "properties": {
+              "pre_release_playable_basis": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "release_state": { "const": "released" },
+              "profile_stability_state": { "enum": ["actively_changing", "unknown"] }
+            },
+            "required": ["release_state", "profile_stability_state"]
+          },
+          "then": {
+            "properties": {
+              "evidence_status": { "const": "provisional" }
+            }
+          }
+        }
+      ]
+    },
+    "directPlay": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "evaluator", "platform", "build", "started_at", "ended_at", "hours", "covered_segments"],
+      "properties": {
+        "status": { "enum": ["none", "partial", "complete"] },
+        "evaluator": { "$ref": "#/$defs/nullableString" },
+        "platform": { "$ref": "#/$defs/nullableString" },
+        "build": { "$ref": "#/$defs/nullableString" },
+        "started_at": {
+          "oneOf": [{ "$ref": "#/$defs/dateTime" }, { "type": "null" }]
+        },
+        "ended_at": {
+          "oneOf": [{ "$ref": "#/$defs/dateTime" }, { "type": "null" }]
+        },
+        "hours": { "type": ["number", "null"], "minimum": 0 },
+        "covered_segments": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "status": { "const": "none" } },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "evaluator": { "type": "null" },
+              "platform": { "type": "null" },
+              "build": { "type": "null" },
+              "started_at": { "type": "null" },
+              "ended_at": { "type": "null" },
+              "hours": { "type": "null" },
+              "covered_segments": { "maxItems": 0 }
+            }
+          },
+          "else": {
+            "properties": {
+              "evaluator": { "$ref": "#/$defs/nonEmptyString" },
+              "platform": { "$ref": "#/$defs/nonEmptyString" },
+              "build": { "$ref": "#/$defs/nonEmptyString" },
+              "started_at": { "$ref": "#/$defs/dateTime" },
+              "ended_at": { "$ref": "#/$defs/dateTime" },
+              "hours": { "type": "number", "exclusiveMinimum": 0 },
+              "covered_segments": { "minItems": 1 }
+            }
+          }
+        }
+      ]
+    },
+    "corpus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "research_run_manifest",
+        "collection_standard",
+        "collection_reason",
+        "query_family_audit",
+        "candidate_source_log",
+        "source_manifest",
+        "coverage_frames",
+        "raw_packet_digest",
+        "normalized_packet_digest",
+        "canonical_source_order",
+        "review_grades_masked",
+        "frozen_at"
+      ],
+      "properties": {
+        "research_run_manifest": { "$ref": "#/$defs/researchRunManifest" },
+        "collection_standard": {
+          "enum": ["scarcity_floor", "normal_target", "expanded_for_complexity"]
+        },
+        "collection_reason": { "$ref": "#/$defs/nonEmptyString" },
+        "query_family_audit": {
+          "type": "array",
+          "minItems": 7,
+          "maxItems": 7,
+          "items": { "$ref": "#/$defs/queryFamilyAudit" },
+          "allOf": [
+            {
+              "contains": {
+                "properties": { "query_family": { "const": "title_edition" } },
+                "required": ["query_family"]
+              }
+            },
+            {
+              "contains": {
+                "properties": { "query_family": { "const": "full_game" } },
+                "required": ["query_family"]
+              }
+            },
+            {
+              "contains": {
+                "properties": { "query_family": { "const": "platform_technical" } },
+                "required": ["query_family"]
+              }
+            },
+            {
+              "contains": {
+                "properties": { "query_family": { "const": "late_game_endgame" } },
+                "required": ["query_family"]
+              }
+            },
+            {
+              "contains": {
+                "properties": { "query_family": { "const": "specialist" } },
+                "required": ["query_family"]
+              }
+            },
+            {
+              "contains": {
+                "properties": { "query_family": { "const": "major_patches" } },
+                "required": ["query_family"]
+              }
+            },
+            {
+              "contains": {
+                "properties": { "query_family": { "const": "material_disagreement" } },
+                "required": ["query_family"]
+              }
+            }
+          ]
+        },
+        "candidate_source_log": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/candidateSource" }
+        },
+        "source_manifest": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/source" }
+        },
+        "coverage_frames": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 40,
+          "items": { "$ref": "#/$defs/coverageFrame" }
+        },
+        "raw_packet_digest": { "$ref": "#/$defs/sha256" },
+        "normalized_packet_digest": { "$ref": "#/$defs/sha256" },
+        "canonical_source_order": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        },
+        "review_grades_masked": { "const": true },
+        "frozen_at": { "$ref": "#/$defs/dateTime" }
+      }
+    },
+    "queryFamilyAudit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["query_family", "disposition", "reason"],
+      "properties": {
+        "query_family": {
+          "enum": ["title_edition", "full_game", "platform_technical", "late_game_endgame", "specialist", "major_patches", "material_disagreement"]
+        },
+        "disposition": { "enum": ["run", "not_applicable"] },
+        "reason": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "candidateSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidate_id", "query_family", "query_text", "service", "searched_at", "result_position", "locator", "disposition", "reason"],
+      "properties": {
+        "candidate_id": { "$ref": "#/$defs/id" },
+        "query_family": {
+          "enum": ["title_edition", "full_game", "platform_technical", "late_game_endgame", "specialist", "major_patches", "material_disagreement"]
+        },
+        "query_text": { "$ref": "#/$defs/nonEmptyString" },
+        "service": { "$ref": "#/$defs/nonEmptyString" },
+        "searched_at": { "$ref": "#/$defs/dateTime" },
+        "result_position": { "type": ["integer", "null"], "minimum": 1 },
+        "locator": { "$ref": "#/$defs/nonEmptyString" },
+        "disposition": { "enum": ["accepted", "limited", "rejected"] },
+        "reason": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_id",
+        "record_status",
+        "title",
+        "author_creator",
+        "publisher_channel",
+        "locator",
+        "durable_identifier",
+        "publication_date",
+        "accessed_at",
+        "source_class",
+        "source_tier",
+        "independence_cluster_id",
+        "platform_build_scope",
+        "play_completion_scope",
+        "sponsorship_access_disclosure",
+        "dependency_note",
+        "limitations",
+        "player_signal_sampling",
+        "raw_content_digest",
+        "normalized_content_digest"
+      ],
+      "properties": {
+        "source_id": { "$ref": "#/$defs/id" },
+        "record_status": { "enum": ["active", "superseded"] },
+        "title": { "$ref": "#/$defs/nonEmptyString" },
+        "author_creator": { "$ref": "#/$defs/nullableString" },
+        "publisher_channel": { "$ref": "#/$defs/nullableString" },
+        "locator": { "$ref": "#/$defs/nonEmptyString" },
+        "durable_identifier": { "$ref": "#/$defs/nullableString" },
+        "publication_date": {
+          "oneOf": [{ "$ref": "#/$defs/date" }, { "type": "null" }]
+        },
+        "accessed_at": { "$ref": "#/$defs/dateTime" },
+        "source_class": {
+          "enum": ["critical_review", "specialist_creator", "technical_analysis", "documented_gameplay", "player_signal", "first_party", "direct_play"]
+        },
+        "source_tier": { "enum": ["A", "B", "C", "D"] },
+        "independence_cluster_id": { "$ref": "#/$defs/id" },
+        "platform_build_scope": { "$ref": "#/$defs/nonEmptyString" },
+        "play_completion_scope": { "$ref": "#/$defs/nonEmptyString" },
+        "sponsorship_access_disclosure": { "$ref": "#/$defs/nonEmptyString" },
+        "dependency_note": { "$ref": "#/$defs/nonEmptyString" },
+        "limitations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        },
+        "player_signal_sampling": {
+          "oneOf": [
+            { "$ref": "#/$defs/playerSignalSampling" },
+            { "type": "null" }
+          ]
+        },
+        "raw_content_digest": {
+          "oneOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }]
+        },
+        "normalized_content_digest": { "$ref": "#/$defs/sha256" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "source_class": { "const": "player_signal" } },
+            "required": ["source_class"]
+          },
+          "then": {
+            "properties": { "player_signal_sampling": { "$ref": "#/$defs/playerSignalSampling" } }
+          },
+          "else": {
+            "properties": { "player_signal_sampling": { "type": "null" } }
+          }
+        }
+      ]
+    },
+    "playerSignalSampling": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["platform", "language", "window_start", "window_end", "query", "sampling_method", "sample_size", "deduplication_method", "coding_method", "limitations"],
+      "properties": {
+        "platform": { "$ref": "#/$defs/nonEmptyString" },
+        "language": { "$ref": "#/$defs/nonEmptyString" },
+        "window_start": { "$ref": "#/$defs/date" },
+        "window_end": { "$ref": "#/$defs/date" },
+        "query": { "$ref": "#/$defs/nonEmptyString" },
+        "sampling_method": { "$ref": "#/$defs/nonEmptyString" },
+        "sample_size": { "type": "integer", "minimum": 1 },
+        "deduplication_method": { "$ref": "#/$defs/nonEmptyString" },
+        "coding_method": { "$ref": "#/$defs/nonEmptyString" },
+        "limitations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        }
+      }
+    },
+    "coverageFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["coverage_frame_id", "subcriterion_key", "coverage_units"],
+      "properties": {
+        "coverage_frame_id": { "$ref": "#/$defs/id" },
+        "subcriterion_key": { "$ref": "#/$defs/subcriterionKey" },
+        "coverage_units": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/coverageUnit" }
+        }
+      }
+    },
+    "coverageUnit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["unit_id", "label", "unit_class", "centrality"],
+      "properties": {
+        "unit_id": { "$ref": "#/$defs/id" },
+        "label": { "$ref": "#/$defs/nonEmptyString" },
+        "unit_class": { "enum": ["temporal_stratum", "progression_state", "core_loop", "mode", "platform", "build", "optional_endgame"] },
+        "centrality": { "enum": ["central", "noncentral"] }
+      }
+    },
+    "runManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id",
+        "role",
+        "started_at",
+        "ended_at",
+        "provider",
+        "model_label",
+        "model_snapshot_build_id",
+        "protocol_version",
+        "rubric_version",
+        "package_schema_version",
+        "system_instructions_digest",
+        "prompt_template_digest",
+        "rubric_digest",
+        "protocol_digest",
+        "output_schema_digest",
+        "normalized_packet_digest",
+        "canonical_source_order",
+        "research_tool_access",
+        "decoding_parameters",
+        "seed",
+        "retry_count",
+        "validation_failures",
+        "human_corrections",
+        "structured_output_digest"
+      ],
+      "properties": {
+        "run_id": { "$ref": "#/$defs/id" },
+        "role": { "enum": ["primary", "audit"] },
+        "started_at": { "$ref": "#/$defs/dateTime" },
+        "ended_at": { "$ref": "#/$defs/dateTime" },
+        "provider": { "$ref": "#/$defs/nonEmptyString" },
+        "model_label": { "$ref": "#/$defs/nonEmptyString" },
+        "model_snapshot_build_id": { "$ref": "#/$defs/nonEmptyString" },
+        "protocol_version": { "const": "1.0" },
+        "rubric_version": { "const": "1.0" },
+        "package_schema_version": { "const": "1.0-draft" },
+        "system_instructions_digest": { "$ref": "#/$defs/sha256" },
+        "prompt_template_digest": { "$ref": "#/$defs/sha256" },
+        "rubric_digest": { "$ref": "#/$defs/sha256" },
+        "protocol_digest": { "$ref": "#/$defs/sha256" },
+        "output_schema_digest": { "$ref": "#/$defs/sha256" },
+        "normalized_packet_digest": { "$ref": "#/$defs/sha256" },
+        "canonical_source_order": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        },
+        "research_tool_access": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        },
+        "decoding_parameters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "value"],
+            "properties": {
+              "name": { "$ref": "#/$defs/id" },
+              "value": { "type": ["string", "number", "integer", "boolean", "null"] }
+            }
+          }
+        },
+        "seed": { "oneOf": [{ "type": "integer" }, { "const": "parameter_unavailable" }] },
+        "retry_count": { "type": "integer", "minimum": 0 },
+        "validation_failures": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        },
+        "human_corrections": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        },
+        "structured_output_digest": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "researchRunManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id",
+        "role",
+        "started_at",
+        "ended_at",
+        "provider",
+        "model_label",
+        "model_snapshot_build_id",
+        "protocol_version",
+        "rubric_version",
+        "package_schema_version",
+        "system_instructions_digest",
+        "prompt_template_digest",
+        "rubric_digest",
+        "protocol_digest",
+        "output_schema_digest",
+        "normalized_packet_digest",
+        "canonical_source_order",
+        "research_tool_access",
+        "decoding_parameters",
+        "seed",
+        "retry_count",
+        "validation_failures",
+        "human_corrections",
+        "structured_output_digest"
+      ],
+      "properties": {
+        "run_id": { "$ref": "#/$defs/id" },
+        "role": { "const": "research" },
+        "started_at": { "$ref": "#/$defs/dateTime" },
+        "ended_at": { "$ref": "#/$defs/dateTime" },
+        "provider": { "$ref": "#/$defs/nonEmptyString" },
+        "model_label": { "$ref": "#/$defs/nonEmptyString" },
+        "model_snapshot_build_id": { "$ref": "#/$defs/nonEmptyString" },
+        "protocol_version": { "const": "1.0" },
+        "rubric_version": { "const": "1.0" },
+        "package_schema_version": { "const": "1.0-draft" },
+        "system_instructions_digest": { "$ref": "#/$defs/sha256" },
+        "prompt_template_digest": {
+          "oneOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }]
+        },
+        "rubric_digest": { "$ref": "#/$defs/sha256" },
+        "protocol_digest": { "$ref": "#/$defs/sha256" },
+        "output_schema_digest": {
+          "oneOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }]
+        },
+        "normalized_packet_digest": { "$ref": "#/$defs/sha256" },
+        "canonical_source_order": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        },
+        "research_tool_access": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        },
+        "decoding_parameters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "value"],
+            "properties": {
+              "name": { "$ref": "#/$defs/id" },
+              "value": { "type": ["string", "number", "integer", "boolean", "null"] }
+            }
+          }
+        },
+        "seed": { "oneOf": [{ "type": "integer" }, { "const": "parameter_unavailable" }] },
+        "retry_count": { "type": "integer", "minimum": 0 },
+        "validation_failures": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        },
+        "human_corrections": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        },
+        "structured_output_digest": {
+          "oneOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }]
+        }
+      }
+    },
+    "scoringPass": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["run_manifest", "claim_ledger", "decisions"],
+      "properties": {
+        "run_manifest": { "$ref": "#/$defs/runManifest" },
+        "claim_ledger": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/claim" }
+        },
+        "decisions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 40,
+          "items": { "$ref": "#/$defs/scoreDecision" }
+        }
+      }
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim_id",
+        "source_id",
+        "paraphrase",
+        "claim_type",
+        "claim_direction",
+        "observation_basis",
+        "subcriterion_key",
+        "scope_platform_build_time",
+        "exact_locator",
+        "observed_unit_ids",
+        "scorer_inference",
+        "recurrence",
+        "consequence",
+        "anchor_condition_ids",
+        "corroborating_claim_ids",
+        "contradicting_claim_ids",
+        "limitation",
+        "spoiler",
+        "disposition",
+        "disposition_reason",
+        "retrospective_time"
+      ],
+      "properties": {
+        "claim_id": { "$ref": "#/$defs/id" },
+        "source_id": { "$ref": "#/$defs/id" },
+        "paraphrase": { "$ref": "#/$defs/nonEmptyString" },
+        "claim_type": { "enum": ["fact", "direct_observation", "interpretation", "player_signal"] },
+        "claim_direction": { "enum": ["supports_higher", "supports_lower", "mixed_or_context"] },
+        "observation_basis": { "enum": ["source_reported", "documented_gameplay", "direct_play", "scorer_inference"] },
+        "subcriterion_key": { "$ref": "#/$defs/subcriterionKey" },
+        "scope_platform_build_time": { "$ref": "#/$defs/nonEmptyString" },
+        "exact_locator": { "$ref": "#/$defs/nullableString" },
+        "observed_unit_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        },
+        "scorer_inference": { "$ref": "#/$defs/nullableString" },
+        "recurrence": { "enum": ["isolated", "recurring", "widespread", null] },
+        "consequence": { "enum": ["cosmetic", "minor_friction", "material", "blocking_or_defining", null] },
+        "anchor_condition_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+@(0|0\\.5|1|1\\.5|2)$"
+          }
+        },
+        "corroborating_claim_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        },
+        "contradicting_claim_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        },
+        "limitation": { "$ref": "#/$defs/nullableString" },
+        "spoiler": { "type": "boolean" },
+        "disposition": { "enum": ["accepted", "limited", "rejected", "unresolved"] },
+        "disposition_reason": { "$ref": "#/$defs/nonEmptyString" },
+        "retrospective_time": {
+          "oneOf": [
+            { "$ref": "#/$defs/retrospectiveTime" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "claim_type": { "const": "fact" } },
+            "required": ["claim_type"]
+          },
+          "then": {
+            "properties": {
+              "recurrence": { "type": "null" },
+              "consequence": { "type": "null" }
+            }
+          },
+          "else": {
+            "properties": {
+              "recurrence": { "enum": ["isolated", "recurring", "widespread"] },
+              "consequence": { "enum": ["cosmetic", "minor_friction", "material", "blocking_or_defining"] }
+            }
+          }
+        }
+      ]
+    },
+    "retrospectiveTime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["retrospective_observation_date", "play_completion_date", "latest_possible_play_date", "elapsed_days_lower_bound"],
+      "properties": {
+        "retrospective_observation_date": { "$ref": "#/$defs/date" },
+        "play_completion_date": {
+          "oneOf": [{ "$ref": "#/$defs/date" }, { "type": "null" }]
+        },
+        "latest_possible_play_date": {
+          "oneOf": [{ "$ref": "#/$defs/date" }, { "type": "null" }]
+        },
+        "elapsed_days_lower_bound": { "type": "integer", "minimum": 0 }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "play_completion_date": { "$ref": "#/$defs/date" },
+            "latest_possible_play_date": { "type": "null" }
+          }
+        },
+        {
+          "properties": {
+            "play_completion_date": { "type": "null" },
+            "latest_possible_play_date": { "$ref": "#/$defs/date" }
+          }
+        }
+      ]
+    },
+    "confidenceFacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["coverage_state", "conflict_state", "stability_state"],
+      "properties": {
+        "coverage_state": { "enum": ["full", "bounded", "materially_limited"] },
+        "conflict_state": { "enum": ["none", "adjacent_resolved", "material_unresolved"] },
+        "stability_state": { "enum": ["stable", "bounded_change", "actively_changing", "unknown"] }
+      }
+    },
+    "endpointGate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_spanning_claim_ids", "calibration_reference", "intent_genre_check"],
+      "properties": {
+        "scope_spanning_claim_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        },
+        "calibration_reference": { "$ref": "#/$defs/nullableString" },
+        "intent_genre_check": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "facetRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["facet_key", "score_value_kind", "numeric_score", "unknown_reason", "missing_coverage_classes", "observed_pattern", "recurrence", "consequence"],
+      "properties": {
+        "facet_key": { "$ref": "#/$defs/facetKey" },
+        "score_value_kind": { "enum": ["numeric", "unknown"] },
+        "numeric_score": {
+          "oneOf": [{ "$ref": "#/$defs/numericScore" }, { "type": "null" }]
+        },
+        "unknown_reason": { "$ref": "#/$defs/nullableString" },
+        "missing_coverage_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": ["temporal_stratum", "progression_state", "core_loop", "mode", "platform", "build", "retrospective_elapsed", "source_scarcity", "unresolved_scope", "material_conflict"]
+          }
+        },
+        "observed_pattern": { "$ref": "#/$defs/nonEmptyString" },
+        "recurrence": { "enum": ["isolated", "recurring", "widespread", null] },
+        "consequence": { "enum": ["cosmetic", "minor_friction", "material", "blocking_or_defining", null] }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "score_value_kind": { "const": "numeric" } },
+            "required": ["score_value_kind"]
+          },
+          "then": {
+            "properties": {
+              "numeric_score": { "$ref": "#/$defs/numericScore" },
+              "unknown_reason": { "type": "null" },
+              "missing_coverage_classes": { "maxItems": 0 },
+              "recurrence": { "enum": ["isolated", "recurring", "widespread"] },
+              "consequence": { "enum": ["cosmetic", "minor_friction", "material", "blocking_or_defining"] }
+            }
+          },
+          "else": {
+            "properties": {
+              "numeric_score": { "type": "null" },
+              "unknown_reason": { "$ref": "#/$defs/nonEmptyString" },
+              "missing_coverage_classes": { "minItems": 1 },
+              "recurrence": { "type": "null" },
+              "consequence": { "type": "null" }
+            }
+          }
+        }
+      ]
+    },
+    "scoreDecision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subcriterion_key",
+        "score_value_kind",
+        "numeric_score",
+        "anchor_id",
+        "unknown_reason",
+        "missing_coverage_classes",
+        "observed_pattern",
+        "lower_anchor_rejection",
+        "higher_anchor_rejection",
+        "internal_rationale",
+        "public_rationale",
+        "claim_ids",
+        "insufficiency_reference_ids",
+        "counterevidence_disposition",
+        "facet_records",
+        "confidence_facts",
+        "subcriterion_confidence",
+        "zero_reason",
+        "endpoint_gate",
+        "platform_overrides"
+      ],
+      "properties": {
+        "subcriterion_key": { "$ref": "#/$defs/subcriterionKey" },
+        "score_value_kind": { "enum": ["numeric", "unknown"] },
+        "numeric_score": {
+          "oneOf": [{ "$ref": "#/$defs/numericScore" }, { "type": "null" }]
+        },
+        "anchor_id": {
+          "type": ["string", "null"],
+          "pattern": "^[a-z0-9_]+@(0|0\\.5|1|1\\.5|2)$"
+        },
+        "unknown_reason": { "$ref": "#/$defs/nullableString" },
+        "missing_coverage_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": ["temporal_stratum", "progression_state", "core_loop", "mode", "platform", "build", "retrospective_elapsed", "source_scarcity", "unresolved_scope", "material_conflict"]
+          }
+        },
+        "observed_pattern": { "$ref": "#/$defs/nonEmptyString" },
+        "lower_anchor_rejection": { "$ref": "#/$defs/nullableString" },
+        "higher_anchor_rejection": { "$ref": "#/$defs/nullableString" },
+        "internal_rationale": { "$ref": "#/$defs/nonEmptyString" },
+        "public_rationale": { "type": "string", "minLength": 31 },
+        "claim_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        },
+        "insufficiency_reference_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        },
+        "counterevidence_disposition": { "$ref": "#/$defs/nonEmptyString" },
+        "facet_records": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/facetRecord" }
+        },
+        "confidence_facts": { "$ref": "#/$defs/confidenceFacts" },
+        "subcriterion_confidence": { "$ref": "#/$defs/confidence" },
+        "zero_reason": {
+          "type": ["string", "null"],
+          "enum": ["absent_offering", "failed_execution", null]
+        },
+        "endpoint_gate": {
+          "oneOf": [{ "$ref": "#/$defs/endpointGate" }, { "type": "null" }]
+        },
+        "platform_overrides": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/platformOverride" }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "score_value_kind": { "const": "numeric" } },
+            "required": ["score_value_kind"]
+          },
+          "then": {
+            "properties": {
+              "numeric_score": { "$ref": "#/$defs/numericScore" },
+              "anchor_id": { "type": "string", "pattern": "^[a-z0-9_]+@(0|0\\.5|1|1\\.5|2)$" },
+              "unknown_reason": { "type": "null" },
+              "missing_coverage_classes": { "maxItems": 0 },
+              "claim_ids": { "minItems": 1 },
+              "insufficiency_reference_ids": { "maxItems": 0 }
+            }
+          },
+          "else": {
+            "properties": {
+              "numeric_score": { "type": "null" },
+              "anchor_id": { "type": "null" },
+              "unknown_reason": { "$ref": "#/$defs/nonEmptyString" },
+              "missing_coverage_classes": { "minItems": 1 },
+              "insufficiency_reference_ids": { "minItems": 1 },
+              "subcriterion_confidence": { "const": "Low" },
+              "zero_reason": { "type": "null" },
+              "lower_anchor_rejection": { "type": "null" },
+              "higher_anchor_rejection": { "type": "null" },
+              "endpoint_gate": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "numeric_score": { "const": 0 } },
+            "required": ["numeric_score"]
+          },
+          "then": {
+            "properties": {
+              "zero_reason": { "enum": ["absent_offering", "failed_execution"] }
+            }
+          },
+          "else": {
+            "properties": { "zero_reason": { "type": "null" } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "numeric_score": { "enum": [0.5, 1, 1.5] } },
+            "required": ["numeric_score"]
+          },
+          "then": {
+            "properties": {
+              "lower_anchor_rejection": { "$ref": "#/$defs/nonEmptyString" },
+              "higher_anchor_rejection": { "$ref": "#/$defs/nonEmptyString" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "numeric_score": { "const": 0 } },
+            "required": ["numeric_score"]
+          },
+          "then": {
+            "properties": {
+              "lower_anchor_rejection": { "type": "null" },
+              "higher_anchor_rejection": { "$ref": "#/$defs/nonEmptyString" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "numeric_score": { "const": 2 } },
+            "required": ["numeric_score"]
+          },
+          "then": {
+            "properties": {
+              "lower_anchor_rejection": { "$ref": "#/$defs/nonEmptyString" },
+              "higher_anchor_rejection": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "numeric_score": { "enum": [0, 2] } },
+            "required": ["numeric_score"]
+          },
+          "then": {
+            "properties": { "endpoint_gate": { "$ref": "#/$defs/endpointGate" } }
+          },
+          "else": {
+            "properties": { "endpoint_gate": { "type": "null" } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "subcriterion_key": { "const": "narrative_momentum" } },
+            "required": ["subcriterion_key"]
+          },
+          "then": {
+            "properties": {
+              "facet_records": {
+                "minItems": 2,
+                "maxItems": 2,
+                "items": {
+                  "properties": { "facet_key": { "enum": ["development_momentum", "payoff"] } }
+                },
+                "allOf": [
+                  {
+                    "contains": {
+                      "properties": { "facet_key": { "const": "development_momentum" } },
+                      "required": ["facet_key"]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": { "facet_key": { "const": "payoff" } },
+                      "required": ["facet_key"]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "subcriterion_key": { "const": "failure_fairness" } },
+            "required": ["subcriterion_key"]
+          },
+          "then": {
+            "properties": {
+              "facet_records": {
+                "minItems": 2,
+                "maxItems": 2,
+                "items": {
+                  "properties": { "facet_key": { "enum": ["causality_feedback", "proportionality_recovery"] } }
+                },
+                "allOf": [
+                  {
+                    "contains": {
+                      "properties": { "facet_key": { "const": "causality_feedback" } },
+                      "required": ["facet_key"]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": { "facet_key": { "const": "proportionality_recovery" } },
+                      "required": ["facet_key"]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "subcriterion_key": { "const": "capability_balance" } },
+            "required": ["subcriterion_key"]
+          },
+          "then": {
+            "properties": {
+              "facet_records": {
+                "minItems": 2,
+                "maxItems": 2,
+                "items": {
+                  "properties": { "facet_key": { "enum": ["capability_counterplay", "pressure_fit"] } }
+                },
+                "allOf": [
+                  {
+                    "contains": {
+                      "properties": { "facet_key": { "const": "capability_counterplay" } },
+                      "required": ["facet_key"]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": { "facet_key": { "const": "pressure_fit" } },
+                      "required": ["facet_key"]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "subcriterion_key": { "const": "session_rhythm" } },
+            "required": ["subcriterion_key"]
+          },
+          "then": {
+            "properties": {
+              "facet_records": {
+                "minItems": 2,
+                "maxItems": 2,
+                "items": {
+                  "properties": { "facet_key": { "enum": ["progress_unit_legibility", "closure_resumption_loss"] } }
+                },
+                "allOf": [
+                  {
+                    "contains": {
+                      "properties": { "facet_key": { "const": "progress_unit_legibility" } },
+                      "required": ["facet_key"]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": { "facet_key": { "const": "closure_resumption_loss" } },
+                      "required": ["facet_key"]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "subcriterion_key": { "const": "theme_character_integration" } },
+            "required": ["subcriterion_key"]
+          },
+          "then": {
+            "properties": {
+              "facet_records": {
+                "minItems": 2,
+                "maxItems": 2,
+                "items": {
+                  "properties": { "facet_key": { "enum": ["agent_situation_embodiment", "thematic_testing_consequence"] } }
+                },
+                "allOf": [
+                  {
+                    "contains": {
+                      "properties": { "facet_key": { "const": "agent_situation_embodiment" } },
+                      "required": ["facet_key"]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": { "facet_key": { "const": "thematic_testing_consequence" } },
+                      "required": ["facet_key"]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "subcriterion_key": { "const": "mechanics_meaning" } },
+            "required": ["subcriterion_key"]
+          },
+          "then": {
+            "properties": {
+              "facet_records": {
+                "minItems": 2,
+                "maxItems": 2,
+                "items": {
+                  "properties": { "facet_key": { "enum": ["rule_behavior", "meaning_consequence"] } }
+                },
+                "allOf": [
+                  {
+                    "contains": {
+                      "properties": { "facet_key": { "const": "rule_behavior" } },
+                      "required": ["facet_key"]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": { "facet_key": { "const": "meaning_consequence" } },
+                      "required": ["facet_key"]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "subcriterion_key": {
+                "not": { "enum": ["narrative_momentum", "failure_fairness", "capability_balance", "session_rhythm", "theme_character_integration", "mechanics_meaning"] }
+              }
+            },
+            "required": ["subcriterion_key"]
+          },
+          "then": {
+            "properties": { "facet_records": { "maxItems": 0 } }
+          }
+        }
+      ]
+    },
+    "platformOverride": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["platform_key", "score_value_kind", "numeric_score", "anchor_id", "unknown_reason", "missing_coverage_classes", "insufficiency_reference_ids", "zero_reason", "rationale", "claim_ids", "confidence_facts", "subcriterion_confidence"],
+      "properties": {
+        "platform_key": { "$ref": "#/$defs/id" },
+        "score_value_kind": { "enum": ["numeric", "unknown"] },
+        "numeric_score": {
+          "oneOf": [{ "$ref": "#/$defs/numericScore" }, { "type": "null" }]
+        },
+        "anchor_id": { "type": ["string", "null"], "pattern": "^[a-z0-9_]+@(0|0\\.5|1|1\\.5|2)$" },
+        "unknown_reason": { "$ref": "#/$defs/nullableString" },
+        "missing_coverage_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": ["temporal_stratum", "progression_state", "core_loop", "mode", "platform", "build", "retrospective_elapsed", "source_scarcity", "unresolved_scope", "material_conflict"]
+          }
+        },
+        "insufficiency_reference_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        },
+        "zero_reason": {
+          "type": ["string", "null"],
+          "enum": ["absent_offering", "failed_execution", null]
+        },
+        "rationale": { "$ref": "#/$defs/nonEmptyString" },
+        "claim_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        },
+        "confidence_facts": { "$ref": "#/$defs/confidenceFacts" },
+        "subcriterion_confidence": { "$ref": "#/$defs/confidence" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "score_value_kind": { "const": "numeric" } },
+            "required": ["score_value_kind"]
+          },
+          "then": {
+            "properties": {
+              "numeric_score": { "$ref": "#/$defs/numericScore" },
+              "anchor_id": { "type": "string" },
+              "unknown_reason": { "type": "null" },
+              "missing_coverage_classes": { "maxItems": 0 },
+              "insufficiency_reference_ids": { "maxItems": 0 }
+            }
+          },
+          "else": {
+            "properties": {
+              "numeric_score": { "type": "null" },
+              "anchor_id": { "type": "null" },
+              "unknown_reason": { "$ref": "#/$defs/nonEmptyString" },
+              "missing_coverage_classes": { "minItems": 1 },
+              "insufficiency_reference_ids": { "minItems": 1 },
+              "zero_reason": { "type": "null" },
+              "subcriterion_confidence": { "const": "Low" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "numeric_score": { "const": 0 } },
+            "required": ["numeric_score"]
+          },
+          "then": {
+            "properties": { "zero_reason": { "enum": ["absent_offering", "failed_execution"] } }
+          },
+          "else": {
+            "properties": { "zero_reason": { "type": "null" } }
+          }
+        }
+      ]
+    },
+    "adjudication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reconciled_claim_record", "differences", "final_decisions"],
+      "properties": {
+        "reconciled_claim_record": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reconciledClaim" }
+        },
+        "differences": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/difference" }
+        },
+        "final_decisions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 40,
+          "items": { "$ref": "#/$defs/scoreDecision" }
+        }
+      }
+    },
+    "reconciledClaim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reconciled_claim_id", "primary_claim_ids", "audit_claim_ids", "resolution", "reason"],
+      "properties": {
+        "reconciled_claim_id": { "$ref": "#/$defs/id" },
+        "primary_claim_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        },
+        "audit_claim_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        },
+        "resolution": { "enum": ["accepted", "limited", "rejected", "unresolved"] },
+        "reason": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "difference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["difference_id", "subcriterion_key", "difference_class", "primary_value", "audit_value", "claim_inclusion_differs", "mapping_differs", "disposition_differs", "confidence_differs", "owner_review_required", "resolution_reason"],
+      "properties": {
+        "difference_id": { "$ref": "#/$defs/id" },
+        "subcriterion_key": { "$ref": "#/$defs/subcriterionKey" },
+        "difference_class": { "enum": ["exact", "adjacent", "material"] },
+        "primary_value": { "$ref": "#/$defs/compactScore" },
+        "audit_value": { "$ref": "#/$defs/compactScore" },
+        "claim_inclusion_differs": { "type": "boolean" },
+        "mapping_differs": { "type": "boolean" },
+        "disposition_differs": { "type": "boolean" },
+        "confidence_differs": { "type": "boolean" },
+        "owner_review_required": { "type": "boolean" },
+        "resolution_reason": { "$ref": "#/$defs/nonEmptyString" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "difference_class": { "const": "material" } },
+            "required": ["difference_class"]
+          },
+          "then": {
+            "properties": { "owner_review_required": { "const": true } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "difference_class": { "const": "adjacent" } },
+            "required": ["difference_class"],
+            "anyOf": [
+              {
+                "properties": {
+                  "primary_value": {
+                    "properties": { "numeric_score": { "enum": [0, 2] } },
+                    "required": ["numeric_score"]
+                  }
+                },
+                "required": ["primary_value"]
+              },
+              {
+                "properties": {
+                  "audit_value": {
+                    "properties": { "numeric_score": { "enum": [0, 2] } },
+                    "required": ["numeric_score"]
+                  }
+                },
+                "required": ["audit_value"]
+              }
+            ]
+          },
+          "then": {
+            "properties": { "owner_review_required": { "const": true } }
+          }
+        }
+      ]
+    },
+    "compactScore": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["score_value_kind", "numeric_score"],
+      "properties": {
+        "score_value_kind": { "enum": ["numeric", "unknown"] },
+        "numeric_score": {
+          "oneOf": [{ "$ref": "#/$defs/numericScore" }, { "type": "null" }]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "score_value_kind": { "const": "numeric" } },
+            "required": ["score_value_kind"]
+          },
+          "then": { "properties": { "numeric_score": { "$ref": "#/$defs/numericScore" } } },
+          "else": { "properties": { "numeric_score": { "type": "null" } } }
+        }
+      ]
+    },
+    "derivedDimension": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dimension_key", "dimension_result_kind", "exact_value", "lower_bound", "upper_bound", "dimension_confidence", "dimension_scope_state"],
+      "properties": {
+        "dimension_key": { "$ref": "#/$defs/dimensionKey" },
+        "dimension_result_kind": { "enum": ["exact", "range", "insufficient"] },
+        "exact_value": { "type": ["number", "null"], "minimum": 0, "maximum": 10, "multipleOf": 0.5 },
+        "lower_bound": { "type": ["number", "null"], "minimum": 0, "maximum": 8, "multipleOf": 0.5 },
+        "upper_bound": { "type": ["number", "null"], "minimum": 2, "maximum": 10, "multipleOf": 0.5 },
+        "dimension_confidence": { "$ref": "#/$defs/confidence" },
+        "dimension_scope_state": { "enum": ["sound", "threatened"] }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "dimension_result_kind": { "const": "exact" } },
+            "required": ["dimension_result_kind"]
+          },
+          "then": {
+            "properties": {
+              "exact_value": { "type": "number", "minimum": 0, "maximum": 10, "multipleOf": 0.5 },
+              "lower_bound": { "type": "null" },
+              "upper_bound": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "dimension_result_kind": { "const": "range" } },
+            "required": ["dimension_result_kind"]
+          },
+          "then": {
+            "properties": {
+              "exact_value": { "type": "null" },
+              "lower_bound": { "type": "number", "minimum": 0, "maximum": 8, "multipleOf": 0.5 },
+              "upper_bound": { "type": "number", "minimum": 2, "maximum": 10, "multipleOf": 0.5 },
+              "dimension_confidence": { "enum": ["Medium", "Low"] }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "dimension_result_kind": { "const": "insufficient" } },
+            "required": ["dimension_result_kind"]
+          },
+          "then": {
+            "properties": {
+              "exact_value": { "type": "null" },
+              "lower_bound": { "type": "null" },
+              "upper_bound": { "type": "null" },
+              "dimension_confidence": { "const": "Low" }
+            }
+          }
+        }
+      ]
+    },
+    "overallConfidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "global_scope_state", "profile_stability_state", "evaluation_maturity"],
+      "properties": {
+        "label": { "$ref": "#/$defs/confidence" },
+        "global_scope_state": { "enum": ["sound", "threatened"] },
+        "profile_stability_state": { "enum": ["stable", "bounded_change", "actively_changing", "unknown"] },
+        "evaluation_maturity": { "enum": ["pre_release", "newly_released", "mature"] }
+      }
+    },
+    "interpretation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["one_line_experience", "primary_pull", "primary_risk", "experience_tags", "great_fit_if", "know_before_buying", "probably_not_for_you_if", "material_platform_warning"],
+      "properties": {
+        "one_line_experience": { "$ref": "#/$defs/nonEmptyString" },
+        "primary_pull": { "$ref": "#/$defs/nonEmptyString" },
+        "primary_risk": { "$ref": "#/$defs/nonEmptyString" },
+        "experience_tags": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/experienceTag" }
+        },
+        "great_fit_if": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 5,
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        },
+        "know_before_buying": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 5,
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        },
+        "probably_not_for_you_if": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 5,
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        },
+        "material_platform_warning": { "$ref": "#/$defs/nullableString" }
+      }
+    },
+    "experienceTag": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tag_key", "value_kind", "intensity"],
+      "properties": {
+        "tag_key": {
+          "enum": [
+            "linear", "hub-based", "open-world", "mission-based", "run-based", "sandbox", "systemic",
+            "story-heavy", "dialogue-heavy", "lore-heavy", "environmental-storytelling", "choice-consequence", "cutscene-heavy",
+            "combat-heavy", "stealth-heavy", "exploration-heavy", "puzzle-heavy", "traversal-heavy", "buildcraft-heavy", "management-heavy",
+            "backtracking", "grind", "repetition", "run-reset", "high-punishment", "difficult-checkpointing", "inventory-pressure", "resource-pressure", "reading-dense", "complex-onboarding",
+            "horror", "sustained-tension", "helplessness-sections", "power-fantasy", "melancholy", "comedic", "cozy",
+            "co-op-forward", "couch-friendly", "multiplayer-dependent", "pvp-forward",
+            "dated-friction", "technical-instability", "performance-sensitive"
+          ]
+        },
+        "value_kind": { "enum": ["boolean", "intensity"] },
+        "intensity": { "enum": ["low", "medium", "high", null] }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "tag_key": { "enum": ["backtracking", "grind", "repetition", "inventory-pressure", "resource-pressure", "sustained-tension", "dated-friction", "technical-instability"] }
+            },
+            "required": ["tag_key"]
+          },
+          "then": {
+            "properties": {
+              "value_kind": { "const": "intensity" },
+              "intensity": { "enum": ["low", "medium", "high"] }
+            }
+          },
+          "else": {
+            "properties": {
+              "value_kind": { "const": "boolean" },
+              "intensity": { "type": "null" }
+            }
+          }
+        }
+      ]
+    },
+    "auditSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["paired_decision_count", "numeric_rate_primary", "numeric_rate_audit", "exact_count", "adjacent_count", "material_count", "exact_rate", "exact_or_adjacent_rate", "confidence_exact_rate", "endpoint_material_disagreement_count", "difference_ids"],
+      "properties": {
+        "paired_decision_count": { "type": "integer", "minimum": 1, "maximum": 40 },
+        "numeric_rate_primary": { "type": "number", "minimum": 0, "maximum": 1 },
+        "numeric_rate_audit": { "type": "number", "minimum": 0, "maximum": 1 },
+        "exact_count": { "type": "integer", "minimum": 0, "maximum": 40 },
+        "adjacent_count": { "type": "integer", "minimum": 0, "maximum": 40 },
+        "material_count": { "type": "integer", "minimum": 0, "maximum": 40 },
+        "exact_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "exact_or_adjacent_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "confidence_exact_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "endpoint_material_disagreement_count": { "type": "integer", "minimum": 0 },
+        "difference_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        }
+      }
+    },
+    "reassessmentRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trigger", "checked_at", "disposition", "initial_impact_keys", "affected_set_keys", "carried_forward_reattestations", "active_source_ids", "superseded_source_ids", "no_change_reason"],
+      "properties": {
+        "trigger": { "enum": ["scheduled_3m", "scheduled_6m", "scheduled_12m", "major_patch", "systems_redesign", "performance_change", "expansion_base_effect", "port_or_upgrade", "service_availability", "late_game_evidence", "credible_correction"] },
+        "checked_at": { "$ref": "#/$defs/dateTime" },
+        "disposition": { "enum": ["affected_set_revision", "full_revision"] },
+        "initial_impact_keys": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/subcriterionKey" }
+        },
+        "affected_set_keys": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/subcriterionKey" }
+        },
+        "carried_forward_reattestations": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/carriedForwardReattestation" }
+        },
+        "active_source_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        },
+        "superseded_source_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        },
+        "no_change_reason": { "type": "null" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "disposition": { "const": "affected_set_revision" } },
+            "required": ["disposition"]
+          },
+          "then": {
+            "properties": {
+              "carried_forward_reattestations": { "minItems": 33, "maxItems": 39 }
+            }
+          },
+          "else": {
+            "properties": {
+              "carried_forward_reattestations": { "maxItems": 0 }
+            }
+          }
+        }
+      ]
+    },
+    "carriedForwardReattestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subcriterion_key", "confidence_facts"],
+      "properties": {
+        "subcriterion_key": { "$ref": "#/$defs/subcriterionKey" },
+        "confidence_facts": { "$ref": "#/$defs/confidenceFacts" }
+      }
+    },
+    "ownerApproval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actor_id", "decided_at", "approval_status", "approved_digest", "protocol_version", "rubric_version", "scope_key", "override_reasons", "no_ai_autopublish_attestation"],
+      "properties": {
+        "actor_id": { "$ref": "#/$defs/id" },
+        "decided_at": { "$ref": "#/$defs/dateTime" },
+        "approval_status": { "enum": ["draft", "approved", "rejected"] },
+        "approved_digest": { "$ref": "#/$defs/sha256" },
+        "protocol_version": { "const": "1.0" },
+        "rubric_version": { "const": "1.0" },
+        "scope_key": { "$ref": "#/$defs/id" },
+        "override_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ownerOverride" }
+        },
+        "no_ai_autopublish_attestation": { "const": true }
+      }
+    },
+    "ownerOverride": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subcriterion_key", "selected_value", "reason", "claim_ids"],
+      "properties": {
+        "subcriterion_key": { "$ref": "#/$defs/subcriterionKey" },
+        "selected_value": { "$ref": "#/$defs/compactScore" },
+        "reason": { "$ref": "#/$defs/nonEmptyString" },
+        "claim_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        }
+      }
+    }
+  }
+}

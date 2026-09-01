@@ -8,7 +8,7 @@ import {
   blockHeadings,
 } from "@/lib/profile/vocabulary";
 import { formatDate } from "@/lib/format";
-import { provenanceLabel } from "@/lib/profile/provenance";
+import { publicProvenanceLabel } from "@/lib/profile/provenance";
 import { creditLineFor, type ProfileArtwork } from "@/lib/profile/artwork";
 
 /**
@@ -138,7 +138,10 @@ export function ProfileLower({
                     CONFIDENCE_LABEL[evaluation.confidence],
                   ],
                   ["Rubric", `v${evaluation.rubricVersion}`],
-                  ["Scores", provenanceLabel(evaluation.scoreProvenance)],
+                  [
+                    "Assessment",
+                    publicProvenanceLabel(evaluation.scoreProvenance),
+                  ],
                   ["Evidence cut-off", formatDate(evaluation.evidenceCutoffAt)],
                   ["Release context", evaluation.releaseContext],
                   [
@@ -210,22 +213,39 @@ export function ProfileLower({
                   breakdown is the point: "supported by 6 sources" hides whether
                   those are hands-on hours or six people repeating one preview
                   (SOP §6). */}
-              <dl className="mt-2.5 flex flex-wrap gap-x-5 gap-y-1">
-                {profile.evidence.categoryCounts.map(({ category, count }) => (
-                  <div key={category} className="flex items-baseline gap-1.5">
-                    <dt className="gp__label gp__label--ink">
+              {evaluation.evidenceLedger === "pending" ? (
+                <ul className="mt-2.5 flex list-none flex-wrap gap-x-5 gap-y-1 p-0">
+                  {profile.evidence.categoryCounts.map(({ category }) => (
+                    <li key={category} className="gp__label gp__label--ink">
                       {SOURCE_CATEGORY_LABEL[category]}
-                    </dt>
-                    <dd className="gp__num text-[0.875rem]">{count}</dd>
+                    </li>
+                  ))}
+                  <li className="text-[0.875rem]">
+                    Direct play:{" "}
+                    {profile.evidence.hasDirectPlay ? "recorded" : "not recorded"}
+                  </li>
+                </ul>
+              ) : (
+                <dl
+                  className="mt-2.5 flex flex-wrap gap-x-5 gap-y-1"
+                  data-evidence-counts="reconciled"
+                >
+                  {profile.evidence.categoryCounts.map(({ category, count }) => (
+                    <div key={category} className="flex items-baseline gap-1.5">
+                      <dt className="gp__label gp__label--ink">
+                        {SOURCE_CATEGORY_LABEL[category]}
+                      </dt>
+                      <dd className="gp__num text-[0.875rem]">{count}</dd>
+                    </div>
+                  ))}
+                  <div className="flex items-baseline gap-1.5">
+                    <dt className="gp__label gp__label--ink">Direct play</dt>
+                    <dd className="text-[0.875rem]">
+                      {profile.evidence.hasDirectPlay ? "Yes" : "Not yet"}
+                    </dd>
                   </div>
-                ))}
-                <div className="flex items-baseline gap-1.5">
-                  <dt className="gp__label gp__label--ink">Direct play</dt>
-                  <dd className="text-[0.875rem]">
-                    {profile.evidence.hasDirectPlay ? "Yes" : "Not yet"}
-                  </dd>
-                </div>
-              </dl>
+                </dl>
+              )}
 
               <ol className="mt-3 list-none space-y-2 p-0">
                 {evaluation.sources.map((source) => (

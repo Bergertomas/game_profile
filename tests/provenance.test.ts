@@ -6,6 +6,7 @@ import {
   getCalibrationRound,
   isCalibrationRoundKey,
   provenanceLabel,
+  publicProvenanceLabel,
 } from "@/lib/profile/provenance";
 import type { Evaluation, GameWithEvaluation } from "@/lib/profile/types";
 import { validateEvaluation } from "@/lib/validation/evaluation";
@@ -72,6 +73,12 @@ describe("A calibration profile", () => {
     expect(provenanceLabel({ kind: "calibration", round: "round_2" })).toBe(
       "Calibration round 2",
     );
+  });
+
+  it("uses reader-facing review status on the public profile", () => {
+    expect(
+      publicProvenanceLabel({ kind: "calibration", round: "round_2" }),
+    ).toBe("Editor reviewed");
   });
 });
 

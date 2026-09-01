@@ -91,3 +91,14 @@ export function provenanceLabel(provenance: ScoreProvenance): string {
       return "Editorial evaluation";
   }
 }
+
+/**
+ * Reader-facing review status. Calibration is internal method provenance, not
+ * the primary public description of an assessment (Resolution Register §14).
+ * The exact round remains durable in the evaluation and admin/history views.
+ */
+export function publicProvenanceLabel(provenance: ScoreProvenance): string {
+  return provenance.kind === "derived"
+    ? "Not yet editor approved"
+    : "Editor reviewed";
+}

@@ -153,6 +153,7 @@ export interface ArtworkAdminView {
     | "provider-terms"
     | "press-kit"
     | "permission"
+    | "editorial-fair-use"
     | "internal-evaluation";
   readonly credit: string | null;
   readonly sourcePage: string | null;

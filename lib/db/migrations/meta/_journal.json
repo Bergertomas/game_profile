@@ -71,6 +71,13 @@
       "when": 1787164200000,
       "tag": "0009_deployment_tracking",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1787752598314,
+      "tag": "0010_artwork_fair_use",
+      "breakpoints": true
     }
   ]
 }

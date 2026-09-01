@@ -475,6 +475,10 @@ function ArtworkForm({
                     { value: "press-kit", label: "Press kit" },
                     { value: "permission", label: "Direct permission" },
                     {
+                      value: "editorial-fair-use",
+                      label: "Editorial fair use — operating gate required",
+                    },
+                    {
                       value: "internal-evaluation",
                       label: "Internal evaluation",
                     },
