@@ -29,6 +29,10 @@
   font-family: var(--font-ui);
   font-size: var(--text-body);
   line-height: var(--leading-body);
+  /* A long unbreakable token — "Recontextualization", a URL in a credit —
+     may break rather than set a min-content floor wider than a 320px phone
+     at 200% text. Ordinary words are never affected. */
+  overflow-wrap: anywhere;
 }
 
 .gp-measure {
@@ -944,14 +948,18 @@ a.gp-scopes__item:hover {
   border-top: var(--border-thin) solid var(--color-border-subtle);
 }
 
+/* Name and value on one line where they fit, and the value under the name
+   where they do not — never a flex row wider than its panel. */
 .gp-sub__head {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: baseline;
-  gap: var(--space-4);
+  gap: var(--space-1) var(--space-4);
 }
 
 .gp-sub__name {
+  min-width: 0;
   font-weight: var(--font-weight-semibold);
   font-size: var(--text-label);
   color: var(--color-text-primary);

@@ -29,11 +29,67 @@ test.beforeEach(async ({ page }) => {
   );
 });
 
-async function scrollsSideways(page: Page): Promise<boolean> {
+/**
+ * Whether the DOCUMENT scrolls sideways — a two-dimensional component may
+ * scroll inside its own container (the exit rail does) and that is allowed.
+ *
+ * Measured after the web fonts have arrived and a frame has painted, because
+ * the question is whether the settled layout overflows, not whether a
+ * fallback face did for one frame. On failure the message names the
+ * elements outside a clipping ancestor that reach past the viewport, so the
+ * culprit is in the report rather than in a re-run.
+ */
+async function sidewaysOverflow(page: Page): Promise<string[]> {
+  await page.evaluate(() => document.fonts.ready);
+  await page.evaluate(
+    () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+  );
   return page.evaluate(() => {
     const root = document.documentElement;
-    return root.scrollWidth > root.clientWidth + 1;
+    if (root.scrollWidth <= root.clientWidth + 1) return [];
+    const culprits: string[] = [];
+    for (const el of document.querySelectorAll("body *")) {
+      const box = el.getBoundingClientRect();
+      if (box.right <= root.clientWidth + 1 || box.width === 0) continue;
+      let ancestor: Element | null = el.parentElement;
+      let clipped = false;
+      while (ancestor && ancestor !== document.body) {
+        const overflow = getComputedStyle(ancestor).overflowX;
+        if (overflow === "auto" || overflow === "hidden" || overflow === "scroll") {
+          clipped = true;
+          break;
+        }
+        ancestor = ancestor.parentElement;
+      }
+      if (!clipped) {
+        culprits.push(
+          `${Math.round(box.right - root.clientWidth)}px ${el.tagName.toLowerCase()}.${String(el.className).split(" ").join(".")}`,
+        );
+      }
+    }
+    // Text can overflow its block without any element box reaching past the
+    // viewport — one unbreakable word wider than its column. Measure the
+    // text itself, so that case is named too.
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      if (!node.textContent?.trim()) continue;
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      const box = range.getBoundingClientRect();
+      if (box.right > root.clientWidth + 1 && box.width > 0) {
+        culprits.push(
+          `${Math.round(box.right - root.clientWidth)}px text "${node.textContent.trim().slice(0, 40)}"`,
+        );
+      }
+    }
+    return [`document ${root.scrollWidth} > ${root.clientWidth}`, ...culprits.slice(0, 12)];
   });
+}
+
+async function scrollsSideways(page: Page): Promise<boolean> {
+  const overflow = await sidewaysOverflow(page);
+  expect(overflow, overflow.join("\n")).toEqual([]);
+  return overflow.length > 0;
 }
 
 /** Document-order tops of the profile's bands, for the reading-order check. */
