@@ -86,7 +86,16 @@ test.describe("the opening", () => {
   });
 });
 
-test.describe("the four states", () => {
+/**
+ * The states reachable against the SHIPPED catalogue.
+ *
+ * Three of the four, because the fourth cannot be reached here: the recognised
+ * registry ships empty by decision, so there is nothing for a query to land on.
+ * All four are exercised through this same UI in
+ * tests/e2e/recognized-registry.spec.ts, which builds the synthetic registry
+ * corpus for exactly that purpose.
+ */
+test.describe("search states in the shipped catalogue", () => {
   test("published — an exact title opens that profile", async ({ page }) => {
     await page.goto("/");
     await type(page, "Alan Wake 2");

@@ -1,10 +1,10 @@
-import { RECOGNIZED_GAMES } from "@/content/search-registry";
 import { listGameProfiles } from "@/lib/data/games";
 import { formatYear } from "@/lib/format";
 import { byCodeUnit } from "@/lib/order";
 import type { ProfileView } from "@/lib/profile/build";
 import { profilePath } from "@/lib/site";
 import { toRecognizedEntries, uniqueTerms, type RegisteredGame } from "./registry";
+import { registryForBuild } from "./test-registry";
 import type { PublicSearchIndex, PublishedEntry } from "./types";
 
 /**
@@ -32,7 +32,10 @@ import type { PublicSearchIndex, PublishedEntry } from "./types";
  * later — the absence of one is the guarantee.
  */
 export async function buildPublicSearchIndex(): Promise<PublicSearchIndex> {
-  return indexFrom(await listGameProfiles(), RECOGNIZED_GAMES);
+  // `registryForBuild()` is the real, empty registry in every build that is not
+  // explicitly asking for the synthetic one, and a production build asking for
+  // it throws rather than publishing invented coverage claims.
+  return indexFrom(await listGameProfiles(), registryForBuild());
 }
 
 /**

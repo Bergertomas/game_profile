@@ -54,7 +54,7 @@ export default async function HomePage() {
       <section aria-labelledby="catalogue" className="border-b border-rule">
         <div className="mx-auto w-full max-w-[74rem] px-5 py-10 sm:px-8 sm:py-14">
           <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
-            <h2 id="catalogue" className="sip-display text-[1.75rem]">
+            <h2 id="catalogue" className="sip-display sip-display--section text-[1.75rem]">
               In the library
             </h2>
             <p className="sip-label text-ink-quiet">
@@ -102,7 +102,7 @@ function ProfileExplainer({ example }: { example: ProfileView }) {
       }
     >
       <div className="mx-auto w-full max-w-[74rem] px-5 py-12 sm:px-8 sm:py-16">
-        <h2 id="read-a-profile" className="sip-display text-[1.75rem]">
+        <h2 id="read-a-profile" className="sip-display sip-display--section text-[1.75rem]">
           What you are looking at
         </h2>
 

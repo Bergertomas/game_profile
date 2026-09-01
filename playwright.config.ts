@@ -14,6 +14,18 @@ const PORT = Number(process.env.PORT ?? 3111);
 const MULTI_SCOPE_PORT = PORT + 1;
 
 /**
+ * The recognised-registry corpus gets a third build for the same reason.
+ *
+ * `content/search-registry.ts` ships empty and must — a row in it is a public
+ * editorial claim about a real product — so the search field's
+ * recognised-but-unprofiled branch is unreachable in a browser against the
+ * shipped catalogue. `PROFILE_TEST_CORPUS=recognized-registry` fills it with
+ * visibly synthetic titles that name no real game, and a production build
+ * asking for it refuses outright (lib/search/test-registry.ts).
+ */
+const RECOGNIZED_PORT = PORT + 2;
+
+/**
  * `PLAYWRIGHT_CHROMIUM_PATH` is an optional escape hatch for environments that
  * ship a prebuilt browser at a fixed location. Left unset — the normal case —
  * Playwright resolves its own managed Chromium, so the suite runs on any
@@ -44,12 +56,17 @@ export default defineConfig({
     {
       name: "desktop",
       use: chromium,
-      testIgnore: /multi-scope\.spec\.ts$/,
+      testIgnore: /(multi-scope|recognized-registry)\.spec\.ts$/,
     },
     {
       name: "multi-scope",
       use: { ...chromium, baseURL: `http://localhost:${MULTI_SCOPE_PORT}` },
       testMatch: /multi-scope\.spec\.ts$/,
+    },
+    {
+      name: "recognized-registry",
+      use: { ...chromium, baseURL: `http://localhost:${RECOGNIZED_PORT}` },
+      testMatch: /recognized-registry\.spec\.ts$/,
     },
   ],
   webServer: [
@@ -67,6 +84,12 @@ export default defineConfig({
     {
       command: `${nodeCommand} ${serverScript} ${MULTI_SCOPE_PORT} multi-scope`,
       url: `http://localhost:${MULTI_SCOPE_PORT}`,
+      reuseExistingServer: process.env.PLAYWRIGHT_REUSE_SERVER === "1",
+      timeout: 240_000,
+    },
+    {
+      command: `${nodeCommand} ${serverScript} ${RECOGNIZED_PORT} recognized-registry`,
+      url: `http://localhost:${RECOGNIZED_PORT}`,
       reuseExistingServer: process.env.PLAYWRIGHT_REUSE_SERVER === "1",
       timeout: 240_000,
     },

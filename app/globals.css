@@ -82,79 +82,143 @@
 }
 
 @theme {
-  /* -- Grounds ------------------------------------------------------------
-     Two, and the relationship between them is the site's structural signature:
-     warm paper for reading and browsing, graphite for chrome and for the
-     measurement field. A page is bracketed by graphite and filled with paper. */
-  --color-page: #f1f1ee;
-  --color-page-sunk: #e7e7e2;
-  --color-graphite: #191b1f;
-  --color-graphite-deep: #14161a;
-  /* Behind artwork, so an image loading over it never flashes light. */
+  /* ======================================================================
+     CANONICAL SHARED TOKEN SYSTEM v1.
+
+     Promoted from the accepted canonical screens and the A7 reconciliation.
+     This is now the product's foundation, not an additive layer beside an
+     older one: the brand affordance is CORAL, the evidence and focus accent is
+     CYAN, and the display language is restrained Archivo rather than condensed
+     all-caps. Amber survives in exactly one role — a per-game accent, chosen
+     because it is Returnal's own colour (lib/profile/accent.ts) — and no
+     longer as a brand colour anywhere.
+
+     Every pairing below is proved in tests/accessibility-tokens.test.ts
+     against the ground it is actually used on, and the type scale has a hard
+     12px floor that tests/e2e/type-floor.spec.ts enforces in a real browser.
+     ====================================================================== */
+
+  /* -- Surfaces, darkest to lightest -------------------------------------
+     The canonical product is dark. `canvas` is the page ground, `surface` the
+     ground beneath a composition, `surface-raised` a panel or well sitting on
+     it, `surface-sunk` an inset. `stage` sits behind artwork so an image
+     loading over it never flashes light. */
+  --color-canvas: #08090b;
+  --color-surface: #0b0c0f;
+  --color-surface-raised: #101116;
+  --color-surface-sunk: #15161b;
   --color-stage: #0c0b0a;
 
-  /* -- Ink, on paper ------------------------------------------------------ */
-  --color-ink: #16181c;
-  --color-ink-soft: #41454b;
-  --color-ink-quiet: #54595f;
+  /* -- Text, brightest to quietest ---------------------------------------
+     Five steps, all AA or better on every surface above. `quiet` is the floor
+     of the ramp and still clears 5.38:1 on the lightest dark ground. */
+  --color-text-bright: #f5f4f1;
+  --color-text: #f2f1ee;
+  --color-text-strong: #e3e2df;
+  --color-text-muted: #b9bbc0;
+  --color-text-quiet: #8d9095;
 
-  /* -- Bone, on graphite -------------------------------------------------- */
-  --color-bone: #edebe7;
-  --color-bone-soft: #b9bbbf;
-  --color-bone-quiet: #9a9da2;
+  /* -- Borders ------------------------------------------------------------ */
+  --color-border: #26282e;
+  --color-border-strong: #2a2c32;
+  --color-border-stronger: #3a3d45;
+  /* The border of something focused or currently chosen. */
+  --color-border-active: #39525b;
 
-  /* -- Rules --------------------------------------------------------------
-     Hairlines, never boxes. The grammar is a ruled page: things are separated
-     by a line, not enclosed in a container. */
-  --color-rule: rgba(22, 24, 28, 0.14);
-  --color-rule-strong: rgba(22, 24, 28, 0.3);
-  --color-rule-bone: rgba(237, 235, 231, 0.16);
-  --color-rule-bone-strong: rgba(237, 235, 231, 0.32);
+  /* -- Brand, and evidence -----------------------------------------------
+     CORAL is the brand and the primary affordance: the question mark in the
+     wordmark, the mark on a chosen thing, the selection colour. CYAN is
+     evidence and focus: the focus ring, the keyboard legend, the cue that says
+     a thing is measured or reachable.
 
-  /* -- The one brand colour ------------------------------------------------
-     Amber, carried over from the old identity and kept for a specific job: the
-     question mark in the wordmark, and affordances in the chrome. It lives on
-     graphite, where it measures 7.84:1. It is never used on paper (1.94:1) and
-     never encodes a value of any kind. `signal-ink` is the paper-ground
-     equivalent for the rare mark that has to sit on the light side. */
-  --color-signal: #e2a33f;
-  --color-signal-ink: #7e5f26;
+     Neither ever encodes a judgement. No score, confidence, ranking or status
+     is carried by either — those are words, always.
 
-  /* -- The cinema ground, and the one accent that wayfinds on it -----------
-     ADDITIVE, AND DELIBERATELY SO. The public opening is darker and more
-     cinematic than the chrome — it is the one surface where the product is
-     allowed to look like a product about videogames before it looks like an
-     instrument. That is a new surface, so it gets new tokens.
+     Both are DARK-GROUND colours: coral measures 6.83:1 on canvas and 2.58:1
+     on paper, cyan 10.21:1 and 1.72:1. `brand-ink` is the paper-ground coral
+     for the reading surface that has not migrated yet. */
+  --color-brand: #f2704d;
+  --color-brand-ink: #98301a;
+  --color-evidence: #5bc8de;
 
-     What it is NOT is a redefinition of graphite, bone or signal. Those are
-     load-bearing on the profile page, the methodology page, the card mark and
-     the trust band, all of which are accepted work; moving them to make one new
-     screen darker would restyle every screen that already shipped, silently,
-     and the contrast proofs in lib/profile/accent.ts would be measuring
-     grounds that no longer exist. Every value above this comment is unchanged.
+  /* -- Radius -------------------------------------------------------------
+     The canonical system is not square. `xs` is the focus ring's own corner,
+     `md` the default for a panel or a row, `pill` for a key cap or a chip. */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 99px;
 
-     `cinema` is the opening's ground and `cinema-panel` the search well that
-     sits on it. `wayfind` is the cyan that marks the keyboard affordances —
-     the `/` cap, the arrow legend, the focus ring on the dark surfaces. Like
-     `signal` it is a DARK-GROUND COLOUR and nothing else: it measures 10.02:1
-     on cinema and 1.72:1 on paper, and tests/accessibility-tokens.test.ts
-     asserts both halves so nobody reaches for it on the light side.
+  /* -- Elevation ---------------------------------------------------------- */
+  --shadow-raised: 0 24px 70px rgb(0 0 0 / 0.5);
+  --shadow-overlay: 0 18px 50px rgb(0 0 0 / 0.55);
 
-     Neither accent ever encodes a judgement. `wayfind` marks a key you can
-     press; `signal` marks the brand's question mark. No score, confidence or
-     status is ever carried by either. */
-  --color-cinema: #0b0c0f;
-  --color-cinema-panel: #101116;
-  --color-rule-cinema: rgba(237, 235, 231, 0.14);
-  --color-rule-cinema-strong: rgba(237, 235, 231, 0.28);
-  --color-wayfind: #5bc8de;
+  /* -- Motion -------------------------------------------------------------
+     One easing and three durations. Every one of them is stripped entirely
+     under `prefers-reduced-motion`, which the block at the foot of this file
+     enforces globally. */
+  --ease-standard: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --motion-fast: 120ms;
+  --motion-base: 180ms;
+  --motion-slow: 260ms;
 
+  /* -- Type scale ---------------------------------------------------------
+     `micro` IS THE FLOOR AND IT IS 12px. Nothing visible is set smaller —
+     not a key cap, not a caption, not a measurement cue. A design that needs
+     8px to fit needs less text, not smaller text. */
   --font-display: "Archivo", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-prose: "Newsreader", Georgia, "Times New Roman", serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
   --text-micro: 0.75rem;
   --text-micro--line-height: 1.35;
+  --text-note: 0.8125rem;
+  --text-body: 0.9375rem;
+  --text-lead: 1.0625rem;
+  --text-title-sm: 1.1875rem;
+  --text-title: 1.25rem;
+  --text-title-lg: 1.5rem;
+
+  /* ======================================================================
+     THE LEGACY READING SURFACE — EXPLICITLY PROVISIONAL.
+
+     The game profile (A3–A6) and the methodology page still read on warm
+     paper with a graphite measurement field. Migrating those surfaces to the
+     canonical dark system is profile-page work and is deliberately NOT in this
+     slice; until it happens they need their grounds, and deleting these would
+     break accepted screens rather than promote anything.
+
+     They are provisional, not preserved: nothing new may reach for them, and
+     `signal` — the old amber brand token — now resolves to the canonical coral
+     so that the brand affordance is correct on those pages too, without this
+     slice repainting them.
+     ====================================================================== */
+  --color-page: #f1f1ee;
+  --color-page-sunk: #e7e7e2;
+  --color-graphite: #191b1f;
+  --color-graphite-deep: #14161a;
+
+  --color-ink: #16181c;
+  --color-ink-soft: #41454b;
+  --color-ink-quiet: #54595f;
+
+  --color-bone: #edebe7;
+  --color-bone-soft: #b9bbbf;
+  --color-bone-quiet: #9a9da2;
+
+  --color-rule: rgba(22, 24, 28, 0.14);
+  --color-rule-strong: rgba(22, 24, 28, 0.3);
+  --color-rule-bone: rgba(237, 235, 231, 0.16);
+  --color-rule-bone-strong: rgba(237, 235, 231, 0.32);
+
+  /* Retargeted, not retained. Every existing `text-signal` / `decoration-
+     signal` on the profile and methodology pages now paints the canonical
+     coral, so the brand affordance is one colour across the whole product
+     while those surfaces wait their turn. Amber is gone as a brand value. */
+  --color-signal: var(--color-brand);
+  --color-signal-ink: var(--color-brand-ink);
 }
 
 @layer base {
@@ -184,10 +248,13 @@
     font-feature-settings: "tnum" 1;
   }
 
+  /* The canonical focus ring: evidence cyan, 2px, offset 3px, with the
+     canonical corner. It is never suppressed anywhere — only re-coloured
+     where a surface needs it, and no surface needs it. */
   :focus-visible {
-    outline: 2px solid currentColor;
+    outline: 2px solid var(--color-evidence);
     outline-offset: 3px;
-    border-radius: 0;
+    border-radius: var(--radius-xs);
   }
 
   ::selection {
@@ -198,10 +265,15 @@
 
 @layer components {
   /* -- Type roles ---------------------------------------------------------
-     Three, and the whole product is built from them.
+     `sip-display` is the TITLE voice, and it is restrained: Archivo at normal
+     width, weight 500, sentence case, set tight. That is the canonical
+     treatment — a headline reading "Should you play it?" is a question
+     somebody asks, and setting it condensed, heavy and shouted in capitals
+     turned it into a film poster about itself.
 
-     `sip-display` is the poster voice: condensed, heavy, uppercase, set tight.
-     It is what makes a game's name read as a game's name.
+     The condensed all-caps treatment has exactly one home left: the wordmark
+     (`sip-wordmark`), which is a logotype and is supposed to be a logotype. It
+     is no longer the product's global display language.
 
      `sip-label` is the instrument voice: the small uppercase key that names a
      field, an axis or a section. 12px floor, never smaller.
@@ -209,10 +281,17 @@
      `sip-prose` is the reading voice. */
   .sip-display {
     font-family: var(--font-display);
-    font-stretch: 72%;
-    font-weight: 700;
-    line-height: 0.9;
-    text-transform: uppercase;
+    font-stretch: 100%;
+    font-weight: 500;
+    line-height: 1.05;
+    text-wrap: balance;
+  }
+
+  /* Section headings sit a step up in weight from a hero line, which is the
+     canonical relationship: the biggest type is the lightest. */
+  .sip-display--section {
+    font-weight: 600;
+    line-height: 1.1;
   }
 
   .sip-label {
@@ -246,15 +325,18 @@
   .sip-key {
     font-family: var(--font-mono);
     font-weight: 500;
-    font-size: 0.75rem;
+    font-size: var(--text-micro);
     line-height: 1;
     font-variant-numeric: tabular-nums;
   }
 
+  /* 12px, not 11px. This is notation and it was the smallest text on the
+     product; "it is only a cue" is exactly the reasoning that puts unreadable
+     text on a page. */
   .sip-note {
     font-family: var(--font-mono);
     font-weight: 400;
-    font-size: 0.6875rem;
+    font-size: var(--text-micro);
     line-height: 1.45;
     text-transform: uppercase;
   }
@@ -276,7 +358,7 @@
     /* The one piece of motion in the chrome, and it is a nod rather than an
        animation: the mark acknowledges the pointer and settles. */
     display: inline-block;
-    transition: transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1);
+    transition: transform var(--motion-slow) var(--ease-standard);
   }
 
   a:hover > .sip-wordmark__q,
@@ -290,8 +372,8 @@
      you rather than as an effect. Reduced-motion strips all of it below. */
   .sip-lift {
     transition:
-      transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1),
-      background-color 180ms linear;
+      transform var(--motion-slow) var(--ease-standard),
+      background-color var(--motion-base) linear;
   }
 
   .sip-crop {
@@ -304,7 +386,7 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition: transform 320ms cubic-bezier(0.22, 0.61, 0.36, 1);
+    transition: transform var(--motion-slow) var(--ease-standard);
   }
 
   .group:hover .sip-crop img,
