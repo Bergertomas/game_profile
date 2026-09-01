@@ -154,6 +154,7 @@ export const artworkBasisSchema = z.enum([
   "provider-terms",
   "press-kit",
   "permission",
+  "editorial-fair-use",
   "internal-evaluation",
 ]);
 

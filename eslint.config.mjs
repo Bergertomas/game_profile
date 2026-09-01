@@ -22,6 +22,11 @@ const config = [
       "screenshots/**",
       "test-results/**",
       "playwright-report/**",
+      // Archived Fable output is design evidence, not application source. It
+      // carries generated React support code that we do not own or ship; the
+      // containment gate separately proves design artifacts stay out of public
+      // builds.
+      "docs/design/artifacts/**",
       "lib/db/migrations/**",
       "next-env.d.ts",
       ".open-next/**",

@@ -114,6 +114,14 @@ describe("The artwork form", () => {
     expect(parsed.value.clearance).toBe("production");
   });
 
+  it("accepts the approved editorial-fair-use basis as an explicit audited choice", () => {
+    const parsed = parseForm(
+      artworkSchema,
+      form({ ...VALID_ARTWORK, basis: "editorial-fair-use" }),
+    );
+    expect(parsed.ok).toBe(true);
+  });
+
   /**
    * The whole of ADR 0011. A bare URL records that an image is reachable and
    * nothing about whether it may be shown, so an asset arrives with clearance

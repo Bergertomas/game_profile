@@ -1,0 +1,342 @@
+/* ==========================================================================
+   THE HOMEPAGE OPENING
+   Decision first, artwork in support. Scoped to `.sip-open` so it cannot reach
+   the shelf below it, the profile page or the methodology page — all of which
+   stay on the warm paper ground this section deliberately does not use.
+
+   The one structural rule, and the reason the grid is ordered the way it is:
+   AT 390×667 THE SEARCH INPUT MUST BE ON SCREEN WITHOUT SCROLLING. The artwork
+   is second in source order and second in the layout, and the type ramps down
+   hard on narrow viewports to buy the field its place. A composition that put
+   a picture above the one control on the page would have ranked them the wrong
+   way round whatever the artwork looked like.
+   ========================================================================== */
+
+.sip-open {
+  background: var(--color-surface-canvas);
+  color: var(--color-text-primary);
+  border-bottom: 1px solid var(--color-border-default);
+}
+
+.sip-open__grid {
+  width: 100%;
+  max-width: var(--size-content-max);
+  margin: 0 auto;
+  padding: var(--space-7) var(--size-gutter-mobile) var(--space-7);
+  display: grid;
+  gap: 2rem;
+  align-items: start;
+}
+
+/* The contract's content breakpoint. */
+@media (min-width: 40rem) {
+  .sip-open__grid {
+    padding: var(--space-9) var(--size-gutter-desktop) var(--space-9);
+  }
+}
+
+/* Beside, not above. The field keeps the reading column and the artwork takes
+   the space to its right, which is what stops the opening growing taller as
+   the mosaic gets richer. */
+@media (min-width: 64rem) {
+  .sip-open__grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    gap: 3rem;
+    /* START, never CENTER. Centring looks marginally better at one text size
+       and fails at every other: a grid row is as tall as its tallest column, so
+       a mosaic that grows — text zoomed to 200%, a longer caption, artwork that
+       failed to load and is showing its alt text — pushes the centred lede
+       down, and the headline and the search field go below the fold. The
+       artwork must never be able to displace the decision interface. */
+    align-items: start;
+  }
+
+  /* Optical alignment: the mosaic reads as sitting with the headline rather
+     than with the eyebrow above it. A fixed offset, so it cannot grow. */
+  .sip-open__mosaic {
+    padding-top: 2.4rem;
+  }
+}
+
+.sip-open__lede {
+  min-width: 0;
+}
+
+.sip-open__eyebrow {
+  margin: 0;
+  color: var(--color-brand-evidence-cyan);
+}
+
+.sip-open__headline {
+  margin: 0.55rem 0 0;
+  /* Ramps from 390px to desktop. The floor is chosen so the line still reads
+     as a poster at 320px without pushing the field below the fold. */
+  font-size: clamp(var(--text-hero-mobile), 8.5vw, var(--text-hero-desktop));
+  color: var(--color-text-primary);
+  text-wrap: balance;
+}
+
+.sip-open__lead {
+  margin: 0.85rem 0 0;
+  max-width: 34ch;
+  font-size: clamp(var(--text-body), 3.4vw, var(--text-body-large));
+  line-height: 1.45;
+  color: var(--color-text-muted);
+  text-wrap: pretty;
+}
+
+.sip-open__sub {
+  margin: 0.5rem 0 0;
+  max-width: 40ch;
+  font-size: var(--text-label);
+  color: var(--color-text-quiet);
+}
+
+.sip-open__search {
+  margin-top: 1.25rem;
+  max-width: 34rem;
+}
+
+/* -- The three paths ------------------------------------------------------ */
+
+.sip-open__journeys {
+  margin-top: 1.1rem;
+  max-width: 34rem;
+}
+
+.sip-open__paths {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sip-open__path {
+  color: var(--color-text-quiet);
+}
+
+/* Where you are. Marked with a rule as well as a colour, so the current path is
+   identifiable without perceiving the tint. */
+.sip-open__path.is-current {
+  color: var(--color-text-primary);
+  border-bottom: 0.125rem solid var(--color-brand-coral);
+  padding-bottom: 0.2rem;
+}
+
+.sip-open__paths-note {
+  margin: 0.6rem 0 0;
+  font-size: var(--text-small);
+  line-height: var(--leading-body);
+  color: var(--color-text-quiet);
+  text-wrap: pretty;
+}
+
+/* -- The mosaic ----------------------------------------------------------- */
+
+.sip-open__mosaic {
+  min-width: 0;
+}
+
+.sip-open__tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The lead tile takes both rows of the first column, which is the accepted
+   composition: one game at scale, two beside it, all three the same grammar. */
+.sip-open__tile.is-lead {
+  grid-row: span 2;
+}
+
+.sip-open__tile {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: min(8.5rem, 22vh);
+  overflow: hidden;
+  background: var(--color-stage);
+  border: var(--border-thin) solid var(--color-border-default);
+  border-radius: var(--radius-media);
+}
+
+.sip-open__tile.is-lead {
+  min-height: min(17.6rem, 46vh);
+}
+
+/* One column at the narrowest widths: two tiles side by side at 320px are two
+   tiles nobody can read. */
+@media (max-width: 40rem) {
+  .sip-open__tiles {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sip-open__tile.is-lead {
+    grid-row: auto;
+    min-height: min(11rem, 30vh);
+  }
+}
+
+.sip-open__art {
+  position: absolute;
+  inset: 0;
+}
+
+.sip-open__art img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* An image that fails to load renders its alt text, which on a tile this size
+     lands on top of the plate and leaves neither readable. The `alt` attribute
+     stays and assistive technology still gets it; what is suppressed is only
+     the VISIBLE rendering of it, and nothing is lost by that — the plate
+     underneath already states the game's title and what playing it is like, in
+     text, on the same tile. */
+  color: transparent;
+}
+
+/* The artless state, and it is a design rather than a hole: the game's own
+   accent, cropped like a sleeve. Same move as the card and the artless profile
+   stage, so one game is recognisably itself in all three places. */
+.sip-open__sleeve {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      135% 78% at 14% 2%,
+      color-mix(in oklab, var(--sip-accent-lift) 58%, transparent) 0%,
+      transparent 66%
+    ),
+    linear-gradient(
+      150deg,
+      color-mix(in oklab, var(--sip-accent-lift) 26%, var(--color-surface-canvas)) 0%,
+      color-mix(in oklab, var(--sip-accent-lift) 7%, var(--color-surface-canvas)) 68%
+    );
+  border-left: 0.25rem solid var(--sip-accent-lift);
+}
+
+.sip-open__scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    0deg,
+    var(--color-overlay-scrim-strong) 0%,
+    var(--color-overlay-scrim-soft) 44%,
+    transparent 70%
+  );
+}
+
+.sip-open__plate {
+  position: relative;
+  align-self: flex-end;
+  min-width: 0;
+  padding: 0.7rem 0.8rem;
+  /* Leaves the fingerprint its corner without overlapping it. */
+  padding-right: 4.75rem;
+}
+
+/* Restrained Archivo, sentence case — the canonical title treatment. A game's
+   name is a name, and shouting it in condensed capitals made every tile read as
+   a film poster for the site rather than as an invitation to a profile. */
+.sip-open__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-stretch: 100%;
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--leading-heading);
+  font-size: var(--text-body-large);
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.sip-open__tile.is-lead .sip-open__title {
+  font-size: var(--text-heading-small);
+}
+
+.sip-open__title a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* The whole tile is the hit area, without nesting anything inside the anchor. */
+.sip-open__title a::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.sip-open__title a:hover {
+  text-decoration: underline;
+  text-underline-offset: 5px;
+  text-decoration-color: var(--color-brand-coral);
+}
+
+.sip-open__title a:focus-visible {
+  outline: var(--border-focus) solid var(--color-state-focus);
+  outline-offset: 3px;
+  border-radius: var(--radius-control);
+}
+
+.sip-open__line {
+  margin: 0.25rem 0 0;
+  font-size: var(--text-small);
+  line-height: 1.35;
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* 12px, not 9px. The cue is the line that tells a reader what the polygon
+   beside it IS — "eight dimensions, nought to ten" — which makes it one of the
+   more load-bearing sentences on the tile, not decoration to be shrunk until it
+   fits. Tracking comes down as the size goes up so it still reads as notation. */
+.sip-open__cue {
+  margin: 0.4rem 0 0;
+  font-size: var(--text-minimum);
+  color: var(--color-text-quiet);
+}
+
+/* Tiles this small cannot carry the sentence and the strapline both. */
+.sip-open__tile:not(.is-lead) .sip-open__cue {
+  display: none;
+}
+
+.sip-open__fingerprint {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  width: 4rem;
+  /* A soft well, so the polygon stays legible over any artwork under it. */
+  background: radial-gradient(
+    closest-side,
+    var(--color-overlay-scrim-strong) 42%,
+    transparent 100%
+  );
+}
+
+.sip-open__tile.is-lead .sip-open__fingerprint {
+  width: 6rem;
+  right: 0.7rem;
+  bottom: 0.7rem;
+}
+
+.sip-open__caption {
+  margin: 0.7rem 0 0;
+  font-size: var(--text-small);
+  line-height: var(--leading-body);
+  color: var(--color-text-quiet);
+  text-wrap: pretty;
+}
+
+.sip-open__rights {
+  margin: 0.4rem 0 0;
+  font-size: var(--text-minimum);
+  line-height: var(--leading-body);
+  color: var(--color-text-quiet);
+}

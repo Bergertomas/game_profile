@@ -69,6 +69,7 @@ export const artworkBasisEnum = pgEnum("artwork_basis", [
   "provider-terms",
   "press-kit",
   "permission",
+  "editorial-fair-use",
   "internal-evaluation",
 ]);
 

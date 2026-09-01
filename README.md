@@ -5,40 +5,65 @@
 **Should I Play?** ([shouldiplay.gg](https://shouldiplay.gg)) gives every game a
 **Game Profile**: eight fixed dimensions, each scored 0–10 against a published
 rubric, so a player can tell what kind of experience a game is before buying it.
-**There is no overall score** — a beautifully written but mechanically clumsy
-RPG and a nearly storyless, mechanically perfect action game can look equally
-strong at a glance, but they are entirely different purchases.
+**There is no overall score** — one game may stand out through story and
+atmosphere while another earns its shape through precise action and craft. They
+are different experiences and different reasons to play.
 
 *Should I Play?* is the site. *Game Profile* is the evaluation it publishes, and
 the name of the methodology. Internal identifiers (`GameProfile`, `game_profile`,
 this repository) keep the original name deliberately — the rename is public-facing
 only. See [Brand, Discoverability & Hosting](docs/Should_I_Play_Brand_and_SEO_Foundation_v0.2.md).
 
-This repository is at **Phase 2D**: the public profile vertical slice is
-complete and its published profiles are read from Postgres at build time, and
-the editorial tool covers games, metadata, rights-aware artwork, profile scopes,
-full evaluation authoring, a public-faithful preview, the publish gate,
-transactional publication, and — since 2D-2 — deployment requests and proof of
-what production is actually serving. See the
-[Master Product & Build Plan v0.8](docs/Game_Profile_Master_Product_and_Build_Plan_v0.8.md).
+The editorial/publication foundation is substantially complete and now operates
+in support of the public-product program. Published profiles are read from
+Postgres at build time; the Access-protected editorial tool covers games,
+rights-aware artwork, scopes, evaluation authoring, preview, validation,
+transactional publication, history, deployment requests and proof of what
+production actually serves. See the
+[Project Consolidation Report](docs/Should_I_Play_Project_Consolidation_Report_2026-08-26.md)
+for the reconstructed chronology, current decision/conflict registers and
+immediate product agenda; the governing documents are the
+[Master Product & Build Plan v0.9](docs/Game_Profile_Master_Product_and_Build_Plan_v0.9.md)
+and the dated
+[Public Product P0 Decision Set](docs/Should_I_Play_Public_Product_P0_Decisions_2026-08-24.md)
+plus the later
+[Public Product Resolution Register](docs/Should_I_Play_Public_Product_Resolutions_2026-08-25.md).
 
-**2D-2 is built and deployed; it has never been exercised.** Those are different
-claims and the difference is the whole point of the phase, so it is stated
-plainly rather than rounded to "done":
+The accepted A1–A6/C1–C4 public direction is now implementation-ready through
+the [Shared Design-System and Interaction Handoff v1.0](docs/design/Should_I_Play_Shared_Design_System_and_Interaction_Handoff_v1.0_2026-08-31.md),
+its [semantic token map](docs/design/handoff/should-i-play.tokens.v1.json) and
+the [accessibility/conformance matrix](docs/design/Should_I_Play_Accessibility_and_Conformance_Matrix_v1.0_2026-08-31.md).
+Engineering Slice 1 now implements the shared foundation, the editorially
+governed static Search, its four truthful states, accessible inline/header
+Search and the bounded accepted homepage opening on this integration branch.
+Production remains on the earlier three-profile experience until this branch is
+reviewed, merged and deliberately deployed.
+
+**Remote admin and production Live proof are exercised.** The current state is:
 
 | | |
 |---|---|
 | **Implemented and deployed** | migration `0009` and its schema; deployment-request persistence; the Cloudflare Builds client; manifest generation; the `/deployment-manifest` route; the reconciliation and Live-proof machinery; the `/admin` deployment surface |
-| **Proven** | a production build from `main`; `/deployment-manifest` live on the canonical origin; the corpus and digest it reports matching the three published evaluations; behaviour under workerd via `cf:verify`; migration `0009` applied to the authoritative database |
-| **Not yet exercised** | a real Cloudflare Builds POST from this application; a real build uuid persisted and reconciled; the first `production_verified` observation; one complete Publish → dispatch → Live cycle |
+| **Proven** | a production build from `main`; `/deployment-manifest` live on the canonical origin; corpus/digest matching the three published evaluations; behavior under workerd; migration `0009`; Access-authenticated editorial session through Hyperdrive; successful `production_verified` observation and Live state |
+| **Not yet exercised** | a real Cloudflare Builds POST from this application; a build UUID produced by that application dispatch and reconciled; one complete new-profile Publish → dispatch → Live cycle |
 
-All four deployment tables are empty and no dispatch has ever been attempted, so
-the first activation is genuinely unproven rather than assumed. Phase 2 is not
-frozen and activation is not complete.
+**Activation checkpoint revalidated 30 August 2026:** the deployment tables are
+not empty and Live proof is complete for the current three-profile artifact.
+The remaining gap is specifically application-originated dispatch and the first
+new-profile end-to-end cycle; it is not remote-admin activation or general
+production proof.
 
-**The editorial tool ships switched off.** `/admin` answers 404 unless a
+This branch adds forward migration `0010_artwork_fair_use`. It is deliberately
+not applied to the authoritative database by repository work; apply migrations
+before building/deploying code that requires the new enum value.
+
+The remaining dispatch proof belongs to the first real catalog publication. It
+does not justify further standalone admin hardening.
+
+**The editorial tool ships switched off by default.** `/admin` answers 404 unless a
 deployment carries both an identity provider and a request-time editorial
-database, and it carries neither by default — see
+database. Production now carries both behind Cloudflare Access; ordinary
+previews/default deployments carry neither — see
 [Editorial tool](#editorial-tool).
 
 ---
@@ -95,6 +120,11 @@ components/
   profile/ScopeSwitcher.tsx    sibling navigation, only where a game has siblings
   admin/                       editorial form plumbing and panels
 lib/
+  search/registry.ts           four-state published/unprofiled coverage registry
+  discovery/                   deterministic intent, Unknown, threshold and time rules
+  metadata/provenance.ts       primary/official/manual factual precedence
+  commerce/storefront.ts       verified ordinary/affiliate action contract
+  analytics/events.ts          allowlisted semantic event registry
   rubric/                      canonical typed Rubric v1.0 — the source of truth
   scoring/derive.ts            dimension totals, unknowns, ranges
   radar/geometry.ts            pure, DOM-free chart geometry
@@ -151,7 +181,7 @@ These are product semantics, not preferences. Most are covered by a test.
 | Evidence sources are identified by key, never by title | `evidence_sources.source_key`, `tests/seed-sql.test.ts` |
 | Final snapshots cannot be rewritten through children or shared source/tag metadata | immutable snapshot triggers, [ADR 0009](docs/decisions/0009-final-evaluation-and-rubric-integrity.md) |
 | Superseded evaluations are preserved and linked, never overwritten | self-referencing FK + lineage validation, `tests/lineage.test.ts` |
-| Source counts stay hidden until the ledger is genuinely populated | `evaluations.evidence_ledger`, `tests/lineage.test.ts` |
+| All source counts stay hidden until the ledger is genuinely populated | `evaluations.evidence_ledger`, `tests/evidence-copy.test.ts` |
 | Every scored subcriterion has a rationale | publish gate, `tests/calibration.test.ts` |
 | Pre-release profiles declare evidence maturity and cannot claim High confidence | check constraints, `tests/evidence.test.ts` |
 | Pre-release recommendation blocks avoid verdict language | `lib/profile/vocabulary.ts`, `tests/evidence.test.ts` |
@@ -168,7 +198,13 @@ These are product semantics, not preferences. Most are covered by a test.
 | A profile scope is identified by a key, never by matching mode text | FK + slug check constraint |
 | Platform overrides are material deviations, and never move a dimension total | `subcriterion_platform_overrides`, [ADR 0015](docs/decisions/0015-platform-overrides-and-provenance.md) |
 | An ordinary editorial profile needs no calibration round and no schema change | `score_provenance` kind + `calibration_rounds` registry |
-| Artwork carries its clearance and basis, never a bare URL | `game_artwork`, [ADR 0011](docs/decisions/0011-production-artwork.md) |
+| Artwork carries its clearance and basis, never a bare URL | `game_artwork`, [ADR 0011](docs/decisions/0011-production-artwork.md); `editorial-fair-use` is distinct and operationally gated |
+| An unprofiled registry record never acquires a public profile route | `lib/search/registry.ts`, `tests/search-registry.test.ts` |
+| Unknown under a hard discovery constraint is neither pass nor failure | `lib/discovery/constraints.ts`, `tests/discovery-contract.test.ts` |
+| Total commitment and session suitability remain separate from all eight dimensions | `lib/discovery/time.ts`, `tests/practical-time.test.ts` |
+| Provider/official/manual metadata uses declared precedence, never votes | `lib/metadata/provenance.ts`, `tests/metadata-provenance.test.ts` |
+| Official storefront actions retain their ordinary link and require affiliate disclosure | `lib/commerce/storefront.ts`, `tests/storefront-actions.test.ts` |
+| Ordinary product events cannot carry raw query text or arbitrary properties | `lib/analytics/events.ts`, `tests/analytics-events.test.ts` |
 | All three profiles reproduce their calibration matrix exactly | `tests/calibration.test.ts` — 24 locked totals |
 
 ## Where the data comes from
@@ -374,12 +410,14 @@ deployment is configured with. See
 [ADR 0020](docs/decisions/0020-publication-preview-and-deploy-trigger.md) and
 [ADR 0022](docs/decisions/0022-deployment-requests-and-proof-of-live.md).
 
-**Not yet exercised against the real Cloudflare API.** No credential exists in
-this repository, no test may call it, and no production deployment has been
-triggered through this path.
+**Not yet exercised against the real Cloudflare Builds API.** The production
+credential and trigger id are installed as secrets, no credential exists in the
+repository, no test may call the API, and no deployment has yet been triggered
+through this application path.
 
-**It ships switched off.** Every `/admin` path answers 404 unless the deployment
-carries both halves, and the deployed default carries neither:
+**It ships switched off by default.** Every `/admin` path answers 404 unless the
+deployment carries both halves. Production carries them behind Access; an
+ordinary deployment/default carries neither:
 
 | Variable | Meaning |
 |---|---|
@@ -660,16 +698,37 @@ not post them anywhere durable. See
 - [0010 — Design surfaces are gated by site environment, not `NODE_ENV`](docs/decisions/0010-design-surfaces-and-site-environment.md)
 - [0011 — Artwork is game metadata, and clearance decides where it renders](docs/decisions/0011-production-artwork.md)
 - [0012 — `noindex` is not access control](docs/decisions/0012-preview-access-and-artwork-exposure.md)
-- [0013 — One Should I Play? visual system](docs/decisions/0013-visual-system.md)
+- [0013 — Historical visual system](docs/decisions/0013-visual-system.md) *(superseded by 0030; profile direction completed by 0032)*
 - [0014 — A game has profile scopes, and each one has its own history](docs/decisions/0014-profile-scopes.md)
 - [0015 — Platform overrides, and provenance that describes ordinary work](docs/decisions/0015-platform-overrides-and-provenance.md)
 - [0016 — A game's primary profile scope owns its canonical URL](docs/decisions/0016-canonical-scope-urls.md)
 - [0017 — Postgres is the read path, and it is a build dependency](docs/decisions/0017-postgres-read-path.md) *(supersedes the fixture half of 0002)*
 - [0018 — Cloudflare Access is the editorial identity, and the admin ships switched off](docs/decisions/0018-admin-access.md) *(supersedes the JWT deferral in 0012)*
+- [0019 — Hosted Postgres and remote-admin activation](docs/decisions/0019-hosted-postgres-and-admin-activation.md)
+- [0020 — Public-faithful preview and deployment trigger](docs/decisions/0020-publication-preview-and-deploy-trigger.md)
+- [0021 — Hyperdrive is the deployed admin transport](docs/decisions/0021-hyperdrive-is-the-deployed-admin-transport.md)
+- [0022 — Deployment requests and proof of Live](docs/decisions/0022-deployment-requests-and-proof-of-live.md)
+- [0023 — Production verification from inside the Worker](docs/decisions/0023-verifying-production-from-inside-the-worker.md)
+- [0024 — Candidate scoring protocol and package contract](docs/decisions/0024-scoring-protocol-v1-and-package-contract.md) *(proposed; not governing until calibration and owner approval)*
+- [0025 — Search registry and deterministic discovery](docs/decisions/0025-search-registry-and-deterministic-discovery.md)
+- [0026 — Provider-first, provider-independent metadata](docs/decisions/0026-provider-first-metadata-ownership.md)
+- [0027 — Practical time is not a Game Profile dimension](docs/decisions/0027-practical-time-is-not-a-game-profile-dimension.md)
+- [0028 — Purpose-governed product analytics](docs/decisions/0028-purpose-governed-product-analytics.md)
+- [0029 — Official storefront actions before live commerce](docs/decisions/0029-official-storefront-actions-before-live-commerce.md)
+- [0030 — Accepted Gate A homepage and public visual direction](docs/decisions/0030-gate-a-homepage-direction.md) *(supersedes 0013)*
+- [0031 — Editorially governed static build-time Search index](docs/decisions/0031-static-build-time-search-index.md)
+- [0032 — Accepted Gate B profile direction](docs/decisions/0032-gate-b-profile-direction.md)
+- [0033 — Compare URL/index policy and art-led revision direction](docs/decisions/0033-compare-url-index-and-art-direction.md)
+- [0034 — Accepted full Compare direction](docs/decisions/0034-accepted-full-compare-direction.md)
 
 ## Not built, deliberately
 
-Search, `/discover`, `/compare`, `/about` and the evaluation editor are
-Phases 2C–5. Public accounts, reviews, comments, social features, AI chat,
-recommendation ML and a public aggregate score are out of scope for the product,
-not merely deferred.
+The remaining accepted homepage composition, A3–A6 profile migration, C1–C4
+Compare, What should I play? UI, `/about`, the 12–15-profile validation corpus
+and the approximately-100-profile quiet-release catalog are not built. Static
+Search and the accepted opening are implemented on this integration branch;
+their production deployment is not. The provider-independent discovery/time,
+metadata precedence, storefront-action and event contracts are implemented and
+tested as foundations. Evaluation authoring is built. Public accounts, reviews,
+comments, social features, runtime AI chat, recommendation ML and a public
+aggregate score remain out of current scope.

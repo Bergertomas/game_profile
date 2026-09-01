@@ -69,6 +69,14 @@ describe("Approved artwork", () => {
     const sql = buildSeedSql([withArtwork(withoutCredit as GameArtwork)]);
     expect(sql).toContain(`'${alanWake2.game.publisherText}'`);
   });
+
+  it("records editorial fair use as an auditable basis without changing rendering", () => {
+    const fairUse = { ...CLEARED, basis: "editorial-fair-use" as const };
+    expect(validateGameArtwork(withArtwork(fairUse))).toEqual([]);
+    const sql = buildSeedSql([withArtwork(fairUse)]);
+    expect(sql).toContain("'editorial-fair-use'");
+    expect(sql).toContain("'production'");
+  });
 });
 
 describe("What may not reach a game record", () => {

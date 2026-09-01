@@ -6,7 +6,7 @@ import journal from "./migrations/meta/_journal.json";
  *
  * ── Why this exists ────────────────────────────────────────────────────────
  *
- * There is one authoritative Postgres (Master Plan v0.8 §9.2), and every public
+ * There is one authoritative Postgres (Master Plan v0.9 §9.2), and every public
  * page is prerendered, so `next build` reads that database directly. A branch
  * that adds a migration therefore describes a schema the deployed database does
  * not have yet, and *every* build of that branch — including the Cloudflare
@@ -99,6 +99,6 @@ export async function assertSchemaIsCurrent(
       "inside page collection, blaming an unrelated route.\n" +
       "Apply them first: `DATABASE_URL=… npm run db:migrate`. Migrations go " +
       "out before the code that needs them — there is one authoritative " +
-      "database and the build reads it (Master Plan v0.8 §9.2).",
+      "database and the build reads it (Master Plan v0.9 §9.2).",
   );
 }

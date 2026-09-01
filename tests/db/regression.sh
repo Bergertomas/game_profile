@@ -258,11 +258,12 @@ fi
 # migrations restructure identity beneath published rows the 0002 triggers have
 # already frozen, so "it builds an empty schema" is not evidence they work.
 #
-# 0009 is in this list because the authoritative database is exactly this shape:
-# it was migrated 0008 -> 0009 by hand, in place, with three published
+# 0009 is in this list because the authoritative database reached that shape
+# by being migrated 0008 -> 0009 by hand, in place, with three published
 # evaluations and every hardening trigger armed. Stopping the loop at 0008 meant
 # the repository only ever tested 0009 against an EMPTY database, which is the
-# one shape production is never in.
+# one shape production is never in. Every later migration stays in this same
+# populated upgrade path.
 for later_migration in \
   lib/db/migrations/0003_profile_scopes.sql \
   lib/db/migrations/0004_platform_overrides.sql \
@@ -270,7 +271,8 @@ for later_migration in \
   lib/db/migrations/0006_game_artwork.sql \
   lib/db/migrations/0007_primary_scope.sql \
   lib/db/migrations/0008_authored_ordering.sql \
-  lib/db/migrations/0009_deployment_tracking.sql
+  lib/db/migrations/0009_deployment_tracking.sql \
+  lib/db/migrations/0010_artwork_fair_use.sql
 do
   if upgrade_out="$(psql "$UPGRADE_DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -1 \
       -f "$later_migration" 2>&1)"; then
@@ -426,6 +428,11 @@ expect 'upgrade leaves the published corpus exactly as it was' \
      (SELECT count(*) FROM evaluations WHERE status='published'),
      (SELECT count(*) FROM games),
      (SELECT count(*) FROM evaluations));" '3/3/3'
+expect 'upgrade installs the editorial fair-use artwork basis' \
+  "SELECT count(*) FROM pg_enum AS enum
+   JOIN pg_type AS type ON type.oid=enum.enumtypid
+   WHERE type.typname='artwork_basis'
+     AND enum.enumlabel='editorial-fair-use';" '1'
 # Live is DERIVED. If a rubric migration or a stray ALTER ever adds it to the
 # status enum, the whole Published-versus-Live distinction quietly collapses.
 expect 'upgrade does not make Live an evaluation status' \
@@ -1230,6 +1237,12 @@ accept 'evaluation-clearance artwork is storable, on the looser rule' \
      (game_id,role,url,width,height,source,clearance,basis)
    VALUES ($AW_GAME,'hero','https://example.com/internal.jpg',10,10,'manual',
            'evaluation','internal-evaluation');"
+
+accept 'editorial fair use is a distinct auditable production basis' \
+  "INSERT INTO game_artwork
+     (game_id,role,url,width,height,source,clearance,basis,credit,source_page)
+   VALUES ($AW_GAME,'cover','https://example.com/fair-use.jpg',600,900,'official-promo',
+           'production','editorial-fair-use','Some Publisher','https://example.com/game');"
 
 echo
 echo '== 7. Bidirectional lineage and atomic supersession =='

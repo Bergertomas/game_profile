@@ -126,7 +126,7 @@ async function loadPublishedProfiles(): Promise<GameWithEvaluation[]> {
       }.\n` +
         "This build would have published the calibration fixtures as though " +
         "they were the editorial corpus. Refusing: Postgres is the only source " +
-        "of published profiles (Master Plan v0.8 §9.2).\n" +
+        "of published profiles (Master Plan v0.9 §9.2).\n" +
         (SITE_ENV === "production"
           ? "A production build has no fixture fallback at all. Set DATABASE_URL."
           : "Set DATABASE_URL, or unset REQUIRE_DATABASE if this environment is " +
@@ -141,7 +141,7 @@ async function loadPublishedProfiles(): Promise<GameWithEvaluation[]> {
       `profile(s) from the calibration fixtures. This build is NOT production; ` +
       `a production build refuses outright. Fixtures remain valid for unit ` +
       `tests, parity, development harnesses and named synthetic Playwright ` +
-      `corpora (ADR 0017, Master Plan v0.8 §9.2).`,
+      `corpora (ADR 0017, Master Plan v0.9 §9.2).`,
   );
   return profiles;
 }
