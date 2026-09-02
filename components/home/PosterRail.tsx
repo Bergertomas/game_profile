@@ -122,42 +122,46 @@ export function PosterRail({
   return (
     <section className="sip-rail" aria-labelledby={headingId}>
       <div className="sip-rail__head">
-        <div className="sip-rail__titles">
-          <h2 id={headingId} className="sip-display sip-display--section sip-rail__heading">
-            {heading}
-          </h2>
-          <p id={noteId} className="sip-rail__note">
-            {note}
-          </p>
-        </div>
-
-        <div className="sip-rail__controls">
-          <button
-            type="button"
-            className="sip-rail__step"
-            onClick={() => step(-1)}
-            disabled={atStart}
-          >
-            <span aria-hidden="true">&#8592;</span>
-            <span className="sr-only">Previous posters in {heading}</span>
-          </button>
-          <button
-            type="button"
-            className="sip-rail__step"
-            onClick={() => step(1)}
-            disabled={atEnd}
-          >
-            <span aria-hidden="true">&#8594;</span>
-            <span className="sr-only">Next posters in {heading}</span>
-          </button>
-        </div>
+        <h2 id={headingId} className="sip-display sip-display--section sip-rail__heading">
+          {heading}
+        </h2>
+        <p id={noteId} className="sip-rail__note">
+          {note}
+        </p>
       </div>
 
-      {/* A list, because it is one. The heading names it and the note describes
-          it, so a reader arriving on the track by any route knows what it is. */}
-      <ul className="sip-rail__track" ref={track} aria-describedby={noteId}>
-        {children}
-      </ul>
+      {/* The two step controls flank the track on a wide screen, round and
+          44px, vertically on the posters — as the accepted rail places them.
+          On a phone they follow the track, where the partial next poster is
+          the overflow cue and a swipe is the primary gesture. */}
+      <div className="sip-rail__body">
+        <button
+          type="button"
+          className="sip-rail__step sip-rail__step--prev"
+          onClick={() => step(-1)}
+          disabled={atStart}
+        >
+          <span aria-hidden="true">&#8249;</span>
+          <span className="sr-only">Previous posters in {heading}</span>
+        </button>
+
+        {/* A list, because it is one. The heading names it and the note
+            describes it, so a reader arriving on the track by any route knows
+            what it is. */}
+        <ul className="sip-rail__track" ref={track} aria-describedby={noteId}>
+          {children}
+        </ul>
+
+        <button
+          type="button"
+          className="sip-rail__step sip-rail__step--next"
+          onClick={() => step(1)}
+          disabled={atEnd}
+        >
+          <span aria-hidden="true">&#8250;</span>
+          <span className="sr-only">Next posters in {heading}</span>
+        </button>
+      </div>
 
       {credits.length > 0 && (
         <ul className="sip-rail__credits">

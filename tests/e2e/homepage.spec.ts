@@ -385,3 +385,209 @@ test.describe("reflow, zoom and motion", () => {
     await context.close();
   });
 });
+
+/**
+ * THE ACCEPTED A1/A2 COMPOSITION, measured.
+ *
+ * Structure matching the accepted screens is not conformance; the rendered
+ * page has to hold the accepted geometry. These are the numbers the handoff
+ * fixes (§2.1, §3.4, §7.1) and the first-viewport rule ADR 0030 froze.
+ */
+test.describe("conformance to the accepted composition", () => {
+  test("keeps the desktop hero inside its 27.5rem maximum, with Search in the first viewport", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/");
+    const hero = await page
+      .locator(".sip-open__hero")
+      .evaluate((element) => element.getBoundingClientRect().height);
+    // 27.5rem at the 16px root (handoff §3.4). Content and zoom may make it
+    // taller; the shipped catalogue at the reference width must not.
+    expect(hero).toBeLessThanOrEqual(27.5 * 16);
+
+    // The console follows the hero and its field is still on the first screen.
+    const field = (await page
+      .getByRole("combobox", { name: "Search" })
+      .boundingBox())!;
+    expect(field.y + field.height).toBeLessThanOrEqual(900);
+  });
+
+  test("keeps the chrome to one compact row at both reference widths", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/");
+    const desktop = await page
+      .locator("header")
+      .evaluate((element) => element.getBoundingClientRect().height);
+    expect(desktop).toBeLessThanOrEqual(64);
+
+    await page.setViewportSize({ width: 390, height: 667 });
+    await page.goto("/");
+    const mobile = await page
+      .locator("header")
+      .evaluate((element) => element.getBoundingClientRect().height);
+    expect(mobile).toBeLessThanOrEqual(56);
+  });
+
+  test("shows the proposition, all three games and the Search input at 390×667", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 667 });
+    await page.goto("/");
+
+    const h1 = (await page.locator("h1").boundingBox())!;
+    expect(h1.y + h1.height).toBeLessThanOrEqual(667);
+
+    // Authentic game identity is in the first viewport: every tile's title is
+    // on screen, whole, before any scroll.
+    const tiles = page.locator(".sip-open__tile");
+    await expect(tiles).toHaveCount(3);
+    for (let i = 0; i < 3; i += 1) {
+      const title = (await tiles.nth(i).locator("h2").boundingBox())!;
+      expect(title.y).toBeGreaterThanOrEqual(0);
+      expect(title.y + title.height).toBeLessThanOrEqual(667);
+    }
+
+    // And Search is still there without an introductory scroll — after the
+    // games on screen, before them in the focus order.
+    const field = page.getByRole("combobox", { name: "Search" });
+    const box = (await field.boundingBox())!;
+    expect(box.y + box.height).toBeLessThanOrEqual(667);
+    const lastTile = (await tiles.nth(2).boundingBox())!;
+    expect(box.y).toBeGreaterThan(lastTile.y);
+  });
+
+  test("puts the console after the hero in the focus order", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 667 });
+    await page.goto("/");
+    // The accepted order: the three game tiles, then the switcher's Compare
+    // link, then the Search field — at every width.
+    await page.locator(".sip-open__tile").nth(2).locator("a").focus();
+    await page.keyboard.press("Tab");
+    await expect(
+      page.locator(".sip-open").getByRole("link", { name: /^Compare$/ }),
+    ).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(page.getByRole("combobox", { name: "Search" })).toBeFocused();
+  });
+
+  test("puts the Search field directly under a switcher that has Search selected", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const current = page.locator(".sip-open__path.is-current");
+    await expect(current).toHaveText(/Search/);
+    const paths = (await page.locator(".sip-open__paths").boundingBox())!;
+    const field = (await page
+      .getByRole("combobox", { name: "Search" })
+      .boundingBox())!;
+    expect(field.y).toBeGreaterThan(paths.y + paths.height - 1);
+  });
+
+  test("keeps the accepted mosaic geometry: one game at scale, two stacked beside it", async ({
+    page,
+  }) => {
+    for (const [width, height] of [
+      [1440, 900],
+      [390, 667],
+    ] as const) {
+      await page.setViewportSize({ width, height });
+      await page.goto("/");
+      const [lead, second, third] = await page
+        .locator(".sip-open__tile")
+        .evaluateAll((nodes) =>
+          nodes.map((node) => {
+            const r = node.getBoundingClientRect();
+            return { x: r.x, y: r.y, w: r.width, h: r.height };
+          }),
+        );
+      // The lead tile spans both rows of the left column; the two beside it
+      // share the right column, one above the other.
+      expect(lead!.h).toBeGreaterThan(second!.h * 1.8);
+      expect(second!.x).toBeGreaterThan(lead!.x + lead!.w - 1);
+      expect(third!.x).toBeCloseTo(second!.x, 0);
+      expect(third!.y).toBeGreaterThan(second!.y + second!.h - 1);
+      // And every tile carries its integrated fingerprint, drawn over a well.
+      await expect(page.locator(".sip-open__fingerprint svg")).toHaveCount(3);
+    }
+  });
+
+  test("paints no broken-image glyph when artwork fails to load", async ({
+    page,
+  }) => {
+    // Every image the opening or rail may carry is review-clearance art loaded
+    // from another host. Block it, so the failed state is the one rendered.
+    await page.route(/^https?:\/\/(?!localhost)/, (route) => route.abort());
+    await page.goto("/");
+    // A picture that cannot load leaves the document (handoff §4.2), so there
+    // is nothing for the browser to draw a glyph for — in the opening, and on
+    // the rail once its lazily loaded posters have been asked for…
+    await expect(page.locator(".sip-open__art img")).toHaveCount(0);
+    await page.locator(".sip-rail__track").scrollIntoViewIfNeeded();
+    await expect(page.locator(".sip-poster__art img")).toHaveCount(0);
+    // …and the authored territory is under every frame either way.
+    await expect(page.locator(".sip-open__fragment")).toHaveCount(3);
+    await expect(page.locator(".sip-poster__fragment")).toHaveCount(3);
+    await expect(page.locator(".sip-open__sleeve")).toHaveCount(3);
+  });
+
+  test("keeps the picture out of the accessibility tree where the title names the game", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const images = page.locator(".sip-open__art img, .sip-poster__art img");
+    const count = await images.count();
+    for (let i = 0; i < count; i += 1) {
+      await expect(images.nth(i)).toHaveAttribute("alt", "");
+    }
+  });
+});
+
+test.describe("the public chrome on a phone", () => {
+  test("keeps the wordmark and Search in the row and puts the links behind Menu", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 667 });
+    await page.goto("/");
+    const menu = page.getByRole("button", { name: "Menu" });
+    await expect(menu).toBeVisible();
+    await expect(menu).toHaveAttribute("aria-expanded", "false");
+    await expect(
+      page.getByRole("button", { name: "Search", exact: true }),
+    ).toBeVisible();
+
+    const nav = page.getByRole("navigation", { name: "Primary" });
+    await expect(nav).toBeHidden();
+
+    await menu.click();
+    await expect(menu).toHaveAttribute("aria-expanded", "true");
+    await expect(nav).toBeVisible();
+    await expect(nav.getByRole("link", { name: "Compare" })).toBeVisible();
+    await expect(nav.getByRole("link", { name: "How we score" })).toBeVisible();
+
+    await page.keyboard.press("Escape");
+    await expect(nav).toBeHidden();
+    await expect(menu).toBeFocused();
+  });
+
+  test("shows the links in the row on a desktop, with no Menu control", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/");
+    await expect(page.getByRole("button", { name: "Menu" })).toBeHidden();
+    const nav = page.getByRole("navigation", { name: "Primary" });
+    await expect(nav.getByRole("link", { name: "Compare" })).toBeVisible();
+    await expect(nav.getByRole("link", { name: "How we score" })).toBeVisible();
+  });
+
+  test("marks the current page in the navigation", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/compare");
+    await expect(
+      page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Compare" }),
+    ).toHaveAttribute("aria-current", "page");
+  });
+});

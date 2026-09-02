@@ -222,6 +222,24 @@ export function SearchField({
             <span className="sr-only">Clear the search</span>
           </button>
         )}
+        {variant === "inline" && (
+          /* The accepted opening's cyan Search action (A1/A2). It does exactly
+             what Enter does — opens the highlighted row, else the query's one
+             exact match — and otherwise returns focus to the field with the
+             suggestions still open. It never navigates on a guess. */
+          <button
+            type="button"
+            className="sip-search__submit"
+            onClick={() => {
+              const chosen = active >= 0 ? options[active] : outcome.exact;
+              if (chosen) go(chosen);
+              else inputRef.current?.focus();
+            }}
+          >
+            Search
+            <span className="sr-only"> the guide</span>
+          </button>
+        )}
       </div>
 
       {/* The legend prints what the field actually does in THIS placement.

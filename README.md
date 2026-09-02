@@ -138,11 +138,13 @@ app/
   deployment-manifest/         the artifact's inventory of itself, prerendered
   robots.ts / sitemap.ts       generated from the same data the pages read
 components/
-  SiteChrome.tsx               header and footer — achromatic, so games carry colour
+  SiteChrome.tsx               header and footer — achromatic, so games carry colour; site-chrome.css beside it
+  ChromeNav.tsx                the ranked navigation, behind one Menu disclosure on a phone
   GameCard.tsx                 the one card grammar every list of games will use
   home/HomeOpening.tsx         the accepted opening: proposition, Search, mosaic
   home/PosterRail.tsx          the rail's controls and scroll position; no autoplay, ever
   home/ProfilePoster.tsx       one poster: art-led or artless, one link, one disclosure
+  home/ShapeFragment.tsx       the game's own outline, faint and large, under every tile and poster
   home/EditorialShelf.tsx      the authored shelves, or nothing at all
   home/CuratedCompare.tsx      two identities, one decision, and the route into Compare
   compare/CompareApp.tsx       the client shell: the address is the state
