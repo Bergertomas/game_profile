@@ -69,6 +69,12 @@ const replaceRight = (page: Page) =>
 const dialog = (page: Page) => page.getByRole("dialog");
 const field = (page: Page) => dialog(page).getByRole("combobox");
 
+/** Open a pair address and wait until the pair is restored from it. */
+async function openPair(page: Page, url: string) {
+  await page.goto(url);
+  await expect(page.locator(".cp-instrument")).toBeVisible();
+}
+
 /** Choose a game through the open dialog, by keyboard. */
 async function chooseByKeyboard(page: Page, query: string) {
   await field(page).fill(query);
@@ -135,7 +141,7 @@ test.describe("selection and the address", () => {
   });
 
   test("replacing one side keeps the other exactly where it was", async ({ page }) => {
-    await page.goto(PAIR);
+    await openPair(page, PAIR);
     await replaceRight(page).click();
     await expect(dialog(page).getByRole("heading")).toHaveText("Replace Returnal on the right");
     await chooseByKeyboard(page, "Redfall");
@@ -150,7 +156,7 @@ test.describe("selection and the address", () => {
   });
 
   test("the back button restores the previous pair", async ({ page }) => {
-    await page.goto(PAIR);
+    await openPair(page, PAIR);
     await replaceRight(page).click();
     await chooseByKeyboard(page, "Redfall");
     await expect(page).toHaveURL(/redfall$/);
@@ -181,7 +187,8 @@ test.describe("refusals", () => {
 
   test("a self-pair in the address is refused and the left selection is kept", async ({ page }) => {
     await page.goto("/compare?games=alan-wake-2,alan-wake-2");
-    await expect(page.getByRole("alert")).toContainText("Alan Wake 2 is already on the left");
+    // Next's own route announcer is an alert too; the notice is the one asked for.
+    await expect(page.locator('.cp-notice[role="alert"]')).toContainText("Alan Wake 2 is already on the left");
     await expect(page.getByText("Alan Wake 2 is on the left.")).toBeVisible();
     await expect(page.locator(".cp-instrument")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Choose the right game" })).toBeVisible();
@@ -203,7 +210,7 @@ test.describe("refusals", () => {
 
 test.describe("the selector dialog", () => {
   test("is named, contains focus, closes on Escape and returns focus", async ({ page }) => {
-    await page.goto(PAIR);
+    await openPair(page, PAIR);
     await replaceLeft(page).click();
     await expect(dialog(page)).toHaveAttribute("aria-modal", "true");
     await expect(field(page)).toBeFocused();
@@ -218,7 +225,7 @@ test.describe("the selector dialog", () => {
   });
 
   test("offers only main profiles; a query names what cannot be chosen", async ({ page }) => {
-    await page.goto(PAIR);
+    await openPair(page, PAIR);
     await replaceRight(page).click();
     await field(page).fill("a");
     await page.waitForTimeout(60);
@@ -230,21 +237,23 @@ test.describe("the selector dialog", () => {
     await expect(dialog(page).locator(".sip-search__note")).toContainText("We do not recognise that title");
   });
 
-  test("works by touch as well as keyboard", async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
+  test("works by touch as well as keyboard", async ({ browser }) => {
+    const context = await browser.newContext({ hasTouch: true, viewport: { width: 390, height: 844 } });
+    const page = await context.newPage();
     await page.goto("/compare");
     await page.getByRole("button", { name: "Choose the first game" }).tap();
     await field(page).fill("Redfall");
     await page.waitForTimeout(60);
     await dialog(page).getByRole("option", { name: /^Redfall/ }).dispatchEvent("mousedown");
     await expect(page).toHaveURL(/\/compare\?games=redfall$/);
+    await context.close();
   });
 });
 
 test.describe("copy link", () => {
   test("announces success politely and keeps its name", async ({ page, context }) => {
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-    await page.goto(PAIR);
+    await openPair(page, PAIR);
     const button = page.getByRole("button", { name: "Copy link to this comparison" });
     await button.click();
     const status = page.locator(".cp-share__status");
@@ -257,7 +266,7 @@ test.describe("copy link", () => {
   });
 
   test("falls back to a selected read-only address when the clipboard is refused", async ({ page }) => {
-    await page.goto(PAIR);
+    await openPair(page, PAIR);
     await page.evaluate(() => {
       Object.defineProperty(navigator, "clipboard", {
         value: { writeText: () => Promise.reject(new Error("denied")) },
@@ -280,8 +289,16 @@ test.describe("index policy on a pair", () => {
   test("a pair address answers X-Robots-Tag noindex, follow, and the document says so too", async ({ page }) => {
     const response = await page.request.get(PAIR);
     expect(response.headers()["x-robots-tag"]).toBe("noindex, follow");
-    await page.goto(PAIR);
-    await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex, follow");
+    await openPair(page, PAIR);
+    // Metadata may render more than one robots tag; every one of them says so.
+    await expect
+      .poll(() =>
+        page.locator('meta[name="robots"]').evaluateAll((metas) => {
+          const contents = metas.map((meta) => (meta as HTMLMetaElement).content);
+          return contents.length > 0 && contents.every((c) => c === "noindex, follow");
+        }),
+      )
+      .toBe(true);
     await expect(page).toHaveTitle(/Alan Wake 2 and Returnal, compared/);
   });
 
@@ -295,7 +312,7 @@ test.describe("index policy on a pair", () => {
 test.describe("the composition in a browser", () => {
   test("keeps the accepted order and reads left before right at 390×667", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 667 });
-    await page.goto(PAIR);
+    await openPair(page, PAIR);
     const tops = await page.evaluate(() =>
       [
         '.cp-identity[data-side="left"]',
@@ -314,7 +331,7 @@ test.describe("the composition in a browser", () => {
 
   test("the row's relation sits between the sides on a wide screen without reordering the DOM", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto(PAIR);
+    await openPair(page, PAIR);
     const row = page.locator(".cp-row").first();
     const [left, relation, right] = await Promise.all([
       row.locator('.cp-row__side[data-side="left"]').boundingBox(),
@@ -328,10 +345,36 @@ test.describe("the composition in a browser", () => {
     );
     expect(order[0]).toContain("cp-row__side");
     expect(order[2]).toContain("cp-row__relation");
+
+    // The stage: identities flank the seam column and the legend sits in it,
+    // beside the identities rather than on a row of its own.
+    const [leftId, legend, rightId] = await Promise.all([
+      page.locator('.cp-identity[data-side="left"]').boundingBox(),
+      page.locator(".cp-legend").boundingBox(),
+      page.locator('.cp-identity[data-side="right"]').boundingBox(),
+    ]);
+    expect(leftId!.x + leftId!.width).toBeLessThanOrEqual(legend!.x + 1);
+    expect(legend!.x + legend!.width).toBeLessThanOrEqual(rightId!.x + 1);
+    expect(legend!.y).toBeLessThan(leftId!.y + leftId!.height);
+  });
+
+  test("at 200% text on 1280 the stage is one column and the identities keep their width", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await openPair(page, PAIR);
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = "32px";
+    });
+    await page.waitForTimeout(100);
+    const [leftId, rightId] = await Promise.all([
+      page.locator('.cp-identity[data-side="left"]').boundingBox(),
+      page.locator('.cp-identity[data-side="right"]').boundingBox(),
+    ]);
+    expect(leftId!.width).toBeGreaterThan(900);
+    expect(rightId!.y).toBeGreaterThan(leftId!.y + leftId!.height - 1);
   });
 
   test("every row is a Details disclosure that opens independently and keeps focus", async ({ page }) => {
-    await page.goto(PAIR);
+    await openPair(page, PAIR);
     const buttons = page.locator(".cp-row__why");
     await expect(buttons).toHaveCount(8);
     const first = buttons.nth(0);
@@ -350,16 +393,21 @@ test.describe("the composition in a browser", () => {
   });
 
   test("keyboard order follows the DOM: identity links, disclosures, then Replace and Copy", async ({ page }) => {
-    await page.goto(PAIR);
+    await openPair(page, PAIR);
     const sequence: string[] = [];
     await page.locator(".cp-identity__link").first().focus();
-    for (let i = 0; i < 14; i += 1) {
+    for (let i = 0; i < 30; i += 1) {
       sequence.push(
         await page.evaluate(() => (document.activeElement as HTMLElement).innerText.trim().slice(0, 40)),
       );
+      if (/Copy link/.test(sequence[sequence.length - 1]!)) break;
       await page.keyboard.press("Tab");
     }
-    const indexOf = (pattern: RegExp) => sequence.findIndex((text) => pattern.test(text));
+    const indexOf = (pattern: RegExp) => {
+      const index = sequence.findIndex((text) => pattern.test(text));
+      expect(index, `${pattern} in ${JSON.stringify(sequence)}`).toBeGreaterThanOrEqual(0);
+      return index;
+    };
     expect(indexOf(/Read the Game Profile/)).toBeLessThan(indexOf(/Details/));
     expect(indexOf(/Details/)).toBeLessThan(indexOf(/Replace Alan Wake 2 on the left/));
     expect(indexOf(/Replace Alan Wake 2 on the left/)).toBeLessThan(indexOf(/Replace Returnal on the right/));
@@ -368,7 +416,7 @@ test.describe("the composition in a browser", () => {
 
   test("stops motion under reduced motion", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
-    await page.goto(PAIR);
+    await openPair(page, PAIR);
     const transitions = await page.evaluate(() =>
       [...document.querySelectorAll(".cp-button, .cp-row__why, .cp-row__chevron")].map(
         (el) => getComputedStyle(el).transitionProperty,
@@ -387,7 +435,7 @@ test.describe("reflow", () => {
   ]) {
     test(`does not scroll sideways at ${viewport.width}, closed and with a disclosure open`, async ({ page }) => {
       await page.setViewportSize(viewport);
-      await page.goto(PAIR);
+      await openPair(page, PAIR);
       expect(await sidewaysOverflow(page)).toEqual([]);
       await page.locator(".cp-row__why").first().click();
       expect(await sidewaysOverflow(page)).toEqual([]);
@@ -397,7 +445,7 @@ test.describe("reflow", () => {
   for (const width of [1280, 390, 320]) {
     test(`does not scroll sideways at 200% text on ${width}`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
-      await page.goto(PAIR);
+      await openPair(page, PAIR);
       await page.evaluate(() => {
         document.documentElement.style.fontSize = "32px";
       });
@@ -465,7 +513,9 @@ test("the Compare harness is reachable for review, unindexed", async ({ page }) 
   for (const word of ["Equal", "Close", "Clear difference", "Indeterminate"]) {
     await expect(relations.locator(".cp-row .cp-word", { hasText: word }).first(), word).toBeVisible();
   }
-  await expect(relations.locator(".cp-row__num", { hasText: "6.0–8.0" })).toHaveCount(1);
+  // Two ranges (Agency and Pacing) and two Not scored (Execution, both sides).
+  await expect(relations.locator(".cp-row__kind")).toHaveCount(2);
+  await expect(relations.locator(".cp-row__num", { hasText: "–" }).first()).toBeVisible();
   await expect(relations.locator(".cp-row__notscored")).toHaveCount(2);
   // The tag fixture: a shared tag with two intensities writes both.
   await expect(page.locator("#tags + .cp .cp-tag[data-differs]")).toContainText("Resource pressure · Alan Wake 2 Medium · Tag fixture (Returnal tags, edited) High");

@@ -53,21 +53,32 @@ export function CompareApp({
   );
 
   // The document's own account of the state: the title names the pair, and
-  // the robots meta says a pair is not for the index. The launcher restores
-  // both when the selection is cleared by the back button.
+  // every robots meta says a pair is not for the index. Metadata can arrive
+  // in more than one tag and after this effect (it is streamed), so the rule
+  // is applied to all of them now and again whenever the head changes; the
+  // launcher restores what each tag said.
   useEffect(() => {
     const pair = left && right;
     document.title = pair
       ? `${left.title} and ${right.title}, compared | ${SITE_NAME}`
       : `Compare two Game Profiles | ${SITE_NAME}`;
-    const meta = document.querySelector<HTMLMetaElement>('meta[name="robots"]');
-    if (!meta) return;
-    if (selection.tokens.left || selection.tokens.right) {
-      if (!meta.dataset.launcher) meta.dataset.launcher = meta.content;
-      meta.content = "noindex, follow";
-    } else if (meta.dataset.launcher) {
-      meta.content = meta.dataset.launcher;
-    }
+
+    const selected = Boolean(selection.tokens.left || selection.tokens.right);
+    const apply = () => {
+      for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="robots"]')) {
+        if (selected) {
+          if (!meta.dataset.launcher) meta.dataset.launcher = meta.content;
+          meta.content = "noindex, follow";
+        } else if (meta.dataset.launcher) {
+          meta.content = meta.dataset.launcher;
+          delete meta.dataset.launcher;
+        }
+      }
+    };
+    apply();
+    const observer = new MutationObserver(apply);
+    observer.observe(document.head, { childList: true });
+    return () => observer.disconnect();
   }, [left, right, selection.tokens.left, selection.tokens.right]);
 
   return (
