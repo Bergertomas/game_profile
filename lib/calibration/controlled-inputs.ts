@@ -21,8 +21,10 @@ import path from "node:path";
  *
  * Four of the six were re-approved on 2026-09-02 under the bounded Item 3
  * controlled-freeze amendment for issue #44 (machine-reproducible coverage
- * state). The rubric and the execution system instructions were untouched by
- * that amendment and keep their original Item 3 identities.
+ * state). Amendment 2, approved the same day, extended that record to
+ * carried-forward re-attestations and re-approved the schema and the protocol
+ * again. The rubric and the execution system instructions were untouched by
+ * both and keep their original Item 3 identities.
  */
 
 /** Repository root, resolved from this file rather than from `process.cwd()`. */
@@ -67,12 +69,12 @@ export const CONTROLLED_INPUTS: readonly ControlledInput[] = [
   {
     path: "docs/Game_Profile_Scoring_Protocol_v1.0_DRAFT.md",
     role: "protocol",
-    approvedBlobSha: "1e678bb9d1ac68998fcc1826e2b5ac9f33778a11",
+    approvedBlobSha: "c7ef89853d26d134f8e0fe1cc6a07aed3b5bc985",
   },
   {
     path: "docs/schemas/Game_Profile_Scoring_Package_v1.0_DRAFT.schema.json",
     role: "output_schema",
-    approvedBlobSha: "2a766c042c085d67eb25f1cd7f6df5c45e693796",
+    approvedBlobSha: "8e49d552b08eeee2bdcb2fd240d77d48ddfbafc6",
   },
 ] as const;
 

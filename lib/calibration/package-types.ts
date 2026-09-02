@@ -332,6 +332,9 @@ export interface AuditSummary {
 export interface CarriedForwardReattestation {
   readonly subcriterion_key: string;
   readonly confidence_facts: ConfidenceFacts;
+  /** Re-attested against the criterion's NEW frozen frame, not inherited (§14). */
+  readonly coverage_observed_unit_ids: readonly string[];
+  readonly coverage_missing_unit_ids: readonly string[];
 }
 
 export interface ReassessmentRecord {

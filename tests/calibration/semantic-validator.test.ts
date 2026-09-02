@@ -1306,6 +1306,63 @@ describe("§15.1(9) reassessment", () => {
     ).toBe(true);
   });
 
+  it("derives a carried-forward re-attestation's coverage state, never accepts it asserted", () => {
+    // Amendment 2. `mergedDecisions` feeds these facts into dimension and
+    // confidence derivation, so an asserted coverage state here would leave the
+    // assertion-only path open on exactly the keys a bounded reassessment does
+    // not rescore.
+    const bounded = boundedReassessment({
+      mutateCarried: (carried) => {
+        // Late/end unit missing derives to materially_limited, not `full`.
+        const entry = carried.find((c) => c.subcriterion_key === "mood_strength")!;
+        entry.coverage_observed_unit_ids = [
+          "mood_strength-u1",
+          "mood_strength-u2",
+          "mood_strength-u3",
+        ];
+        entry.coverage_missing_unit_ids = ["mood_strength-u4"];
+      },
+    });
+    const result = validatePackageSemantics(bounded, { baseline: buildValidPackage() });
+    expect(result.valid).toBe(false);
+    expect(
+      result.issues.some((issue) =>
+        /re-attested coverage_state "full" does not derive/.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("requires the re-attestation to account for the whole new frame", () => {
+    const bounded = boundedReassessment({
+      mutateCarried: (carried) => {
+        const entry = carried.find((c) => c.subcriterion_key === "mood_strength")!;
+        entry.coverage_observed_unit_ids = ["mood_strength-u1", "mood_strength-u2"];
+      },
+    });
+    const result = validatePackageSemantics(bounded, { baseline: buildValidPackage() });
+    expect(result.valid).toBe(false);
+    expect(
+      result.issues.some((issue) => /must account for the whole new frame/.test(issue.message)),
+    ).toBe(true);
+  });
+
+  it("rejects a re-attestation naming a unit outside the new frozen frame", () => {
+    const bounded = boundedReassessment({
+      mutateCarried: (carried) => {
+        const entry = carried.find((c) => c.subcriterion_key === "mood_strength")!;
+        entry.coverage_observed_unit_ids = [
+          ...(entry.coverage_observed_unit_ids as string[]),
+          "not-a-frame-unit",
+        ];
+      },
+    });
+    const result = validatePackageSemantics(bounded, { baseline: buildValidPackage() });
+    expect(result.valid).toBe(false);
+    expect(
+      result.issues.some((issue) => /not in the new frozen frame/.test(issue.message)),
+    ).toBe(true);
+  });
+
   it("rejects a baseline whose digest is not the one the package names", () => {
     const bounded = boundedReassessment();
     const otherBaseline = mutate((draft) => {
@@ -1324,7 +1381,11 @@ describe("§15.1(9) reassessment", () => {
  * §14's graph adds its one-hop neighbour `opening_effectiveness`.
  */
 function boundedReassessment(
-  options: { readonly affectedOverride?: string[]; readonly dropOneCarriedForward?: boolean } = {},
+  options: {
+    readonly affectedOverride?: string[];
+    readonly dropOneCarriedForward?: boolean;
+    readonly mutateCarried?: (carried: Record<string, unknown>[]) => void;
+  } = {},
 ): ScoringPackage {
   const baseline = buildValidPackage();
   const affected = options.affectedOverride ?? ["story_hook", "opening_effectiveness"];
@@ -1358,6 +1419,8 @@ function boundedReassessment(
     const complement = (buildValidPackage().scoring_content.adjudication.final_decisions ?? [])
       .map((decision) => decision.subcriterion_key)
       .filter((key) => !affected.includes(key));
+    // Amendment 2: a carried-forward key is re-attested against the NEW frozen
+    // frame and its coverage derived, not inherited from the baseline.
     const carried = complement.map((key) => ({
       subcriterion_key: key,
       confidence_facts: {
@@ -1365,8 +1428,11 @@ function boundedReassessment(
         conflict_state: "none",
         stability_state: "stable",
       },
+      coverage_observed_unit_ids: [1, 2, 3, 4].map((n) => `${key}-u${n}`),
+      coverage_missing_unit_ids: [],
     }));
     if (options.dropOneCarriedForward) carried.pop();
+    if (options.mutateCarried) options.mutateCarried(carried as unknown as Record<string, unknown>[]);
 
     content.reassessment_record = {
       trigger: "major_patch",

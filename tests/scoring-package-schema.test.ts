@@ -499,7 +499,14 @@ describe("reassessmentRecord", () => {
   ];
   const carried = (schema.$defs.subcriterionKey.enum as string[])
     .filter((k) => !affected.includes(k))
-    .map((k) => ({ subcriterion_key: k, confidence_facts: confidenceFacts }));
+    .map((k) => ({
+      subcriterion_key: k,
+      confidence_facts: confidenceFacts,
+      // Required since Amendment 2: a carried-forward key re-attests its
+      // coverage against the new frozen frame rather than inheriting it (§14).
+      coverage_observed_unit_ids: [`${k}-u1`],
+      coverage_missing_unit_ids: [],
+    }));
   const record = {
     trigger: "major_patch",
     checked_at: "2026-08-25T10:00:00Z",

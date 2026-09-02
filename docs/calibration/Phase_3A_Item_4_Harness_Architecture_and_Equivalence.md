@@ -256,6 +256,17 @@ orchestrator (preregistration §15.2):
 Coverage-state meanings, rubric anchors, cohort/scope, evidence rules, holdout
 rules and scoring authority are unchanged.
 
+**Amendment 2**, approved the same day, closed the one carrier Amendment 1 left
+out. `carriedForwardReattestation` also holds `confidence_facts`, and
+`mergedDecisions` feeds them straight into dimension and confidence derivation —
+so an asserted `coverage_state` there would have left the assertion-only path
+open on exactly the keys a bounded reassessment does not rescore. A
+re-attestation now records `coverage_observed_unit_ids` and
+`coverage_missing_unit_ids` against the criterion's **new** frozen frame,
+disjoint and total, and derives its coverage state from the frozen
+`omission_effect` like any decision. Two controlled inputs changed — schema and
+protocol §14; the prompts were explicitly out of scope.
+
 ### 6.3 `audit_summary.difference_ids` — RESOLVED by owner determination
 
 **Owner determination, 2026-09-02.** `difference_ids` is not limited to
@@ -325,11 +336,13 @@ transport digest is a different value.
 Amendment 1 changed four of the six controlled inputs — package schema,
 candidate protocol, research prompt, scoring prompt. The rubric and the
 execution system instructions are byte-identical to their Item 3 identities.
-New Git blob IDs and SHA-256 values are recorded in preregistration §15.2, and
-the harness lock in `lib/calibration/controlled-inputs.ts` was updated to the
-amended bytes; the lock-set digest moved from
-`fd202c048c564353a8d644ec3b10a8f71e2e627bca53cf73d941a199b670a18d` to
-`62d90b14fcde14af639e0c51259b28b41b4e2ce2063398d91eb2244e9637c42c`.
+Amendment 2 then re-approved the schema and protocol again for the
+carried-forward carrier, leaving the prompts at their Amendment 1 identities.
+New Git blob IDs and SHA-256 values are recorded in preregistration §15.2 and
+§15.3, and the harness lock in `lib/calibration/controlled-inputs.ts` tracks the
+current bytes; the lock-set digest moved
+`fd202c04…` → `62d90b14…` (Amendment 1) → `284af531c7a9af28fa33af046ac2c4437f187e6b1e022e2cdc4df90cab0a0e1d`
+(Amendment 2, current).
 
 The design is owner-approved; the resulting **bytes** are not. ChatGPT/Tomas
 review the exact controlled diff and provenance before the implementing pull

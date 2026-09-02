@@ -1341,8 +1341,10 @@ Every actual revision:
 4. re-attests the three §10.1 confidence facts for every decision in the
    merged 40-decision map against the new evidence cutoff and active corpus —
    carried-forward decisions included, because a `stable` attested before the
-   change evidence existed proves nothing about the state after it — and then
-   re-derives every dimension and confidence result from the re-attested facts;
+   change evidence existed proves nothing about the state after it, and their
+   coverage is recorded against the new frozen frame and derived rather than
+   carried over — and then re-derives every dimension and confidence result
+   from the re-attested facts;
 5. regenerates interpretation when any supporting decision changes; and
 6. requires Tomas's approval before publication.
 
@@ -1360,7 +1362,14 @@ affected keys; the carried-forward decisions are not duplicated into it. Their
 re-attested facts live in the reassessment record's
 `carried_forward_reattestations` — one entry per rubric key outside the
 affected set, each carrying the three §10.1 facts as attested at the new
-cutoff. Derivation reads baseline decisions, affected-set replacements and
+cutoff. A re-attestation also records `coverage_observed_unit_ids` and
+`coverage_missing_unit_ids` against that criterion's **new** frozen frame,
+disjoint and together accounting for every unit of it, and its
+`coverage_state` is derived from those missing units' frozen `omission_effect`
+exactly as §6.1 derives a decision's. A carried-forward key is re-attested, not
+inherited, so its coverage is derived on the same evidence as everything else
+rather than asserted; a coverage state that does not reproduce rejects the
+package. Derivation reads baseline decisions, affected-set replacements and
 re-attested facts together; the published successor stores the bounded package
 plus its baseline/patch lineage, and the full merged state is what it derives,
 not what it re-stores. Missing baseline, duplicate keys, a key outside the

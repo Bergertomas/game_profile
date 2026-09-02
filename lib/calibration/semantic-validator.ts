@@ -1219,6 +1219,88 @@ function checkFinalClaimReferences(pkg: ScoringPackage, log: IssueLog): void {
 }
 
 /**
+ * §14 — a carried-forward re-attestation derives its coverage state too.
+ *
+ * `mergedDecisions` feeds these facts straight into dimension and confidence
+ * derivation, so an asserted `coverage_state` here would reintroduce exactly
+ * the assertion-only path Amendment 1 exists to remove — just on the keys a
+ * bounded reassessment does not rescore. The re-attestation is checked against
+ * the criterion's NEW frozen frame, because a carried-forward key is
+ * re-attested at the new cutoff rather than inherited from the baseline.
+ */
+function checkCarriedForwardCoverage(pkg: ScoringPackage, log: IssueLog): void {
+  const content = pkg.scoring_content;
+  const record = content.reassessment_record;
+  if (!record) return;
+
+  const frames = new Map(
+    content.corpus.coverage_frames.map((frame) => [frame.subcriterion_key, frame]),
+  );
+
+  for (const reattestation of record.carried_forward_reattestations) {
+    const at = `reassessment_record.carried_forward_reattestations[${reattestation.subcriterion_key}]`;
+    const frame = frames.get(reattestation.subcriterion_key);
+    if (!frame) {
+      log.add(
+        "coverage_and_time",
+        6,
+        at,
+        "no frozen coverage frame for this criterion in the new corpus; a carried-forward key is re-attested against the new frame (§14)",
+      );
+      continue;
+    }
+
+    const observed = reattestation.coverage_observed_unit_ids;
+    const missing = reattestation.coverage_missing_unit_ids;
+    const overlap = observed.filter((id) => missing.includes(id));
+    if (overlap.length > 0) {
+      log.add(
+        "coverage_and_time",
+        6,
+        at,
+        `coverage units recorded as both observed and missing: ${overlap.join(", ")}`,
+      );
+    }
+
+    const frameUnits = new Map(frame.coverage_units.map((unit) => [unit.unit_id, unit]));
+    for (const [field, ids] of [
+      ["coverage_observed_unit_ids", observed],
+      ["coverage_missing_unit_ids", missing],
+    ] as const) {
+      for (const id of ids) {
+        if (!frameUnits.has(id)) {
+          log.add("coverage_and_time", 6, at, `${field} names "${id}", which is not in the new frozen frame`);
+        }
+      }
+    }
+
+    const accounted = new Set([...observed, ...missing]);
+    const unaccounted = [...frameUnits.keys()].filter((id) => !accounted.has(id));
+    if (unaccounted.length > 0) {
+      log.add(
+        "coverage_and_time",
+        6,
+        at,
+        `frame units in neither coverage list: ${unaccounted.join(", ")} — the re-attestation must account for the whole new frame (§14)`,
+      );
+    }
+
+    const missingUnits = missing
+      .map((id) => frameUnits.get(id))
+      .filter((unit): unit is CoverageUnit => unit !== undefined);
+    const derived = deriveCoverageState(missingUnits);
+    if (derived !== reattestation.confidence_facts.coverage_state) {
+      log.add(
+        "coverage_and_time",
+        6,
+        at,
+        `re-attested coverage_state "${reattestation.confidence_facts.coverage_state}" does not derive from the missing units (expected "${derived}") (§14, §6.1)`,
+      );
+    }
+  }
+}
+
+/**
  * Frame-level check: a `central` unit is always `materially_limiting`.
  *
  * §6.1 makes a missing central stratum or central core loop materially
@@ -1859,6 +1941,7 @@ export function validatePackageSemantics(
   checkScoreRecords(pkg, log);
   checkFinalClaimReferences(pkg, log);
   checkCoverageFrames(pkg, log);
+  checkCarriedForwardCoverage(pkg, log);
   checkCoverageAndTime(pkg, log);
   checkAdjudication(pkg, pairedKeys, log);
   checkDerivation(pkg, options, log);

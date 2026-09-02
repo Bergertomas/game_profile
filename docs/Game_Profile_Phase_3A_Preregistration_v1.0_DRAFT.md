@@ -458,8 +458,27 @@ Four of the six controlled inputs changed. **These identities supersede §15.1 f
 | `docs/Game_Profile_Scoring_Protocol_v1.0_DRAFT.md` | candidate 1.0 | `1e678bb9d1ac68998fcc1826e2b5ac9f33778a11` | `2a40b102f22958442574a370495f4ca92791e67b3b6bd4c4814a7273f1c95ad5` |
 | `docs/schemas/Game_Profile_Scoring_Package_v1.0_DRAFT.schema.json` | 1.0 draft | `2a766c042c085d67eb25f1cd7f6df5c45e693796` | `1c2c8aaa9807b87089d7a4b428e5378e7da1523e78837bcfd34f90cb7466a259` |
 
-Harness lock-set digest over the amended bytes: `62d90b14fcde14af639e0c51259b28b41b4e2ce2063398d91eb2244e9637c42c`.
+Harness lock-set digest over the Amendment 1 bytes: `62d90b14fcde14af639e0c51259b28b41b4e2ce2063398d91eb2244e9637c42c`. **Superseded by Amendment 2 (§15.3).**
 
-Amendment 1 is pending exact-byte review: the design is owner-approved, and the resulting controlled bytes and provenance must be reviewed by ChatGPT/Tomas before the implementing pull request merges and before any downstream work relies on them.
+### 15.3 Amendment 2 — carried-forward re-attestations derive coverage (issue #44, approved 2026-09-02)
+
+Tomas approved extending Amendment 1 to `carriedForwardReattestation`, on the orchestrator's finding that `mergedDecisions` consumes a carried-forward `coverage_state` to re-derive confidence, which would leave the assertion-only path Amendment 1 removes open on exactly the keys a bounded reassessment does not rescore.
+
+The re-attestation now carries required `coverage_observed_unit_ids` and `coverage_missing_unit_ids`, disjoint and together accounting for the whole of that criterion's **new** frozen frame, and its `coverage_state` derives from those missing units' frozen `omission_effect` exactly as §6.1 derives a decision's. Coverage-state meanings, rubric anchors, cohort/scope, evidence rules, holdout rules and scoring authority are unchanged.
+
+**Two** controlled inputs changed — package schema and candidate protocol (§14). The research and scoring prompts were explicitly out of scope and keep their Amendment 1 identities; the rubric and execution system instructions keep their §15.1 identities. **These identities are the current freeze.**
+
+| Controlled input | Version | Git blob SHA after Amendment 2 | SHA-256 |
+|---|---|---|---|
+| `docs/scoring/Phase_3A_Execution_System_Instructions_v1.0.md` | 1.0 | `caa241d45f3c6619ae7b139cd0e135a8168ee009` (unchanged since §15.1) | `476168dd797fdeacb912228eac3e22fb07421d9c78187a1ba4c1904e248ad738` |
+| `docs/scoring/Phase_3A_Research_Prompt_v1.0.md` | 1.0 | `dcb5f2c580a447ac2565641342325dc33ed6092d` (unchanged since §15.2) | `d4f7e11ba031b4d4b42b23bf58025e95495172b9bc6a5de0feb3e42363994502` |
+| `docs/scoring/Phase_3A_Scoring_Prompt_v1.0.md` | 1.0 | `3d6da870cbf2c0d918c0b592d02a6cbfada9bc16` (unchanged since §15.2) | `bc1e6f2d96b2ecd82b6519f2d3c605f2a2fcf79f1a76acc5a6631af1235cd940` |
+| `docs/Game_Profile_Scoring_Rubric_v1.0.md` | 1.0 | `93524fd398099423e31f8b7f88c0efd7886c7b66` (unchanged since §15.1) | `57fde417225cb641a12d7b7dbca7b4d1be0ba2fb353c17f1f6397ff6435fbeb8` |
+| `docs/Game_Profile_Scoring_Protocol_v1.0_DRAFT.md` | candidate 1.0 | `c7ef89853d26d134f8e0fe1cc6a07aed3b5bc985` | `fcc5b7121442f9573cd434cd570065324cfcfcd86413bb8a4e0fab7792ae6f1d` |
+| `docs/schemas/Game_Profile_Scoring_Package_v1.0_DRAFT.schema.json` | 1.0 draft | `8e49d552b08eeee2bdcb2fd240d77d48ddfbafc6` | `d7cbc199d7c8afa1ddbe6da64fa7d2eb51dec03cffcb43cc3219567650ee38ac` |
+
+Harness lock-set digest over the current bytes: `284af531c7a9af28fa33af046ac2c4437f187e6b1e022e2cdc4df90cab0a0e1d`.
+
+Amendments 1 and 2 are pending exact-byte review: both designs are owner-approved, and the resulting controlled bytes and provenance must be reviewed by ChatGPT/Tomas before the implementing pull request merges and before any downstream work relies on them.
 
 Any byte change to a controlled input after final owner approval invalidates this Item 3 freeze until the preregistration is amended and re-approved.

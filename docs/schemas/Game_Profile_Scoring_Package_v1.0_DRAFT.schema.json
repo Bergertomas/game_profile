@@ -1879,10 +1879,20 @@
     "carriedForwardReattestation": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["subcriterion_key", "confidence_facts"],
+      "required": ["subcriterion_key", "confidence_facts", "coverage_observed_unit_ids", "coverage_missing_unit_ids"],
       "properties": {
         "subcriterion_key": { "$ref": "#/$defs/subcriterionKey" },
-        "confidence_facts": { "$ref": "#/$defs/confidenceFacts" }
+        "confidence_facts": { "$ref": "#/$defs/confidenceFacts" },
+        "coverage_observed_unit_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        },
+        "coverage_missing_unit_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        }
       }
     },
     "ownerApproval": {
