@@ -4,21 +4,24 @@
 - **Methodology:** Game Profile
 - **Program:** Phase 3A — Candidate Scoring Protocol calibration
 - **Date opened:** 2026-09-02
-- **Status:** **DRAFT — NOT AUTHORIZED TO SCORE**
+- **Status:** **FINAL ITEM 3 REVIEW — NOT AUTHORIZED TO SCORE**
 - **Owner / final editorial authority:** Tomas
 - **Designated scoring model:** OpenAI GPT-5.6 Sol, High reasoning
 - **Repository:** `Bergertomas/game_profile`
 
 ## 0. Purpose and approval boundary
 
-This document preregisters the Phase 3A calibration procedure before any candidate-protocol scoring begins. It converts Appendix B, the owner-approved cohort lock, ADR 0035, and the current package contract into one executable freeze record.
+This document preregisters the Phase 3A calibration procedure before any candidate-protocol scoring begins. It converts Appendix B, the owner-approved cohort lock, ADR 0035, ADR 0036, the Evidence SOP and the current package contract into one durable execution specification.
 
-Nothing in this draft authorizes D1 research/scoring merely because the file exists. Phase 3A scoring may begin only after:
+The checklist boundary is deliberately non-circular:
 
-1. all `BLOCKING BEFORE D1` items in §12 are closed;
-2. the exact preregistration commit and controlled-input digests are frozen;
-3. Tomas explicitly approves this preregistration; and
-4. the approved preregistration is merged to `main`.
+- **Item 3 freezes the calibration contract:** games/order, scope/DLC choices, evidence/corpus policy, holdout isolation, designated model/configuration, controlled prompts/methodology/schema, measurement rules and acceptance gates.
+- **Item 4 proves the implementation of that frozen contract:** API access/model identity, harness behavior, byte-identical paired inputs, strict output/schema handling, semantic validation, SHA-256 generation/verification, ledger/timing capture and failure behavior.
+- **D1 remains blocked until both Item 3 and Item 4 pass.**
+
+Therefore Item 4 is not a prerequisite for *completing Item 3*; it is a prerequisite for *starting D1*. This preserves the master checklist order without weakening any scoring gate.
+
+Nothing in this draft authorizes D1 research/scoring merely because the file exists. Item 3 completes only after its §12.1 gates close, Tomas explicitly approves the final preregistration, and the approved record is merged to `main`. D1 then remains blocked on §12.2 / Item 4.
 
 No calibration run imports or publishes production scores.
 
@@ -26,47 +29,48 @@ No calibration run imports or publishes production scores.
 
 ## 1. Authority and effective methodology
 
-The execution must use the repository state frozen by the approved preregistration commit. Subject-specific authority remains unchanged:
+Execution uses the repository state frozen by the approved preregistration merge commit. Subject-specific authority remains unchanged:
 
-- `Game_Profile_Scoring_Rubric_v1.0.md` owns dimension/subcriterion meaning and the 0–2 half-step scale.
-- `Game_Profile_Editorial_Evidence_and_Data_Sourcing_SOP_v0.2.md` owns evidence operations and the pre-release workflow where not superseded.
-- `Game_Profile_Scoring_Protocol_v1.0_DRAFT.md` + accepted amendments own the candidate evidence-to-number procedure under calibration.
-- `docs/decisions/0035-released-game-maturity-is-evidence-and-stability-based.md` supersedes the candidate protocol's old fixed twelve-month maturity sentence.
-- `docs/schemas/Game_Profile_Scoring_Package_v1.0_DRAFT.schema.json` + the semantic validator own the structured package shape/enforcement for this candidate.
+- `docs/Game_Profile_Scoring_Rubric_v1.0.md` owns dimension/subcriterion meaning and the 0–2 half-step scale.
+- `docs/Game_Profile_Editorial_Evidence_and_Data_Sourcing_SOP_v0.2.md` owns evidence operations and the pre-release workflow where not explicitly superseded.
+- `docs/Game_Profile_Scoring_Protocol_v1.0_DRAFT.md` owns the candidate evidence-to-number procedure under calibration; it remains non-governing until Appendix B passes and Tomas gives final adoption approval.
+- `docs/decisions/0035-released-game-maturity-is-evidence-and-stability-based.md` owns the corrected released-game maturity semantics and must be physically incorporated into the protocol text before Item 3 closes.
+- `docs/decisions/0036-phase3a-measured-scoring-execution-surface.md` owns the accepted measured GPT execution surface for this calibration.
+- `docs/schemas/Game_Profile_Scoring_Package_v1.0_DRAFT.schema.json` plus the protocol's semantic-validator checklist own the structured package contract.
 - `docs/Game_Profile_Phase_3A_Cohort_Lock_2026-09-02.md` owns the ten selected game identities/high-level scopes.
 - Tomas owns final methodology/editorial decisions.
 
 ### Effective maturity semantics
 
-Appendix B's mature-game gate remains. A released scope is `mature` when an explicit evidence/stability maturity review establishes that the evaluated product is sufficiently settled and understood for reliable current-state scoring. There is no minimum release age. Twelve months is a backstop review, not a waiting period or automatic promotion. Age-sensitive subcriterion evidence rules remain independent.
+Appendix B's mature-game gate remains. A released scope is `mature` when an explicit evidence/stability maturity review establishes that the evaluated product is sufficiently settled and understood for reliable current-state scoring. There is no minimum release age. Twelve months is a mandatory backstop review for scopes still `newly_released`, not a waiting period or automatic promotion. Age-sensitive subcriterion evidence rules remain independent.
 
 ### Required-facet candidate behavior during development
 
-The six development games test the candidate protocol's required-facet lower-of-two rule exactly as currently written. Facet records and parent values are retained for analysis. This does **not** make Rubric v1.1 governing. After D1–D6, Tomas must approve the required-facet rubric amendment or direct reversion before any holdout scoring; that is a separate Phase 3A gate.
+The six development games test the candidate protocol's required-facet lower-of-two rule exactly as currently written. Facet records and parent values are retained for analysis. This does **not** make Rubric v1.1 governing. After D1–D6, Tomas must approve the required-facet Rubric v1.1 amendment or direct reversion before holdout exposure; that is a separate Phase 3A gate.
 
 ---
 
-## 2. Locked cohort and run order
+## 2. Locked cohort, order and exact statistical scopes
 
-No substitution occurs without Tomas's explicit approval and a revised cohort/preregistration record.
+No title substitution or scope expansion occurs without Tomas's explicit approval and a revised durable record.
 
-### Development — score sequentially
+### Development — execute sequentially
 
-1. **D1 — Alan Wake 2** — current patched base-game/main-campaign scope; exact expansion handling pending §5 owner gate.
-2. **D2 — Battlefield 6** — core Multiplayer, current state at evidence cutoff; exact mode exclusions frozen in §5.
-3. **D3 — The Legend of Zelda: Tears of the Kingdom — Nintendo Switch 2 Edition**.
-4. **D4 — Banishers: Ghosts of New Eden** — current patched main-game scope.
-5. **D5 — Senua's Saga: Hellblade II Enhanced** — Enhanced main campaign; exact non-campaign mode exclusion frozen in §5.
-6. **D6 — Saros** — current main-game scope across PS5 and PS5 Pro technical variants unless §5 is amended before approval.
+1. **D1 — Alan Wake 2** — current patched base main campaign; `Night Springs` and `The Lake House` excluded as separate expansion scopes.
+2. **D2 — Battlefield 6** — core Multiplayer, current state at evidence cutoff, including permanent/current seasonal content that belongs to core Multiplayer; Campaign, Portal, REDSEC and other materially distinct modes excluded.
+3. **D3 — The Legend of Zelda: Tears of the Kingdom — Nintendo Switch 2 Edition** — Switch 2 Edition base adventure/current edition state.
+4. **D4 — Banishers: Ghosts of New Eden** — current patched main game.
+5. **D5 — Senua's Saga: Hellblade II Enhanced** — Enhanced main campaign and Enhanced changes applicable to it; Dark Rot challenge mode excluded.
+6. **D6 — Saros** — current main game across PS5 and PS5 Pro technical variants, with platform-specific technical handling where material; later materially distinct expansions/modes excluded unless separately approved.
 
-### Untouched holdout — execute only after candidate freeze
+### Untouched holdout — expose only after candidate freeze
 
-1. **H1 — Resident Evil 4 Remake** — exact Separate Ways/Mercenaries handling pending §5 owner gate.
-2. **H2 — Kingdom Come: Deliverance II** — exact story-expansion handling pending §5 owner gate.
-3. **H3 — Astro Bot** — exact post-launch downloadable-level handling pending §5 owner gate.
-4. **H4 — Immortals of Aveum** — current patched campaign; exact integrated endgame/NG+ handling pending §5 owner gate.
+1. **H1 — Resident Evil 4 Remake** — current patched Leon main campaign; `Separate Ways` and Mercenaries excluded.
+2. **H2 — Kingdom Come: Deliverance II** — current patched base main game; `Brushes with Death`, `Legacy of the Forge`, `Mysteria Ecclesiae` and other Expansion Pass/story DLC excluded.
+3. **H3 — Astro Bot** — main campaign/current base-game path; permanent free post-launch challenge/downloadable levels excluded from this statistical scope.
+4. **H4 — Immortals of Aveum** — current patched base campaign; NG+ and post-campaign Echollector/endgame objectives excluded as optional/endgame scope for this calibration.
 
-The identity of the holdouts is not secret from Tomas or the repository. `Untouched` means that before the candidate freeze they receive **no protocol scoring, no expected-score analysis, no rehearsal, no evidence packet, and no use as development feedback**.
+The identity of the holdouts is not secret from Tomas or the repository. `Untouched` means that before candidate freeze they receive **no protocol scoring, no expected-score analysis, no rehearsal, no evidence packet and no use as development feedback**.
 
 ---
 
@@ -76,105 +80,108 @@ The identity of the holdouts is not secret from Tomas or the repository. `Untouc
 
 During D1–D6:
 
-- development research/scoring inputs must not contain the holdout cohort-lock file, holdout-specific preregistration analysis, expected holdout outcomes, or prior Game Profile decisions for a holdout;
+- development research/scoring inputs must not contain the cohort-lock file's holdout section, holdout-specific preregistration analysis, expected holdout outcomes or prior Game Profile decisions for a holdout;
 - no holdout evidence collection occurs;
-- no holdout title is used as an anchor example to tune the candidate protocol;
-- historical public/repository content about a holdout is never supplied to a scoring context unless it later enters that holdout's frozen evidence corpus under the same source rules.
+- no holdout title is used as an anchor/example to tune protocol wording;
+- no predicted holdout score/profile is produced;
+- historical public/repository content about a holdout is never supplied to a scoring context unless it later enters that holdout's own frozen evidence corpus under the same source rules.
+
+Engineering may know the holdout identities in order to enforce isolation. A development scoring/research context may not receive them as calibration material.
 
 ### 3.2 Research/scoring separation for every game
 
 Each game uses three isolated executions:
 
 1. **Research collection pass** — constructs candidate log, source manifest, coverage frames and frozen corpus. It never scores.
-2. **Primary scoring pass** — stateless closed-corpus call; reconstructs claims/mappings/decisions independently.
+2. **Primary scoring pass** — stateless closed-corpus call; independently reconstructs claims/mappings/decisions.
 3. **Audit scoring pass** — separate stateless closed-corpus call with byte-identical semantic inputs/configuration; it cannot see primary output.
 
-The research context ends before scoring. Neither scoring pass receives the candidate/rejection log, research commentary, prior profile decisions, another pass, owner expectations, open-web access, or external review grades.
+The research context ends before scoring. Neither scoring pass receives the candidate/rejection log, research commentary, prior profile decisions, another pass, owner expectations, open-web access or external review grades.
 
 ### 3.3 Holdout exposure
 
-After D1–D6 and development analysis, the candidate protocol/prompt/schema/model configuration is frozen. **Only then** may H1 research begin. Holdout research is therefore also protected from development tuning, even though Appendix B strictly requires the freeze only before holdout scoring. This is a deliberate stronger isolation rule.
+After D1–D6, development analysis and the required launch/pre-release rehearsals, the candidate protocol/rubric decision/prompts/schema/model/configuration are frozen. **Only then** may H1 research begin. This is stronger than merely freezing before holdout scoring and makes holdout evidence itself unavailable as development feedback.
 
-Once H1 research begins, no material anchor/mapping/confidence/prompt/schema change may preserve the same holdout as acceptance evidence. Any such change returns the program to development and requires a genuinely new untouched holdout set as Appendix B requires.
+Once H1 research begins, any material anchor/mapping/confidence/prompt/schema change invalidates H1–H4 as untouched acceptance evidence. The program returns to development and requires a genuinely new holdout set under Appendix B.
 
 ---
 
 ## 4. Model/execution freeze
 
-### 4.1 Measured scoring execution surface
+### 4.1 Accepted measured execution surface
 
-The measured primary/audit passes are not ordinary ChatGPT tabs. They are executed by a small repository-controlled OpenAI API harness so the model inputs and provider-controlled configuration can be recorded exactly.
+ADR 0036 is owner-approved for Phase 3A calibration.
 
 - **Provider:** OpenAI
-- **Model ID / snapshot candidate:** `gpt-5.6-sol`
+- **Model ID:** `gpt-5.6-sol` — do not substitute moving alias `gpt-5.6`
 - **Reasoning effort:** `high`
-- **Reasoning mode:** standard (not Pro)
-- **API:** Responses API unless Item 4 verification demonstrates a contract incompatibility that requires an explicitly approved harness amendment
+- **Reasoning mode:** standard, not Pro
+- **API:** Responses API unless Item 4 demonstrates a contract incompatibility that requires a new owner-approved preregistration amendment
 - **State:** stateless; no conversation/previous-response linkage
-- **Store:** false where supported by the harness/account policy
-- **Tools for scoring:** none
-- **Tools for research:** web search only as explicitly configured by the research harness, plus deterministic local capture/hash tooling outside the scoring model
-- **Seed:** `parameter_unavailable` if the selected Responses API configuration does not expose a seed; paired calls remain independent stochastic requests as Protocol §2.3 permits
-- **Decoding/configuration:** every exposed parameter is explicitly recorded and byte-identical across the paired scoring calls except a seed if a seed becomes available
+- **Store:** false where supported by the selected API/account contract
+- **Scoring tools/network:** none
+- **Research tools:** web search only as explicitly configured by the research harness; deterministic local capture/hash tooling may run outside the model
+- **Seed:** `parameter_unavailable` when the selected endpoint exposes no seed; never fabricate one
+- **Paired configuration:** every exposed model/decoding parameter is explicitly recorded and byte-identical across paired scoring calls except a seed when one is exposed; exposed seeds must differ
 
-OpenAI's current model documentation lists `gpt-5.6-sol` under the GPT-5.6 Sol snapshot section and supports High reasoning. The harness must verify the returned model identity before a run counts. If the provider changes this contract or the returned model cannot be tied to the preregistered identifier, stop before scoring rather than substituting an alias.
+The harness must verify returned model identity before a run counts. If the provider cannot satisfy the preregistered identifier/configuration, stop rather than silently falling back to ChatGPT UI, another model, Pro mode or an engineering agent.
 
-### 4.2 Controlled instructions
+### 4.2 Controlled instruction set
 
-The API harness supplies and hashes the exact repository bytes of:
+The measured system hashes and supplies exact repository bytes for:
 
 - `docs/scoring/Phase_3A_Execution_System_Instructions_v1.0.md`
-- `docs/scoring/Phase_3A_Scoring_Prompt_v1.0.md` for both primary/audit passes
-- `docs/scoring/Phase_3A_Research_Prompt_v1.0.md` for research
-- frozen Rubric, effective Protocol/amendments and output schema
+- `docs/scoring/Phase_3A_Research_Prompt_v1.0.md`
+- `docs/scoring/Phase_3A_Scoring_Prompt_v1.0.md`
+- `docs/Game_Profile_Scoring_Rubric_v1.0.md`
+- `docs/Game_Profile_Scoring_Protocol_v1.0_DRAFT.md`
+- `docs/schemas/Game_Profile_Scoring_Package_v1.0_DRAFT.schema.json`
 
-The project-controlled execution instructions are what the package records as the system/developer-instruction digest. No hidden ChatGPT product system prompt is part of a measured API scoring run.
+The wrapper assigns `primary` or `audit` as run metadata after model output; role metadata does not alter paired semantic inputs.
 
-The wrapper assigns `primary` or `audit` as run metadata after the model output; role metadata does not change the semantic prompt/corpus supplied to the paired calls.
+The owner-approved preregistration merge commit is the byte-level source of truth. Git commit/blob identifiers freeze which bytes are approved. Item 4 must additionally compute/verify the protocol-required lowercase SHA-256 values from those exact bytes before D1; SHA-256 generation is an implementation proof, not a reason to make Item 3 depend on Item 4.
 
 ### 4.3 Engineering agents do not score
 
-Codex/Claude may implement and run the deterministic harness, capture outputs, compute digests, validate schema/semantics, measure timing, and assemble the ledger. They may not alter model output because they disagree with a score, choose an anchor, reconcile the two passes, or write owner adjudication. Any structural repair/retry is logged exactly.
+Codex/Claude may implement and run the deterministic harness, capture outputs, compute digests, validate schema/semantics, measure timing and assemble the ledger. They may not alter model output because they disagree with a score, choose an anchor, reconcile paired results or write owner adjudication. A structural failure may trigger a logged new run only under the frozen retry rules; semantic repair is never silently inserted.
 
 ---
 
-## 5. Scope and DLC/content freeze
+## 5. Owner-approved scope and DLC/content freeze
 
-The following is the **recommended preregistration scope**. Rows marked `OWNER GATE` remain blocking until Tomas explicitly approves or changes them.
+Tomas approved the recommended Phase 3A scope/execution choices on 2026-09-02. The table below is therefore frozen for this preregistration rather than a remaining owner gate.
 
-| Game | Included | Excluded / separate scope | State |
+| Game | Included statistical scope | Excluded / separate scope | State |
 |---|---|---|---|
-| D1 Alan Wake 2 | Current patched base main campaign, including free Anniversary/QoL updates | `Night Springs` and `The Lake House` expansions | **OWNER GATE** |
-| D2 Battlefield 6 | Core current Multiplayer and permanent/current seasonal core-MP content at corpus cutoff | Campaign, Portal, REDSEC or other materially distinct modes | Freeze as recommended unless owner changes |
-| D3 Zelda: Tears of the Kingdom Switch 2 Edition | Switch 2 Edition base adventure + edition-level technical/features state | No separate story DLC identified; optional companion assistance does not redefine base scope | Freeze as recommended |
-| D4 Banishers | Current patched main game | Any future materially distinct expansion/content not present at preregistration | Freeze as recommended |
-| D5 Hellblade II Enhanced | Enhanced main campaign and free Enhanced changes applicable to that campaign | Distinct Dark Rot challenge mode | Freeze as recommended |
-| D6 Saros | Current main game; PS5 + PS5 Pro technical variants in one scope with platform-specific technical handling when material | Any later materially distinct expansion/mode | Freeze as recommended |
-| H1 Resident Evil 4 Remake | Current patched Leon main campaign | `Separate Ways`; Mercenaries | **OWNER GATE** |
-| H2 Kingdom Come: Deliverance II | Current patched base main game | `Brushes with Death`, `Legacy of the Forge`, `Mysteria Ecclesiae`, and other Expansion Pass story DLC | **OWNER GATE** |
-| H3 Astro Bot | Main campaign/current base-game path | Permanent free post-launch challenge/downloadable levels | **OWNER GATE** |
-| H4 Immortals of Aveum | Current patched base campaign | NG+ and post-campaign Echollector/endgame objectives as separate optional/endgame scope for this calibration | **OWNER GATE** |
+| D1 Alan Wake 2 | Current patched base main campaign, including free Anniversary/QoL updates applicable to it | `Night Springs`; `The Lake House` | **OWNER-APPROVED 2026-09-02** |
+| D2 Battlefield 6 | Core current Multiplayer and permanent/current seasonal core-MP content at corpus cutoff | Campaign; Portal; REDSEC; other materially distinct modes | **OWNER-APPROVED 2026-09-02** |
+| D3 Zelda: Tears of the Kingdom Switch 2 Edition | Switch 2 Edition base adventure + edition-level technical/features state | No separate story DLC in this scope; optional companion assistance does not redefine base scope | **OWNER-APPROVED 2026-09-02** |
+| D4 Banishers | Current patched main game | Any later materially distinct expansion/content | **OWNER-APPROVED 2026-09-02** |
+| D5 Hellblade II Enhanced | Enhanced main campaign + free Enhanced changes applicable to that campaign | Distinct Dark Rot challenge mode | **OWNER-APPROVED 2026-09-02** |
+| D6 Saros | Current main game; PS5 + PS5 Pro technical variants with platform-specific technical handling when material | Any later materially distinct expansion/mode | **OWNER-APPROVED 2026-09-02** |
+| H1 Resident Evil 4 Remake | Current patched Leon main campaign | `Separate Ways`; Mercenaries | **OWNER-APPROVED 2026-09-02** |
+| H2 Kingdom Come: Deliverance II | Current patched base main game | `Brushes with Death`; `Legacy of the Forge`; `Mysteria Ecclesiae`; other Expansion Pass/story DLC | **OWNER-APPROVED 2026-09-02** |
+| H3 Astro Bot | Main campaign/current base-game path | Permanent free post-launch challenge/downloadable levels | **OWNER-APPROVED 2026-09-02** |
+| H4 Immortals of Aveum | Current patched base campaign | NG+; post-campaign Echollector/endgame objectives | **OWNER-APPROVED 2026-09-02** |
 
-Free patches, bug fixes, accessibility additions, platform updates and balance changes that affect the included scope are part of the current-state build even when optional expansion/mode content is excluded.
+Free patches, bug fixes, accessibility additions, platform updates and balance changes that affect an included scope are part of the current-state evaluation even when optional expansion/mode content is excluded.
 
-If an excluded expansion materially changes the base campaign through shared systems/patches, research may use first-party/current-state evidence to establish the base-build change, but may not silently score the separate expansion content itself.
+If an excluded expansion changes the base campaign through shared systems/patches, research may establish the resulting base-build state but may not silently score the separate expansion content itself.
+
+Major DLC remains eligible for a distinct nested public subpage later; exclusion here is a calibration-scope decision, not a product claim that the DLC is unimportant.
 
 ---
 
-## 6. Per-game scope/maturity freeze procedure
+## 6. Per-game scope and maturity freeze
 
 Before research starts for a game, create an immutable scope record containing every Protocol §3 field:
 
 - canonical title/slug;
-- edition;
-- profile scope key;
-- included mode(s);
-- included platform(s);
+- edition and profile scope key;
+- included mode(s) and platform(s);
 - exact build/current-state cutoff description;
-- release state;
-- pre-release basis when applicable;
-- evidence status;
-- evaluation maturity;
+- release state and pre-release basis where applicable;
+- evidence status and evaluation maturity;
 - public release date;
 - evidence cutoff rule;
 - direct-play record;
@@ -182,35 +189,43 @@ Before research starts for a game, create an immutable scope record containing e
 - profile stability state;
 - global scope state.
 
-### Maturity review for released games
+### 6.1 Released-game maturity record
 
-For every released development/holdout game, record the ADR 0035 maturity review before research scoring. At minimum record:
+Every released development/holdout scope records the ADR 0035 review before research scoring, including review date, scope/build, evidence cutoff, settlement rationale, evidence-depth expectation, material known changes in flight and resulting stability state.
 
-- review date;
-- evaluated scope/build;
-- evidence-cutoff policy;
-- why the scope is sufficiently settled;
-- evidence-depth expectation;
-- known material changes still in flight;
-- resulting stability state.
+### 6.2 Battlefield 6 preregistered maturity determination
 
-Battlefield 6 Multiplayer is already owner-accepted as mature in ADR 0035, but the per-run maturity record still captures its current-state rationale. Saros must pass the same review; it does not receive an age exception.
+- **Scope:** Battlefield 6 — core Multiplayer, current state at corpus cutoff.
+- **Review date:** 2026-09-02.
+- **Evaluation maturity:** `mature`.
+- **Preregistered stability expectation:** `bounded_change`, subject to the per-run current-state record.
+- **Basis:** ADR 0035 already contains the owner's explicit mature classification. Ongoing seasons, maps, weapons, events, modes and ordinary gunplay/balance iteration are known parts of the product's evolution rather than, by themselves, evidence that core Multiplayer is epistemically immature. Current-state research must still represent material changes and platform variance at its cutoff.
+
+### 6.3 Saros preregistered maturity determination
+
+- **Scope:** Saros current main game, PS5 family.
+- **Review date:** 2026-09-02.
+- **Evaluation maturity:** `mature` for the Appendix B development corpus.
+- **Preregistered stability expectation:** `stable`, downgraded at the per-run freeze if current evidence shows material active change.
+- **Basis:** the game has been publicly released since 2026-04-30; the review environment is already deep and diverse enough to support the normal released-game evidence standard, with substantial post-launch full-game coverage and disagreement; PS5/PS5 Pro scope is well defined; no known imminent profile-shaping overhaul is part of the preregistered scope. This classification does not relax Memory Residue/Lasting Impact elapsed-evidence gates.
+
+The per-run scope record must stop and reopen the maturity decision if the evidence cutoff reveals a material overhaul/remediation trajectory inconsistent with this preregistered determination.
 
 ---
 
 ## 7. Evidence cutoff and corpus-freeze policy
 
-There is no single calendar cutoff for all ten games because the runs are sequential and current-state evidence may evolve. Instead:
+There is no single calendar cutoff for all ten games because runs are sequential and current-state evidence may evolve.
 
-1. each game's **evidence cutoff date** is the UTC calendar date of its corpus freeze;
-2. `frozen_at` records the precise UTC timestamp;
-3. the normalized packet contains only evidence admitted under the protocol for the declared scope/current state and discovered before `frozen_at`;
-4. the exact patch/season/build/current-state interpretation is recorded in `build_cutoff`;
-5. after freeze, neither scoring pass may browse or add evidence;
-6. if a material omitted source/current-state change is discovered before adjudication, invalidate both pending scoring passes, update research, freeze a new packet and rerun both;
-7. after a game's adjudicated development result is closed, later evidence does not rewrite that run; it may create a documented development rerun only if the protocol/research packet legitimately requires it.
+1. Each game's **evidence cutoff date** is the UTC calendar date of its corpus freeze.
+2. `frozen_at` records the precise UTC timestamp.
+3. The normalized packet contains only admitted evidence for the declared scope/current state discovered before `frozen_at`.
+4. Exact patch/season/build/current-state interpretation is recorded in `build_cutoff`.
+5. After freeze, neither scoring pass may browse or add evidence.
+6. If a material omitted source/current-state change is discovered before adjudication, invalidate both pending scoring passes, update research, freeze a new packet and rerun both.
+7. After an adjudicated development result closes, later evidence does not rewrite that run; a documented rerun occurs only when protocol/research change-control requires it.
 
-For holdouts, corpus collection starts only after candidate freeze (§3.3).
+Holdout corpus collection starts only after candidate freeze under §3.3.
 
 ---
 
@@ -225,7 +240,7 @@ Research follows the effective Protocol §4 and the canonical research prompt.
 - D is watchlist/non-scoring.
 - Source count is never a vote, divisor or score input.
 - All seven query families are run or explicitly marked not applicable.
-- Candidate source/rejection log is retained outside the scoring view.
+- Candidate source/rejection log is retained outside scoring views.
 - Known material counterevidence is represented.
 - Research stops only after the protocol saturation rule is met.
 - Review grades/rankings/aggregate scores are masked from both scoring views.
@@ -241,9 +256,9 @@ For each frozen packet:
 
 1. execute one primary closed-corpus scoring call;
 2. execute one independent audit call with byte-identical semantic inputs/configuration;
-3. validate each raw output structurally before comparing it;
-4. calculate pre-adjudication differences before any editorial reconciliation;
-5. preserve primary and audit output immutably.
+3. validate each raw output structurally before comparison;
+4. calculate pre-adjudication differences before editorial reconciliation;
+5. preserve primary and audit outputs immutably.
 
 A validation retry/repair never silently replaces a run. Every retry, validation failure and human-supplied correction is logged. A correction that changes semantic scoring content invalidates the measured pair and requires a fresh independent call rather than being counted as original agreement.
 
@@ -251,19 +266,19 @@ A validation retry/repair never silently replaces a run. Every retry, validation
 
 Use Protocol §11 exactly:
 
-- exact numeric match, or both Unknown with identical nonempty missing-class set;
+- exact numeric match, or both Unknown with identical nonempty missing-class sets;
 - adjacent numeric disagreement = 0.5;
 - material = >=1.0, numeric vs Unknown, or differing Unknown missing-class sets.
 
 Measure claim inclusion/mapping/disposition and confidence agreement separately as required.
 
-### 9.3 Development adjudication/change control
+### 9.3 Development change control
 
-D1–D6 may expose repeated protocol/mapping/anchor ambiguity. Record issues without opportunistically changing the rule mid-pass. A material candidate-protocol/prompt/schema change is versioned, and affected development games are rerun under the new candidate before candidate freeze. Preserve old runs; do not overwrite them.
+D1–D6 may expose repeated protocol/mapping/anchor ambiguity. Record issues without opportunistically changing a rule mid-pair. A material candidate-protocol/prompt/schema change is versioned, and affected development games are rerun under the new candidate before candidate freeze. Preserve old runs.
 
 ### 9.4 Holdout adjudication
 
-For H1–H4, calculate all acceptance metrics across the 160 paired subcriterion decisions **before** Tomas sees/uses adjudication to finalize values. Owner adjudication can create the accountable final record but never improve the reliability metrics.
+For H1–H4, calculate all acceptance metrics across the 160 paired subcriterion decisions **before** Tomas sees/uses adjudication to finalize values. Owner adjudication creates the accountable final record but never improves reliability metrics.
 
 ---
 
@@ -292,9 +307,7 @@ Any gate failure returns the protocol to development. Any later material anchor/
 
 ## 11. Timing / effort preregistration
 
-Calibration must measure feasibility separately from provider waiting time.
-
-For each game record at minimum:
+Calibration measures editorial feasibility separately from provider/tool waiting time. For each game record at minimum:
 
 - research-pass wall-clock elapsed time;
 - research **active** orchestration/QA time;
@@ -306,59 +319,84 @@ For each game record at minimum:
 - external/provider/tool waiting time separately where measurable;
 - retries/repairs and why.
 
-Do not report provider waiting as editorial working effort. These measures feed the final Phase 3A decision on whether production profiles keep the full calibration-grade record or a reduced-but-auditable form.
+Provider waiting is not editorial working effort. These measurements feed the final Phase 3A decision on full-versus-reduced production record retention.
 
 ---
 
-## 12. Gates and unresolved items
+## 12. Gates and change-control checkpoints
 
-### BLOCKING BEFORE D1
+### 12.1 ITEM 3 — PREREGISTRATION CLOSE
 
-- [ ] **Protocol text incorporation:** physically amend `Game_Profile_Scoring_Protocol_v1.0_DRAFT.md` so ADR 0035's maturity semantics replace the obsolete fixed twelve-month sentence; add the amendment to the draft changelog. The preregistration may not freeze a knowingly contradictory effective protocol bundle.
-- [ ] **Owner scope/DLC decisions:** resolve the `OWNER GATE` rows in §5.
-- [ ] **Execution-harness proof:** Item 4 must prove the OpenAI API harness can call `gpt-5.6-sol` at `reasoning.effort=high`, return the expected model identity, run scoring with no tools/shared state, produce strict structured output or a deterministic validated equivalent, capture required manifest fields, and keep the paired semantic inputs byte-identical.
-- [ ] **Digest proof:** compute and record SHA-256 of the exact controlled system instructions, research/scoring prompts, Rubric, effective Protocol, and package schema from the freeze commit. Git blob SHAs/commit IDs are additional provenance but do not substitute for the package's SHA-256 fields.
-- [ ] **Semantic-validator readiness:** Item 4 must confirm the validator enforces the current package/protocol contract before a run can be accepted.
-- [ ] **Owner approval:** Tomas explicitly approves the final preregistration after the above items are closed.
+- [ ] **Protocol text incorporation:** physically replace the obsolete fixed twelve-month maturity sentence in `Game_Profile_Scoring_Protocol_v1.0_DRAFT.md` with ADR 0035 semantics and add the 2026-09-02 amendment to the protocol draft changelog.
+- [x] **Cohort/order:** exact D1–D6 + H1–H4 identities/order frozen.
+- [x] **Owner scope/DLC decisions:** all §5 rows owner-approved on 2026-09-02.
+- [x] **Measured execution decision:** ADR 0036 owner-approved on 2026-09-02.
+- [x] **Holdout isolation:** §3 frozen.
+- [x] **Evidence/corpus policy:** §§7–8 frozen.
+- [x] **Acceptance/timing policy:** §§9–11 frozen.
+- [x] **BF6 maturity:** owner-accepted under ADR 0035 and recorded here.
+- [ ] **Saros maturity:** final owner approval of this preregistration confirms the §6.3 determination.
+- [ ] **Controlled-byte provenance:** after the protocol amendment lands on this PR branch, record the final Git blob identifiers for the controlled inputs in §15.
+- [ ] **Final owner approval:** Tomas explicitly approves this completed Item 3 record.
+- [ ] **Merge:** approved preregistration/ADR/prompt/protocol/bootstrap set is merged to `main`.
 
-### REQUIRED AFTER D1–D6 / BEFORE HOLDOUT RESEARCH
+Item 3 completes at that merge. **The merge does not authorize D1 by itself.**
+
+### 12.2 ITEM 4 — ENGINEERING READINESS; BLOCKING BEFORE D1
+
+Item 4 must prove, against the Item 3-approved bytes:
+
+- [ ] configured OpenAI access can call `gpt-5.6-sol` with `reasoning.effort=high` and the returned model identity satisfies ADR 0036;
+- [ ] scoring calls are stateless, tool/network-free and share no prior-response context;
+- [ ] paired primary/audit semantic inputs and exposed configuration are byte-identical except an exposed differing seed;
+- [ ] structured output is accepted strictly against the canonical package/scoring-pass contract or an explicitly equivalent deterministic validated representation;
+- [ ] the semantic validator enforces the protocol/schema contract and fails closed;
+- [ ] SHA-256 is computed and verified over the exact approved controlled bytes and recorded in run manifests; Git SHA is provenance, not a substitute;
+- [ ] run ledger/timing/retry/validation-failure capture works;
+- [ ] a failed model/config/schema/digest check blocks the run rather than silently repairing/substituting;
+- [ ] API credential handling, spend controls and fixtures do not expose secrets.
+
+If Item 4 cannot prove those points, D1 does not begin; the checklist returns to the relevant methodology/engineering step.
+
+### 12.3 REQUIRED AFTER D1–D6 / BEFORE HOLDOUT EXPOSURE
 
 - [ ] analyze development ambiguity/reliability and rerun changed development cases as required;
 - [ ] Tomas decides the proposed required-facet Rubric v1.1 lower-of-two amendment or directs reversion;
+- [ ] run the mandatory launch-window and pre-release rehearsals in §13;
+- [ ] resolve any material defect exposed by development/rehearsals and rerun affected development cases;
 - [ ] freeze candidate Protocol, Rubric decision, prompts, schema, exact model/configuration and harness revision;
-- [ ] record immutable freeze commit + SHA-256 digests;
-- [ ] confirm H1–H4 remain untouched under §3;
-- [ ] run the mandatory launch-window and pre-release rehearsals before candidate freeze/holdout only in the sequence approved by the master checklist; these do not enter the 6+4 statistics and any material change they cause must occur before holdout exposure.
+- [ ] record immutable candidate-freeze commit + SHA-256 digests;
+- [ ] confirm H1–H4 remain untouched under §3.
 
-### OTHER PHASE 3A GATES, NOT BLOCKERS TO D1 SCORING
+### 12.4 OTHER PHASE 3A GATES, NOT ITEM 3 OR D1 BLOCKERS
 
 - immutable scoring-package approval lifecycle decision before migration 4 / first import;
-- full-vs-reduced production-record decision at final approval using measured effort;
-- IGDB staging readiness is separate Item 5 and cannot auto-change editorial scores.
+- full-vs-reduced production-record decision at final protocol approval using measured effort;
+- IGDB staging readiness is separate Item 5 and may create metadata/editorial-review signals but may not auto-change scores.
 
 ---
 
 ## 13. Newly released / pre-release validation outside the 6+4 statistics
 
-The mature ten-game statistical corpus does not by itself validate the product's highest-intent use case.
+The mature ten-game statistical corpus does not by itself validate the product's highest-intent release-window use case.
 
-After development scoring and before candidate freeze, Phase 3A also runs:
+After development scoring and before candidate freeze, Phase 3A runs:
 
-1. **Launch-window rehearsal:** a just-released title with moving launch evidence, provisionally The Blood of Dawnwalker if still suitable at execution time.
-2. **Pre-release estimation rehearsal:** the most decision-relevant upcoming game with sufficient showcased/hands-on/review-code evidence at execution time.
+1. **Launch-window rehearsal:** a just-released title with moving launch evidence, provisionally The Blood of Dawnwalker if suitable at execution time.
+2. **Pre-release estimation rehearsal:** the most decision-relevant upcoming game with sufficient `SHOWCASED`, `HANDS-ON` or `REVIEW-CODE` evidence at execution time.
 
-These apply the existing SOP pre-release model: evidence-bounded exact estimates, ranges or Unknown; never unsupported speculative scoring from studio reputation, trailers, hype or genre assumptions. Preserve pre-release history and reassess fresh after launch.
+These use the Evidence SOP's pre-release model: evidence-bounded exact estimates, ranges or Unknown; never unsupported speculative scoring from studio reputation, trailers, hype or genre assumptions. Preserve pre-release history and reassess fresh after launch.
 
-They do not count toward Appendix B's 160 holdout decisions. A material protocol defect discovered here must be resolved before holdout exposure.
+They do not count toward Appendix B's 160 holdout decisions. Any material protocol defect discovered here must be resolved before holdout exposure.
 
 ---
 
-## 14. Checklist state
+## 14. Master checklist state
 
 1. Baseline and source audit — **COMPLETED**
 2. Cohort reconciliation — **COMPLETED**
-3. Preregistration — **IN PROGRESS / THIS DOCUMENT**
-4. Phase 3A engineering readiness — **PENDING; supplies D1 execution-harness/validator proof**
+3. Preregistration — **IN PROGRESS / FINAL REVIEW**
+4. Phase 3A engineering readiness — **PENDING; starts only after Item 3 merge and blocks D1**
 5. IGDB staging readiness — PENDING
 6. Development run games 1–6 — PENDING
 7. Development calibration analysis + launch-window/pre-release rehearsals — PENDING
@@ -368,4 +406,21 @@ They do not count toward Appendix B's 160 holdout decisions. A material protocol
 11. Publication preparation — PENDING
 12. Deferred product follow-up / Compare parity — PENDING
 
-Item 3 is not complete until every `BLOCKING BEFORE D1` checkbox is closed and Tomas approves the frozen record.
+Do not advance Item 3 to complete until §12.1 is fully closed and the approved record is merged to `main`.
+
+---
+
+## 15. Controlled-input provenance table
+
+The exact approved merge commit will be the authoritative byte freeze. Before final Item 3 approval, populate the Git blob column from the PR head after the protocol amendment; Item 4 then derives and verifies SHA-256 from these exact bytes before D1.
+
+| Controlled input | Version | Git blob SHA at final Item 3 review | SHA-256 |
+|---|---|---|---|
+| `docs/scoring/Phase_3A_Execution_System_Instructions_v1.0.md` | 1.0 | `caa241d45f3c6619ae7b139cd0e135a8168ee009` | Item 4 proof before D1 |
+| `docs/scoring/Phase_3A_Research_Prompt_v1.0.md` | 1.0 | `401920703c9d3e8577641c3616e9c7d39bbd71a0` | Item 4 proof before D1 |
+| `docs/scoring/Phase_3A_Scoring_Prompt_v1.0.md` | 1.0 | `64ae778e1d93d9f9b0c7faa7902a447154a0bc89` | Item 4 proof before D1 |
+| `docs/Game_Profile_Scoring_Rubric_v1.0.md` | 1.0 | `93524fd398099423e31f8b7f88c0efd7886c7b66` | Item 4 proof before D1 |
+| `docs/Game_Profile_Scoring_Protocol_v1.0_DRAFT.md` | candidate 1.0 | **PENDING protocol amendment on this PR** | Item 4 proof before D1 |
+| `docs/schemas/Game_Profile_Scoring_Package_v1.0_DRAFT.schema.json` | 1.0 draft | `9cee78be1b70e463e67b1dbea51678039269918b` | Item 4 proof before D1 |
+
+Any byte change to a controlled input after final owner approval invalidates this Item 3 freeze until the preregistration is amended and re-approved.
