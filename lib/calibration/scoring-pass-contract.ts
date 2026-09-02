@@ -87,6 +87,50 @@ export function canonicalSchemaCompatibility(
 type SchemaNode = Record<string, unknown>;
 
 /**
+ * Is this subschema object-shaped for the purposes of the Structured Outputs
+ * closure rule?
+ *
+ * Deliberately broader than `type === "object"`: the live API requires
+ * `additionalProperties: false` on anything it treats as an object, and the
+ * canonical schema contains subschemas that carry `properties` WITHOUT
+ * declaring a type. Keying only off `type` is exactly the defect that produced
+ * `In context=('anyOf', '0'), 'additionalProperties' is required to be supplied
+ * and to be false.`
+ */
+function isObjectShaped(node: SchemaNode): boolean {
+  return node.type === "object" || "properties" in node;
+}
+
+/**
+ * Is this `oneOf` branch a standalone schema (a type alternative), or a bare
+ * property constraint?
+ *
+ * The canonical schema uses `oneOf` for two different jobs:
+ *
+ *  - **type unions** — `[{$ref: X}, {type: "null"}]`, `[{type:"integer"},
+ *    {const:"parameter_unavailable"}]`. These are real alternatives and must
+ *    survive as `anyOf`, or the property loses its type entirely.
+ *  - **cross-field constraints** — `retrospectiveTime.oneOf`, whose branches
+ *    carry only `properties` and narrow two of the four members ("exactly one
+ *    date basis is stored"). These are the same kind of rule as `allOf`/`if`,
+ *    which are already dropped for transport.
+ *
+ * Telling them apart matters for correctness, not tidiness. Closing a
+ * constraint branch — giving it `additionalProperties:false` and
+ * `required: [its own two keys]` — would forbid the two members the branch
+ * does not mention but the parent still requires, making the branch
+ * unsatisfiable and the whole union unsatisfiable with it. The API would then
+ * accept the schema and no model output could ever validate against it: a
+ * worse failure than the 400, because it would surface only after a measured
+ * run had been spent.
+ */
+function isTypeAlternative(branch: unknown): boolean {
+  if (branch === null || typeof branch !== "object" || Array.isArray(branch)) return false;
+  const node = branch as SchemaNode;
+  return "type" in node || "$ref" in node || "const" in node || "enum" in node;
+}
+
+/**
  * Rewrite one canonical subschema into the Structured Outputs subset.
  *
  * The transformation is deliberately mechanical and lossy in exactly one
@@ -110,12 +154,15 @@ function toStructuredOutputs(node: unknown, defs: Set<string>): unknown {
       out.$ref = `#/$defs/${name}`;
       continue;
     }
-    // `oneOf` is not in the subset; `anyOf` is, and for these schemas the
-    // branches are mutually exclusive by type, so anyOf accepts exactly the same
-    // instances. Where a branch is `{"type":"null"}` this becomes the ordinary
-    // nullable-union shape.
+    // `oneOf` is not in the subset. A type union becomes `anyOf`, which accepts
+    // exactly the same instances because the branches are disjoint by type. A
+    // property-constraint `oneOf` is dropped like any other cross-field rule —
+    // see `isTypeAlternative` for why converting it would be actively wrong.
     if (key === "oneOf") {
-      out.anyOf = (value as unknown[]).map((branch) => toStructuredOutputs(branch, defs));
+      const branches = value as unknown[];
+      if (branches.every(isTypeAlternative)) {
+        out.anyOf = branches.map((branch) => toStructuredOutputs(branch, defs));
+      }
       continue;
     }
     // Conditional and combinator keywords carry the schema's cross-field rules.
@@ -139,14 +186,96 @@ function toStructuredOutputs(node: unknown, defs: Set<string>): unknown {
     out[key] = toStructuredOutputs(value, defs);
   }
 
-  // Structured Outputs requires every declared property to be required and
-  // objects to be closed. The canonical schema already requires every property
-  // of every object it defines, so this restates rather than changes the shape.
-  if (out.type === "object" && out.properties) {
+  // Structured Outputs requires every declared property to be required and every
+  // object to be closed — at EVERY depth, including branches inside `anyOf`,
+  // items inside arrays and entries in `$defs`. The canonical schema already
+  // requires every property of every object it defines, so this restates the
+  // shape rather than changing it.
+  if (isObjectShaped(out)) {
+    out.type = "object";
+    const properties = (out.properties as SchemaNode | undefined) ?? {};
+    out.properties = properties;
     out.additionalProperties = false;
-    out.required = Object.keys(out.properties as SchemaNode);
+    out.required = Object.keys(properties);
   }
   return out;
+}
+
+export interface ClosureViolation {
+  /** JSON pointer into the derived schema. */
+  readonly pointer: string;
+  readonly reason: string;
+}
+
+/**
+ * Walk a schema destined for Structured Outputs and report every object-shaped
+ * subschema the live API would reject.
+ *
+ * This exists because the failure it catches is invisible locally: Ajv happily
+ * compiles and uses an unclosed object, so the canonical-side tests stay green
+ * while the API returns HTTP 400 before the model ever runs. The check is the
+ * local stand-in for that API rule, and `buildScoringPassSchema` runs it on
+ * every build so an invalid schema cannot leave this module.
+ */
+export function structuredOutputsClosureViolations(
+  schema: Record<string, unknown>,
+): readonly ClosureViolation[] {
+  const violations: ClosureViolation[] = [];
+  const walk = (node: unknown, pointer: string): void => {
+    if (Array.isArray(node)) {
+      node.forEach((item, index) => walk(item, `${pointer}/${index}`));
+      return;
+    }
+    if (node === null || typeof node !== "object") return;
+    const subschema = node as SchemaNode;
+
+    if (isObjectShaped(subschema)) {
+      const properties = subschema.properties as SchemaNode | undefined;
+      const declared = properties ? Object.keys(properties) : [];
+      if (subschema.additionalProperties !== false) {
+        violations.push({
+          pointer: pointer || "<root>",
+          reason: "object-shaped subschema without additionalProperties:false",
+        });
+      }
+      const required = Array.isArray(subschema.required)
+        ? (subschema.required as string[])
+        : null;
+      if (required === null) {
+        violations.push({
+          pointer: pointer || "<root>",
+          reason: "object-shaped subschema without a required list",
+        });
+      } else {
+        const missing = declared.filter((name) => !required.includes(name));
+        const extra = required.filter((name) => !declared.includes(name));
+        if (missing.length > 0 || extra.length > 0) {
+          violations.push({
+            pointer: pointer || "<root>",
+            reason:
+              "required must list exactly the declared properties" +
+              (missing.length > 0 ? `; missing ${missing.join(", ")}` : "") +
+              (extra.length > 0 ? `; undeclared ${extra.join(", ")}` : ""),
+          });
+        }
+      }
+    }
+    for (const [key, value] of Object.entries(subschema)) {
+      walk(value, `${pointer}/${key}`);
+    }
+  };
+  walk(schema, "");
+  return violations;
+}
+
+export class StructuredOutputsClosureError extends Error {
+  constructor(readonly violations: readonly ClosureViolation[]) {
+    super(
+      "Derived scoring-pass schema would be rejected by Structured Outputs:\n" +
+        violations.map((v) => `  ${v.pointer}: ${v.reason}`).join("\n"),
+    );
+    this.name = "StructuredOutputsClosureError";
+  }
 }
 
 export interface ScoringPassSchema {
@@ -197,10 +326,17 @@ export function buildScoringPassSchema(
     for (const next of found) if (!(next in defs)) queue.push(next);
   }
 
+  const schema = { ...root, $defs: defs };
+
+  // Fail closed at build time rather than at the API. A schema that violates the
+  // closure rule is never returned, so it can never reach a measured run.
+  const violations = structuredOutputsClosureViolations(schema);
+  if (violations.length > 0) throw new StructuredOutputsClosureError(violations);
+
   return {
     name: "phase3a_scoring_pass",
     strict: true,
-    schema: { ...root, $defs: defs },
+    schema,
     includedDefs: Object.keys(defs).sort(),
   };
 }
