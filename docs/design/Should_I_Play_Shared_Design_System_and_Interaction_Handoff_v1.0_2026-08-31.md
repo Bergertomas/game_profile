@@ -30,6 +30,12 @@ The implementation rule is:
 No aggregate score, hidden aggregate, winner, ranking, popularity signal,
 match percentage or red/green good/bad system may be introduced.
 
+This handoff derives from the accepted artifact; it does not replace it. Visual
+implementation and conformance work imports the canonical file named in
+[`Should_I_Play_Canonical_Design_Source.md`](Should_I_Play_Canonical_Design_Source.md)
+and judges the rendered product against those frames, not against this prose
+alone.
+
 ## 2. Source baseline and deliberate corrections
 
 ### 2.1 Measured reference frames
