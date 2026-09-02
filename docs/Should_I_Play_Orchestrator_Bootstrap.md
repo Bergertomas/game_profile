@@ -100,6 +100,13 @@ If Item 4 fails, D1 does not begin and the program returns to the relevant metho
 
 The current Compare implementation is deployed/implemented but Tomas has **not** accepted its visual/UX parity with the accepted design; owner assessment is that it is barely functional and materially short of the accepted direction. This is deferred to master-checklist Item 12 and must not derail Phase 3A unless it becomes a concrete blocker.
 
+Item 12 must also incorporate the owner-approved
+[`Freshness and accountability presentation decisions`](design/Should_I_Play_VGC_Freshness_and_Accountability_Decisions_2026-09-02.md):
+make currency, evidence classes, material disagreement and reassessment change
+more immediately legible inside the accepted Claude/Fable composition. Do not
+surface personal play/completion coverage. These are bounded presentation
+refinements, not authority to reopen the art direction or interrupt Phase 3A.
+
 ## Cross-tool handoff rule
 
 When handing work between ChatGPT, Codex, Claude web, or Claude Code:

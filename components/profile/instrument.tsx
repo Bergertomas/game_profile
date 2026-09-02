@@ -111,6 +111,12 @@ export function DimensionRow({
   const [open, setOpen] = useState(false);
   const variance = platformsForDimension(platforms, view);
   const varies = variance.notes.length > 0 || variance.overrides.length > 0;
+  // Direct-play provenance remains part of the internal evidence record, but
+  // the public product does not present personal play/completion coverage as
+  // a trust signal (owner decision, 2026-09-02).
+  const publicLinkedSources = view.linkedSources.filter(
+    ({ category }) => category !== "direct_play",
+  );
 
   return (
     <li
@@ -180,7 +186,7 @@ export function DimensionRow({
       <div id={panelId} hidden={!open} className="gp-row__panel">
         <p className="sip-prose gp-row__question">{dimension.coreQuestion}</p>
         <p className="gp-row__evidence">
-          {linkedEvidenceSummary(ledger, view.linkedSources.length)}
+          {linkedEvidenceSummary(ledger, publicLinkedSources.length)}
         </p>
 
         <ol className="gp-subs">
@@ -229,7 +235,7 @@ export function DimensionRow({
 
         <p className="sip-prose gp-row__derivation">{derivationSentence(view)}</p>
 
-        {view.linkedSources.length > 0 && (
+        {publicLinkedSources.length > 0 && (
           <ul className="gp-row__sources">
             {/* Named to match what the ledger actually holds, so this list and
                 the evidence section at the foot describe the same thing. */}
@@ -238,7 +244,7 @@ export function DimensionRow({
                 ? "Evidence classes bearing on this dimension"
                 : "Sources linked to this dimension"}
             </li>
-            {view.linkedSources.map((source) => (
+            {publicLinkedSources.map((source) => (
               <li key={source.id}>
                 {source.title}
                 <span className="gp-row__tier"> Tier {source.tier}</span>

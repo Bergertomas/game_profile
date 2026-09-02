@@ -179,8 +179,10 @@ for (const slug of SLUGS) {
         has: page.getByText("How this profile was made"),
       });
 
-      // Counts of evidence by kind, never one opaque number.
-      await expect(trust.getByText("Direct play").first()).toBeVisible();
+      // Public evidence classes are concrete without exposing whether the
+      // editor personally played/completed the game. That distinction remains
+      // internal evidence metadata.
+      await expect(trust.getByText("Direct play")).toHaveCount(0);
       await expect(trust.getByText("Critic reviews").first()).toBeVisible();
       await expect(
         trust.getByText("Source records pending").first(),

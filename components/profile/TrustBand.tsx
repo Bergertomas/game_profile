@@ -24,8 +24,12 @@ import { creditLineFor, type ProfileArtwork } from "@/lib/profile/artwork";
  *
  * ── What it says about sources ──────────────────────────────────────────────
  *
- * Counts of evidence by KIND, never one opaque number, and never a number at
- * all while the ledger is pending (SOP §6, tests/evidence-copy.test.ts). The
+ * Counts of public evidence by KIND, never one opaque number, and never a
+ * number at all while the ledger is pending (SOP §6,
+ * tests/evidence-copy.test.ts). Direct-play distinctions remain in the
+ * internal evidence record but are deliberately absent from the public
+ * projection: the product does not depend on every profile being a personal
+ * playthrough and must not imply otherwise (owner decision, 2026-09-02). The
  * provenance sentence is the accepted trust copy from the Gate B review,
  * minus its correction route: corrections@ is not yet operational (Master
  * Plan P0.10), and a page must not offer an address that does not answer.
@@ -43,6 +47,12 @@ export function TrustBand({
   const id = useId();
   const { evaluation } = profile;
   const derived = evaluation.scoreProvenance.kind === "derived";
+  const publicCategoryCounts = profile.evidence.categoryCounts.filter(
+    ({ category }) => category !== "direct_play",
+  );
+  const publicSources = evaluation.sources.filter(
+    ({ category }) => category !== "direct_play",
+  );
 
   const facts: ReadonlyArray<readonly [string, string]> = [
     ["Evidence status", EVIDENCE_STATUS_LABEL[evaluation.evidenceStatus]],
@@ -132,31 +142,23 @@ export function TrustBand({
                 (SOP §6). */}
             {evaluation.evidenceLedger === "pending" ? (
               <ul className="gp-evidence__classes">
-                {profile.evidence.categoryCounts.map(({ category }) => (
+                {publicCategoryCounts.map(({ category }) => (
                   <li key={category}>{SOURCE_CATEGORY_LABEL[category]}</li>
                 ))}
-                <li className="gp-evidence__direct">
-                  Direct play:{" "}
-                  {profile.evidence.hasDirectPlay ? "recorded" : "not recorded"}
-                </li>
               </ul>
             ) : (
               <dl className="gp-evidence__counts" data-evidence-counts="reconciled">
-                {profile.evidence.categoryCounts.map(({ category, count }) => (
+                {publicCategoryCounts.map(({ category, count }) => (
                   <div key={category}>
                     <dt>{SOURCE_CATEGORY_LABEL[category]}</dt>
                     <dd className="sip-num">{count}</dd>
                   </div>
                 ))}
-                <div>
-                  <dt>Direct play</dt>
-                  <dd>{profile.evidence.hasDirectPlay ? "Yes" : "Not yet"}</dd>
-                </div>
               </dl>
             )}
 
             <ol className="gp-evidence__sources">
-              {evaluation.sources.map((source) => (
+              {publicSources.map((source) => (
                 <li key={source.id}>
                   {source.title}
                   <span className="gp-evidence__tier"> Tier {source.tier}</span>
