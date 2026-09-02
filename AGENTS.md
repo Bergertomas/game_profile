@@ -15,6 +15,12 @@ cross-chat process for task framing, routine Git authority, review thresholds,
 verification depth, integration, and production approval. It governs how work is
 done; it does not override the product authorities below.
 
+Then read `docs/Should_I_Play_Orchestrator_Bootstrap.md`. It is the small
+cross-tool start-here index for the **current** project checkpoint: active phase,
+mandatory active records, role boundaries, and known deferred blockers. It is a
+navigation/status aid only; the governing documents it points to remain the
+authority. Verify current `main` before relying on its checkpoint summary.
+
 Before beginning material product, editorial, design, data-model, or implementation work, read:
 
 1. `docs/Game_Profile_Master_Product_and_Build_Plan_v0.9.md`
