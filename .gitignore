@@ -21,3 +21,5 @@ blob-report/
 # Generated review captures. Curated ones live in docs/screenshots/ and are tracked.
 /screenshots/
 .DS_Store
+# Phase 3A calibration run artifacts. Local, never committed (Item 4 work order §3.8).
+/calibration-runs/
