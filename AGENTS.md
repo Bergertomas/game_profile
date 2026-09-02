@@ -10,16 +10,22 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # Project authority and required reading
 
-First read `docs/Should_I_Play_Working_Agreement.md`. It is the canonical
+## Mandatory project preflight
+
+For the first **material** Should I Play? task in every new repository-native agent/session, do not make a product, methodology, scoring, architecture, data, design, publication, roadmap, or implementation decision until all of the following are true:
+
+1. Verify the current `main` HEAD rather than relying on a remembered commit.
+2. Read this `AGENTS.md`.
+3. Read `docs/Should_I_Play_Orchestrator_Bootstrap.md`.
+4. Follow the bootstrap's current-phase mandatory read set.
+5. Read the task-specific governing document(s), relevant ADRs, and affected implementation/tests before acting.
+
+If current repository authority cannot be read, disclose that limitation and stop before making a material project decision from chat/model memory alone. The bootstrap is a navigation/status aid; repository governing documents remain authoritative.
+
+Then read `docs/Should_I_Play_Working_Agreement.md`. It is the canonical
 cross-chat process for task framing, routine Git authority, review thresholds,
 verification depth, integration, and production approval. It governs how work is
 done; it does not override the product authorities below.
-
-Then read `docs/Should_I_Play_Orchestrator_Bootstrap.md`. It is the small
-cross-tool start-here index for the **current** project checkpoint: active phase,
-mandatory active records, role boundaries, and known deferred blockers. It is a
-navigation/status aid only; the governing documents it points to remain the
-authority. Verify current `main` before relying on its checkpoint summary.
 
 Before beginning material product, editorial, design, data-model, or implementation work, read:
 
