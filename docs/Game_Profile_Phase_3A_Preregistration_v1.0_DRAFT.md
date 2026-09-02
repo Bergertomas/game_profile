@@ -485,7 +485,7 @@ Tomas approved the orchestrator recommendation that adjudicated final decisions 
 
 Protocol §11.3 now records the contract, §5.2 cross-references it and §15.1(4) names it as a validator obligation: a final decision's `claim_ids`, its `endpoint_gate` scope-spanning references and its platform overrides' `claim_ids` name a `reconciled_claim_id`, which resolves through the record into the pass ledgers; the reconciled record covers every claim a final decision rests on, including on blind exact agreement; and an unresolved, duplicated or claim-less reconciled reference, or a reconciled record naming a raw claim absent from the ledger it names, is rejected. No package-global uniqueness rule is imposed on raw claim IDs and no string-prefix convention is introduced. Scoring anchors, evidence semantics, coverage-state meanings, cohort/scope, blind-pass configuration and scoring authority are unchanged.
 
-**One** controlled input changed — the candidate protocol. The package schema needed no change: `reconciledClaim` already carries `reconciled_claim_id`, `primary_claim_ids` and `audit_claim_ids`, and a final decision's `claim_ids` items already have the same `$defs/id` type, so the approved contract is representable in the current structures. Its bytes are proven unchanged, not asserted: `git diff --name-only <Amendment 2 head> -- docs/scoring docs/Game_Profile_Scoring_Rubric_v1.0.md docs/schemas` returns empty. **These identities are the current freeze.**
+**Superseded by §15.5 for the protocol; every other identity below is still current.** **One** controlled input changed — the candidate protocol. The package schema needed no change: `reconciledClaim` already carries `reconciled_claim_id`, `primary_claim_ids` and `audit_claim_ids`, and a final decision's `claim_ids` items already have the same `$defs/id` type, so the approved contract is representable in the current structures. Its bytes are proven unchanged, not asserted: `git diff --name-only <Amendment 2 head> -- docs/scoring docs/Game_Profile_Scoring_Rubric_v1.0.md docs/schemas` returns empty. **These identities are the current freeze.**
 
 | Controlled input | Version | Git blob SHA after Amendment 3 | SHA-256 |
 |---|---|---|---|
@@ -496,8 +496,27 @@ Protocol §11.3 now records the contract, §5.2 cross-references it and §15.1(4
 | `docs/Game_Profile_Scoring_Protocol_v1.0_DRAFT.md` | candidate 1.0 | `6184075aea584f7a7fcf89da5800b8bbf4f88ab7` | `dff413ddaf227496709272d0bb3e96b61d90dbb52e1500ae8e43b30a88aa6d89` |
 | `docs/schemas/Game_Profile_Scoring_Package_v1.0_DRAFT.schema.json` | 1.0 draft | `8e49d552b08eeee2bdcb2fd240d77d48ddfbafc6` (unchanged since §15.3) | `d7cbc199d7c8afa1ddbe6da64fa7d2eb51dec03cffcb43cc3219567650ee38ac` |
 
-Harness lock-set digest over the current bytes: `175df6ad60c28af9dcf41f8efdc6a89e23ddc6f02df0d58a95e1aecf65647bf3`.
+Harness lock-set digest over the Amendment 3 bytes: `175df6ad60c28af9dcf41f8efdc6a89e23ddc6f02df0d58a95e1aecf65647bf3` — **superseded by §15.5.**
 
-Amendments 1, 2 and 3 are pending exact-byte review: all three designs are owner-approved, and the resulting controlled bytes and provenance must be reviewed by ChatGPT/Tomas before the implementing pull request merges and before any downstream work relies on them.
+### 15.5 Amendment 4 — adjudication and owner-stage reference integrity (issue #44, approved 2026-09-02)
+
+Tomas approved the bounded reference-integrity closure identified by the Gate-5 forensic pass on `484150f`. Amendment 3 named the reconciled namespace for adjudicated final decisions but stopped there, and the audit found the exceptions that left: owner-override evidence still resolved against a flat union of the two pass ledgers, final and final-platform-override `insufficiency_reference_ids` were not resolved at all, endpoint-gate references were checked for existence but not for criterion or disposition, pass-level platform-override claims were not criterion-mapped, the §4.4 Tier-D rule did not follow evidence through reconciliation, and a duplicate `reconciled_claim_id` was caught only if a decision happened to reference it.
+
+Protocol §11.3 now states the closure and §15.1(4) names it. All adjudication- and owner-stage claim references name a `reconciled_claim_id`; `reconciled_claim_id` is package-unique whether or not it is referenced; disposition and admissibility decide what may satisfy a gate, so a scope-spanning §9 claim and the evidence under a numeric value or numeric owner override must reach a non-rejected claim mapped to the scored criterion, and §4.4's Tier-D bar follows evidence through reconciliation; platform-override claims are criterion-mapped in the passes and in the adjudicated set alike; and `insufficiency_reference_ids` names exactly one of four object kinds — a reconciled claim, a frozen candidate-source record, the scored criterion's own coverage frame, or a unit of that frame. Raw claim IDs remain pass-local and may collide across ledgers. This is reference integrity only: scoring anchors, evidence tiers, coverage meanings, cohort/scope, prompts, blind-pass configuration and scoring authority are unchanged.
+
+**One** controlled input changed — the candidate protocol. The package schema again needed no change: the contract is expressible in the existing `$defs/id` fields and record structures. Its bytes are proven unchanged rather than asserted: `git diff --name-only <Amendment 3 head> -- docs/scoring docs/Game_Profile_Scoring_Rubric_v1.0.md docs/schemas` returns empty. **These identities are the current freeze.**
+
+| Controlled input | Version | Git blob SHA after Amendment 4 | SHA-256 |
+|---|---|---|---|
+| `docs/scoring/Phase_3A_Execution_System_Instructions_v1.0.md` | 1.0 | `caa241d45f3c6619ae7b139cd0e135a8168ee009` (unchanged since §15.1) | `476168dd797fdeacb912228eac3e22fb07421d9c78187a1ba4c1904e248ad738` |
+| `docs/scoring/Phase_3A_Research_Prompt_v1.0.md` | 1.0 | `dcb5f2c580a447ac2565641342325dc33ed6092d` (unchanged since §15.2) | `d4f7e11ba031b4d4b42b23bf58025e95495172b9bc6a5de0feb3e42363994502` |
+| `docs/scoring/Phase_3A_Scoring_Prompt_v1.0.md` | 1.0 | `3d6da870cbf2c0d918c0b592d02a6cbfada9bc16` (unchanged since §15.2) | `bc1e6f2d96b2ecd82b6519f2d3c605f2a2fcf79f1a76acc5a6631af1235cd940` |
+| `docs/Game_Profile_Scoring_Rubric_v1.0.md` | 1.0 | `93524fd398099423e31f8b7f88c0efd7886c7b66` (unchanged since §15.1) | `57fde417225cb641a12d7b7dbca7b4d1be0ba2fb353c17f1f6397ff6435fbeb8` |
+| `docs/Game_Profile_Scoring_Protocol_v1.0_DRAFT.md` | candidate 1.0 | `3ebf7cc7636a08d5e2da0f077910d36f4421797a` | `2aeeac03f6adca9dbd457834b006fe12c536d90896b1748df96314e114ef14cf` |
+| `docs/schemas/Game_Profile_Scoring_Package_v1.0_DRAFT.schema.json` | 1.0 draft | `8e49d552b08eeee2bdcb2fd240d77d48ddfbafc6` (unchanged since §15.3) | `d7cbc199d7c8afa1ddbe6da64fa7d2eb51dec03cffcb43cc3219567650ee38ac` |
+
+Harness lock-set digest over the current bytes: `4d78ed79c02654972a96e02f0211282e0b4386ed9e93c16cf2de255375d7c2ce`.
+
+Amendments 1 through 4 are pending exact-byte review: all four designs are owner-approved, and the resulting controlled bytes and provenance must be reviewed by ChatGPT/Tomas before the implementing pull request merges and before any downstream work relies on them.
 
 Any byte change to a controlled input after final owner approval invalidates this Item 3 freeze until the preregistration is amended and re-approved.

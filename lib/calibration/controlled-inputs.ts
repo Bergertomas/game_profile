@@ -25,9 +25,13 @@ import path from "node:path";
  * carried-forward re-attestations and re-approved the schema and the protocol
  * again. Amendment 3, approved the same day, clarified in §5.2/§11.3/§15.1(4)
  * that adjudicated final decisions reference reconciled claims while raw claim
- * IDs stay pass-local; it re-approved the protocol alone. The rubric and the
- * execution system instructions were untouched by all three and keep their
- * original Item 3 identities.
+ * IDs stay pass-local; it re-approved the protocol alone. Amendment 4, approved
+ * the same day, extended that namespace to owner overrides, gave
+ * `insufficiency_reference_ids` its four permitted object kinds, and made
+ * disposition/Tier-D eligibility explicit through reconciliation; it too
+ * re-approved the protocol alone. The rubric and the execution system
+ * instructions were untouched by all four and keep their original Item 3
+ * identities.
  */
 
 /** Repository root, resolved from this file rather than from `process.cwd()`. */
@@ -72,7 +76,7 @@ export const CONTROLLED_INPUTS: readonly ControlledInput[] = [
   {
     path: "docs/Game_Profile_Scoring_Protocol_v1.0_DRAFT.md",
     role: "protocol",
-    approvedBlobSha: "6184075aea584f7a7fcf89da5800b8bbf4f88ab7",
+    approvedBlobSha: "3ebf7cc7636a08d5e2da0f077910d36f4421797a",
   },
   {
     path: "docs/schemas/Game_Profile_Scoring_Package_v1.0_DRAFT.schema.json",

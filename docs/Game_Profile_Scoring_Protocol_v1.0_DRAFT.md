@@ -1138,11 +1138,15 @@ different claim in each, and two role-blind passes over byte-identical input are
 never required to coordinate identifiers. The reconciled claim record is the
 package-level namespace that resolves this: each entry carries one
 `reconciled_claim_id` and keeps its `primary_claim_ids` and `audit_claim_ids`
-apart, so the ledger a raw ID belongs to is named by the field holding it.
+apart, so the ledger a raw ID belongs to is named by the field holding it. A
+`reconciled_claim_id` is unique within the package, whether or not any decision
+happens to reference it.
 
-Every claim reference an adjudicated final decision carries — its `claim_ids`,
-its `endpoint_gate` scope-spanning references and its platform overrides'
-`claim_ids` — names a `reconciled_claim_id`, never a raw pass claim ID. The
+Every claim reference made at adjudication or owner stage names a
+`reconciled_claim_id`, never a raw pass claim ID: an adjudicated final
+decision's `claim_ids`, its `endpoint_gate` scope-spanning references, its
+platform overrides' `claim_ids`, and the `claim_ids` an owner override records
+under §2.4. The
 reconciled record then resolves through its recorded `primary_claim_ids` and
 `audit_claim_ids` into the two pass ledgers, and every rule about the underlying
 evidence — criterion mapping, disposition, endpoint evidence, the delayed-effect
@@ -1155,6 +1159,26 @@ reconcile; recording differences is what it preserves, not the limit of what it
 contains. A reference that resolves to no reconciled record, to more than one,
 or to a record naming no claim in either ledger is rejected, as is a reconciled
 record naming a raw claim absent from the ledger it names.
+
+Where a reference must be evidence rather than a record of what was considered,
+disposition and admissibility decide, not the route the claim arrived by. A
+scope-spanning claim under §9, and the evidence a numeric value or a numeric
+owner override rests on, must reach at least one claim that is not rejected and
+that maps to the criterion being scored; and the §4.4 rule that active Tier-D
+evidence never supports a number applies to the claims reached through a
+reconciled record exactly as it applies to a pass ledger. A rejected claim
+remains part of the audit and counterevidence record; it simply cannot be what
+satisfies a gate. The same criterion mapping binds a platform override's claims,
+in the passes and in the adjudicated set alike.
+
+An `insufficiency_reference_ids` entry names one of four things and nothing
+else: a package-level `reconciled_claim_id` at adjudication stage, a
+candidate-source record in the frozen log, the scored criterion's own frozen
+coverage frame, or a unit of that frame. Another criterion's frame or unit says
+nothing about this criterion's coverage and does not resolve, a reconciled claim
+must reach evidence mapped to the criterion being marked Unknown, and rejected
+evidence does not demonstrate insufficiency. An identifier that matches none of
+these is rejected rather than accepted for being well-formed.
 
 ### 11.4 Reproducibility report
 
@@ -1470,8 +1494,9 @@ The validator has no editorial discretion. It rejects unless all are true:
 4. all seven query-family dispositions occur exactly once; source collection
    standard/reason and independent active A/B cluster counts reproduce the
    five-versus-eight-to-ten rule; source/claim/difference/override references
-   resolve, an adjudicated final decision's claim references resolving through
-   the reconciled claim record into the pass ledgers (§11.3); claim links
+   resolve, adjudication- and owner-stage claim references resolving through the
+   reconciled claim record into the pass ledgers and insufficiency references
+   naming only their four permitted object kinds (§11.3); claim links
    contain no self-reference or relation-type contradiction; no active Tier-D claim supports a numeric decision; and
    experience-tag keys are unique;
 5. numeric/Unknown conditional fields, zero reasons, anchor IDs, required-facet

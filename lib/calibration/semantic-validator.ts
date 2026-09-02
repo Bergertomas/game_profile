@@ -457,10 +457,6 @@ function checkReferenceIntegrity(pkg: ScoringPackage, log: IssueLog): void {
   const finalKeys = new Set(
     content.adjudication.final_decisions.map((decision) => decision.subcriterion_key),
   );
-  const allClaimIds = new Set([
-    ...content.primary_pass.claim_ledger.map((claim) => claim.claim_id),
-    ...content.audit_pass.claim_ledger.map((claim) => claim.claim_id),
-  ]);
   for (const [index, override] of pkg.owner_approval.override_reasons.entries()) {
     if (!finalKeys.has(override.subcriterion_key)) {
       log.add(
@@ -470,17 +466,9 @@ function checkReferenceIntegrity(pkg: ScoringPackage, log: IssueLog): void {
         `override names "${override.subcriterion_key}", which is not in the final decision set`,
       );
     }
-    for (const claimId of override.claim_ids) {
-      if (!allClaimIds.has(claimId)) {
-        log.add(
-          "reference_integrity",
-          4,
-          `owner_approval.override_reasons[${index}].claim_ids`,
-          `unresolved claim reference "${claimId}"`,
-        );
-      }
-    }
   }
+  // An owner override's claim references are adjudication-stage and resolve
+  // through the reconciled namespace, in `checkFinalClaimReferences`.
 
   // Reconciled claim records resolve into the two ledgers they reconcile.
   const primaryClaimIds = new Set(
@@ -573,85 +561,142 @@ function checkPassReferences(
     }
   }
 
+  /** One claim reference: it resolves, and it is mapped to what it supports. */
+  const checkClaimRef = (at: string, claimId: string, subcriterionKey: string): void => {
+    const claim = claims.get(claimId);
+    if (!claim) {
+      log.add("reference_integrity", 4, at, `unresolved claim reference "${claimId}"`);
+      return;
+    }
+    if (claim.subcriterion_key !== subcriterionKey) {
+      log.add(
+        "reference_integrity",
+        4,
+        at,
+        `claim "${claimId}" is mapped to ${claim.subcriterion_key} but supports a ${subcriterionKey} decision`,
+      );
+    }
+  };
+
+  // Insufficiency references point at claims, candidate-source records or the
+  // coverage frame (Protocol §6 Step 7). Every carrier that has them is
+  // checked, not only the base decision.
+  const checkInsufficiencyRef = (at: string, referenceId: string): void => {
+    if (
+      !claims.has(referenceId) &&
+      !candidateIds.has(referenceId) &&
+      !frameIds.has(referenceId) &&
+      !unitIds.has(referenceId)
+    ) {
+      log.add(
+        "reference_integrity",
+        4,
+        at,
+        `insufficiency reference "${referenceId}" resolves to no claim, candidate source or coverage frame`,
+      );
+    }
+  };
+
   for (const decision of pass.decisions) {
     const at = `${path}.decisions[${decision.subcriterion_key}]`;
     for (const claimId of decision.claim_ids) {
-      const claim = claims.get(claimId);
-      if (!claim) {
-        log.add("reference_integrity", 4, at, `unresolved claim reference "${claimId}"`);
-        continue;
-      }
-      if (claim.subcriterion_key !== decision.subcriterion_key) {
-        log.add(
-          "reference_integrity",
-          4,
-          at,
-          `claim "${claimId}" is mapped to ${claim.subcriterion_key} but supports a ${decision.subcriterion_key} decision`,
-        );
-      }
+      checkClaimRef(at, claimId, decision.subcriterion_key);
     }
-    // Insufficiency references point at claims, candidate-source records or the
-    // coverage frame (Protocol §6 Step 7).
     for (const referenceId of decision.insufficiency_reference_ids) {
-      if (
-        !claims.has(referenceId) &&
-        !candidateIds.has(referenceId) &&
-        !frameIds.has(referenceId) &&
-        !unitIds.has(referenceId)
-      ) {
+      checkInsufficiencyRef(at, referenceId);
+    }
+    // §9: "criterion-specific evidence spanning the relevant scope" — so a
+    // scope-spanning claim must map to the criterion being gated, and a
+    // rejected claim is a record of exclusion rather than evidence.
+    for (const claimId of decision.endpoint_gate?.scope_spanning_claim_ids ?? []) {
+      const gateAt = `${at}.endpoint_gate`;
+      checkClaimRef(gateAt, claimId, decision.subcriterion_key);
+      if (claims.get(claimId)?.disposition === "rejected") {
         log.add(
           "reference_integrity",
           4,
-          at,
-          `insufficiency reference "${referenceId}" resolves to no claim, candidate source or coverage frame`,
+          gateAt,
+          `rejected claim "${claimId}" cannot supply the §9 scope-spanning evidence for an endpoint`,
         );
-      }
-    }
-    for (const claimId of decision.endpoint_gate?.scope_spanning_claim_ids ?? []) {
-      if (!claims.has(claimId)) {
-        log.add("reference_integrity", 4, `${at}.endpoint_gate`, `unresolved claim "${claimId}"`);
       }
     }
     for (const override of decision.platform_overrides) {
+      const overrideAt = `${at}.platform_overrides[${override.platform_key}]`;
       for (const claimId of override.claim_ids) {
-        if (!claims.has(claimId)) {
-          log.add(
-            "reference_integrity",
-            4,
-            `${at}.platform_overrides[${override.platform_key}]`,
-            `unresolved claim "${claimId}"`,
-          );
-        }
+        checkClaimRef(overrideAt, claimId, decision.subcriterion_key);
+      }
+      for (const referenceId of override.insufficiency_reference_ids) {
+        checkInsufficiencyRef(overrideAt, referenceId);
       }
     }
   }
 }
 
-/** §15.1(4) — no active Tier-D claim supports a numeric decision. */
+/**
+ * §15.1(4) — no active Tier-D claim supports a numeric decision.
+ *
+ * The rule survives adjudication: a numeric FINAL reaches its evidence through
+ * the reconciled record (§11.3), and §4.4 does not stop applying because the
+ * claim arrived by that route. Resolving finals through the same traversal is
+ * what keeps the reconciled namespace from becoming a way around it.
+ */
 function checkTierD(pkg: ScoringPackage, log: IssueLog): void {
+  const content = pkg.scoring_content;
   const sources = new Map<string, Source>(
-    pkg.scoring_content.corpus.source_manifest.map((source) => [source.source_id, source]),
+    content.corpus.source_manifest.map((source) => [source.source_id, source]),
   );
+
+  const flagTierD = (at: string, claim: Claim, referenceId: string): void => {
+    if (claim.disposition === "rejected") return;
+    if (sources.get(claim.source_id)?.source_tier !== "D") return;
+    const via = claim.claim_id === referenceId ? "" : ` (reached through reconciled claim "${referenceId}")`;
+    log.add(
+      "reference_integrity",
+      4,
+      at,
+      `active Tier-D claim "${claim.claim_id}"${via} supports a numeric decision; Tier D never supports a number (§4.4)`,
+    );
+  };
+
   for (const [path, pass] of [
-    ["primary_pass", pkg.scoring_content.primary_pass],
-    ["audit_pass", pkg.scoring_content.audit_pass],
+    ["primary_pass", content.primary_pass],
+    ["audit_pass", content.audit_pass],
   ] as const) {
-    const claims = new Map(pass.claim_ledger.map((claim) => [claim.claim_id, claim]));
+    const resolveClaims = passClaimResolver(pass);
     for (const decision of pass.decisions) {
       if (decision.score_value_kind !== "numeric") continue;
+      const at = `${path}.decisions[${decision.subcriterion_key}]`;
       for (const claimId of decision.claim_ids) {
-        const claim = claims.get(claimId);
-        if (!claim || claim.disposition === "rejected") continue;
-        const source = sources.get(claim.source_id);
-        if (source?.source_tier === "D") {
-          log.add(
-            "reference_integrity",
-            4,
-            `${path}.decisions[${decision.subcriterion_key}]`,
-            `active Tier-D claim "${claimId}" supports a numeric decision; Tier D never supports a number (§4.4)`,
-          );
-        }
+        for (const claim of resolveClaims(claimId) ?? []) flagTierD(at, claim, claimId);
       }
+    }
+  }
+
+  const resolveFinal = finalClaimResolver(content);
+  for (const decision of content.adjudication.final_decisions) {
+    const at = `adjudication.final_decisions[${decision.subcriterion_key}]`;
+    if (decision.score_value_kind === "numeric") {
+      for (const claimId of decision.claim_ids) {
+        for (const claim of resolveFinal(claimId) ?? []) flagTierD(at, claim, claimId);
+      }
+    }
+    for (const override of decision.platform_overrides) {
+      if (override.score_value_kind !== "numeric") continue;
+      const overrideAt = `${at}.platform_overrides[${override.platform_key}]`;
+      for (const claimId of override.claim_ids) {
+        for (const claim of resolveFinal(claimId) ?? []) flagTierD(overrideAt, claim, claimId);
+      }
+    }
+  }
+
+  // An owner override selecting a number is bound by §4.4 like any other
+  // numeric value; owner authority selects among admissible evidence, it does
+  // not make inadmissible evidence admissible.
+  for (const [index, override] of pkg.owner_approval.override_reasons.entries()) {
+    if (override.selected_value.score_value_kind !== "numeric") continue;
+    const at = `owner_approval.override_reasons[${index}].claim_ids`;
+    for (const claimId of override.claim_ids) {
+      for (const claim of resolveFinal(claimId) ?? []) flagTierD(at, claim, claimId);
     }
   }
 }
@@ -1252,7 +1297,28 @@ function checkFinalClaimReferences(pkg: ScoringPackage, log: IssueLog): void {
   const content = pkg.scoring_content;
   const resolveReconciled = reconciledClaimResolver(content);
 
-  const resolve = (at: string, claimId: string, subcriterionKey: string | null): void => {
+  // §11.3 calls `reconciled_claim_id` the package-level namespace, so it must
+  // be well formed in its own right rather than only where a final happens to
+  // reference a duplicate.
+  const seen = new Set<string>();
+  for (const [index, record] of content.adjudication.reconciled_claim_record.entries()) {
+    if (seen.has(record.reconciled_claim_id)) {
+      log.add(
+        "reference_integrity",
+        4,
+        `adjudication.reconciled_claim_record[${index}]`,
+        `duplicate reconciled_claim_id "${record.reconciled_claim_id}"; the reconciled namespace is package-level (§11.3)`,
+      );
+    }
+    seen.add(record.reconciled_claim_id);
+  }
+
+  const resolve = (
+    at: string,
+    claimId: string,
+    subcriterionKey: string | null,
+    mustSupply: "evidence" | "reference" = "reference",
+  ): void => {
     const resolution = resolveReconciled(claimId);
     if (resolution.kind === "unresolved") {
       log.add(
@@ -1291,19 +1357,136 @@ function checkFinalClaimReferences(pkg: ScoringPackage, log: IssueLog): void {
         );
       }
     }
+    // Where the reference must be evidence rather than a record of what was
+    // considered, a wholly rejected record supplies nothing. §11.3: the
+    // ordinary evidence rules apply to the claims reached through a reconciled
+    // record, disposition among them.
+    if (
+      mustSupply === "evidence" &&
+      resolution.claims.every((claim) => claim.disposition === "rejected")
+    ) {
+      log.add(
+        "reference_integrity",
+        4,
+        at,
+        `reconciled claim "${claimId}" reaches only rejected claims and cannot be the evidence a numeric value or endpoint gate rests on`,
+      );
+    }
+  };
+
+  /**
+   * §6 Step 7 insufficiency references, at adjudication stage.
+   *
+   * The field is polymorphic by design, so "resolves" is not one lookup: a
+   * reference names a package-level reconciled claim, a frozen candidate-source
+   * record, the criterion's own coverage frame, or a unit of that frame.
+   * Anything else is rejected — treating an arbitrary `$defs/id` as valid is
+   * what let an Unknown final justify itself with a string.
+   *
+   * The frame and unit cases are criterion-scoped: another criterion's frame
+   * says nothing about this one's coverage. A reconciled claim must reach
+   * evidence mapped to this criterion, and rejected evidence proves nothing —
+   * a claim excluded from consideration is not proof that evidence is missing.
+   */
+  const candidateIds = new Set(
+    content.corpus.candidate_source_log.map((candidate) => candidate.candidate_id),
+  );
+  const framesByKey = new Map(
+    content.corpus.coverage_frames.map((frame) => [frame.subcriterion_key, frame]),
+  );
+  const checkInsufficiencyRef = (
+    at: string,
+    referenceId: string,
+    subcriterionKey: string,
+  ): void => {
+    const frame = framesByKey.get(subcriterionKey);
+    if (frame) {
+      if (referenceId === frame.coverage_frame_id) return;
+      if (frame.coverage_units.some((unit) => unit.unit_id === referenceId)) return;
+    }
+    if (candidateIds.has(referenceId)) return;
+
+    const resolution = resolveReconciled(referenceId);
+    if (resolution.kind === "resolved") {
+      const mapped = resolution.claims.filter(
+        (claim) => claim.subcriterion_key === subcriterionKey,
+      );
+      if (mapped.length === 0) {
+        log.add(
+          "reference_integrity",
+          4,
+          at,
+          `insufficiency reference "${referenceId}" reaches no claim mapped to ${subcriterionKey}`,
+        );
+        return;
+      }
+      if (mapped.every((claim) => claim.disposition === "rejected")) {
+        log.add(
+          "reference_integrity",
+          4,
+          at,
+          `insufficiency reference "${referenceId}" reaches only rejected claims, which do not evidence insufficiency`,
+        );
+      }
+      return;
+    }
+    if (resolution.kind === "ambiguous") {
+      log.add(
+        "reference_integrity",
+        4,
+        at,
+        `insufficiency reference "${referenceId}" matches more than one reconciled claim record`,
+      );
+      return;
+    }
+    log.add(
+      "reference_integrity",
+      4,
+      at,
+      `insufficiency reference "${referenceId}" names no reconciled claim, candidate source, or coverage frame or unit of ${subcriterionKey} (§6 Step 7)`,
+    );
   };
 
   for (const decision of content.adjudication.final_decisions) {
     const at = `adjudication.final_decisions[${decision.subcriterion_key}]`;
-    for (const claimId of decision.claim_ids) resolve(at, claimId, decision.subcriterion_key);
+    const supplies = decision.score_value_kind === "numeric" ? "evidence" : "reference";
+    for (const claimId of decision.claim_ids) {
+      resolve(at, claimId, decision.subcriterion_key, supplies);
+    }
+    for (const referenceId of decision.insufficiency_reference_ids) {
+      checkInsufficiencyRef(at, referenceId, decision.subcriterion_key);
+    }
+    // §9 wants "criterion-specific evidence spanning the relevant scope", so
+    // the gate resolves to the criterion being gated, not to any claim.
     for (const claimId of decision.endpoint_gate?.scope_spanning_claim_ids ?? []) {
-      resolve(`${at}.endpoint_gate`, claimId, null);
+      resolve(`${at}.endpoint_gate`, claimId, decision.subcriterion_key, "evidence");
     }
     for (const override of decision.platform_overrides) {
       const overrideAt = `${at}.platform_overrides[${override.platform_key}]`;
       for (const claimId of override.claim_ids) {
-        resolve(overrideAt, claimId, decision.subcriterion_key);
+        resolve(
+          overrideAt,
+          claimId,
+          decision.subcriterion_key,
+          override.score_value_kind === "numeric" ? "evidence" : "reference",
+        );
       }
+      for (const referenceId of override.insufficiency_reference_ids) {
+        checkInsufficiencyRef(overrideAt, referenceId, decision.subcriterion_key);
+      }
+    }
+  }
+
+  // §2.4: an owner override selects an evidence-supported anchor or Unknown.
+  // That evidence is adjudication-stage, so it resolves the same way a final
+  // decision's does — a raw pass claim ID must not satisfy an override merely
+  // because the same string exists in one of the two ledgers.
+  for (const [index, override] of pkg.owner_approval.override_reasons.entries()) {
+    const at = `owner_approval.override_reasons[${index}].claim_ids`;
+    const supplies =
+      override.selected_value.score_value_kind === "numeric" ? "evidence" : "reference";
+    for (const claimId of override.claim_ids) {
+      resolve(at, claimId, override.subcriterion_key, supplies);
     }
   }
 }
