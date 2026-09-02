@@ -275,6 +275,929 @@ describe("§15.1(4) reference integrity and collection standard", () => {
     expect(result.issues.some((issue) => /Tier-D claim/.test(issue.message))).toBe(true);
   });
 
+  it("resolves final-decision claim references, rejecting unresolved ones", () => {
+    const result = reject(
+      mutate((draft) => {
+        decisionIn(draft, "final", "story_hook").claim_ids = ["no-such-claim"];
+      }),
+    );
+    expect(
+      result.issues.some(
+        (issue) =>
+          issue.path.startsWith("adjudication.final_decisions") &&
+          /unresolved claim reference/.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("ACCEPTS a raw claim ID that collides across the two pass ledgers", () => {
+    // Owner decision of 2026-09-02: raw claim IDs are pass-local and a
+    // cross-pass collision "must not invalidate an otherwise valid package".
+    // Two role-blind runs over byte-identical input can naturally emit the same
+    // identifier, and requiring them not to would make them coordinate.
+    const collided = mutate((draft) => {
+      const content = draft.scoring_content as Record<string, unknown>;
+      const auditLedger = (content.audit_pass as Record<string, unknown>).claim_ledger as Record<
+        string,
+        unknown
+      >[];
+      const auditClaim = auditLedger.find(
+        (claim) => claim.claim_id === "audit-claim-story_hook-1",
+      )!;
+      auditClaim.claim_id = "primary-claim-story_hook-1";
+      decisionIn(draft, "audit_pass", "story_hook").claim_ids = ["primary-claim-story_hook-1"];
+      // The reconciled record names the collided ID on its audit side; the
+      // field it sits in says which ledger it belongs to.
+      const records = (content.adjudication as Record<string, unknown>)
+        .reconciled_claim_record as Record<string, unknown>[];
+      records.find((record) => record.reconciled_claim_id === "rec-claim-story_hook-1")!
+        .audit_claim_ids = ["primary-claim-story_hook-1"];
+    });
+    const result = validatePackageSemantics(collided);
+    expect(result.issues).toEqual([]);
+    expect(result.valid).toBe(true);
+  });
+
+  it("rejects a final decision that cites a raw pass claim ID instead of a reconciled one", () => {
+    const result = reject(
+      mutate((draft) => {
+        decisionIn(draft, "final", "story_hook").claim_ids = ["primary-claim-story_hook-1"];
+      }),
+    );
+    expect(
+      result.issues.some(
+        (issue) =>
+          issue.path.startsWith("adjudication.final_decisions") &&
+          /references a reconciled_claim_id, not a raw pass claim ID/.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects a duplicated reconciled_claim_id as ambiguous", () => {
+    const result = reject(
+      mutate((draft) => {
+        const records = (
+          (draft.scoring_content as Record<string, unknown>).adjudication as Record<string, unknown>
+        ).reconciled_claim_record as Record<string, unknown>[];
+        const original = records.find(
+          (record) => record.reconciled_claim_id === "rec-claim-story_hook-1",
+        )!;
+        records.push({ ...original, reason: "A second record claiming the same identity." });
+      }),
+    );
+    expect(
+      result.issues.some((issue) => /is recorded more than once and is ambiguous/.test(issue.message)),
+    ).toBe(true);
+  });
+
+  it("rejects a final decision resting on a reconciled record that names no claim", () => {
+    const result = reject(
+      mutate((draft) => {
+        const record = (
+          (draft.scoring_content as Record<string, unknown>).adjudication as Record<string, unknown>
+        ).reconciled_claim_record as Record<string, unknown>[];
+        const target = record.find(
+          (entry) => entry.reconciled_claim_id === "rec-claim-story_hook-1",
+        )!;
+        target.primary_claim_ids = [];
+        target.audit_claim_ids = [];
+      }),
+    );
+    expect(
+      result.issues.some((issue) => /names no primary or audit claim/.test(issue.message)),
+    ).toBe(true);
+  });
+
+  it("resolves a final ENDPOINT-GATE reference through the reconciled ledger too", () => {
+    const result = reject(
+      mutate((draft) => {
+        // The schema only allows an endpoint_gate on an endpoint value, so all
+        // three sets move to 2 in blind agreement; the only defect under test
+        // is the final gate citing a raw pass claim ID.
+        for (const set of ["primary_pass", "audit_pass", "final"] as const) {
+          const decision = decisionIn(draft, set, "story_hook");
+          decision.numeric_score = 2;
+          decision.anchor_id = "story_hook@2";
+          decision.higher_anchor_rejection = null;
+          decision.endpoint_gate = {
+            scope_spanning_claim_ids: [
+              set === "audit_pass" ? "audit-claim-story_hook-1" : "primary-claim-story_hook-1",
+            ],
+            calibration_reference: null,
+            intent_genre_check: "Placeholder intent check.",
+          };
+        }
+        const differences = (
+          (draft.scoring_content as Record<string, unknown>).adjudication as Record<string, unknown>
+        ).differences as Record<string, unknown>[];
+        const difference = differences.find((entry) => entry.subcriterion_key === "story_hook")!;
+        difference.primary_value = { score_value_kind: "numeric", numeric_score: 2 };
+        difference.audit_value = { score_value_kind: "numeric", numeric_score: 2 };
+      }),
+    );
+    expect(
+      result.issues.some(
+        (issue) =>
+          issue.path.endsWith("endpoint_gate") &&
+          /references a reconciled_claim_id, not a raw pass claim ID/.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("resolves a final PLATFORM-OVERRIDE reference through the reconciled ledger too", () => {
+    const result = reject(
+      mutate((draft) => {
+        decisionIn(draft, "final", "technical_stability").platform_overrides = [
+          {
+            platform_key: "pc",
+            score_value_kind: "numeric",
+            numeric_score: 1,
+            anchor_id: "technical_stability@1",
+            unknown_reason: null,
+            missing_coverage_classes: [],
+            insufficiency_reference_ids: [],
+            zero_reason: null,
+            rationale: "Placeholder override rationale.",
+            claim_ids: ["primary-claim-technical_stability-1"],
+            confidence_facts: {
+              coverage_state: "full",
+              conflict_state: "none",
+              stability_state: "stable",
+            },
+            subcriterion_confidence: "High",
+            coverage_observed_unit_ids: [
+              "technical_stability-u1",
+              "technical_stability-u2",
+              "technical_stability-u3",
+              "technical_stability-u4",
+            ],
+            coverage_missing_unit_ids: [],
+          },
+        ];
+      }),
+    );
+    expect(
+      result.issues.some(
+        (issue) =>
+          issue.path.includes("platform_overrides") &&
+          /references a reconciled_claim_id, not a raw pass claim ID/.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects a reconciled record naming a primary claim that is not in the primary ledger", () => {
+    const result = reject(
+      mutate((draft) => {
+        const records = (
+          (draft.scoring_content as Record<string, unknown>).adjudication as Record<string, unknown>
+        ).reconciled_claim_record as Record<string, unknown>[];
+        records.find((record) => record.reconciled_claim_id === "rec-claim-story_hook-1")!
+          .primary_claim_ids = ["audit-claim-story_hook-1"];
+      }),
+    );
+    expect(
+      result.issues.some(
+        (issue) =>
+          issue.path.startsWith("adjudication.reconciled_claim_record") &&
+          /unresolved primary claim/.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects a reconciled record naming an audit claim that is not in the audit ledger", () => {
+    const result = reject(
+      mutate((draft) => {
+        const records = (
+          (draft.scoring_content as Record<string, unknown>).adjudication as Record<string, unknown>
+        ).reconciled_claim_record as Record<string, unknown>[];
+        records.find((record) => record.reconciled_claim_id === "rec-claim-story_hook-1")!
+          .audit_claim_ids = ["primary-claim-story_hook-1"];
+      }),
+    );
+    expect(
+      result.issues.some(
+        (issue) =>
+          issue.path.startsWith("adjudication.reconciled_claim_record") &&
+          /unresolved audit claim/.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects a final decision whose reconciled claim reaches another criterion", () => {
+    const result = reject(
+      mutate((draft) => {
+        decisionIn(draft, "final", "story_hook").claim_ids = [
+          "rec-claim-character_investment-1",
+        ];
+      }),
+    );
+    expect(
+      result.issues.some(
+        (issue) =>
+          issue.path.startsWith("adjudication.final_decisions") &&
+          /mapped to character_investment/.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
+  /** Give one criterion an endpoint value in blind agreement across all sets. */
+  function withEndpoint(
+    key: string,
+    gateFor: (set: string) => string[],
+    also?: (draft: Record<string, unknown>) => void,
+  ) {
+    return mutate((draft) => {
+      for (const set of ["primary_pass", "audit_pass", "final"] as const) {
+        const decision = decisionIn(draft, set, key);
+        decision.numeric_score = 2;
+        decision.anchor_id = `${key}@2`;
+        decision.higher_anchor_rejection = null;
+        decision.endpoint_gate = {
+          scope_spanning_claim_ids: gateFor(set),
+          calibration_reference: null,
+          intent_genre_check: "Placeholder intent check.",
+        };
+      }
+      const differences = (
+        (draft.scoring_content as Record<string, unknown>).adjudication as Record<string, unknown>
+      ).differences as Record<string, unknown>[];
+      const difference = differences.find((entry) => entry.subcriterion_key === key)!;
+      difference.primary_value = { score_value_kind: "numeric", numeric_score: 2 };
+      difference.audit_value = { score_value_kind: "numeric", numeric_score: 2 };
+      also?.(draft as Record<string, unknown>);
+    });
+  }
+
+  it("requires a PASS endpoint gate to cite evidence for the criterion it gates", () => {
+    // §9: "criterion-specific evidence spanning the relevant scope."
+    const result = reject(
+      withEndpoint("story_hook", (set) => [
+        set === "audit_pass"
+          ? "audit-claim-character_investment-1"
+          : set === "final"
+            ? "rec-claim-story_hook-1"
+            : "primary-claim-character_investment-1",
+      ]),
+    );
+    // Both blind passes, so neither carrier is left unchecked.
+    for (const pass of ["primary_pass", "audit_pass"]) {
+      expect(
+        result.issues.some(
+          (issue) =>
+            issue.path === `${pass}.decisions[story_hook].endpoint_gate` &&
+            /mapped to character_investment but supports a story_hook decision/.test(issue.message),
+        ),
+        pass,
+      ).toBe(true);
+    }
+  });
+
+  it("does not let a rejected claim supply a PASS endpoint gate", () => {
+    const result = reject(
+      withEndpoint("story_hook", (set) => [
+        set === "audit_pass"
+          ? "audit-claim-story_hook-1"
+          : set === "final"
+            ? "rec-claim-story_hook-1"
+            : "primary-claim-story_hook-1",
+      ],
+        (draft) => {
+          const ledger = (
+            (draft.scoring_content as Record<string, unknown>).primary_pass as Record<
+              string,
+              unknown
+            >
+          ).claim_ledger as Record<string, unknown>[];
+          ledger.find((claim) => claim.claim_id === "primary-claim-story_hook-1")!.disposition =
+            "rejected";
+        },
+      ),
+    );
+    expect(
+      result.issues.some((issue) =>
+        /cannot supply the §9 scope-spanning evidence for an endpoint/.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("requires a FINAL endpoint gate to resolve to the gated criterion too", () => {
+    const result = reject(
+      withEndpoint("story_hook", (set) => [
+        set === "audit_pass"
+          ? "audit-claim-story_hook-1"
+          : set === "final"
+            ? "rec-claim-character_investment-1"
+            : "primary-claim-story_hook-1",
+      ]),
+    );
+    expect(
+      result.issues.some(
+        (issue) =>
+          issue.path.endsWith("endpoint_gate") &&
+          /mapped to character_investment but supporting a story_hook decision/.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("criterion-maps a PASS platform override's claims, not just their existence", () => {
+    const result = reject(
+      mutate((draft) => {
+        decisionIn(draft, "primary_pass", "technical_stability").platform_overrides = [
+          {
+            platform_key: "pc",
+            score_value_kind: "numeric",
+            numeric_score: 1,
+            anchor_id: "technical_stability@1",
+            unknown_reason: null,
+            missing_coverage_classes: [],
+            insufficiency_reference_ids: [],
+            zero_reason: null,
+            rationale: "Placeholder override rationale.",
+            claim_ids: ["primary-claim-story_hook-1"],
+            confidence_facts: {
+              coverage_state: "full",
+              conflict_state: "none",
+              stability_state: "stable",
+            },
+            subcriterion_confidence: "High",
+            coverage_observed_unit_ids: [
+              "technical_stability-u1",
+              "technical_stability-u2",
+              "technical_stability-u3",
+              "technical_stability-u4",
+            ],
+            coverage_missing_unit_ids: [],
+          },
+        ];
+      }),
+    );
+    expect(
+      result.issues.some(
+        (issue) =>
+          issue.path.includes("platform_overrides") &&
+          /mapped to story_hook but supports a technical_stability decision/.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
+  /** An Unknown platform override on a PRIMARY-pass numeric base decision. */
+  function withUnknownPassOverride(refs: string[]) {
+    return mutate((draft) => {
+      decisionIn(draft, "primary_pass", "technical_stability").platform_overrides = [
+        {
+          platform_key: "pc",
+          score_value_kind: "unknown",
+          numeric_score: null,
+          anchor_id: null,
+          unknown_reason: "late-game coverage absent on this platform",
+          missing_coverage_classes: ["temporal_stratum"],
+          insufficiency_reference_ids: refs,
+          zero_reason: null,
+          rationale: "Placeholder override rationale.",
+          claim_ids: ["primary-claim-technical_stability-1"],
+          confidence_facts: {
+            coverage_state: "materially_limited",
+            conflict_state: "none",
+            stability_state: "stable",
+          },
+          subcriterion_confidence: "Low",
+          coverage_observed_unit_ids: [
+            "technical_stability-u1",
+            "technical_stability-u2",
+            "technical_stability-u3",
+          ],
+          coverage_missing_unit_ids: ["technical_stability-u4"],
+        },
+      ];
+    });
+  }
+
+  const passInsufficiency = (key: string) =>
+    new RegExp(`names no claim, candidate source, or coverage frame or unit of ${key}`);
+
+  it.each([
+    ["its own criterion's non-rejected claim", (set: string) => [`${set.replace("_pass", "")}-claim-story_hook-1`]],
+    ["its own coverage frame", () => ["frame-story_hook"]],
+    ["one of its own frame's units", () => ["story_hook-u4"]],
+    ["a frozen candidate-source record", () => ["cand-1"]],
+  ])("ACCEPTS a PASS Unknown citing %s", (_label, refsFor) => {
+    const result = validatePackageSemantics(
+      withUnknownStoryHook(
+        ["frame-story_hook"],
+        undefined,
+        refsFor as (set: "primary_pass" | "audit_pass") => string[],
+      ),
+    );
+    expect(result.issues).toEqual([]);
+    expect(result.valid).toBe(true);
+  });
+
+  it.each([
+    ["another criterion's claim", (set: string) => [`${set.replace("_pass", "")}-claim-character_investment-1`]],
+    ["another criterion's coverage frame", () => ["frame-character_investment"]],
+    ["another criterion's coverage unit", () => ["character_investment-u4"]],
+    ["a nonexistent object", () => ["no-such-reference"]],
+  ])("rejects a PASS Unknown citing %s, on BOTH passes", (_label, refsFor) => {
+    const result = reject(
+      withUnknownStoryHook(
+        ["frame-story_hook"],
+        undefined,
+        refsFor as (set: "primary_pass" | "audit_pass") => string[],
+      ),
+    );
+    for (const pass of ["primary_pass", "audit_pass"]) {
+      expect(
+        result.issues.some(
+          (issue) =>
+            issue.path === `${pass}.decisions[story_hook]` &&
+            (passInsufficiency("story_hook").test(issue.message) ||
+              /reaches no claim mapped to story_hook/.test(issue.message)),
+        ),
+        pass,
+      ).toBe(true);
+    }
+  });
+
+  it("rejects a PASS Unknown citing a REJECTED claim of its own criterion", () => {
+    // A claim excluded from consideration is not proof that evidence is
+    // missing, so it cannot be what demonstrates insufficiency.
+    const result = reject(
+      withUnknownStoryHook(
+        ["frame-story_hook"],
+        undefined,
+        (set) => [`${set.replace("_pass", "")}-claim-story_hook-1`],
+        (draft) => {
+          const content = draft.scoring_content as Record<string, unknown>;
+          for (const passName of ["primary_pass", "audit_pass"] as const) {
+            const ledger = (content[passName] as Record<string, unknown>).claim_ledger as Record<
+              string,
+              unknown
+            >[];
+            ledger.find((claim) =>
+              String(claim.claim_id).endsWith("claim-story_hook-1"),
+            )!.disposition = "rejected";
+          }
+        },
+      ),
+    );
+    for (const pass of ["primary_pass", "audit_pass"]) {
+      expect(
+        result.issues.some(
+          (issue) =>
+            issue.path === `${pass}.decisions[story_hook]` &&
+            /reaches only rejected claims, which do not evidence insufficiency/.test(issue.message),
+        ),
+        pass,
+      ).toBe(true);
+    }
+  });
+
+  it("resolves a PASS platform override's insufficiency references, criterion-scoped", () => {
+    // Positive: the override's own frame unit is admissible evidence.
+    const accepted = validatePackageSemantics(
+      withUnknownPassOverride(["technical_stability-u4"]),
+    );
+    expect(accepted.issues).toEqual([]);
+
+    // Negative: another criterion's unit, and a string that names nothing.
+    for (const bad of ["story_hook-u4", "no-such-reference"]) {
+      const result = reject(withUnknownPassOverride([bad]));
+      expect(
+        result.issues.some(
+          (issue) =>
+            issue.path.startsWith("primary_pass") &&
+            issue.path.includes("platform_overrides") &&
+            passInsufficiency("technical_stability").test(issue.message),
+        ),
+        bad,
+      ).toBe(true);
+    }
+  });
+
+  it("rejects a numeric FINAL whose reconciled claim reaches only rejected claims", () => {
+    const result = reject(
+      mutate((draft) => {
+        const content = draft.scoring_content as Record<string, unknown>;
+        for (const passName of ["primary_pass", "audit_pass"] as const) {
+          const ledger = (content[passName] as Record<string, unknown>).claim_ledger as Record<
+            string,
+            unknown
+          >[];
+          ledger.find((claim) => String(claim.claim_id).endsWith("claim-story_hook-1"))!.disposition =
+            "rejected";
+        }
+      }),
+    );
+    expect(
+      result.issues.some((issue) =>
+        /reaches only rejected claims and cannot be the evidence/.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("keeps the Tier-D rule alive through the reconciled path on a numeric FINAL", () => {
+    const result = reject(
+      mutate((draft) => {
+        const ledger = (
+          (draft.scoring_content as Record<string, unknown>).primary_pass as Record<string, unknown>
+        ).claim_ledger as Record<string, unknown>[];
+        ledger.find((claim) => claim.claim_id === "primary-claim-story_hook-1")!.source_id =
+          "src-d-1";
+      }),
+    );
+    expect(
+      result.issues.some(
+        (issue) =>
+          issue.path.startsWith("adjudication.final_decisions") &&
+          /reached through reconciled claim "rec-claim-story_hook-1"/.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects a duplicate reconciled_claim_id no final decision references", () => {
+    // §11.3 makes it a package-level namespace, so well-formedness is not
+    // conditional on something happening to look the ID up.
+    const result = reject(
+      mutate((draft) => {
+        const records = (
+          (draft.scoring_content as Record<string, unknown>).adjudication as Record<string, unknown>
+        ).reconciled_claim_record as Record<string, unknown>[];
+        for (const suffix of ["a", "b"]) {
+          records.push({
+            reconciled_claim_id: "rec-claim-unreferenced-1",
+            primary_claim_ids: ["primary-claim-story_hook-1"],
+            audit_claim_ids: ["audit-claim-story_hook-1"],
+            resolution: "accepted",
+            reason: `An unreferenced record, copy ${suffix}.`,
+          });
+        }
+      }),
+    );
+    expect(
+      result.issues.some((issue) =>
+        /duplicate reconciled_claim_id "rec-claim-unreferenced-1"/.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
+  /**
+   * An owner override that simply re-states the agreed value, so the package
+   * stays clean and the only thing under test is where its evidence resolves.
+   */
+  function withOwnerOverride(claimIds: string[], key = "story_hook") {
+    return (draft: Record<string, unknown>) => {
+      (draft.owner_approval as Record<string, unknown>).override_reasons = [
+        {
+          subcriterion_key: key,
+          selected_value: { score_value_kind: "numeric", numeric_score: 1.5 },
+          reason: "Placeholder owner adjudication reason.",
+          claim_ids: claimIds,
+        },
+      ];
+    };
+  }
+
+  it("ACCEPTS an owner override citing a reconciled claim for its criterion", () => {
+    const result = validatePackageSemantics(
+      mutate(withOwnerOverride(["rec-claim-story_hook-1"])),
+    );
+    expect(result.issues).toEqual([]);
+    expect(result.valid).toBe(true);
+  });
+
+  it("rejects an owner override citing a raw pass claim ID", () => {
+    const result = reject(mutate(withOwnerOverride(["primary-claim-story_hook-1"])));
+    expect(
+      result.issues.some(
+        (issue) =>
+          issue.path.startsWith("owner_approval.override_reasons") &&
+          /references a reconciled_claim_id, not a raw pass claim ID/.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects an owner override whose reconciled evidence maps to another criterion", () => {
+    const result = reject(mutate(withOwnerOverride(["rec-claim-character_investment-1"])));
+    expect(
+      result.issues.some(
+        (issue) =>
+          issue.path.startsWith("owner_approval.override_reasons") &&
+          /mapped to character_investment but supporting a story_hook decision/.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("ACCEPTS an owner override when the raw claim IDs collide across ledgers", () => {
+    const result = validatePackageSemantics(
+      mutate((draft) => {
+        const content = draft.scoring_content as Record<string, unknown>;
+        const auditLedger = (content.audit_pass as Record<string, unknown>).claim_ledger as Record<
+          string,
+          unknown
+        >[];
+        auditLedger.find((claim) => claim.claim_id === "audit-claim-story_hook-1")!.claim_id =
+          "primary-claim-story_hook-1";
+        decisionIn(draft, "audit_pass", "story_hook").claim_ids = ["primary-claim-story_hook-1"];
+        const records = (content.adjudication as Record<string, unknown>)
+          .reconciled_claim_record as Record<string, unknown>[];
+        records.find((record) => record.reconciled_claim_id === "rec-claim-story_hook-1")!
+          .audit_claim_ids = ["primary-claim-story_hook-1"];
+        withOwnerOverride(["rec-claim-story_hook-1"])(draft);
+      }),
+    );
+    expect(result.issues).toEqual([]);
+    expect(result.valid).toBe(true);
+  });
+
+  it("rejects a Tier-D claim reached through a reconciled record on a numeric override", () => {
+    const result = reject(
+      mutate((draft) => {
+        const ledger = (
+          (draft.scoring_content as Record<string, unknown>).primary_pass as Record<string, unknown>
+        ).claim_ledger as Record<string, unknown>[];
+        ledger.find((claim) => claim.claim_id === "primary-claim-story_hook-1")!.source_id =
+          "src-d-1";
+        withOwnerOverride(["rec-claim-story_hook-1"])(draft);
+      }),
+    );
+    expect(
+      result.issues.some(
+        (issue) =>
+          issue.path.startsWith("owner_approval.override_reasons") &&
+          /Tier D never supports a number/.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
+  /**
+   * Turn `story_hook` Unknown across all three sets, with the given
+   * insufficiency references on the final, and carry the derivation
+   * consequences so a valid reference leaves a package that validates clean.
+   * `overrideRefs`, when given, moves the same test onto a final platform
+   * override instead of the final decision.
+   */
+  function withUnknownStoryHook(
+    finalRefs: string[],
+    overrideRefs?: string[],
+    passRefsFor: (set: "primary_pass" | "audit_pass") => string[] = () => ["frame-story_hook"],
+    also?: (draft: Record<string, unknown>) => void,
+  ) {
+    return mutate((draft) => {
+      for (const set of ["primary_pass", "audit_pass", "final"] as const) {
+        Object.assign(decisionIn(draft, set, "story_hook"), {
+          score_value_kind: "unknown",
+          numeric_score: null,
+          anchor_id: null,
+          unknown_reason: "late-game coverage absent",
+          missing_coverage_classes: ["temporal_stratum"],
+          insufficiency_reference_ids: set === "final" ? finalRefs : passRefsFor(set),
+          subcriterion_confidence: "Low",
+          zero_reason: null,
+          lower_anchor_rejection: null,
+          higher_anchor_rejection: null,
+          endpoint_gate: null,
+          claim_ids: [],
+          facet_records: [],
+          confidence_facts: {
+            coverage_state: "materially_limited",
+            conflict_state: "none",
+            stability_state: "stable",
+          },
+          coverage_observed_unit_ids: ["story_hook-u1", "story_hook-u2", "story_hook-u3"],
+          coverage_missing_unit_ids: ["story_hook-u4"],
+        });
+      }
+      if (overrideRefs) {
+        decisionIn(draft, "final", "story_hook").platform_overrides = [
+          {
+            platform_key: "pc",
+            score_value_kind: "unknown",
+            numeric_score: null,
+            anchor_id: null,
+            unknown_reason: "platform coverage absent",
+            missing_coverage_classes: ["temporal_stratum"],
+            insufficiency_reference_ids: overrideRefs,
+            zero_reason: null,
+            rationale: "Placeholder override rationale.",
+            claim_ids: ["rec-claim-story_hook-1"],
+            confidence_facts: {
+              coverage_state: "materially_limited",
+              conflict_state: "none",
+              stability_state: "stable",
+            },
+            subcriterion_confidence: "Low",
+            coverage_observed_unit_ids: ["story_hook-u1", "story_hook-u2", "story_hook-u3"],
+            coverage_missing_unit_ids: ["story_hook-u4"],
+          },
+        ];
+      }
+      const content = draft.scoring_content as Record<string, unknown>;
+      const dimensions = content.derived_dimensions as Record<string, unknown>[];
+      Object.assign(dimensions.find((d) => d.dimension_key === "story")!, {
+        dimension_result_kind: "range",
+        exact_value: null,
+        lower_bound: 6,
+        upper_bound: 8,
+        dimension_confidence: "Medium",
+      });
+      (content.overall_confidence as Record<string, unknown>).label = "Medium";
+      const differences = (content.adjudication as Record<string, unknown>)
+        .differences as Record<string, unknown>[];
+      const difference = differences.find((d) => d.subcriterion_key === "story_hook")!;
+      difference.primary_value = { score_value_kind: "unknown", numeric_score: null };
+      difference.audit_value = { score_value_kind: "unknown", numeric_score: null };
+      const summary = content.audit_summary as Record<string, unknown>;
+      summary.numeric_rate_primary = 39 / 40;
+      summary.numeric_rate_audit = 39 / 40;
+      also?.(draft);
+    });
+  }
+
+  const unresolvedInsufficiency = /names no reconciled claim, candidate source, or coverage frame or unit of story_hook/;
+
+  it.each([
+    ["its own coverage frame", ["frame-story_hook"]],
+    ["one of its own frame's coverage units", ["story_hook-u4"]],
+    ["a frozen candidate-source record", ["cand-1"]],
+    ["a reconciled claim mapped to its criterion", ["rec-claim-story_hook-1"]],
+  ])("ACCEPTS a final Unknown that cites %s", (_label, refs) => {
+    const result = validatePackageSemantics(withUnknownStoryHook(refs as string[]));
+    expect(result.issues).toEqual([]);
+    expect(result.valid).toBe(true);
+  });
+
+  it.each([
+    ["a nonexistent object", ["no-such-object"]],
+    ["another criterion's coverage frame", ["frame-character_investment"]],
+    ["another criterion's coverage unit", ["character_investment-u4"]],
+    ["a raw pass claim ID", ["primary-claim-story_hook-1"]],
+  ])("rejects a final Unknown that cites %s", (_label, refs) => {
+    const result = reject(withUnknownStoryHook(refs as string[]));
+    expect(
+      result.issues.some(
+        (issue) =>
+          issue.path.startsWith("adjudication.final_decisions") &&
+          unresolvedInsufficiency.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects a final Unknown citing a reconciled claim mapped to another criterion", () => {
+    const result = reject(withUnknownStoryHook(["rec-claim-character_investment-1"]));
+    expect(
+      result.issues.some((issue) =>
+        /reaches no claim mapped to story_hook/.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
+  /** An Unknown platform override on a numeric base, so the two values differ. */
+  function withUnknownOverride(refs: string[]) {
+    return mutate((draft) => {
+      decisionIn(draft, "final", "story_hook").platform_overrides = [
+        {
+          platform_key: "pc",
+          score_value_kind: "unknown",
+          numeric_score: null,
+          anchor_id: null,
+          unknown_reason: "late-game coverage absent on this platform",
+          missing_coverage_classes: ["temporal_stratum"],
+          insufficiency_reference_ids: refs,
+          zero_reason: null,
+          rationale: "Placeholder override rationale.",
+          claim_ids: ["rec-claim-story_hook-1"],
+          confidence_facts: {
+            coverage_state: "materially_limited",
+            conflict_state: "none",
+            stability_state: "stable",
+          },
+          subcriterion_confidence: "Low",
+          coverage_observed_unit_ids: ["story_hook-u1", "story_hook-u2", "story_hook-u3"],
+          coverage_missing_unit_ids: ["story_hook-u4"],
+        },
+      ];
+    });
+  }
+
+  it("applies the same insufficiency rules to a FINAL platform override", () => {
+    const accepted = validatePackageSemantics(withUnknownOverride(["story_hook-u4"]));
+    expect(accepted.issues).toEqual([]);
+
+    const rejected = reject(withUnknownOverride(["character_investment-u4"]));
+    expect(
+      rejected.issues.some(
+        (issue) =>
+          issue.path.includes("platform_overrides") && unresolvedInsufficiency.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("criterion-maps an AUDIT platform override's claims as well", () => {
+    const result = reject(
+      mutate((draft) => {
+        decisionIn(draft, "audit_pass", "technical_stability").platform_overrides = [
+          {
+            platform_key: "pc",
+            score_value_kind: "numeric",
+            numeric_score: 1,
+            anchor_id: "technical_stability@1",
+            unknown_reason: null,
+            missing_coverage_classes: [],
+            insufficiency_reference_ids: [],
+            zero_reason: null,
+            rationale: "Placeholder override rationale.",
+            claim_ids: ["audit-claim-story_hook-1"],
+            confidence_facts: {
+              coverage_state: "full",
+              conflict_state: "none",
+              stability_state: "stable",
+            },
+            subcriterion_confidence: "High",
+            coverage_observed_unit_ids: [
+              "technical_stability-u1",
+              "technical_stability-u2",
+              "technical_stability-u3",
+              "technical_stability-u4",
+            ],
+            coverage_missing_unit_ids: [],
+          },
+        ];
+      }),
+    );
+    expect(
+      result.issues.some(
+        (issue) =>
+          issue.path.startsWith("audit_pass") &&
+          issue.path.includes("platform_overrides") &&
+          /mapped to story_hook but supports a technical_stability decision/.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
+  /** A numeric platform override on the FINAL, whose evidence is under test. */
+  function withNumericFinalOverride(claimIds: string[], mutateLedger?: (draft: Record<string, unknown>) => void) {
+    return mutate((draft) => {
+      decisionIn(draft, "final", "technical_stability").platform_overrides = [
+        {
+          platform_key: "pc",
+          score_value_kind: "numeric",
+          numeric_score: 1,
+          anchor_id: "technical_stability@1",
+          unknown_reason: null,
+          missing_coverage_classes: [],
+          insufficiency_reference_ids: [],
+          zero_reason: null,
+          rationale: "Placeholder override rationale.",
+          claim_ids: claimIds,
+          confidence_facts: {
+            coverage_state: "full",
+            conflict_state: "none",
+            stability_state: "stable",
+          },
+          subcriterion_confidence: "High",
+          coverage_observed_unit_ids: [
+            "technical_stability-u1",
+            "technical_stability-u2",
+            "technical_stability-u3",
+            "technical_stability-u4",
+          ],
+          coverage_missing_unit_ids: [],
+        },
+      ];
+      mutateLedger?.(draft);
+    });
+  }
+
+  it("rejects a FINAL platform override whose reconciled evidence maps elsewhere", () => {
+    const result = reject(withNumericFinalOverride(["rec-claim-story_hook-1"]));
+    expect(
+      result.issues.some(
+        (issue) =>
+          issue.path.includes("platform_overrides") &&
+          /mapped to story_hook but supporting a technical_stability decision/.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects a Tier-D claim reached through reconciliation on a numeric FINAL override", () => {
+    const result = reject(
+      withNumericFinalOverride(["rec-claim-technical_stability-1"], (draft) => {
+        const ledger = (
+          (draft.scoring_content as Record<string, unknown>).primary_pass as Record<string, unknown>
+        ).claim_ledger as Record<string, unknown>[];
+        ledger.find((claim) => claim.claim_id === "primary-claim-technical_stability-1")!.source_id =
+          "src-d-1";
+      }),
+    );
+    expect(
+      result.issues.some(
+        (issue) =>
+          issue.path.includes("platform_overrides") &&
+          /reached through reconciled claim "rec-claim-technical_stability-1"/.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
   it("rejects a duplicated experience tag key", () => {
     const result = reject(
       mutate((draft) => {
@@ -363,6 +1286,13 @@ describe("§15.1(5) score records", () => {
               stability_state: "stable",
             },
             subcriterion_confidence: "High",
+            coverage_observed_unit_ids: [
+              "technical_stability-u1",
+              "technical_stability-u2",
+              "technical_stability-u3",
+              "technical_stability-u4",
+            ],
+            coverage_missing_unit_ids: [],
           },
         ];
       }),
@@ -393,6 +1323,13 @@ describe("§15.1(5) score records", () => {
               stability_state: "stable",
             },
             subcriterion_confidence: "High",
+            coverage_observed_unit_ids: [
+              "technical_stability-u1",
+              "technical_stability-u2",
+              "technical_stability-u3",
+              "technical_stability-u4",
+            ],
+            coverage_missing_unit_ids: [],
           },
         ];
       }),
@@ -465,17 +1402,29 @@ describe("§15.1(6) coverage, calendar dates and retrospective minima", () => {
     expect(result.issues.some((issue) => /does not reproduce/.test(issue.message))).toBe(true);
   });
 
-  it("rejects a coverage_state of full alongside recorded missing classes", () => {
-    const result = reject(
-      mutate((draft) => {
-        const decision = decisionIn(draft, "primary_pass", "story_hook");
+  /**
+   * Turn one decision into an Unknown with an explicit coverage partition.
+   * `missing` is the 1-based frame unit indices to record as missing; the frame
+   * marks unit 4 (late/end) `central` + `materially_limiting` and units 1–3
+   * `bounding`, so every derivation branch is reachable from one fixture.
+   */
+  function withCoverage(
+    key: string,
+    missing: number[],
+    state: "full" | "bounded" | "materially_limited",
+    sets: readonly ("primary_pass" | "audit_pass" | "final")[] = ["primary_pass"],
+  ) {
+    return mutate((draft) => {
+      for (const set of sets) {
+        const decision = decisionIn(draft, set, key);
+        const all = [1, 2, 3, 4].map((n) => `${key}-u${n}`);
         Object.assign(decision, {
           score_value_kind: "unknown",
           numeric_score: null,
           anchor_id: null,
-          unknown_reason: "late-game coverage absent",
-          missing_coverage_classes: ["temporal_stratum"],
-          insufficiency_reference_ids: ["frame-story_hook"],
+          unknown_reason: "coverage absent",
+          missing_coverage_classes: missing.length > 0 ? ["temporal_stratum"] : [],
+          insufficiency_reference_ids: [`frame-${key}`],
           subcriterion_confidence: "Low",
           zero_reason: null,
           lower_anchor_rejection: null,
@@ -483,21 +1432,251 @@ describe("§15.1(6) coverage, calendar dates and retrospective minima", () => {
           endpoint_gate: null,
           claim_ids: [],
           facet_records: [],
-          // The contradiction under test: "full" with a missing class recorded.
           confidence_facts: {
-            coverage_state: "full",
+            coverage_state: state,
             conflict_state: "none",
             stability_state: "stable",
           },
+          coverage_observed_unit_ids: all.filter(
+            (_, index) => !missing.includes(index + 1),
+          ),
+          coverage_missing_unit_ids: missing.map((n) => `${key}-u${n}`),
         });
-      }),
-    );
-    expect(result.issues.some((issue) => /contradicts recorded missing/.test(issue.message))).toBe(
-      true,
-    );
+      }
+    });
+  }
+
+  it("derives `full` when nothing relevant is missing", () => {
+    expect(validatePackageSemantics(buildValidPackage()).valid).toBe(true);
   });
 
-  it("rejects `bounded` coverage carrying a platform gap", () => {
+  it("derives `bounded` from exactly one missing bounding unit", () => {
+    const ok = withCoverage("story_hook", [2], "bounded", ["primary_pass", "audit_pass", "final"]);
+    const result = validatePackageSemantics(ok);
+    // The coverage record itself is consistent; only downstream derivation
+    // effects of turning a decision Unknown remain.
+    expect(
+      result.issues.filter((issue) => issue.family === "coverage_and_time"),
+    ).toEqual([]);
+  });
+
+  it("derives `materially_limited` from a missing late/end unit — the motivating case", () => {
+    // One missing unit, exactly as in the `bounded` case above, but this unit is
+    // the central late/end stratum. Under the pre-amendment record these two
+    // were indistinguishable.
+    const wrong = reject(withCoverage("story_hook", [4], "bounded"));
+    expect(
+      wrong.issues.some((issue) => /expected "materially_limited"/.test(issue.message)),
+    ).toBe(true);
+    const right = withCoverage("story_hook", [4], "materially_limited", [
+      "primary_pass",
+      "audit_pass",
+      "final",
+    ]);
+    expect(
+      validatePackageSemantics(right).issues.filter(
+        (issue) => issue.family === "coverage_and_time",
+      ),
+    ).toEqual([]);
+  });
+
+  it("derives `materially_limited` from two missing bounding units", () => {
+    const wrong = reject(withCoverage("story_hook", [1, 2], "bounded"));
+    expect(
+      wrong.issues.some((issue) => /expected "materially_limited"/.test(issue.message)),
+    ).toBe(true);
+  });
+
+  it("rejects an asserted coverage_state that does not derive", () => {
+    // A numeric decision with nothing missing: the only honest state is `full`.
+    const result = reject(
+      mutate((draft) => {
+        const decision = decisionIn(draft, "primary_pass", "story_hook");
+        decision.confidence_facts = {
+          coverage_state: "materially_limited",
+          conflict_state: "none",
+          stability_state: "stable",
+        };
+        decision.subcriterion_confidence = "Low";
+      }),
+    );
+    expect(
+      result.issues.some((issue) => /does not derive from the missing units/.test(issue.message)),
+    ).toBe(true);
+  });
+
+  it("rejects overlapping observed and missing lists", () => {
+    const result = reject(
+      mutate((draft) => {
+        const decision = decisionIn(draft, "primary_pass", "story_hook");
+        decision.coverage_missing_unit_ids = ["story_hook-u1"];
+      }),
+    );
+    expect(
+      result.issues.some((issue) => /both observed and missing/.test(issue.message)),
+    ).toBe(true);
+  });
+
+  it("rejects a partition that does not cover the whole frozen frame", () => {
+    const result = reject(
+      mutate((draft) => {
+        const decision = decisionIn(draft, "primary_pass", "story_hook");
+        // Silently drop a unit from accounting — the audit hole the three-state
+        // `omission_effect` exists to close.
+        decision.coverage_observed_unit_ids = ["story_hook-u1", "story_hook-u2", "story_hook-u3"];
+      }),
+    );
+    expect(
+      result.issues.some((issue) => /in neither coverage list: story_hook-u4/.test(issue.message)),
+    ).toBe(true);
+  });
+
+  it("rejects a coverage unit id that is not in the frozen frame", () => {
+    const result = reject(
+      mutate((draft) => {
+        const decision = decisionIn(draft, "primary_pass", "story_hook");
+        decision.coverage_observed_unit_ids = [
+          ...(decision.coverage_observed_unit_ids as string[]),
+          "not-a-frame-unit",
+        ];
+      }),
+    );
+    expect(
+      result.issues.some((issue) => /is not in the frozen frame/.test(issue.message)),
+    ).toBe(true);
+  });
+
+  it("rejects a numeric value with no observed coverage unit", () => {
+    const result = reject(
+      mutate((draft) => {
+        const decision = decisionIn(draft, "primary_pass", "story_hook");
+        decision.coverage_observed_unit_ids = [];
+        decision.coverage_missing_unit_ids = [1, 2, 3, 4].map((n) => `story_hook-u${n}`);
+      }),
+    );
+    expect(
+      result.issues.some((issue) => /requires at least one observed coverage unit/.test(issue.message)),
+    ).toBe(true);
+  });
+
+  it("rejects a unit a linked non-rejected claim observed being marked missing", () => {
+    const result = reject(
+      mutate((draft) => {
+        const decision = decisionIn(draft, "primary_pass", "story_hook");
+        // The fixture's claim observes u1 and u2.
+        decision.coverage_observed_unit_ids = ["story_hook-u2", "story_hook-u3", "story_hook-u4"];
+        decision.coverage_missing_unit_ids = ["story_hook-u1"];
+      }),
+    );
+    expect(
+      result.issues.some((issue) => /which this record marks missing/.test(issue.message)),
+    ).toBe(true);
+  });
+
+  it("applies the claim/coverage invariant to FINAL decisions too", () => {
+    // Regression for the review finding: final decisions were passed a null
+    // claim lookup, so this invariant was silently unenforced on the very set
+    // that feeds derivation. The finals now reach their claims through the
+    // reconciled record, so this also covers that traversal.
+    const result = reject(
+      mutate((draft) => {
+        const decision = decisionIn(draft, "final", "story_hook");
+        // The linked claim observes u1 and u2.
+        decision.coverage_observed_unit_ids = ["story_hook-u2", "story_hook-u3", "story_hook-u4"];
+        decision.coverage_missing_unit_ids = ["story_hook-u1"];
+      }),
+    );
+    expect(
+      result.issues.some(
+        (issue) =>
+          issue.path.startsWith("adjudication.final_decisions") &&
+          /which this record marks missing/.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("applies it to a FINAL platform override as well", () => {
+    const result = reject(
+      mutate((draft) => {
+        decisionIn(draft, "final", "technical_stability").platform_overrides = [
+          {
+            platform_key: "pc",
+            score_value_kind: "numeric",
+            numeric_score: 1,
+            anchor_id: "technical_stability@1",
+            unknown_reason: null,
+            missing_coverage_classes: [],
+            insufficiency_reference_ids: [],
+            zero_reason: null,
+            rationale: "Placeholder override rationale.",
+            claim_ids: ["rec-claim-technical_stability-1"],
+            confidence_facts: {
+              coverage_state: "full",
+              conflict_state: "none",
+              stability_state: "stable",
+            },
+            subcriterion_confidence: "High",
+            // Marks a unit the linked claim observes as missing.
+            coverage_observed_unit_ids: [
+              "technical_stability-u2",
+              "technical_stability-u3",
+              "technical_stability-u4",
+            ],
+            coverage_missing_unit_ids: ["technical_stability-u1"],
+          },
+        ];
+      }),
+    );
+    expect(
+      result.issues.some(
+        (issue) =>
+          issue.path.includes("final_decisions") &&
+          issue.path.includes("platform_overrides") &&
+          /which this record marks missing/.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects a central frame unit frozen with a weaker omission effect", () => {
+    const result = reject(
+      mutate((draft) => {
+        const frames = (
+          (draft.scoring_content as Record<string, unknown>).corpus as Record<string, unknown>
+        ).coverage_frames as Record<string, unknown>[];
+        const units = frames[0]!.coverage_units as Record<string, unknown>[];
+        const central = units.find((unit) => unit.centrality === "central")!;
+        central.omission_effect = "bounding";
+      }),
+    );
+    expect(
+      result.issues.some((issue) => /must be materially_limiting/.test(issue.message)),
+    ).toBe(true);
+  });
+
+  it("does not let a missing nonlimiting unit lower coverage or create a class", () => {
+    const relaxed = mutate((draft) => {
+      const frames = (
+        (draft.scoring_content as Record<string, unknown>).corpus as Record<string, unknown>
+      ).coverage_frames as Record<string, unknown>[];
+      const frame = frames.find((f) => f.subcriterion_key === "story_hook")!;
+      const units = frame.coverage_units as Record<string, unknown>[];
+      units.find((unit) => unit.unit_id === "story_hook-u3")!.omission_effect = "nonlimiting";
+      for (const set of ["primary_pass", "audit_pass", "final"] as const) {
+        const decision = decisionIn(draft, set, "story_hook");
+        decision.coverage_observed_unit_ids = ["story_hook-u1", "story_hook-u2", "story_hook-u4"];
+        decision.coverage_missing_unit_ids = ["story_hook-u3"];
+      }
+    });
+    // Still `full`: a missing nonlimiting unit does not reduce coverage, and
+    // it contributes no insufficiency class.
+    expect(
+      validatePackageSemantics(relaxed).issues.filter(
+        (issue) => issue.family === "coverage_and_time",
+      ),
+    ).toEqual([]);
+  });
+
+  it("requires frame-bound missing classes to match the contributing missing units", () => {
     const result = reject(
       mutate((draft) => {
         const decision = decisionIn(draft, "primary_pass", "story_hook");
@@ -505,8 +1684,9 @@ describe("§15.1(6) coverage, calendar dates and retrospective minima", () => {
           score_value_kind: "unknown",
           numeric_score: null,
           anchor_id: null,
-          unknown_reason: "platform coverage absent",
-          missing_coverage_classes: ["platform"],
+          unknown_reason: "coverage absent",
+          // Claims a mode gap the missing units do not support.
+          missing_coverage_classes: ["mode"],
           insufficiency_reference_ids: ["frame-story_hook"],
           subcriterion_confidence: "Low",
           zero_reason: null,
@@ -520,12 +1700,14 @@ describe("§15.1(6) coverage, calendar dates and retrospective minima", () => {
             conflict_state: "none",
             stability_state: "stable",
           },
+          coverage_observed_unit_ids: ["story_hook-u1", "story_hook-u3", "story_hook-u4"],
+          coverage_missing_unit_ids: ["story_hook-u2"],
         });
       }),
     );
-    expect(result.issues.some((issue) => /that is materially_limited/.test(issue.message))).toBe(
-      true,
-    );
+    expect(
+      result.issues.some((issue) => /do not match the contributing missing units/.test(issue.message)),
+    ).toBe(true);
   });
 
   it("rejects a delayed-effect value that lacks two independent retrospective claims", () => {
@@ -868,6 +2050,9 @@ describe("§15.1(8) derivation", () => {
             conflict_state: "none",
             stability_state: "stable",
           },
+          // The late/end unit is missing, which derives to materially_limited.
+          coverage_observed_unit_ids: ["story_hook-u1", "story_hook-u2", "story_hook-u3"],
+          coverage_missing_unit_ids: ["story_hook-u4"],
         });
       }
       const content = draft.scoring_content as Record<string, unknown>;
@@ -991,6 +2176,63 @@ describe("§15.1(9) reassessment", () => {
     ).toBe(true);
   });
 
+  it("derives a carried-forward re-attestation's coverage state, never accepts it asserted", () => {
+    // Amendment 2. `mergedDecisions` feeds these facts into dimension and
+    // confidence derivation, so an asserted coverage state here would leave the
+    // assertion-only path open on exactly the keys a bounded reassessment does
+    // not rescore.
+    const bounded = boundedReassessment({
+      mutateCarried: (carried) => {
+        // Late/end unit missing derives to materially_limited, not `full`.
+        const entry = carried.find((c) => c.subcriterion_key === "mood_strength")!;
+        entry.coverage_observed_unit_ids = [
+          "mood_strength-u1",
+          "mood_strength-u2",
+          "mood_strength-u3",
+        ];
+        entry.coverage_missing_unit_ids = ["mood_strength-u4"];
+      },
+    });
+    const result = validatePackageSemantics(bounded, { baseline: buildValidPackage() });
+    expect(result.valid).toBe(false);
+    expect(
+      result.issues.some((issue) =>
+        /re-attested coverage_state "full" does not derive/.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("requires the re-attestation to account for the whole new frame", () => {
+    const bounded = boundedReassessment({
+      mutateCarried: (carried) => {
+        const entry = carried.find((c) => c.subcriterion_key === "mood_strength")!;
+        entry.coverage_observed_unit_ids = ["mood_strength-u1", "mood_strength-u2"];
+      },
+    });
+    const result = validatePackageSemantics(bounded, { baseline: buildValidPackage() });
+    expect(result.valid).toBe(false);
+    expect(
+      result.issues.some((issue) => /must account for the whole new frame/.test(issue.message)),
+    ).toBe(true);
+  });
+
+  it("rejects a re-attestation naming a unit outside the new frozen frame", () => {
+    const bounded = boundedReassessment({
+      mutateCarried: (carried) => {
+        const entry = carried.find((c) => c.subcriterion_key === "mood_strength")!;
+        entry.coverage_observed_unit_ids = [
+          ...(entry.coverage_observed_unit_ids as string[]),
+          "not-a-frame-unit",
+        ];
+      },
+    });
+    const result = validatePackageSemantics(bounded, { baseline: buildValidPackage() });
+    expect(result.valid).toBe(false);
+    expect(
+      result.issues.some((issue) => /not in the new frozen frame/.test(issue.message)),
+    ).toBe(true);
+  });
+
   it("rejects a baseline whose digest is not the one the package names", () => {
     const bounded = boundedReassessment();
     const otherBaseline = mutate((draft) => {
@@ -1009,7 +2251,11 @@ describe("§15.1(9) reassessment", () => {
  * §14's graph adds its one-hop neighbour `opening_effectiveness`.
  */
 function boundedReassessment(
-  options: { readonly affectedOverride?: string[]; readonly dropOneCarriedForward?: boolean } = {},
+  options: {
+    readonly affectedOverride?: string[];
+    readonly dropOneCarriedForward?: boolean;
+    readonly mutateCarried?: (carried: Record<string, unknown>[]) => void;
+  } = {},
 ): ScoringPackage {
   const baseline = buildValidPackage();
   const affected = options.affectedOverride ?? ["story_hook", "opening_effectiveness"];
@@ -1043,6 +2289,8 @@ function boundedReassessment(
     const complement = (buildValidPackage().scoring_content.adjudication.final_decisions ?? [])
       .map((decision) => decision.subcriterion_key)
       .filter((key) => !affected.includes(key));
+    // Amendment 2: a carried-forward key is re-attested against the NEW frozen
+    // frame and its coverage derived, not inherited from the baseline.
     const carried = complement.map((key) => ({
       subcriterion_key: key,
       confidence_facts: {
@@ -1050,8 +2298,11 @@ function boundedReassessment(
         conflict_state: "none",
         stability_state: "stable",
       },
+      coverage_observed_unit_ids: [1, 2, 3, 4].map((n) => `${key}-u${n}`),
+      coverage_missing_unit_ids: [],
     }));
     if (options.dropOneCarriedForward) carried.pop();
+    if (options.mutateCarried) options.mutateCarried(carried as unknown as Record<string, unknown>[]);
 
     content.reassessment_record = {
       trigger: "major_patch",

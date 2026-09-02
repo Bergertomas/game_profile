@@ -39,6 +39,20 @@ describe("the six Item 3 controlled inputs", () => {
     }
   });
 
+  it("keeps the rubric and execution instructions at their original Item 3 identities", () => {
+    // Amendment 1 (issue #44) touched four of the six controlled inputs. This
+    // pins the other two to the blob SHAs recorded at the Item 3 final review,
+    // so the amendment's blast-radius claim is enforced rather than asserted in
+    // prose.
+    const byRole = new Map(CONTROLLED_INPUTS.map((input) => [input.role, input]));
+    expect(byRole.get("rubric")!.approvedBlobSha).toBe(
+      "93524fd398099423e31f8b7f88c0efd7886c7b66",
+    );
+    expect(byRole.get("system_instructions")!.approvedBlobSha).toBe(
+      "caa241d45f3c6619ae7b139cd0e135a8168ee009",
+    );
+  });
+
   it("computes lowercase SHA-256 over the exact bytes, distinct per input", () => {
     const manifest = verifyControlledInputs();
     for (const input of manifest.inputs) {

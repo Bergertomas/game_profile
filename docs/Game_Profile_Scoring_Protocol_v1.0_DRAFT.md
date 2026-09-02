@@ -552,7 +552,8 @@ criterion-specific claim records and state the different consequence under
 
 Primary and audit passes create separate claim ledgers. The adjudicated ledger
 preserves claim-inclusion, mapping and disposition differences; it is not a
-destructive merge that hides them.
+destructive merge that hides them. Claim IDs are therefore pass-local, and
+§11.3 governs how an adjudicated final decision references them.
 
 ### 5.3 Claim quality is local
 
@@ -632,6 +633,34 @@ anchor.
 - `materially_limited` coverage is missing a central or late/end stratum, more
   than one noncentral stratum, or any materially variable included
   mode/platform/build.
+
+Those three states are meanings, not a procedure, so the record makes them
+reproducible without reading a label or a free-text note. Each coverage unit
+carries an `omission_effect`, frozen with the frame before claim extraction:
+
+- `materially_limiting` — a required or late/end stratum, a central core loop,
+  or a materially variable included mode/platform/build; its absence alone
+  makes coverage materially limited. A unit recorded `central` is always
+  `materially_limiting`.
+- `bounding` — a noncentral stratum whose absence alone bounds coverage.
+- `nonlimiting` — a frozen frame unit whose absence does not reduce this
+  criterion's coverage state. It may still contribute evidence when observed;
+  `nonlimiting` describes the consequence of its absence, nothing else.
+
+Each decision, and each platform override, records
+`coverage_observed_unit_ids` and `coverage_missing_unit_ids`. The two are
+disjoint and together account for **every** unit of that criterion's frozen
+frame: a frame unit may not silently leave coverage accounting after evidence
+or a candidate anchor is visible, which is why irrelevance is stated as
+`nonlimiting` at freeze time rather than by omitting a unit later. A numeric
+value requires at least one observed unit. Where a linked, non-rejected claim
+observes a unit, that unit is observed for the decision and may not be recorded
+missing.
+
+Coverage state is then derived rather than asserted: `materially_limited` if
+any missing unit is `materially_limiting`, or if two or more are `bounding`;
+`bounded` if exactly one is `bounding`; otherwise `full`. Missing `nonlimiting`
+units never lower the state.
 
 To choose between opposing observed patterns:
 
@@ -1103,6 +1132,54 @@ Adjudication must result in:
 
 The final record preserves primary, audit and adjudicated values.
 
+Claim IDs are pass-local. A primary claim ID must be unique within the primary
+ledger and an audit claim ID within the audit ledger; the same string may name a
+different claim in each, and two role-blind passes over byte-identical input are
+never required to coordinate identifiers. The reconciled claim record is the
+package-level namespace that resolves this: each entry carries one
+`reconciled_claim_id` and keeps its `primary_claim_ids` and `audit_claim_ids`
+apart, so the ledger a raw ID belongs to is named by the field holding it. A
+`reconciled_claim_id` is unique within the package, whether or not any decision
+happens to reference it.
+
+Every claim reference made at adjudication or owner stage names a
+`reconciled_claim_id`, never a raw pass claim ID: an adjudicated final
+decision's `claim_ids`, its `endpoint_gate` scope-spanning references, its
+platform overrides' `claim_ids`, and the `claim_ids` an owner override records
+under §2.4. The
+reconciled record then resolves through its recorded `primary_claim_ids` and
+`audit_claim_ids` into the two pass ledgers, and every rule about the underlying
+evidence — criterion mapping, disposition, endpoint evidence, the delayed-effect
+minima, and the §6.1 rule that a linked claim's observed unit may not also be
+recorded missing — is applied to the claims reached that way.
+
+The reconciled record therefore covers every claim an adjudicated final decision
+rests on, including where the two passes agreed exactly and there was nothing to
+reconcile; recording differences is what it preserves, not the limit of what it
+contains. A reference that resolves to no reconciled record, to more than one,
+or to a record naming no claim in either ledger is rejected, as is a reconciled
+record naming a raw claim absent from the ledger it names.
+
+Where a reference must be evidence rather than a record of what was considered,
+disposition and admissibility decide, not the route the claim arrived by. A
+scope-spanning claim under §9, and the evidence a numeric value or a numeric
+owner override rests on, must reach at least one claim that is not rejected and
+that maps to the criterion being scored; and the §4.4 rule that active Tier-D
+evidence never supports a number applies to the claims reached through a
+reconciled record exactly as it applies to a pass ledger. A rejected claim
+remains part of the audit and counterevidence record; it simply cannot be what
+satisfies a gate. The same criterion mapping binds a platform override's claims,
+in the passes and in the adjudicated set alike.
+
+An `insufficiency_reference_ids` entry names one of four things and nothing
+else: a package-level `reconciled_claim_id` at adjudication stage, a
+candidate-source record in the frozen log, the scored criterion's own frozen
+coverage frame, or a unit of that frame. Another criterion's frame or unit says
+nothing about this criterion's coverage and does not resolve, a reconciled claim
+must reach evidence mapped to the criterion being marked Unknown, and rejected
+evidence does not demonstrate insufficiency. An identifier that matches none of
+these is rejected rather than accepted for being well-formed.
+
 ### 11.4 Reproducibility report
 
 For every calibration batch report:
@@ -1313,8 +1390,10 @@ Every actual revision:
 4. re-attests the three §10.1 confidence facts for every decision in the
    merged 40-decision map against the new evidence cutoff and active corpus —
    carried-forward decisions included, because a `stable` attested before the
-   change evidence existed proves nothing about the state after it — and then
-   re-derives every dimension and confidence result from the re-attested facts;
+   change evidence existed proves nothing about the state after it, and their
+   coverage is recorded against the new frozen frame and derived rather than
+   carried over — and then re-derives every dimension and confidence result
+   from the re-attested facts;
 5. regenerates interpretation when any supporting decision changes; and
 6. requires Tomas's approval before publication.
 
@@ -1332,7 +1411,14 @@ affected keys; the carried-forward decisions are not duplicated into it. Their
 re-attested facts live in the reassessment record's
 `carried_forward_reattestations` — one entry per rubric key outside the
 affected set, each carrying the three §10.1 facts as attested at the new
-cutoff. Derivation reads baseline decisions, affected-set replacements and
+cutoff. A re-attestation also records `coverage_observed_unit_ids` and
+`coverage_missing_unit_ids` against that criterion's **new** frozen frame,
+disjoint and together accounting for every unit of it, and its
+`coverage_state` is derived from those missing units' frozen `omission_effect`
+exactly as §6.1 derives a decision's. A carried-forward key is re-attested, not
+inherited, so its coverage is derived on the same evidence as everything else
+rather than asserted; a coverage state that does not reproduce rejects the
+package. Derivation reads baseline decisions, affected-set replacements and
 re-attested facts together; the published successor stores the bounded package
 plus its baseline/patch lineage, and the full merged state is what it derives,
 not what it re-stores. Missing baseline, duplicate keys, a key outside the
@@ -1408,15 +1494,21 @@ The validator has no editorial discretion. It rejects unless all are true:
 4. all seven query-family dispositions occur exactly once; source collection
    standard/reason and independent active A/B cluster counts reproduce the
    five-versus-eight-to-ten rule; source/claim/difference/override references
-   resolve; claim links contain no self-reference or relation-type
-   contradiction; no active Tier-D claim supports a numeric decision; and
+   resolve, adjudication- and owner-stage claim references resolving through the
+   reconciled claim record into the pass ledgers and insufficiency references
+   naming only their four permitted object kinds (§11.3); claim links
+   contain no self-reference or relation-type contradiction; no active Tier-D claim supports a numeric decision; and
    experience-tag keys are unique;
 5. numeric/Unknown conditional fields, zero reasons, anchor IDs, required-facet
    records/minima and platform base-difference rules hold; every numeric
    decision carries the adjacent anchor-rejection rationales its value admits;
    and every endpoint decision carries its §9 `endpoint_gate` record;
-6. coverage states reproduce from the frozen coverage frame, Unknown reasons
-   name a controlled missing class, every date is calendar-valid (the schema
+6. coverage states recompute exactly from the decision's recorded observed and
+   missing coverage units and those units' frozen `omission_effect` values, the
+   two lists being disjoint and together covering the whole frozen frame;
+   Unknown reasons name a controlled missing class, and where
+   `missing_coverage_classes` is populated its frame-bound classes are the unit
+   classes of the missing units that actually contribute to insufficiency; every date is calendar-valid (the schema
    patterns bound fields and ranges; only the semantic validator knows
    February), and elapsed retrospective dates/lower bounds
    reproduce arithmetically; and the §6 Step 2 retrospective minima recompute

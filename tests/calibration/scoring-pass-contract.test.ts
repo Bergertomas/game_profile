@@ -63,6 +63,29 @@ describe("the derived scoring-pass schema (§5(16))", () => {
     }
   });
 
+  it("propagates the issue #44 coverage fields without any hand-editing", () => {
+    // The transport schema is derived from the canonical schema at runtime, so
+    // a controlled amendment reaches the model contract automatically. This is
+    // the property that kept `scoring-pass-contract.ts` out of the amendment's
+    // blast radius, so it is asserted rather than assumed.
+    const decision = (derived.schema.$defs as Record<string, Record<string, unknown>>)
+      .scoreDecision!;
+    const properties = decision.properties as Record<string, unknown>;
+    expect(properties).toHaveProperty("coverage_observed_unit_ids");
+    expect(properties).toHaveProperty("coverage_missing_unit_ids");
+    expect(decision.required).toContain("coverage_observed_unit_ids");
+    expect(decision.required).toContain("coverage_missing_unit_ids");
+
+    const override = (derived.schema.$defs as Record<string, Record<string, unknown>>)
+      .platformOverride!;
+    expect(override.required).toContain("coverage_observed_unit_ids");
+    expect(override.required).toContain("coverage_missing_unit_ids");
+
+    // `omission_effect` is authored by the research pass and frozen with the
+    // frame, so the scoring model is NOT asked for it.
+    expect(JSON.stringify(derived.schema)).not.toContain("omission_effect");
+  });
+
   it("is closed and fully required at every object, as strict mode demands", () => {
     const walk = (node: unknown): void => {
       if (Array.isArray(node)) return node.forEach(walk);

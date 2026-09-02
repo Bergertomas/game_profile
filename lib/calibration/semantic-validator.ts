@@ -19,9 +19,14 @@ import {
 import type {
   Claim,
   CompactScore,
+  ConfidenceFacts,
+  CoverageFrame,
+  CoverageUnit,
   DerivedDimension,
   Difference,
+  ReconciledClaim,
   ScoreDecision,
+  ScoreValueKind,
   ScoringPackage,
   ScoringPass,
   Source,
@@ -422,7 +427,9 @@ function checkReferenceIntegrity(pkg: ScoringPackage, log: IssueLog): void {
     }
   }
 
-  const frameIds = new Set(corpus.coverage_frames.map((frame) => frame.coverage_frame_id));
+  // Insufficiency references are criterion-scoped, so the frames are carried by
+  // key rather than flattened into one id set (§6 Step 7).
+  const framesByKey = new Map(corpus.coverage_frames.map((frame) => [frame.subcriterion_key, frame]));
   const unitIds = new Set(
     corpus.coverage_frames.flatMap((frame) => frame.coverage_units.map((unit) => unit.unit_id)),
   );
@@ -432,7 +439,7 @@ function checkReferenceIntegrity(pkg: ScoringPackage, log: IssueLog): void {
     ["primary_pass", content.primary_pass],
     ["audit_pass", content.audit_pass],
   ] as const) {
-    checkPassReferences(path, pass, sourceIds, unitIds, frameIds, candidateIds, log);
+    checkPassReferences(path, pass, sourceIds, unitIds, framesByKey, candidateIds, log);
   }
 
   // Experience-tag keys are unique. The schema's uniqueItems compares whole
@@ -452,10 +459,6 @@ function checkReferenceIntegrity(pkg: ScoringPackage, log: IssueLog): void {
   const finalKeys = new Set(
     content.adjudication.final_decisions.map((decision) => decision.subcriterion_key),
   );
-  const allClaimIds = new Set([
-    ...content.primary_pass.claim_ledger.map((claim) => claim.claim_id),
-    ...content.audit_pass.claim_ledger.map((claim) => claim.claim_id),
-  ]);
   for (const [index, override] of pkg.owner_approval.override_reasons.entries()) {
     if (!finalKeys.has(override.subcriterion_key)) {
       log.add(
@@ -465,17 +468,9 @@ function checkReferenceIntegrity(pkg: ScoringPackage, log: IssueLog): void {
         `override names "${override.subcriterion_key}", which is not in the final decision set`,
       );
     }
-    for (const claimId of override.claim_ids) {
-      if (!allClaimIds.has(claimId)) {
-        log.add(
-          "reference_integrity",
-          4,
-          `owner_approval.override_reasons[${index}].claim_ids`,
-          `unresolved claim reference "${claimId}"`,
-        );
-      }
-    }
   }
+  // An owner override's claim references are adjudication-stage and resolve
+  // through the reconciled namespace, in `checkFinalClaimReferences`.
 
   // Reconciled claim records resolve into the two ledgers they reconcile.
   const primaryClaimIds = new Set(
@@ -506,12 +501,83 @@ function checkReferenceIntegrity(pkg: ScoringPackage, log: IssueLog): void {
   }
 }
 
+/** What a namespace's claim lookup made of an insufficiency reference. */
+type ClaimRefOutcome =
+  | { readonly kind: "not_a_claim" }
+  | { readonly kind: "claims"; readonly claims: readonly Claim[] }
+  | { readonly kind: "invalid"; readonly message: string };
+
+/**
+ * §6 Step 7 insufficiency references — one definition, both namespaces.
+ *
+ * "References that prove the insufficiency" is a criterion-scoped claim, so
+ * membership somewhere in the package is not enough: another criterion's frame,
+ * unit or claim says nothing about this criterion's coverage, and a rejected
+ * claim was excluded from consideration rather than shown to be missing.
+ *
+ * Three of the four permitted object kinds mean exactly the same thing wherever
+ * the reference appears — the scored criterion's own frozen frame, a unit of
+ * that frame, or a record in the frozen candidate log. Only the claim kind
+ * differs: a pass names its own pass-local claim, an adjudicated or owner-stage
+ * carrier names a reconciled claim (§11.3). `resolveClaimRef` supplies that one
+ * difference, so the two carriers cannot drift into two readings of one rule.
+ */
+function insufficiencyRefChecker(
+  framesByKey: ReadonlyMap<string, CoverageFrame>,
+  candidateIds: ReadonlySet<string>,
+  claimKindLabel: string,
+  resolveClaimRef: (referenceId: string) => ClaimRefOutcome,
+  log: IssueLog,
+): (at: string, referenceId: string, subcriterionKey: string) => void {
+  return (at, referenceId, subcriterionKey) => {
+    const frame = framesByKey.get(subcriterionKey);
+    if (frame) {
+      if (referenceId === frame.coverage_frame_id) return;
+      if (frame.coverage_units.some((unit) => unit.unit_id === referenceId)) return;
+    }
+    if (candidateIds.has(referenceId)) return;
+
+    const outcome = resolveClaimRef(referenceId);
+    if (outcome.kind === "invalid") {
+      log.add("reference_integrity", 4, at, outcome.message);
+      return;
+    }
+    if (outcome.kind === "claims") {
+      const mapped = outcome.claims.filter((claim) => claim.subcriterion_key === subcriterionKey);
+      if (mapped.length === 0) {
+        log.add(
+          "reference_integrity",
+          4,
+          at,
+          `insufficiency reference "${referenceId}" reaches no claim mapped to ${subcriterionKey}`,
+        );
+        return;
+      }
+      if (mapped.every((claim) => claim.disposition === "rejected")) {
+        log.add(
+          "reference_integrity",
+          4,
+          at,
+          `insufficiency reference "${referenceId}" reaches only rejected claims, which do not evidence insufficiency`,
+        );
+      }
+      return;
+    }
+    log.add(
+      "reference_integrity",
+      4,
+      at,
+      `insufficiency reference "${referenceId}" names no ${claimKindLabel}, candidate source, or coverage frame or unit of ${subcriterionKey} (§6 Step 7)`,
+    );
+  };
+}
+
 function checkPassReferences(
   path: string,
   pass: ScoringPass,
   sourceIds: ReadonlySet<string>,
   unitIds: ReadonlySet<string>,
-  frameIds: ReadonlySet<string>,
+  framesByKey: ReadonlyMap<string, CoverageFrame>,
   candidateIds: ReadonlySet<string>,
   log: IssueLog,
 ): void {
@@ -568,85 +634,136 @@ function checkPassReferences(
     }
   }
 
+  /** One claim reference: it resolves, and it is mapped to what it supports. */
+  const checkClaimRef = (at: string, claimId: string, subcriterionKey: string): void => {
+    const claim = claims.get(claimId);
+    if (!claim) {
+      log.add("reference_integrity", 4, at, `unresolved claim reference "${claimId}"`);
+      return;
+    }
+    if (claim.subcriterion_key !== subcriterionKey) {
+      log.add(
+        "reference_integrity",
+        4,
+        at,
+        `claim "${claimId}" is mapped to ${claim.subcriterion_key} but supports a ${subcriterionKey} decision`,
+      );
+    }
+  };
+
+  // A pass's insufficiency references name its own pass-local claims; every
+  // other rule is the shared one.
+  const checkInsufficiencyRef = insufficiencyRefChecker(
+    framesByKey,
+    candidateIds,
+    "claim",
+    (referenceId) => {
+      const claim = claims.get(referenceId);
+      return claim ? { kind: "claims", claims: [claim] } : { kind: "not_a_claim" };
+    },
+    log,
+  );
+
   for (const decision of pass.decisions) {
     const at = `${path}.decisions[${decision.subcriterion_key}]`;
     for (const claimId of decision.claim_ids) {
-      const claim = claims.get(claimId);
-      if (!claim) {
-        log.add("reference_integrity", 4, at, `unresolved claim reference "${claimId}"`);
-        continue;
-      }
-      if (claim.subcriterion_key !== decision.subcriterion_key) {
-        log.add(
-          "reference_integrity",
-          4,
-          at,
-          `claim "${claimId}" is mapped to ${claim.subcriterion_key} but supports a ${decision.subcriterion_key} decision`,
-        );
-      }
+      checkClaimRef(at, claimId, decision.subcriterion_key);
     }
-    // Insufficiency references point at claims, candidate-source records or the
-    // coverage frame (Protocol §6 Step 7).
     for (const referenceId of decision.insufficiency_reference_ids) {
-      if (
-        !claims.has(referenceId) &&
-        !candidateIds.has(referenceId) &&
-        !frameIds.has(referenceId) &&
-        !unitIds.has(referenceId)
-      ) {
+      checkInsufficiencyRef(at, referenceId, decision.subcriterion_key);
+    }
+    // §9: "criterion-specific evidence spanning the relevant scope" — so a
+    // scope-spanning claim must map to the criterion being gated, and a
+    // rejected claim is a record of exclusion rather than evidence.
+    for (const claimId of decision.endpoint_gate?.scope_spanning_claim_ids ?? []) {
+      const gateAt = `${at}.endpoint_gate`;
+      checkClaimRef(gateAt, claimId, decision.subcriterion_key);
+      if (claims.get(claimId)?.disposition === "rejected") {
         log.add(
           "reference_integrity",
           4,
-          at,
-          `insufficiency reference "${referenceId}" resolves to no claim, candidate source or coverage frame`,
+          gateAt,
+          `rejected claim "${claimId}" cannot supply the §9 scope-spanning evidence for an endpoint`,
         );
-      }
-    }
-    for (const claimId of decision.endpoint_gate?.scope_spanning_claim_ids ?? []) {
-      if (!claims.has(claimId)) {
-        log.add("reference_integrity", 4, `${at}.endpoint_gate`, `unresolved claim "${claimId}"`);
       }
     }
     for (const override of decision.platform_overrides) {
+      const overrideAt = `${at}.platform_overrides[${override.platform_key}]`;
       for (const claimId of override.claim_ids) {
-        if (!claims.has(claimId)) {
-          log.add(
-            "reference_integrity",
-            4,
-            `${at}.platform_overrides[${override.platform_key}]`,
-            `unresolved claim "${claimId}"`,
-          );
-        }
+        checkClaimRef(overrideAt, claimId, decision.subcriterion_key);
+      }
+      for (const referenceId of override.insufficiency_reference_ids) {
+        checkInsufficiencyRef(overrideAt, referenceId, decision.subcriterion_key);
       }
     }
   }
 }
 
-/** §15.1(4) — no active Tier-D claim supports a numeric decision. */
+/**
+ * §15.1(4) — no active Tier-D claim supports a numeric decision.
+ *
+ * The rule survives adjudication: a numeric FINAL reaches its evidence through
+ * the reconciled record (§11.3), and §4.4 does not stop applying because the
+ * claim arrived by that route. Resolving finals through the same traversal is
+ * what keeps the reconciled namespace from becoming a way around it.
+ */
 function checkTierD(pkg: ScoringPackage, log: IssueLog): void {
+  const content = pkg.scoring_content;
   const sources = new Map<string, Source>(
-    pkg.scoring_content.corpus.source_manifest.map((source) => [source.source_id, source]),
+    content.corpus.source_manifest.map((source) => [source.source_id, source]),
   );
+
+  const flagTierD = (at: string, claim: Claim, referenceId: string): void => {
+    if (claim.disposition === "rejected") return;
+    if (sources.get(claim.source_id)?.source_tier !== "D") return;
+    const via = claim.claim_id === referenceId ? "" : ` (reached through reconciled claim "${referenceId}")`;
+    log.add(
+      "reference_integrity",
+      4,
+      at,
+      `active Tier-D claim "${claim.claim_id}"${via} supports a numeric decision; Tier D never supports a number (§4.4)`,
+    );
+  };
+
   for (const [path, pass] of [
-    ["primary_pass", pkg.scoring_content.primary_pass],
-    ["audit_pass", pkg.scoring_content.audit_pass],
+    ["primary_pass", content.primary_pass],
+    ["audit_pass", content.audit_pass],
   ] as const) {
-    const claims = new Map(pass.claim_ledger.map((claim) => [claim.claim_id, claim]));
+    const resolveClaims = passClaimResolver(pass);
     for (const decision of pass.decisions) {
       if (decision.score_value_kind !== "numeric") continue;
+      const at = `${path}.decisions[${decision.subcriterion_key}]`;
       for (const claimId of decision.claim_ids) {
-        const claim = claims.get(claimId);
-        if (!claim || claim.disposition === "rejected") continue;
-        const source = sources.get(claim.source_id);
-        if (source?.source_tier === "D") {
-          log.add(
-            "reference_integrity",
-            4,
-            `${path}.decisions[${decision.subcriterion_key}]`,
-            `active Tier-D claim "${claimId}" supports a numeric decision; Tier D never supports a number (§4.4)`,
-          );
-        }
+        for (const claim of resolveClaims(claimId) ?? []) flagTierD(at, claim, claimId);
       }
+    }
+  }
+
+  const resolveFinal = finalClaimResolver(content);
+  for (const decision of content.adjudication.final_decisions) {
+    const at = `adjudication.final_decisions[${decision.subcriterion_key}]`;
+    if (decision.score_value_kind === "numeric") {
+      for (const claimId of decision.claim_ids) {
+        for (const claim of resolveFinal(claimId) ?? []) flagTierD(at, claim, claimId);
+      }
+    }
+    for (const override of decision.platform_overrides) {
+      if (override.score_value_kind !== "numeric") continue;
+      const overrideAt = `${at}.platform_overrides[${override.platform_key}]`;
+      for (const claimId of override.claim_ids) {
+        for (const claim of resolveFinal(claimId) ?? []) flagTierD(overrideAt, claim, claimId);
+      }
+    }
+  }
+
+  // An owner override selecting a number is bound by §4.4 like any other
+  // numeric value; owner authority selects among admissible evidence, it does
+  // not make inadmissible evidence admissible.
+  for (const [index, override] of pkg.owner_approval.override_reasons.entries()) {
+    if (override.selected_value.score_value_kind !== "numeric") continue;
+    const at = `owner_approval.override_reasons[${index}].claim_ids`;
+    for (const claimId of override.claim_ids) {
+      for (const claim of resolveFinal(claimId) ?? []) flagTierD(at, claim, claimId);
     }
   }
 }
@@ -881,106 +998,637 @@ function checkCoverageAndTime(pkg: ScoringPackage, log: IssueLog): void {
       }
     }
 
+    const claims = passClaimResolver(pass);
     for (const decision of pass.decisions) {
-      checkCoverageState(`${path}.decisions[${decision.subcriterion_key}]`, decision, frames, log);
+      const at = `${path}.decisions[${decision.subcriterion_key}]`;
+      const frame = frames.get(decision.subcriterion_key);
+      checkCoverageRecord(at, decision, frame, claims, log);
+      for (const override of decision.platform_overrides) {
+        checkCoverageRecord(
+          `${at}.platform_overrides[${override.platform_key}]`,
+          override,
+          frame,
+          claims,
+          log,
+        );
+      }
     }
   }
 
-  for (const [path, decisions] of [
-    ["primary_pass.decisions", content.primary_pass.decisions],
-    ["audit_pass.decisions", content.audit_pass.decisions],
-    ["adjudication.final_decisions", content.adjudication.final_decisions],
+  // Final decisions carry their own coverage state, and the claim/coverage
+  // invariant applies to them too. Their claim IDs name reconciled claims
+  // (§11.3), so the underlying pass claims are reached through the adjudicated
+  // ledger; a reference that does not resolve is reported once, by
+  // `checkFinalClaimReferences`, rather than again here.
+  const finalClaims = finalClaimResolver(content);
+  for (const decision of content.adjudication.final_decisions) {
+    const at = `adjudication.final_decisions[${decision.subcriterion_key}]`;
+    const frame = frames.get(decision.subcriterion_key);
+    checkCoverageRecord(at, decision, frame, finalClaims, log);
+    for (const override of decision.platform_overrides) {
+      checkCoverageRecord(
+        `${at}.platform_overrides[${override.platform_key}]`,
+        override,
+        frame,
+        finalClaims,
+        log,
+      );
+    }
+  }
+
+  // The §6 Step 2 retrospective minima count the claims a decision actually
+  // rests on, so each decision set is walked with its own resolver: a pass
+  // reaches its own ledger, a final reaches both through the reconciled record.
+  for (const [path, decisions, resolveClaims] of [
+    ["primary_pass.decisions", content.primary_pass.decisions, passClaimResolver(content.primary_pass)],
+    ["audit_pass.decisions", content.audit_pass.decisions, passClaimResolver(content.audit_pass)],
+    ["adjudication.final_decisions", content.adjudication.final_decisions, finalClaims],
   ] as const) {
-    const ledger =
-      path === "audit_pass.decisions"
-        ? content.audit_pass.claim_ledger
-        : content.primary_pass.claim_ledger;
     for (const decision of decisions) {
-      checkRetrospectiveMinima(path, decision, ledger, content, log);
+      checkRetrospectiveMinima(path, decision, resolveClaims, content, log);
     }
   }
 }
 
 /**
- * Protocol §6.1 coverage bands, expressed over the fields the package records.
+ * Protocol §6.1 coverage-state derivation, over the frozen coverage frame.
  *
- * KNOWN LIMITATION, deliberately not papered over: §6.1 separates `bounded`
- * from `materially_limited` partly by whether the missing stratum is CENTRAL,
- * and the package records missing coverage *classes*, not the missing *units*,
- * so centrality is not recoverable from the record. These checks therefore
- * implement the part that is unambiguous and never reject a package the
- * protocol permits. See the Item 4 report's open-question list.
+ * Since the issue #44 amendment this is total rather than partial: the frame
+ * freezes each unit's `omission_effect` before claim extraction, and the
+ * decision records which units it observed and which it missed. Coverage state
+ * is therefore recomputed, never accepted on assertion, and no rule here reads
+ * a `label` or any other free text.
+ *
+ * The same record applies to a platform override, which carries its own
+ * coverage state and so needs its own partition.
  */
-function checkCoverageState(
+export function deriveCoverageState(
+  missingUnits: readonly CoverageUnit[],
+): "full" | "bounded" | "materially_limited" {
+  if (missingUnits.some((unit) => unit.omission_effect === "materially_limiting")) {
+    return "materially_limited";
+  }
+  const bounding = missingUnits.filter((unit) => unit.omission_effect === "bounding").length;
+  if (bounding === 0) return "full";
+  if (bounding === 1) return "bounded";
+  return "materially_limited";
+}
+
+/** The classes of missing units that actually contribute to insufficiency. */
+function contributingMissingClasses(missingUnits: readonly CoverageUnit[]): Set<string> {
+  return new Set(
+    missingUnits
+      .filter((unit) => unit.omission_effect !== "nonlimiting")
+      .map((unit) => unit.unit_class),
+  );
+}
+
+/** Frame-bound missing classes; the rest name conditions outside the frame. */
+const FRAME_BOUND_CLASSES: readonly string[] = [
+  "temporal_stratum",
+  "progression_state",
+  "core_loop",
+  "mode",
+  "platform",
+  "build",
+  "optional_endgame",
+];
+
+interface CoverageCarrier {
+  readonly score_value_kind: ScoreValueKind;
+  readonly missing_coverage_classes: readonly string[];
+  readonly confidence_facts: ConfidenceFacts;
+  readonly claim_ids: readonly string[];
+  readonly coverage_observed_unit_ids: readonly string[];
+  readonly coverage_missing_unit_ids: readonly string[];
+}
+
+/**
+ * Check one coverage record — a decision or a platform override.
+ *
+ * `resolveClaims` turns one of the carrier's `claim_ids` into the claims it
+ * names. For a pass that is its own pass-local ledger; for a final decision it
+ * is the reconciled claim's underlying primary and audit claims (§11.3), which
+ * is why one reference may reach several. A reference that does not resolve
+ * yields `null` and is skipped here: `checkFinalClaimReferences` reports the
+ * unresolved, ambiguous and empty cases, so they are not double-reported.
+ */
+function checkCoverageRecord(
   at: string,
-  decision: ScoreDecision,
-  frames: ReadonlyMap<string, { readonly coverage_units: readonly { unit_class: string }[] }>,
+  carrier: CoverageCarrier,
+  frame: CoverageFrame | undefined,
+  resolveClaims: ClaimResolver | null,
   log: IssueLog,
 ): void {
-  const facts = decision.confidence_facts;
-  const missing = decision.missing_coverage_classes;
+  const observed = carrier.coverage_observed_unit_ids;
+  const missing = carrier.coverage_missing_unit_ids;
 
-  if (facts.coverage_state === "full" && missing.length > 0) {
+  const overlap = observed.filter((id) => missing.includes(id));
+  if (overlap.length > 0) {
     log.add(
       "coverage_and_time",
       6,
       at,
-      `coverage_state "full" contradicts recorded missing coverage classes (${missing.join(", ")})`,
+      `coverage units recorded as both observed and missing: ${overlap.join(", ")}`,
     );
   }
-  if (facts.coverage_state !== "full" && missing.length === 0 && decision.score_value_kind === "unknown") {
+
+  if (!frame) {
     log.add(
       "coverage_and_time",
       6,
       at,
-      `coverage_state "${facts.coverage_state}" records no missing coverage class`,
+      "no frozen coverage frame exists for this criterion; coverage state cannot be derived (§6.1)",
     );
+    return;
   }
-  // "bounded coverage is missing exactly one noncentral stratum and has no known
-  // material mode/platform/build gap."
-  if (facts.coverage_state === "bounded") {
-    const gapClasses = missing.filter((cls) =>
-      ["mode", "platform", "build", "material_conflict"].includes(cls),
-    );
-    if (gapClasses.length > 0) {
-      log.add(
-        "coverage_and_time",
-        6,
-        at,
-        `coverage_state "bounded" cannot carry a ${gapClasses.join("/")} gap; that is materially_limited (§6.1)`,
-      );
-    }
-    if (missing.length > 1) {
-      log.add(
-        "coverage_and_time",
-        6,
-        at,
-        `coverage_state "bounded" admits exactly one missing stratum; ${missing.length} recorded`,
-      );
+
+  const frameUnits = new Map(frame.coverage_units.map((unit) => [unit.unit_id, unit]));
+  for (const [field, ids] of [
+    ["coverage_observed_unit_ids", observed],
+    ["coverage_missing_unit_ids", missing],
+  ] as const) {
+    for (const id of ids) {
+      if (!frameUnits.has(id)) {
+        log.add("coverage_and_time", 6, at, `${field} names "${id}", which is not in the frozen frame`);
+      }
     }
   }
 
-  // A missing stratum class must exist in this criterion's frozen frame.
-  const frame = frames.get(decision.subcriterion_key);
-  if (frame) {
-    const unitClasses = new Set(frame.coverage_units.map((unit) => unit.unit_class));
-    const frameBound = ["temporal_stratum", "progression_state", "core_loop", "mode", "platform", "build"];
-    for (const cls of missing) {
-      if (frameBound.includes(cls) && !unitClasses.has(cls)) {
+  // Total partition: no frame unit may silently leave coverage accounting.
+  const accounted = new Set([...observed, ...missing]);
+  const unaccounted = [...frameUnits.keys()].filter((id) => !accounted.has(id));
+  if (unaccounted.length > 0) {
+    log.add(
+      "coverage_and_time",
+      6,
+      at,
+      `frame units in neither coverage list: ${unaccounted.join(", ")} — observed and missing must together cover the whole frozen frame (§6.1)`,
+    );
+  }
+
+  const missingUnits = missing
+    .map((id) => frameUnits.get(id))
+    .filter((unit): unit is CoverageUnit => unit !== undefined);
+
+  // A numeric value requires at least one observed unit.
+  if (carrier.score_value_kind === "numeric" && observed.length === 0) {
+    log.add(
+      "coverage_and_time",
+      6,
+      at,
+      "a numeric value requires at least one observed coverage unit (§6.1)",
+    );
+  }
+
+  // A linked, non-rejected claim's observed units may not be recorded missing.
+  if (resolveClaims) {
+    for (const claimId of carrier.claim_ids) {
+      // `null` means the reference does not resolve, which is not this rule's
+      // to report; a reconciled reference may reach several underlying claims.
+      for (const claim of resolveClaims(claimId) ?? []) {
+        if (claim.disposition === "rejected") continue;
+        for (const unitId of claim.observed_unit_ids) {
+          if (missing.includes(unitId)) {
+            log.add(
+              "coverage_and_time",
+              6,
+              at,
+              `claim "${claim.claim_id}" observes unit "${unitId}", which this record marks missing`,
+            );
+          } else if (frameUnits.has(unitId) && !observed.includes(unitId)) {
+            log.add(
+              "coverage_and_time",
+              6,
+              at,
+              `claim "${claim.claim_id}" observes frame unit "${unitId}", which this record does not list as observed`,
+            );
+          }
+        }
+      }
+    }
+  }
+
+  // The state is derived, never asserted.
+  const derived = deriveCoverageState(missingUnits);
+  if (derived !== carrier.confidence_facts.coverage_state) {
+    log.add(
+      "coverage_and_time",
+      6,
+      at,
+      `coverage_state "${carrier.confidence_facts.coverage_state}" does not derive from the missing units (expected "${derived}") (§6.1)`,
+    );
+  }
+
+  // Where `missing_coverage_classes` is populated — Unknown decisions only — its
+  // frame-bound classes are the classes of the missing units that contribute to
+  // insufficiency. A missed `nonlimiting` unit does not create one.
+  if (carrier.missing_coverage_classes.length > 0) {
+    const recorded = new Set(
+      carrier.missing_coverage_classes.filter((cls) => FRAME_BOUND_CLASSES.includes(cls)),
+    );
+    const expected = contributingMissingClasses(missingUnits);
+    const absent = [...expected].filter((cls) => !recorded.has(cls));
+    const extra = [...recorded].filter((cls) => !expected.has(cls));
+    if (absent.length > 0 || extra.length > 0) {
+      log.add(
+        "coverage_and_time",
+        6,
+        at,
+        "frame-bound missing_coverage_classes do not match the contributing missing units" +
+          (absent.length > 0 ? `; absent ${absent.join(", ")}` : "") +
+          (extra.length > 0 ? `; unexpected ${extra.join(", ")}` : ""),
+      );
+    }
+  }
+}
+
+/**
+ * How one carrier's `claim_ids` reach claim records.
+ *
+ * Returns every claim the reference names, or `null` when the reference does
+ * not resolve — an unresolved or ambiguous reference is reported once, by the
+ * reference check, rather than again by every rule that would have walked it.
+ *
+ * The indirection exists because the two carriers reach claims differently: a
+ * pass names its own pass-local claims, while a final decision names
+ * package-level reconciled claims and reaches the pass ledgers through them
+ * (§5.2, §11.3).
+ */
+type ClaimResolver = (claimId: string) => readonly Claim[] | null;
+
+/** One pass's own ledger. Claim IDs are pass-local, so this is a plain lookup. */
+function passClaimResolver(pass: ScoringPass): ClaimResolver {
+  const lookup = groupClaims(pass.claim_ledger);
+  return (claimId) => {
+    const matches = lookup.get(claimId) ?? [];
+    return matches.length === 1 ? matches : null;
+  };
+}
+
+/** What a final decision's reference into the adjudicated ledger resolves to. */
+type ReconciledResolution =
+  | { readonly kind: "unresolved" }
+  | { readonly kind: "ambiguous" }
+  | { readonly kind: "empty" }
+  | { readonly kind: "resolved"; readonly claims: readonly Claim[] };
+
+/**
+ * Resolve a final decision's claim reference through the adjudicated ledger.
+ *
+ * §5.2 gives the primary and audit passes SEPARATE claim ledgers, so a raw
+ * claim ID is pass-local and the same string may legitimately name a different
+ * claim in each — two role-blind runs over byte-identical input cannot
+ * coordinate identifiers and must not be required to. `reconciledClaim` is the
+ * structure that already resolves this: one package-level
+ * `reconciled_claim_id`, with `primary_claim_ids` and `audit_claim_ids` kept
+ * apart so the ledger a raw ID belongs to is named by the field holding it.
+ *
+ * Final decisions therefore reference reconciled claims (§11.3), and every rule
+ * needing the underlying evidence walks through the record into the pass
+ * ledgers. A cross-pass raw-ID collision is not an error here; an unresolved or
+ * duplicated `reconciled_claim_id`, or a record naming no underlying claim at
+ * all, is.
+ */
+function reconciledClaimResolver(
+  content: ScoringPackage["scoring_content"],
+): (reconciledId: string) => ReconciledResolution {
+  const records = new Map<string, ReconciledClaim[]>();
+  for (const record of content.adjudication.reconciled_claim_record) {
+    const existing = records.get(record.reconciled_claim_id);
+    if (existing) existing.push(record);
+    else records.set(record.reconciled_claim_id, [record]);
+  }
+  const primary = groupClaims(content.primary_pass.claim_ledger);
+  const audit = groupClaims(content.audit_pass.claim_ledger);
+
+  return (reconciledId) => {
+    const matches = records.get(reconciledId) ?? [];
+    if (matches.length === 0) return { kind: "unresolved" };
+    if (matches.length > 1) return { kind: "ambiguous" };
+    const record = matches[0]!;
+    if (record.primary_claim_ids.length === 0 && record.audit_claim_ids.length === 0) {
+      return { kind: "empty" };
+    }
+    const claims: Claim[] = [];
+    for (const [lookup, ids] of [
+      [primary, record.primary_claim_ids],
+      [audit, record.audit_claim_ids],
+    ] as const) {
+      for (const claimId of ids) {
+        // A raw ID that does not resolve in its named ledger is already
+        // reported by `checkPackageReferences`; skipping it here keeps one
+        // defect to one issue.
+        const found = lookup.get(claimId) ?? [];
+        if (found.length === 1) claims.push(found[0]!);
+      }
+    }
+    return { kind: "resolved", claims };
+  };
+}
+
+/** The same resolution, in the shape the coverage rule consumes. */
+function finalClaimResolver(content: ScoringPackage["scoring_content"]): ClaimResolver {
+  const resolve = reconciledClaimResolver(content);
+  return (reconciledId) => {
+    const resolution = resolve(reconciledId);
+    return resolution.kind === "resolved" ? resolution.claims : null;
+  };
+}
+
+function groupClaims(claims: readonly Claim[]): ReadonlyMap<string, readonly Claim[]> {
+  const lookup = new Map<string, Claim[]>();
+  for (const claim of claims) {
+    const existing = lookup.get(claim.claim_id);
+    if (existing) existing.push(claim);
+    else lookup.set(claim.claim_id, [claim]);
+  }
+  return lookup;
+}
+
+/**
+ * §15.1(4) for the adjudicated set: every claim reference a final decision, its
+ * endpoint gate or its platform overrides carries must resolve to exactly one
+ * package-level reconciled claim (§11.3), that record must name at least one
+ * underlying pass claim, and every claim it reaches must be mapped to the
+ * criterion the decision scores.
+ *
+ * Without this the final decisions were the one decision set whose claim
+ * references went unchecked entirely. Resolving them through the adjudicated
+ * ledger rather than against a flat union of the two pass ledgers is what makes
+ * a cross-pass raw-ID collision harmless: the ledger a raw ID belongs to is
+ * named by the reconciled field holding it, so no package-global uniqueness
+ * rule is imposed on two passes that must not coordinate identifiers.
+ */
+function checkFinalClaimReferences(pkg: ScoringPackage, log: IssueLog): void {
+  const content = pkg.scoring_content;
+  const resolveReconciled = reconciledClaimResolver(content);
+
+  // §11.3 calls `reconciled_claim_id` the package-level namespace, so it must
+  // be well formed in its own right rather than only where a final happens to
+  // reference a duplicate.
+  const seen = new Set<string>();
+  for (const [index, record] of content.adjudication.reconciled_claim_record.entries()) {
+    if (seen.has(record.reconciled_claim_id)) {
+      log.add(
+        "reference_integrity",
+        4,
+        `adjudication.reconciled_claim_record[${index}]`,
+        `duplicate reconciled_claim_id "${record.reconciled_claim_id}"; the reconciled namespace is package-level (§11.3)`,
+      );
+    }
+    seen.add(record.reconciled_claim_id);
+  }
+
+  const resolve = (
+    at: string,
+    claimId: string,
+    subcriterionKey: string | null,
+    mustSupply: "evidence" | "reference" = "reference",
+  ): void => {
+    const resolution = resolveReconciled(claimId);
+    if (resolution.kind === "unresolved") {
+      log.add(
+        "reference_integrity",
+        4,
+        at,
+        `unresolved claim reference "${claimId}"; a final decision references a reconciled_claim_id, not a raw pass claim ID (§11.3)`,
+      );
+      return;
+    }
+    if (resolution.kind === "ambiguous") {
+      log.add(
+        "reference_integrity",
+        4,
+        at,
+        `reconciled claim reference "${claimId}" is recorded more than once and is ambiguous`,
+      );
+      return;
+    }
+    if (resolution.kind === "empty") {
+      log.add(
+        "reference_integrity",
+        4,
+        at,
+        `reconciled claim "${claimId}" names no primary or audit claim, so this decision rests on no recorded evidence (§11.3)`,
+      );
+      return;
+    }
+    for (const claim of resolution.claims) {
+      if (subcriterionKey !== null && claim.subcriterion_key !== subcriterionKey) {
         log.add(
-          "coverage_and_time",
-          6,
+          "reference_integrity",
+          4,
           at,
-          `missing coverage class "${cls}" is not a unit class in the frozen coverage frame`,
+          `reconciled claim "${claimId}" reaches claim "${claim.claim_id}", mapped to ${claim.subcriterion_key} but supporting a ${subcriterionKey} decision`,
         );
       }
     }
-  } else if (decision.score_value_kind === "numeric") {
+    // Where the reference must be evidence rather than a record of what was
+    // considered, a wholly rejected record supplies nothing. §11.3: the
+    // ordinary evidence rules apply to the claims reached through a reconciled
+    // record, disposition among them.
+    if (
+      mustSupply === "evidence" &&
+      resolution.claims.every((claim) => claim.disposition === "rejected")
+    ) {
+      log.add(
+        "reference_integrity",
+        4,
+        at,
+        `reconciled claim "${claimId}" reaches only rejected claims and cannot be the evidence a numeric value or endpoint gate rests on`,
+      );
+    }
+  };
+
+  // An adjudicated or owner-stage carrier names reconciled claims (§11.3);
+  // every other rule is the shared one.
+  const checkInsufficiencyRef = insufficiencyRefChecker(
+    new Map(content.corpus.coverage_frames.map((frame) => [frame.subcriterion_key, frame])),
+    new Set(content.corpus.candidate_source_log.map((candidate) => candidate.candidate_id)),
+    "reconciled claim",
+    (referenceId) => {
+      const resolution = resolveReconciled(referenceId);
+      if (resolution.kind === "resolved") {
+        return { kind: "claims", claims: resolution.claims };
+      }
+      if (resolution.kind === "ambiguous") {
+        return {
+          kind: "invalid",
+          message: `insufficiency reference "${referenceId}" matches more than one reconciled claim record`,
+        };
+      }
+      if (resolution.kind === "empty") {
+        return {
+          kind: "invalid",
+          message: `insufficiency reference "${referenceId}" names a reconciled record with no primary or audit claim`,
+        };
+      }
+      return { kind: "not_a_claim" };
+    },
+    log,
+  );
+
+  for (const decision of content.adjudication.final_decisions) {
+    const at = `adjudication.final_decisions[${decision.subcriterion_key}]`;
+    const supplies = decision.score_value_kind === "numeric" ? "evidence" : "reference";
+    for (const claimId of decision.claim_ids) {
+      resolve(at, claimId, decision.subcriterion_key, supplies);
+    }
+    for (const referenceId of decision.insufficiency_reference_ids) {
+      checkInsufficiencyRef(at, referenceId, decision.subcriterion_key);
+    }
+    // §9 wants "criterion-specific evidence spanning the relevant scope", so
+    // the gate resolves to the criterion being gated, not to any claim.
+    for (const claimId of decision.endpoint_gate?.scope_spanning_claim_ids ?? []) {
+      resolve(`${at}.endpoint_gate`, claimId, decision.subcriterion_key, "evidence");
+    }
+    for (const override of decision.platform_overrides) {
+      const overrideAt = `${at}.platform_overrides[${override.platform_key}]`;
+      for (const claimId of override.claim_ids) {
+        resolve(
+          overrideAt,
+          claimId,
+          decision.subcriterion_key,
+          override.score_value_kind === "numeric" ? "evidence" : "reference",
+        );
+      }
+      for (const referenceId of override.insufficiency_reference_ids) {
+        checkInsufficiencyRef(overrideAt, referenceId, decision.subcriterion_key);
+      }
+    }
+  }
+
+  // §2.4: an owner override selects an evidence-supported anchor or Unknown.
+  // That evidence is adjudication-stage, so it resolves the same way a final
+  // decision's does — a raw pass claim ID must not satisfy an override merely
+  // because the same string exists in one of the two ledgers.
+  for (const [index, override] of pkg.owner_approval.override_reasons.entries()) {
+    const at = `owner_approval.override_reasons[${index}].claim_ids`;
+    const supplies =
+      override.selected_value.score_value_kind === "numeric" ? "evidence" : "reference";
+    for (const claimId of override.claim_ids) {
+      resolve(at, claimId, override.subcriterion_key, supplies);
+    }
+  }
+}
+
+/**
+ * §14 — a carried-forward re-attestation derives its coverage state too.
+ *
+ * `mergedDecisions` feeds these facts straight into dimension and confidence
+ * derivation, so an asserted `coverage_state` here would reintroduce exactly
+ * the assertion-only path Amendment 1 exists to remove — just on the keys a
+ * bounded reassessment does not rescore. The re-attestation is checked against
+ * the criterion's NEW frozen frame, because a carried-forward key is
+ * re-attested at the new cutoff rather than inherited from the baseline.
+ */
+function checkCarriedForwardCoverage(pkg: ScoringPackage, log: IssueLog): void {
+  const content = pkg.scoring_content;
+  const record = content.reassessment_record;
+  if (!record) return;
+
+  const frames = new Map(
+    content.corpus.coverage_frames.map((frame) => [frame.subcriterion_key, frame]),
+  );
+
+  for (const reattestation of record.carried_forward_reattestations) {
+    const at = `reassessment_record.carried_forward_reattestations[${reattestation.subcriterion_key}]`;
+    const frame = frames.get(reattestation.subcriterion_key);
+    if (!frame) {
+      log.add(
+        "coverage_and_time",
+        6,
+        at,
+        "no frozen coverage frame for this criterion in the new corpus; a carried-forward key is re-attested against the new frame (§14)",
+      );
+      continue;
+    }
+
+    const observed = reattestation.coverage_observed_unit_ids;
+    const missing = reattestation.coverage_missing_unit_ids;
+    const overlap = observed.filter((id) => missing.includes(id));
+    if (overlap.length > 0) {
+      log.add(
+        "coverage_and_time",
+        6,
+        at,
+        `coverage units recorded as both observed and missing: ${overlap.join(", ")}`,
+      );
+    }
+
+    const frameUnits = new Map(frame.coverage_units.map((unit) => [unit.unit_id, unit]));
+    for (const [field, ids] of [
+      ["coverage_observed_unit_ids", observed],
+      ["coverage_missing_unit_ids", missing],
+    ] as const) {
+      for (const id of ids) {
+        if (!frameUnits.has(id)) {
+          log.add("coverage_and_time", 6, at, `${field} names "${id}", which is not in the new frozen frame`);
+        }
+      }
+    }
+
+    const accounted = new Set([...observed, ...missing]);
+    const unaccounted = [...frameUnits.keys()].filter((id) => !accounted.has(id));
+    if (unaccounted.length > 0) {
+      log.add(
+        "coverage_and_time",
+        6,
+        at,
+        `frame units in neither coverage list: ${unaccounted.join(", ")} — the re-attestation must account for the whole new frame (§14)`,
+      );
+    }
+
+    const missingUnits = missing
+      .map((id) => frameUnits.get(id))
+      .filter((unit): unit is CoverageUnit => unit !== undefined);
+    const derived = deriveCoverageState(missingUnits);
+    if (derived !== reattestation.confidence_facts.coverage_state) {
+      log.add(
+        "coverage_and_time",
+        6,
+        at,
+        `re-attested coverage_state "${reattestation.confidence_facts.coverage_state}" does not derive from the missing units (expected "${derived}") (§14, §6.1)`,
+      );
+    }
+  }
+}
+
+/**
+ * Frame-level check: a `central` unit is always `materially_limiting`.
+ *
+ * §6.1 makes a missing central stratum or central core loop materially
+ * limiting, so a frame that freezes a weaker effect on a central unit would
+ * legalise an understated coverage state before scoring ever begins.
+ */
+function checkCoverageFrames(pkg: ScoringPackage, log: IssueLog): void {
+  for (const frame of pkg.scoring_content.corpus.coverage_frames) {
+    const at = `corpus.coverage_frames[${frame.coverage_frame_id}]`;
+    const ids = frame.coverage_units.map((unit) => unit.unit_id);
+    const duplicates = ids.filter((id, index) => ids.indexOf(id) !== index);
+    if (duplicates.length > 0) {
+      log.add("coverage_and_time", 6, at, `duplicate unit ids: ${[...new Set(duplicates)].join(", ")}`);
+    }
+    for (const unit of frame.coverage_units) {
+      if (unit.centrality === "central" && unit.omission_effect !== "materially_limiting") {
+        log.add(
+          "coverage_and_time",
+          6,
+          `${at}.coverage_units[${unit.unit_id}]`,
+          `a central unit must be materially_limiting; "${unit.omission_effect}" understates §6.1`,
+        );
+      }
+    }
+  }
+  const keys = pkg.scoring_content.corpus.coverage_frames.map((frame) => frame.subcriterion_key);
+  const duplicateKeys = keys.filter((key, index) => keys.indexOf(key) !== index);
+  if (duplicateKeys.length > 0) {
     log.add(
       "coverage_and_time",
       6,
-      at,
-      "no frozen coverage frame exists for this criterion; coverage cannot be checked before an anchor (§6 Step 2)",
+      "corpus.coverage_frames",
+      `more than one frame for: ${[...new Set(duplicateKeys)].join(", ")}`,
     );
   }
 }
@@ -989,7 +1637,7 @@ function checkCoverageState(
 function checkRetrospectiveMinima(
   path: string,
   decision: ScoreDecision,
-  ledger: readonly Claim[],
+  resolveClaims: ClaimResolver,
   content: ScoringPackage["scoring_content"],
   log: IssueLog,
 ): void {
@@ -1033,10 +1681,8 @@ function checkRetrospectiveMinima(
 
   if (decision.score_value_kind !== "numeric") return;
 
-  const claims = new Map(ledger.map((claim) => [claim.claim_id, claim]));
   const eligible = decision.claim_ids
-    .map((claimId) => claims.get(claimId))
-    .filter((claim): claim is Claim => claim !== undefined)
+    .flatMap((claimId) => resolveClaims(claimId) ?? [])
     .filter((claim) => claim.disposition !== "rejected")
     .filter(
       (claim) =>
@@ -1586,6 +2232,9 @@ export function validatePackageSemantics(
   checkReferenceIntegrity(pkg, log);
   checkTierD(pkg, log);
   checkScoreRecords(pkg, log);
+  checkFinalClaimReferences(pkg, log);
+  checkCoverageFrames(pkg, log);
+  checkCarriedForwardCoverage(pkg, log);
   checkCoverageAndTime(pkg, log);
   checkAdjudication(pkg, pairedKeys, log);
   checkDerivation(pkg, options, log);

@@ -122,6 +122,10 @@ function decision(overrides: Record<string, unknown> = {}) {
     zero_reason: null,
     endpoint_gate: null,
     platform_overrides: [],
+    // Required since the issue #44 coverage amendment: the decision's share of
+    // the frozen frame, disjoint and total (Protocol §6.1).
+    coverage_observed_unit_ids: ["u1"],
+    coverage_missing_unit_ids: [],
     ...overrides,
   };
 }
@@ -435,6 +439,8 @@ describe("corpus and run manifests", () => {
       label: `unit ${i}`,
       unit_class: "temporal_stratum",
       centrality: "central",
+      // A central unit is always materially_limiting (§6.1, amendment 1).
+      omission_effect: "materially_limiting",
     });
     const frame = {
       coverage_frame_id: "f1",
@@ -493,7 +499,14 @@ describe("reassessmentRecord", () => {
   ];
   const carried = (schema.$defs.subcriterionKey.enum as string[])
     .filter((k) => !affected.includes(k))
-    .map((k) => ({ subcriterion_key: k, confidence_facts: confidenceFacts }));
+    .map((k) => ({
+      subcriterion_key: k,
+      confidence_facts: confidenceFacts,
+      // Required since Amendment 2: a carried-forward key re-attests its
+      // coverage against the new frozen frame rather than inheriting it (§14).
+      coverage_observed_unit_ids: [`${k}-u1`],
+      coverage_missing_unit_ids: [],
+    }));
   const record = {
     trigger: "major_patch",
     checked_at: "2026-08-25T10:00:00Z",

@@ -18,6 +18,20 @@ import path from "node:path";
  * are authoritative. They are NOT regenerated from the working tree: a verifier
  * that recomputes its own expectation cannot detect the drift it exists to
  * catch.
+ *
+ * Four of the six were re-approved on 2026-09-02 under the bounded Item 3
+ * controlled-freeze amendment for issue #44 (machine-reproducible coverage
+ * state). Amendment 2, approved the same day, extended that record to
+ * carried-forward re-attestations and re-approved the schema and the protocol
+ * again. Amendment 3, approved the same day, clarified in §5.2/§11.3/§15.1(4)
+ * that adjudicated final decisions reference reconciled claims while raw claim
+ * IDs stay pass-local; it re-approved the protocol alone. Amendment 4, approved
+ * the same day, extended that namespace to owner overrides, gave
+ * `insufficiency_reference_ids` its four permitted object kinds, and made
+ * disposition/Tier-D eligibility explicit through reconciliation; it too
+ * re-approved the protocol alone. The rubric and the execution system
+ * instructions were untouched by all four and keep their original Item 3
+ * identities.
  */
 
 /** Repository root, resolved from this file rather than from `process.cwd()`. */
@@ -47,12 +61,12 @@ export const CONTROLLED_INPUTS: readonly ControlledInput[] = [
   {
     path: "docs/scoring/Phase_3A_Research_Prompt_v1.0.md",
     role: "research_prompt",
-    approvedBlobSha: "401920703c9d3e8577641c3616e9c7d39bbd71a0",
+    approvedBlobSha: "dcb5f2c580a447ac2565641342325dc33ed6092d",
   },
   {
     path: "docs/scoring/Phase_3A_Scoring_Prompt_v1.0.md",
     role: "scoring_prompt",
-    approvedBlobSha: "64ae778e1d93d9f9b0c7faa7902a447154a0bc89",
+    approvedBlobSha: "3d6da870cbf2c0d918c0b592d02a6cbfada9bc16",
   },
   {
     path: "docs/Game_Profile_Scoring_Rubric_v1.0.md",
@@ -62,12 +76,12 @@ export const CONTROLLED_INPUTS: readonly ControlledInput[] = [
   {
     path: "docs/Game_Profile_Scoring_Protocol_v1.0_DRAFT.md",
     role: "protocol",
-    approvedBlobSha: "1fa2707421518396c6c68ca26d36c5d98df92e7b",
+    approvedBlobSha: "3ebf7cc7636a08d5e2da0f077910d36f4421797a",
   },
   {
     path: "docs/schemas/Game_Profile_Scoring_Package_v1.0_DRAFT.schema.json",
     role: "output_schema",
-    approvedBlobSha: "9cee78be1b70e463e67b1dbea51678039269918b",
+    approvedBlobSha: "8e49d552b08eeee2bdcb2fd240d77d48ddfbafc6",
   },
 ] as const;
 

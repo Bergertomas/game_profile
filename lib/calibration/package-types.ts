@@ -61,6 +61,9 @@ export interface PlatformOverride {
   readonly claim_ids: readonly string[];
   readonly confidence_facts: ConfidenceFacts;
   readonly subcriterion_confidence: ConfidenceLabel;
+  /** An override carries its own coverage state, so it carries its own record. */
+  readonly coverage_observed_unit_ids: readonly string[];
+  readonly coverage_missing_unit_ids: readonly string[];
 }
 
 export interface ScoreDecision {
@@ -84,6 +87,10 @@ export interface ScoreDecision {
   readonly zero_reason: string | null;
   readonly endpoint_gate: EndpointGate | null;
   readonly platform_overrides: readonly PlatformOverride[];
+  /** Frame units this decision observed. With the next field, a total partition. */
+  readonly coverage_observed_unit_ids: readonly string[];
+  /** Frame units this decision missed. Drives coverage-state derivation (§6.1). */
+  readonly coverage_missing_unit_ids: readonly string[];
 }
 
 export interface RetrospectiveTime {
@@ -167,6 +174,12 @@ export interface CoverageUnit {
     | "build"
     | "optional_endgame";
   readonly centrality: "central" | "noncentral";
+  /**
+   * The recorded consequence of this unit being unobserved, frozen with the
+   * frame (§6.1). Coverage state derives from these; nothing is inferred from
+   * `label` or `unit_class`.
+   */
+  readonly omission_effect: "materially_limiting" | "bounding" | "nonlimiting";
 }
 
 export interface CoverageFrame {
@@ -319,6 +332,9 @@ export interface AuditSummary {
 export interface CarriedForwardReattestation {
   readonly subcriterion_key: string;
   readonly confidence_facts: ConfidenceFacts;
+  /** Re-attested against the criterion's NEW frozen frame, not inherited (§14). */
+  readonly coverage_observed_unit_ids: readonly string[];
+  readonly coverage_missing_unit_ids: readonly string[];
 }
 
 export interface ReassessmentRecord {

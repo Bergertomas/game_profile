@@ -31,7 +31,7 @@ If those inputs conflict, stop and report the conflict. Do not silently choose a
 6. Include material counterevidence and credible disagreement. Do not curate toward an expected profile.
 7. Include technical/current-state evidence when platform/build variance matters. For live or materially patched products, distinguish launch history from the preregistered current-state scope.
 8. For Memory Residue and Lasting Impact, collect dated retrospective evidence capable of satisfying the protocol's elapsed-time rules; do not substitute fame, sales, awards, model memory, or launch-review predictions.
-9. Declare and freeze the criterion coverage frames required by the protocol before either scoring pass. Representative units may not be selected after a candidate score is known.
+9. Declare and freeze the criterion coverage frames required by the protocol before either scoring pass, including each unit's `omission_effect` (`materially_limiting`, `bounding` or `nonlimiting`) — the recorded consequence of that unit being unobserved. Representative units and their omission effects may not be selected or revised after a candidate score is known.
 10. Mask external numeric/star/letter review grades, aggregate badges, and ranking labels from the normalized scoring packet while retaining lawful provenance in the archive.
 11. Stop collection only when the protocol's source-count, query-family, counterevidence, coverage, and saturation conditions are all satisfied.
 12. Freeze the raw/captured corpus, normalized scoring packet, canonical source order, candidate log, coverage frames, timestamps, and digests before any scoring pass begins.

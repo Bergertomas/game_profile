@@ -98,6 +98,12 @@ function buildSources() {
 const SOURCES = buildSources();
 const AB_SOURCE_IDS = SOURCES.filter((s) => s.source_tier !== "D").map((s) => s.source_id);
 
+/**
+ * Four campaign strata per criterion. The late/end stratum is `central` and so
+ * must be `materially_limiting`; the other three are `bounding`, which lets one
+ * fixture express every derivation branch by moving units between the two
+ * decision lists.
+ */
 function coverageFrames() {
   return RUBRIC_SUBCRITERION_KEYS.map((key) => ({
     coverage_frame_id: `frame-${key}`,
@@ -107,8 +113,15 @@ function coverageFrames() {
       label,
       unit_class: "temporal_stratum" as const,
       centrality: index === 3 ? ("central" as const) : ("noncentral" as const),
+      omission_effect:
+        index === 3 ? ("materially_limiting" as const) : ("bounding" as const),
     })),
   }));
+}
+
+/** Every unit of a criterion's frame, in frame order. */
+function frameUnitIds(key: string): string[] {
+  return [1, 2, 3, 4].map((n) => `${key}-u${n}`);
 }
 
 /**
@@ -202,6 +215,40 @@ function decisionFor(passPrefix: string, key: string): ScoreDecision {
     zero_reason: null,
     endpoint_gate: null,
     platform_overrides: [],
+    // Everything observed, nothing missing — derives to `full`, matching
+    // CLEAN_FACTS. A negative test moves a unit into the missing list.
+    coverage_observed_unit_ids: frameUnitIds(key),
+    coverage_missing_unit_ids: [],
+  };
+}
+
+/**
+ * The adjudicated claim ledger: one reconciled record per paired primary/audit
+ * claim, which is what a final decision references (§11.3). Raw claim IDs stay
+ * pass-local — the fixture deliberately namespaces them `primary-`/`audit-` so
+ * the collision test can make them identical without anything else changing.
+ */
+function reconciledClaims() {
+  return RUBRIC_SUBCRITERION_KEYS.flatMap((key) => {
+    const count = RETROSPECTIVE_KEYS.includes(key) ? 2 : 1;
+    return [1, 2].slice(0, count).map((n) => ({
+      reconciled_claim_id: `rec-claim-${key}-${n}`,
+      primary_claim_ids: [`primary-claim-${key}-${n}`],
+      audit_claim_ids: [`audit-claim-${key}-${n}`],
+      resolution: "accepted" as const,
+      reason: "Both passes included the same observation; nothing to reconcile.",
+    }));
+  });
+}
+
+/** The adjudicated value, with its claim references in the reconciled namespace. */
+function finalDecisionFor(key: string): ScoreDecision {
+  const decision = decisionFor("primary", key);
+  return {
+    ...decision,
+    claim_ids: decision.claim_ids.map((claimId) =>
+      claimId.replace(/^primary-claim-/, "rec-claim-"),
+    ),
   };
 }
 
@@ -340,9 +387,9 @@ export function buildValidPackage(): ScoringPackage {
     primary_pass: pass("primary"),
     audit_pass: pass("audit"),
     adjudication: {
-      reconciled_claim_record: [],
+      reconciled_claim_record: reconciledClaims(),
       differences: differences(),
-      final_decisions: RUBRIC_SUBCRITERION_KEYS.map((key) => decisionFor("primary", key)),
+      final_decisions: RUBRIC_SUBCRITERION_KEYS.map(finalDecisionFor),
     },
     derived_dimensions: derivedDimensions(),
     overall_confidence: {
