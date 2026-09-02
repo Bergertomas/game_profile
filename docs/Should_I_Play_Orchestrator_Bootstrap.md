@@ -57,7 +57,8 @@ As of 2026-09-02:
 
 - Item 1 — baseline/source audit: **complete**.
 - Item 2 — cohort reconciliation: **complete**.
-- Item 3 — preregistration: **active / final owner approval pending**.
+- Item 3 — preregistration: **complete**; owner-approved and merged at `00f082022dcbf7f065453513d6f2681c01d63493`.
+- Item 4 — Phase 3A engineering readiness: **active / next** and a hard blocker before D1.
 - No Phase 3A calibration scoring has begun.
 - Candidate Scoring Protocol v1.0 remains non-governing.
 - No production/bulk catalog score mutation is authorized.
@@ -67,7 +68,8 @@ Read these active records before any Phase 3A work:
 - `docs/decisions/0035-released-game-maturity-is-evidence-and-stability-based.md`
 - `docs/decisions/0036-phase3a-measured-scoring-execution-surface.md`
 - `docs/Game_Profile_Phase_3A_Cohort_Lock_2026-09-02.md`
-- `docs/Game_Profile_Phase_3A_Preregistration_v1.0_DRAFT.md` once present/merged
+- `docs/Game_Profile_Phase_3A_Preregistration_v1.0_DRAFT.md`
+- `docs/Game_Profile_Phase_3A_Item_3_Approval_and_Item_4_Handoff_2026-09-02.md`
 - `docs/scoring/Phase_3A_Execution_System_Instructions_v1.0.md`
 - `docs/scoring/Phase_3A_Research_Prompt_v1.0.md`
 - `docs/scoring/Phase_3A_Scoring_Prompt_v1.0.md`
@@ -85,6 +87,12 @@ The cohort-lock file, not this summary, owns identities/high-level scopes.
 - **GPT-5.6 Sol High:** research/synthesis orchestration, editorial scoring judgments, rationales/caveats/confidence, calibration analysis and recommendations.
 - **Codex / Claude / Claude Code:** engineering support: validators, harnesses, schemas, fixtures, timing/ledger, blinding/isolation, IGDB staging/provenance, tests, branches and PRs. They do not change scoring semantics or substitute their judgment for the designated GPT scorer.
 - **Tomas:** final editorial/product authority; approves cohort/scope/DLC choices, material methodology changes, preregistration, candidate freeze, final protocol adoption and production authorization.
+
+### Item 4 boundary
+
+Item 4 must prove the preregistered execution contract before D1 can begin. At minimum this includes OpenAI `gpt-5.6-sol` High-reasoning access and returned-model identity, stateless tool-free scoring calls, byte-identical paired semantic inputs/configuration, strict structured-output/semantic validation, SHA-256 verification of approved controlled bytes, ledger/timing/retry capture, fail-closed behavior, and safe credential/spend handling.
+
+If Item 4 fails, D1 does not begin and the program returns to the relevant methodology/engineering step.
 
 ## Active known deferred issue
 
