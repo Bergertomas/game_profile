@@ -552,7 +552,8 @@ criterion-specific claim records and state the different consequence under
 
 Primary and audit passes create separate claim ledgers. The adjudicated ledger
 preserves claim-inclusion, mapping and disposition differences; it is not a
-destructive merge that hides them.
+destructive merge that hides them. Claim IDs are therefore pass-local, and
+§11.3 governs how an adjudicated final decision references them.
 
 ### 5.3 Claim quality is local
 
@@ -1131,6 +1132,30 @@ Adjudication must result in:
 
 The final record preserves primary, audit and adjudicated values.
 
+Claim IDs are pass-local. A primary claim ID must be unique within the primary
+ledger and an audit claim ID within the audit ledger; the same string may name a
+different claim in each, and two role-blind passes over byte-identical input are
+never required to coordinate identifiers. The reconciled claim record is the
+package-level namespace that resolves this: each entry carries one
+`reconciled_claim_id` and keeps its `primary_claim_ids` and `audit_claim_ids`
+apart, so the ledger a raw ID belongs to is named by the field holding it.
+
+Every claim reference an adjudicated final decision carries — its `claim_ids`,
+its `endpoint_gate` scope-spanning references and its platform overrides'
+`claim_ids` — names a `reconciled_claim_id`, never a raw pass claim ID. The
+reconciled record then resolves through its recorded `primary_claim_ids` and
+`audit_claim_ids` into the two pass ledgers, and every rule about the underlying
+evidence — criterion mapping, disposition, endpoint evidence, the delayed-effect
+minima, and the §6.1 rule that a linked claim's observed unit may not also be
+recorded missing — is applied to the claims reached that way.
+
+The reconciled record therefore covers every claim an adjudicated final decision
+rests on, including where the two passes agreed exactly and there was nothing to
+reconcile; recording differences is what it preserves, not the limit of what it
+contains. A reference that resolves to no reconciled record, to more than one,
+or to a record naming no claim in either ledger is rejected, as is a reconciled
+record naming a raw claim absent from the ledger it names.
+
 ### 11.4 Reproducibility report
 
 For every calibration batch report:
@@ -1445,8 +1470,9 @@ The validator has no editorial discretion. It rejects unless all are true:
 4. all seven query-family dispositions occur exactly once; source collection
    standard/reason and independent active A/B cluster counts reproduce the
    five-versus-eight-to-ten rule; source/claim/difference/override references
-   resolve; claim links contain no self-reference or relation-type
-   contradiction; no active Tier-D claim supports a numeric decision; and
+   resolve, an adjudicated final decision's claim references resolving through
+   the reconciled claim record into the pass ledgers (§11.3); claim links
+   contain no self-reference or relation-type contradiction; no active Tier-D claim supports a numeric decision; and
    experience-tag keys are unique;
 5. numeric/Unknown conditional fields, zero reasons, anchor IDs, required-facet
    records/minima and platform base-difference rules hold; every numeric

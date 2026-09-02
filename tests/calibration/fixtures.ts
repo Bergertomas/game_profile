@@ -222,6 +222,36 @@ function decisionFor(passPrefix: string, key: string): ScoreDecision {
   };
 }
 
+/**
+ * The adjudicated claim ledger: one reconciled record per paired primary/audit
+ * claim, which is what a final decision references (§11.3). Raw claim IDs stay
+ * pass-local — the fixture deliberately namespaces them `primary-`/`audit-` so
+ * the collision test can make them identical without anything else changing.
+ */
+function reconciledClaims() {
+  return RUBRIC_SUBCRITERION_KEYS.flatMap((key) => {
+    const count = RETROSPECTIVE_KEYS.includes(key) ? 2 : 1;
+    return [1, 2].slice(0, count).map((n) => ({
+      reconciled_claim_id: `rec-claim-${key}-${n}`,
+      primary_claim_ids: [`primary-claim-${key}-${n}`],
+      audit_claim_ids: [`audit-claim-${key}-${n}`],
+      resolution: "accepted" as const,
+      reason: "Both passes included the same observation; nothing to reconcile.",
+    }));
+  });
+}
+
+/** The adjudicated value, with its claim references in the reconciled namespace. */
+function finalDecisionFor(key: string): ScoreDecision {
+  const decision = decisionFor("primary", key);
+  return {
+    ...decision,
+    claim_ids: decision.claim_ids.map((claimId) =>
+      claimId.replace(/^primary-claim-/, "rec-claim-"),
+    ),
+  };
+}
+
 function runManifest(role: "primary" | "audit" | "research"): RunManifest {
   return {
     run_id: `run-${role}-fixture`,
@@ -357,9 +387,9 @@ export function buildValidPackage(): ScoringPackage {
     primary_pass: pass("primary"),
     audit_pass: pass("audit"),
     adjudication: {
-      reconciled_claim_record: [],
+      reconciled_claim_record: reconciledClaims(),
       differences: differences(),
-      final_decisions: RUBRIC_SUBCRITERION_KEYS.map((key) => decisionFor("primary", key)),
+      final_decisions: RUBRIC_SUBCRITERION_KEYS.map(finalDecisionFor),
     },
     derived_dimensions: derivedDimensions(),
     overall_confidence: {

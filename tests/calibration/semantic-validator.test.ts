@@ -290,32 +290,204 @@ describe("§15.1(4) reference integrity and collection standard", () => {
     ).toBe(true);
   });
 
-  it("rejects a final-decision claim reference that matches in BOTH ledgers", () => {
-    // §5.2: the passes create separate ledgers, so one ID matching in both
-    // names two different claims. Resolving it to either would be inventing a
-    // convention the controlled contract does not state.
+  it("ACCEPTS a raw claim ID that collides across the two pass ledgers", () => {
+    // Owner decision of 2026-09-02: raw claim IDs are pass-local and a
+    // cross-pass collision "must not invalidate an otherwise valid package".
+    // Two role-blind runs over byte-identical input can naturally emit the same
+    // identifier, and requiring them not to would make them coordinate.
+    const collided = mutate((draft) => {
+      const content = draft.scoring_content as Record<string, unknown>;
+      const auditLedger = (content.audit_pass as Record<string, unknown>).claim_ledger as Record<
+        string,
+        unknown
+      >[];
+      const auditClaim = auditLedger.find(
+        (claim) => claim.claim_id === "audit-claim-story_hook-1",
+      )!;
+      auditClaim.claim_id = "primary-claim-story_hook-1";
+      decisionIn(draft, "audit_pass", "story_hook").claim_ids = ["primary-claim-story_hook-1"];
+      // The reconciled record names the collided ID on its audit side; the
+      // field it sits in says which ledger it belongs to.
+      const records = (content.adjudication as Record<string, unknown>)
+        .reconciled_claim_record as Record<string, unknown>[];
+      records.find((record) => record.reconciled_claim_id === "rec-claim-story_hook-1")!
+        .audit_claim_ids = ["primary-claim-story_hook-1"];
+    });
+    const result = validatePackageSemantics(collided);
+    expect(result.issues).toEqual([]);
+    expect(result.valid).toBe(true);
+  });
+
+  it("rejects a final decision that cites a raw pass claim ID instead of a reconciled one", () => {
     const result = reject(
       mutate((draft) => {
-        const content = draft.scoring_content as Record<string, unknown>;
-        const auditLedger = (content.audit_pass as Record<string, unknown>)
-          .claim_ledger as Record<string, unknown>[];
-        // Give an audit claim the same ID as the primary claim the final cites.
-        auditLedger.find((claim) => claim.claim_id === "audit-claim-story_hook-1")!.claim_id =
-          "primary-claim-story_hook-1";
-        const auditDecision = decisionIn(draft, "audit_pass", "story_hook");
-        auditDecision.claim_ids = ["primary-claim-story_hook-1"];
+        decisionIn(draft, "final", "story_hook").claim_ids = ["primary-claim-story_hook-1"];
       }),
     );
     expect(
-      result.issues.some((issue) => /matches in both pass ledgers and is ambiguous/.test(issue.message)),
+      result.issues.some(
+        (issue) =>
+          issue.path.startsWith("adjudication.final_decisions") &&
+          /references a reconciled_claim_id, not a raw pass claim ID/.test(issue.message),
+      ),
     ).toBe(true);
   });
 
-  it("rejects a final decision citing a claim mapped to another criterion", () => {
+  it("rejects a duplicated reconciled_claim_id as ambiguous", () => {
+    const result = reject(
+      mutate((draft) => {
+        const records = (
+          (draft.scoring_content as Record<string, unknown>).adjudication as Record<string, unknown>
+        ).reconciled_claim_record as Record<string, unknown>[];
+        const original = records.find(
+          (record) => record.reconciled_claim_id === "rec-claim-story_hook-1",
+        )!;
+        records.push({ ...original, reason: "A second record claiming the same identity." });
+      }),
+    );
+    expect(
+      result.issues.some((issue) => /is recorded more than once and is ambiguous/.test(issue.message)),
+    ).toBe(true);
+  });
+
+  it("rejects a final decision resting on a reconciled record that names no claim", () => {
+    const result = reject(
+      mutate((draft) => {
+        const record = (
+          (draft.scoring_content as Record<string, unknown>).adjudication as Record<string, unknown>
+        ).reconciled_claim_record as Record<string, unknown>[];
+        const target = record.find(
+          (entry) => entry.reconciled_claim_id === "rec-claim-story_hook-1",
+        )!;
+        target.primary_claim_ids = [];
+        target.audit_claim_ids = [];
+      }),
+    );
+    expect(
+      result.issues.some((issue) => /names no primary or audit claim/.test(issue.message)),
+    ).toBe(true);
+  });
+
+  it("resolves a final ENDPOINT-GATE reference through the reconciled ledger too", () => {
+    const result = reject(
+      mutate((draft) => {
+        // The schema only allows an endpoint_gate on an endpoint value, so all
+        // three sets move to 2 in blind agreement; the only defect under test
+        // is the final gate citing a raw pass claim ID.
+        for (const set of ["primary_pass", "audit_pass", "final"] as const) {
+          const decision = decisionIn(draft, set, "story_hook");
+          decision.numeric_score = 2;
+          decision.anchor_id = "story_hook@2";
+          decision.higher_anchor_rejection = null;
+          decision.endpoint_gate = {
+            scope_spanning_claim_ids: [
+              set === "audit_pass" ? "audit-claim-story_hook-1" : "primary-claim-story_hook-1",
+            ],
+            calibration_reference: null,
+            intent_genre_check: "Placeholder intent check.",
+          };
+        }
+        const differences = (
+          (draft.scoring_content as Record<string, unknown>).adjudication as Record<string, unknown>
+        ).differences as Record<string, unknown>[];
+        const difference = differences.find((entry) => entry.subcriterion_key === "story_hook")!;
+        difference.primary_value = { score_value_kind: "numeric", numeric_score: 2 };
+        difference.audit_value = { score_value_kind: "numeric", numeric_score: 2 };
+      }),
+    );
+    expect(
+      result.issues.some(
+        (issue) =>
+          issue.path.endsWith("endpoint_gate") &&
+          /references a reconciled_claim_id, not a raw pass claim ID/.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("resolves a final PLATFORM-OVERRIDE reference through the reconciled ledger too", () => {
+    const result = reject(
+      mutate((draft) => {
+        decisionIn(draft, "final", "technical_stability").platform_overrides = [
+          {
+            platform_key: "pc",
+            score_value_kind: "numeric",
+            numeric_score: 1,
+            anchor_id: "technical_stability@1",
+            unknown_reason: null,
+            missing_coverage_classes: [],
+            insufficiency_reference_ids: [],
+            zero_reason: null,
+            rationale: "Placeholder override rationale.",
+            claim_ids: ["primary-claim-technical_stability-1"],
+            confidence_facts: {
+              coverage_state: "full",
+              conflict_state: "none",
+              stability_state: "stable",
+            },
+            subcriterion_confidence: "High",
+            coverage_observed_unit_ids: [
+              "technical_stability-u1",
+              "technical_stability-u2",
+              "technical_stability-u3",
+              "technical_stability-u4",
+            ],
+            coverage_missing_unit_ids: [],
+          },
+        ];
+      }),
+    );
+    expect(
+      result.issues.some(
+        (issue) =>
+          issue.path.includes("platform_overrides") &&
+          /references a reconciled_claim_id, not a raw pass claim ID/.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects a reconciled record naming a primary claim that is not in the primary ledger", () => {
+    const result = reject(
+      mutate((draft) => {
+        const records = (
+          (draft.scoring_content as Record<string, unknown>).adjudication as Record<string, unknown>
+        ).reconciled_claim_record as Record<string, unknown>[];
+        records.find((record) => record.reconciled_claim_id === "rec-claim-story_hook-1")!
+          .primary_claim_ids = ["audit-claim-story_hook-1"];
+      }),
+    );
+    expect(
+      result.issues.some(
+        (issue) =>
+          issue.path.startsWith("adjudication.reconciled_claim_record") &&
+          /unresolved primary claim/.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects a reconciled record naming an audit claim that is not in the audit ledger", () => {
+    const result = reject(
+      mutate((draft) => {
+        const records = (
+          (draft.scoring_content as Record<string, unknown>).adjudication as Record<string, unknown>
+        ).reconciled_claim_record as Record<string, unknown>[];
+        records.find((record) => record.reconciled_claim_id === "rec-claim-story_hook-1")!
+          .audit_claim_ids = ["primary-claim-story_hook-1"];
+      }),
+    );
+    expect(
+      result.issues.some(
+        (issue) =>
+          issue.path.startsWith("adjudication.reconciled_claim_record") &&
+          /unresolved audit claim/.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects a final decision whose reconciled claim reaches another criterion", () => {
     const result = reject(
       mutate((draft) => {
         decisionIn(draft, "final", "story_hook").claim_ids = [
-          "primary-claim-character_investment-1",
+          "rec-claim-character_investment-1",
         ];
       }),
     );
@@ -323,7 +495,7 @@ describe("§15.1(4) reference integrity and collection standard", () => {
       result.issues.some(
         (issue) =>
           issue.path.startsWith("adjudication.final_decisions") &&
-          /is mapped to character_investment/.test(issue.message),
+          /mapped to character_investment/.test(issue.message),
       ),
     ).toBe(true);
   });
@@ -706,8 +878,8 @@ describe("§15.1(6) coverage, calendar dates and retrospective minima", () => {
   it("applies the claim/coverage invariant to FINAL decisions too", () => {
     // Regression for the review finding: final decisions were passed a null
     // claim lookup, so this invariant was silently unenforced on the very set
-    // that feeds derivation. The fixture gives finals primary-pass claim IDs,
-    // so the gap was observable rather than hypothetical.
+    // that feeds derivation. The finals now reach their claims through the
+    // reconciled record, so this also covers that traversal.
     const result = reject(
       mutate((draft) => {
         const decision = decisionIn(draft, "final", "story_hook");
@@ -739,7 +911,7 @@ describe("§15.1(6) coverage, calendar dates and retrospective minima", () => {
             insufficiency_reference_ids: [],
             zero_reason: null,
             rationale: "Placeholder override rationale.",
-            claim_ids: ["primary-claim-technical_stability-1"],
+            claim_ids: ["rec-claim-technical_stability-1"],
             confidence_facts: {
               coverage_state: "full",
               conflict_state: "none",

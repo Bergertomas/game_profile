@@ -24,6 +24,7 @@ import type {
   CoverageUnit,
   DerivedDimension,
   Difference,
+  ReconciledClaim,
   ScoreDecision,
   ScoreValueKind,
   ScoringPackage,
@@ -885,7 +886,7 @@ function checkCoverageAndTime(pkg: ScoringPackage, log: IssueLog): void {
       }
     }
 
-    const claims = passClaimLookup(pass);
+    const claims = passClaimResolver(pass);
     for (const decision of pass.decisions) {
       const at = `${path}.decisions[${decision.subcriterion_key}]`;
       const frame = frames.get(decision.subcriterion_key);
@@ -903,10 +904,11 @@ function checkCoverageAndTime(pkg: ScoringPackage, log: IssueLog): void {
   }
 
   // Final decisions carry their own coverage state, and the claim/coverage
-  // invariant applies to them too. Their claim IDs resolve against the union of
-  // both ledgers (§5.2); an ID matching in both is rejected as ambiguous by
-  // `checkFinalClaimReferences` rather than resolved arbitrarily here.
-  const finalClaims = unionClaimLookup(content);
+  // invariant applies to them too. Their claim IDs name reconciled claims
+  // (§11.3), so the underlying pass claims are reached through the adjudicated
+  // ledger; a reference that does not resolve is reported once, by
+  // `checkFinalClaimReferences`, rather than again here.
+  const finalClaims = finalClaimResolver(content);
   for (const decision of content.adjudication.final_decisions) {
     const at = `adjudication.final_decisions[${decision.subcriterion_key}]`;
     const frame = frames.get(decision.subcriterion_key);
@@ -922,17 +924,16 @@ function checkCoverageAndTime(pkg: ScoringPackage, log: IssueLog): void {
     }
   }
 
-  for (const [path, decisions] of [
-    ["primary_pass.decisions", content.primary_pass.decisions],
-    ["audit_pass.decisions", content.audit_pass.decisions],
-    ["adjudication.final_decisions", content.adjudication.final_decisions],
+  // The §6 Step 2 retrospective minima count the claims a decision actually
+  // rests on, so each decision set is walked with its own resolver: a pass
+  // reaches its own ledger, a final reaches both through the reconciled record.
+  for (const [path, decisions, resolveClaims] of [
+    ["primary_pass.decisions", content.primary_pass.decisions, passClaimResolver(content.primary_pass)],
+    ["audit_pass.decisions", content.audit_pass.decisions, passClaimResolver(content.audit_pass)],
+    ["adjudication.final_decisions", content.adjudication.final_decisions, finalClaims],
   ] as const) {
-    const ledger =
-      path === "audit_pass.decisions"
-        ? content.audit_pass.claim_ledger
-        : content.primary_pass.claim_ledger;
     for (const decision of decisions) {
-      checkRetrospectiveMinima(path, decision, ledger, content, log);
+      checkRetrospectiveMinima(path, decision, resolveClaims, content, log);
     }
   }
 }
@@ -993,19 +994,18 @@ interface CoverageCarrier {
 /**
  * Check one coverage record — a decision or a platform override.
  *
- * `claims` maps a claim ID to every claim carrying it. For a pass that is its
- * own ledger; for a final decision it is the union of both ledgers, because
- * §5.2 states that "primary and audit passes create separate claim ledgers" and
- * a final decision adjudicates across them. A claim ID matching in both ledgers
- * names two different claims, so the invariant is applied only where the
- * resolution is unique; `checkFinalClaimReferences` reports the unresolved and
- * ambiguous cases, so they are not double-reported here.
+ * `resolveClaims` turns one of the carrier's `claim_ids` into the claims it
+ * names. For a pass that is its own pass-local ledger; for a final decision it
+ * is the reconciled claim's underlying primary and audit claims (§11.3), which
+ * is why one reference may reach several. A reference that does not resolve
+ * yields `null` and is skipped here: `checkFinalClaimReferences` reports the
+ * unresolved, ambiguous and empty cases, so they are not double-reported.
  */
 function checkCoverageRecord(
   at: string,
   carrier: CoverageCarrier,
   frame: CoverageFrame | undefined,
-  claims: ReadonlyMap<string, readonly Claim[]> | null,
+  resolveClaims: ClaimResolver | null,
   log: IssueLog,
 ): void {
   const observed = carrier.coverage_observed_unit_ids;
@@ -1070,28 +1070,28 @@ function checkCoverageRecord(
   }
 
   // A linked, non-rejected claim's observed units may not be recorded missing.
-  if (claims) {
+  if (resolveClaims) {
     for (const claimId of carrier.claim_ids) {
-      const matches = claims.get(claimId) ?? [];
-      // Exactly one match, or the reference is not a usable link.
-      if (matches.length !== 1) continue;
-      const claim = matches[0]!;
-      if (claim.disposition === "rejected") continue;
-      for (const unitId of claim.observed_unit_ids) {
-        if (missing.includes(unitId)) {
-          log.add(
-            "coverage_and_time",
-            6,
-            at,
-            `claim "${claimId}" observes unit "${unitId}", which this record marks missing`,
-          );
-        } else if (frameUnits.has(unitId) && !observed.includes(unitId)) {
-          log.add(
-            "coverage_and_time",
-            6,
-            at,
-            `claim "${claimId}" observes frame unit "${unitId}", which this record does not list as observed`,
-          );
+      // `null` means the reference does not resolve, which is not this rule's
+      // to report; a reconciled reference may reach several underlying claims.
+      for (const claim of resolveClaims(claimId) ?? []) {
+        if (claim.disposition === "rejected") continue;
+        for (const unitId of claim.observed_unit_ids) {
+          if (missing.includes(unitId)) {
+            log.add(
+              "coverage_and_time",
+              6,
+              at,
+              `claim "${claim.claim_id}" observes unit "${unitId}", which this record marks missing`,
+            );
+          } else if (frameUnits.has(unitId) && !observed.includes(unitId)) {
+            log.add(
+              "coverage_and_time",
+              6,
+              at,
+              `claim "${claim.claim_id}" observes frame unit "${unitId}", which this record does not list as observed`,
+            );
+          }
         }
       }
     }
@@ -1132,27 +1132,96 @@ function checkCoverageRecord(
 }
 
 /**
- * Build the claim lookup a final decision resolves against.
+ * How one carrier's `claim_ids` reach claim records.
  *
- * §5.2: "Primary and audit passes create separate claim ledgers." Claim IDs are
- * therefore pass-local, and `reconciledClaim` keeps `primary_claim_ids` and
- * `audit_claim_ids` apart for exactly that reason. A final decision adjudicates
- * across both, so its references are resolved against the union — and an ID
- * present in both ledgers names two different claims, so it is rejected as
- * ambiguous rather than silently resolved to one of them.
+ * Returns every claim the reference names, or `null` when the reference does
+ * not resolve — an unresolved or ambiguous reference is reported once, by the
+ * reference check, rather than again by every rule that would have walked it.
+ *
+ * The indirection exists because the two carriers reach claims differently: a
+ * pass names its own pass-local claims, while a final decision names
+ * package-level reconciled claims and reaches the pass ledgers through them
+ * (§5.2, §11.3).
  */
-function unionClaimLookup(
-  content: ScoringPackage["scoring_content"],
-): ReadonlyMap<string, readonly Claim[]> {
-  return groupClaims([
-    ...content.primary_pass.claim_ledger,
-    ...content.audit_pass.claim_ledger,
-  ]);
+type ClaimResolver = (claimId: string) => readonly Claim[] | null;
+
+/** One pass's own ledger. Claim IDs are pass-local, so this is a plain lookup. */
+function passClaimResolver(pass: ScoringPass): ClaimResolver {
+  const lookup = groupClaims(pass.claim_ledger);
+  return (claimId) => {
+    const matches = lookup.get(claimId) ?? [];
+    return matches.length === 1 ? matches : null;
+  };
 }
 
-/** One pass's ledger in the same shape, so both carriers share one code path. */
-function passClaimLookup(pass: ScoringPass): ReadonlyMap<string, readonly Claim[]> {
-  return groupClaims(pass.claim_ledger);
+/** What a final decision's reference into the adjudicated ledger resolves to. */
+type ReconciledResolution =
+  | { readonly kind: "unresolved" }
+  | { readonly kind: "ambiguous" }
+  | { readonly kind: "empty" }
+  | { readonly kind: "resolved"; readonly claims: readonly Claim[] };
+
+/**
+ * Resolve a final decision's claim reference through the adjudicated ledger.
+ *
+ * §5.2 gives the primary and audit passes SEPARATE claim ledgers, so a raw
+ * claim ID is pass-local and the same string may legitimately name a different
+ * claim in each — two role-blind runs over byte-identical input cannot
+ * coordinate identifiers and must not be required to. `reconciledClaim` is the
+ * structure that already resolves this: one package-level
+ * `reconciled_claim_id`, with `primary_claim_ids` and `audit_claim_ids` kept
+ * apart so the ledger a raw ID belongs to is named by the field holding it.
+ *
+ * Final decisions therefore reference reconciled claims (§11.3), and every rule
+ * needing the underlying evidence walks through the record into the pass
+ * ledgers. A cross-pass raw-ID collision is not an error here; an unresolved or
+ * duplicated `reconciled_claim_id`, or a record naming no underlying claim at
+ * all, is.
+ */
+function reconciledClaimResolver(
+  content: ScoringPackage["scoring_content"],
+): (reconciledId: string) => ReconciledResolution {
+  const records = new Map<string, ReconciledClaim[]>();
+  for (const record of content.adjudication.reconciled_claim_record) {
+    const existing = records.get(record.reconciled_claim_id);
+    if (existing) existing.push(record);
+    else records.set(record.reconciled_claim_id, [record]);
+  }
+  const primary = groupClaims(content.primary_pass.claim_ledger);
+  const audit = groupClaims(content.audit_pass.claim_ledger);
+
+  return (reconciledId) => {
+    const matches = records.get(reconciledId) ?? [];
+    if (matches.length === 0) return { kind: "unresolved" };
+    if (matches.length > 1) return { kind: "ambiguous" };
+    const record = matches[0]!;
+    if (record.primary_claim_ids.length === 0 && record.audit_claim_ids.length === 0) {
+      return { kind: "empty" };
+    }
+    const claims: Claim[] = [];
+    for (const [lookup, ids] of [
+      [primary, record.primary_claim_ids],
+      [audit, record.audit_claim_ids],
+    ] as const) {
+      for (const claimId of ids) {
+        // A raw ID that does not resolve in its named ledger is already
+        // reported by `checkPackageReferences`; skipping it here keeps one
+        // defect to one issue.
+        const found = lookup.get(claimId) ?? [];
+        if (found.length === 1) claims.push(found[0]!);
+      }
+    }
+    return { kind: "resolved", claims };
+  };
+}
+
+/** The same resolution, in the shape the coverage rule consumes. */
+function finalClaimResolver(content: ScoringPackage["scoring_content"]): ClaimResolver {
+  const resolve = reconciledClaimResolver(content);
+  return (reconciledId) => {
+    const resolution = resolve(reconciledId);
+    return resolution.kind === "resolved" ? resolution.claims : null;
+  };
 }
 
 function groupClaims(claims: readonly Claim[]): ReadonlyMap<string, readonly Claim[]> {
@@ -1166,40 +1235,61 @@ function groupClaims(claims: readonly Claim[]): ReadonlyMap<string, readonly Cla
 }
 
 /**
- * §15.1(4) for the adjudicated set: every claim a final decision, its endpoint
- * gate or its platform overrides names must resolve to exactly one claim across
- * the two pass ledgers, and must be mapped to the criterion it supports.
+ * §15.1(4) for the adjudicated set: every claim reference a final decision, its
+ * endpoint gate or its platform overrides carries must resolve to exactly one
+ * package-level reconciled claim (§11.3), that record must name at least one
+ * underlying pass claim, and every claim it reaches must be mapped to the
+ * criterion the decision scores.
  *
  * Without this the final decisions were the one decision set whose claim
- * references went unchecked entirely.
+ * references went unchecked entirely. Resolving them through the adjudicated
+ * ledger rather than against a flat union of the two pass ledgers is what makes
+ * a cross-pass raw-ID collision harmless: the ledger a raw ID belongs to is
+ * named by the reconciled field holding it, so no package-global uniqueness
+ * rule is imposed on two passes that must not coordinate identifiers.
  */
 function checkFinalClaimReferences(pkg: ScoringPackage, log: IssueLog): void {
   const content = pkg.scoring_content;
-  const lookup = unionClaimLookup(content);
+  const resolveReconciled = reconciledClaimResolver(content);
 
   const resolve = (at: string, claimId: string, subcriterionKey: string | null): void => {
-    const matches = lookup.get(claimId) ?? [];
-    if (matches.length === 0) {
-      log.add("reference_integrity", 4, at, `unresolved claim reference "${claimId}"`);
-      return;
-    }
-    if (matches.length > 1) {
+    const resolution = resolveReconciled(claimId);
+    if (resolution.kind === "unresolved") {
       log.add(
         "reference_integrity",
         4,
         at,
-        `claim reference "${claimId}" matches in both pass ledgers and is ambiguous; claim IDs are pass-local (§5.2)`,
+        `unresolved claim reference "${claimId}"; a final decision references a reconciled_claim_id, not a raw pass claim ID (§11.3)`,
       );
       return;
     }
-    const claim = matches[0]!;
-    if (subcriterionKey !== null && claim.subcriterion_key !== subcriterionKey) {
+    if (resolution.kind === "ambiguous") {
       log.add(
         "reference_integrity",
         4,
         at,
-        `claim "${claimId}" is mapped to ${claim.subcriterion_key} but supports a ${subcriterionKey} decision`,
+        `reconciled claim reference "${claimId}" is recorded more than once and is ambiguous`,
       );
+      return;
+    }
+    if (resolution.kind === "empty") {
+      log.add(
+        "reference_integrity",
+        4,
+        at,
+        `reconciled claim "${claimId}" names no primary or audit claim, so this decision rests on no recorded evidence (§11.3)`,
+      );
+      return;
+    }
+    for (const claim of resolution.claims) {
+      if (subcriterionKey !== null && claim.subcriterion_key !== subcriterionKey) {
+        log.add(
+          "reference_integrity",
+          4,
+          at,
+          `reconciled claim "${claimId}" reaches claim "${claim.claim_id}", mapped to ${claim.subcriterion_key} but supporting a ${subcriterionKey} decision`,
+        );
+      }
     }
   };
 
@@ -1342,7 +1432,7 @@ function checkCoverageFrames(pkg: ScoringPackage, log: IssueLog): void {
 function checkRetrospectiveMinima(
   path: string,
   decision: ScoreDecision,
-  ledger: readonly Claim[],
+  resolveClaims: ClaimResolver,
   content: ScoringPackage["scoring_content"],
   log: IssueLog,
 ): void {
@@ -1386,10 +1476,8 @@ function checkRetrospectiveMinima(
 
   if (decision.score_value_kind !== "numeric") return;
 
-  const claims = new Map(ledger.map((claim) => [claim.claim_id, claim]));
   const eligible = decision.claim_ids
-    .map((claimId) => claims.get(claimId))
-    .filter((claim): claim is Claim => claim !== undefined)
+    .flatMap((claimId) => resolveClaims(claimId) ?? [])
     .filter((claim) => claim.disposition !== "rejected")
     .filter(
       (claim) =>
