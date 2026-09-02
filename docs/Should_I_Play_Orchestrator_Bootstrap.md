@@ -12,6 +12,20 @@ GitHub is the durable connective tissue across the project's different AI and de
 
 This file is intentionally short. It points to authority; it does not duplicate authority.
 
+## Session activation by surface
+
+The repository can define one project preflight, but different products discover it differently.
+
+- **Codex / repository-native OpenAI agents:** `AGENTS.md` is the automatic repository entrypoint. `AGENTS.md` therefore makes this bootstrap a mandatory preflight read before material work.
+- **Claude Code:** the repository `CLAUDE.md` imports `AGENTS.md`; the same preflight therefore flows into Claude Code sessions through its repository instruction mechanism.
+- **ChatGPT web/app project chats and Claude web project chats:** the presence of this file in GitHub does **not by itself force an arbitrary new web chat to open it**. The corresponding Project instructions must explicitly require live repository preflight: verify current `main`, read `AGENTS.md`, read this bootstrap, then follow its active/task-specific read set. If repository access is unavailable, the agent must disclose that and avoid material project decisions from chat/model memory alone.
+
+For web/chat orchestration, the first substantive material response of a new session should visibly include a receipt in this form:
+
+`Project preflight: main <short SHA> · bootstrap read · active item <number/name>`
+
+Absence of that receipt means the web-chat preflight has not been demonstrated. This receipt is a process check, not a substitute for actually reading the files.
+
 ## Mandatory start sequence for material work
 
 Before making a material product, methodology, scoring, architecture, data, design, publication, or roadmap decision:
@@ -43,7 +57,7 @@ As of 2026-09-02:
 
 - Item 1 — baseline/source audit: **complete**.
 - Item 2 — cohort reconciliation: **complete**.
-- Item 3 — preregistration: **active**.
+- Item 3 — preregistration: **active / final owner approval pending**.
 - No Phase 3A calibration scoring has begun.
 - Candidate Scoring Protocol v1.0 remains non-governing.
 - No production/bulk catalog score mutation is authorized.
@@ -51,6 +65,7 @@ As of 2026-09-02:
 Read these active records before any Phase 3A work:
 
 - `docs/decisions/0035-released-game-maturity-is-evidence-and-stability-based.md`
+- `docs/decisions/0036-phase3a-measured-scoring-execution-surface.md`
 - `docs/Game_Profile_Phase_3A_Cohort_Lock_2026-09-02.md`
 - `docs/Game_Profile_Phase_3A_Preregistration_v1.0_DRAFT.md` once present/merged
 - `docs/scoring/Phase_3A_Execution_System_Instructions_v1.0.md`
