@@ -25,7 +25,13 @@
     "cf:deploy": "node scripts/cf-deploy.mjs",
     "cf:deploy-preview": "node scripts/cf-preview-deploy.mjs",
     "cf:typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
-    "check:containment": "tsx scripts/check-build-containment.ts"
+    "check:containment": "tsx scripts/check-build-containment.ts",
+    "calib:lock": "tsx scripts/calibration/verify-lock.ts",
+    "calib:validate": "tsx scripts/calibration/validate-package.ts",
+    "calib:pair": "tsx scripts/calibration/verify-pair.ts",
+    "calib:harness": "vitest run tests/calibration",
+    "calib:probe": "tsx scripts/calibration/live-probe.ts",
+    "calib:report": "tsx scripts/calibration/proof-report.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",
