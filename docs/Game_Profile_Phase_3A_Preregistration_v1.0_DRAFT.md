@@ -34,7 +34,7 @@ Execution uses the repository state frozen by the approved preregistration merge
 - `docs/Game_Profile_Scoring_Rubric_v1.0.md` owns dimension/subcriterion meaning and the 0–2 half-step scale.
 - `docs/Game_Profile_Editorial_Evidence_and_Data_Sourcing_SOP_v0.2.md` owns evidence operations and the pre-release workflow where not explicitly superseded.
 - `docs/Game_Profile_Scoring_Protocol_v1.0_DRAFT.md` owns the candidate evidence-to-number procedure under calibration; it remains non-governing until Appendix B passes and Tomas gives final adoption approval.
-- `docs/decisions/0035-released-game-maturity-is-evidence-and-stability-based.md` owns the corrected released-game maturity semantics and must be physically incorporated into the protocol text before Item 3 closes.
+- `docs/decisions/0035-released-game-maturity-is-evidence-and-stability-based.md` owns the corrected released-game maturity semantics; those semantics are physically incorporated into the candidate protocol on this preregistration branch.
 - `docs/decisions/0036-phase3a-measured-scoring-execution-surface.md` owns the accepted measured GPT execution surface for this calibration.
 - `docs/schemas/Game_Profile_Scoring_Package_v1.0_DRAFT.schema.json` plus the protocol's semantic-validator checklist own the structured package contract.
 - `docs/Game_Profile_Phase_3A_Cohort_Lock_2026-09-02.md` owns the ten selected game identities/high-level scopes.
@@ -191,7 +191,24 @@ Before research starts for a game, create an immutable scope record containing e
 
 ### 6.1 Released-game maturity record
 
-Every released development/holdout scope records the ADR 0035 review before research scoring, including review date, scope/build, evidence cutoff, settlement rationale, evidence-depth expectation, material known changes in flight and resulting stability state.
+The owner-approved cohort is preregistered as the ten **mature** games required by Appendix B. The baseline eligibility classification is:
+
+| Run | Preregistered maturity | Qualification note |
+|---|---|---|
+| D1 Alan Wake 2 | `mature` | Established released base-campaign scope; current-state patching does not create an identified profile-shaping transformation. |
+| D2 Battlefield 6 Multiplayer | `mature` | Explicit owner decision in ADR 0035; detailed determination in §6.2. |
+| D3 Zelda TOTK Switch 2 Edition | `mature` | Released edition with bounded edition-level technical/features scope. |
+| D4 Banishers | `mature` | Established released main-game scope; no preregistered active transformation. |
+| D5 Hellblade II Enhanced | `mature` | Released Enhanced campaign scope; Dark Rot separated from the statistical scope. |
+| D6 Saros | `mature` | Evidence/stability review under ADR 0035; detailed determination in §6.3. |
+| H1 Resident Evil 4 Remake | `mature` | Established released Leon-campaign scope; DLC separated. |
+| H2 Kingdom Come: Deliverance II | `mature` | Established released base-game scope; story DLC separated. |
+| H3 Astro Bot | `mature` | Established released base campaign; post-launch challenge content separated. |
+| H4 Immortals of Aveum | `mature` | Established released base campaign; optional endgame/NG+ separated. |
+
+This table is an **eligibility/scope classification**, not holdout evidence collection or expected-score analysis. It relies on the already owner-approved cohort/scope selection and must not be used to tune scoring. Before research begins for any game, the immutable run scope still records/revalidates the ADR 0035 maturity facts at that game's evidence cutoff. If current-state facts invalidate mature eligibility, stop before corpus collection/scoring; do not silently change the classification or use the game as Appendix B evidence.
+
+Every released development/holdout scope's run record includes review date, scope/build, evidence cutoff, settlement rationale, evidence-depth expectation, material known changes in flight and resulting stability state.
 
 ### 6.2 Battlefield 6 preregistered maturity determination
 
@@ -327,17 +344,16 @@ Provider waiting is not editorial working effort. These measurements feed the fi
 
 ### 12.1 ITEM 3 — PREREGISTRATION CLOSE
 
-- [ ] **Protocol text incorporation:** physically replace the obsolete fixed twelve-month maturity sentence in `Game_Profile_Scoring_Protocol_v1.0_DRAFT.md` with ADR 0035 semantics and add the 2026-09-02 amendment to the protocol draft changelog.
+- [x] **Protocol text incorporation:** ADR 0035 maturity semantics physically replace the obsolete fixed twelve-month rule in `Game_Profile_Scoring_Protocol_v1.0_DRAFT.md`; §§3/14 and the 2026-09-02 draft changelog are aligned.
 - [x] **Cohort/order:** exact D1–D6 + H1–H4 identities/order frozen.
 - [x] **Owner scope/DLC decisions:** all §5 rows owner-approved on 2026-09-02.
 - [x] **Measured execution decision:** ADR 0036 owner-approved on 2026-09-02.
 - [x] **Holdout isolation:** §3 frozen.
 - [x] **Evidence/corpus policy:** §§7–8 frozen.
 - [x] **Acceptance/timing policy:** §§9–11 frozen.
-- [x] **BF6 maturity:** owner-accepted under ADR 0035 and recorded here.
-- [ ] **Saros maturity:** final owner approval of this preregistration confirms the §6.3 determination.
-- [ ] **Controlled-byte provenance:** after the protocol amendment lands on this PR branch, record the final Git blob identifiers for the controlled inputs in §15.
-- [ ] **Final owner approval:** Tomas explicitly approves this completed Item 3 record.
+- [x] **Mature-corpus eligibility:** all ten statistical scopes preregistered as `mature`; BF6 is owner-accepted under ADR 0035; Saros determination is in §6.3 and is included in the final owner-approval gate below.
+- [x] **Controlled-byte provenance:** all six controlled inputs have final-review Git blob identifiers recorded in §15.
+- [ ] **Final owner approval:** Tomas explicitly approves this completed Item 3 record, including the Saros maturity determination.
 - [ ] **Merge:** approved preregistration/ADR/prompt/protocol/bootstrap set is merged to `main`.
 
 Item 3 completes at that merge. **The merge does not authorize D1 by itself.**
@@ -395,7 +411,7 @@ They do not count toward Appendix B's 160 holdout decisions. Any material protoc
 
 1. Baseline and source audit — **COMPLETED**
 2. Cohort reconciliation — **COMPLETED**
-3. Preregistration — **IN PROGRESS / FINAL REVIEW**
+3. Preregistration — **IN PROGRESS / FINAL OWNER APPROVAL PENDING**
 4. Phase 3A engineering readiness — **PENDING; starts only after Item 3 merge and blocks D1**
 5. IGDB staging readiness — PENDING
 6. Development run games 1–6 — PENDING
@@ -406,13 +422,13 @@ They do not count toward Appendix B's 160 holdout decisions. Any material protoc
 11. Publication preparation — PENDING
 12. Deferred product follow-up / Compare parity — PENDING
 
-Do not advance Item 3 to complete until §12.1 is fully closed and the approved record is merged to `main`.
+Do not advance Item 3 to complete until Tomas gives the §12.1 final approval and the approved record is merged to `main`.
 
 ---
 
 ## 15. Controlled-input provenance table
 
-The exact approved merge commit will be the authoritative byte freeze. Before final Item 3 approval, populate the Git blob column from the PR head after the protocol amendment; Item 4 then derives and verifies SHA-256 from these exact bytes before D1.
+The exact approved merge commit will be the authoritative byte freeze. These Git blob identifiers name the final-review bytes. Item 4 derives and verifies protocol-required SHA-256 from these exact bytes before D1.
 
 | Controlled input | Version | Git blob SHA at final Item 3 review | SHA-256 |
 |---|---|---|---|
@@ -420,7 +436,7 @@ The exact approved merge commit will be the authoritative byte freeze. Before fi
 | `docs/scoring/Phase_3A_Research_Prompt_v1.0.md` | 1.0 | `401920703c9d3e8577641c3616e9c7d39bbd71a0` | Item 4 proof before D1 |
 | `docs/scoring/Phase_3A_Scoring_Prompt_v1.0.md` | 1.0 | `64ae778e1d93d9f9b0c7faa7902a447154a0bc89` | Item 4 proof before D1 |
 | `docs/Game_Profile_Scoring_Rubric_v1.0.md` | 1.0 | `93524fd398099423e31f8b7f88c0efd7886c7b66` | Item 4 proof before D1 |
-| `docs/Game_Profile_Scoring_Protocol_v1.0_DRAFT.md` | candidate 1.0 | **PENDING protocol amendment on this PR** | Item 4 proof before D1 |
+| `docs/Game_Profile_Scoring_Protocol_v1.0_DRAFT.md` | candidate 1.0 | `1fa2707421518396c6c68ca26d36c5d98df92e7b` | Item 4 proof before D1 |
 | `docs/schemas/Game_Profile_Scoring_Package_v1.0_DRAFT.schema.json` | 1.0 draft | `9cee78be1b70e463e67b1dbea51678039269918b` | Item 4 proof before D1 |
 
 Any byte change to a controlled input after final owner approval invalidates this Item 3 freeze until the preregistration is amended and re-approved.
