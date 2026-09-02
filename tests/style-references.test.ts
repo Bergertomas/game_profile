@@ -31,11 +31,12 @@ import { describe, expect, it } from "vitest";
 
 const GLOBALS = "app/globals.css";
 
-/** The stylesheets the public homepage and Search slices own. */
+/** The stylesheets the public homepage, Search and profile slices own. */
 const SHEETS = [
   "components/search/search.css",
   "components/home/home-opening.css",
   "components/home/home-sections.css",
+  "components/profile/profile.css",
 ] as const;
 
 /** `--name:` declarations in a stylesheet. */
@@ -68,12 +69,16 @@ function tsxUnder(directory: string): string[] {
  * value — and they are the only names a stylesheet may reference without a
  * declaration behind it.
  *
- * Scoped to `components/home` and `components/search`, deliberately. Scanning
- * every component would let a Slice-1 sheet reference a design-lab or profile
- * variable unchallenged, purely because some other slice happens to inject one.
- * The allowance has to be as narrow as the sheets it covers.
+ * Scoped to the directories that own the sheets above, deliberately. Scanning
+ * every component would let a sheet reference a design-lab variable
+ * unchallenged, purely because some other surface happens to inject one. The
+ * allowance has to be as narrow as the sheets it covers.
  */
-const OWNING_COMPONENTS = ["components/home", "components/search"] as const;
+const OWNING_COMPONENTS = [
+  "components/home",
+  "components/search",
+  "components/profile",
+] as const;
 
 function runtimeInjected(): Set<string> {
   const injected = new Set<string>();
@@ -97,6 +102,7 @@ describe("runtime-injected custom properties", () => {
     // the assertions below would then flag legitimate accent variables.
     expect(injected.size).toBeGreaterThan(0);
     expect([...injected].sort()).toEqual([
+      "--sip-accent-base",
       "--sip-accent-lift",
       "--sip-radar-ground",
     ]);

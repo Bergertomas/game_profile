@@ -23,7 +23,8 @@ import type { Route } from "next";
  * Each entry links to that profile's OWN canonical URL — never a query
  * parameter or a client-side swap, both of which would put two evaluations on
  * one address and make one of them unlinkable and uncrawlable. The current
- * scope is marked with `aria-current` and is not a link to itself.
+ * scope is marked with `aria-current` and is not a link to itself; the mark is
+ * text and shape as well as colour (handoff §8.3). Focus is never moved.
  *
  * ── Absent for the ordinary case ────────────────────────────────────────────
  *
@@ -54,27 +55,21 @@ export function ScopeSwitcher({
   return (
     <nav
       aria-label={`Evaluated experiences of ${gameTitle}`}
-      className="mt-4 border-t border-[var(--color-rule-bone)] pt-3"
+      className="gp-scopes"
     >
-      <p className="gp__label m-0">
+      <p className="gp-kicker gp-scopes__count">
         This game has {scopes.length} evaluated experiences
       </p>
 
-      <ul className="m-0 mt-2 flex list-none flex-wrap gap-x-2 gap-y-2 p-0">
+      <ul className="gp-scopes__list">
         {scopes.map((scope) => (
-          <li key={scope.key} className="flex">
+          <li key={scope.key}>
             {scope.isCurrent ? (
-              <span
-                aria-current="page"
-                className="rounded-sm border border-[var(--gp-accent-lift)] bg-[color-mix(in_srgb,var(--gp-accent-lift)_18%,transparent)] px-2.5 py-1 text-[0.85rem] text-[var(--gp-bone)]"
-              >
+              <span aria-current="page" className="gp-scopes__item is-current">
                 {scope.label}
               </span>
             ) : (
-              <Link
-                href={scope.href as Route}
-                className="rounded-sm border border-[var(--color-rule-bone-strong)] px-2.5 py-1 text-[0.85rem] text-[var(--gp-bone-soft)] no-underline hover:border-[var(--gp-accent-lift)] hover:text-[var(--gp-bone)]"
-              >
+              <Link href={scope.href as Route} className="gp-scopes__item">
                 {scope.label}
               </Link>
             )}
@@ -89,13 +84,7 @@ export function ScopeSwitcher({
         is the scope's own statement of what it covers and excludes.
       */}
       {current?.summary ? (
-        // Deliberately NOT `gp__prose`. That class is the profile's editorial
-        // voice — the one-line experience and the rationales — and this is
-        // navigation chrome describing what a page covers. Sharing it made the
-        // two indistinguishable to a selector as well as to a reader.
-        <p className="m-0 mt-2 max-w-[46rem] text-[0.875rem] leading-relaxed text-[var(--gp-bone-soft)]">
-          {current.summary}
-        </p>
+        <p className="gp-scopes__summary">{current.summary}</p>
       ) : null}
     </nav>
   );

@@ -79,30 +79,26 @@ test("the two addresses render different evaluations", async ({ page }) => {
   // The failure this catches is a sibling URL that resolves but serves the
   // primary's evaluation — a bug every structural assertion above would pass
   // straight through, because the game, title and artwork are all shared.
-  // Asserted inside the profile band, not across the page. "More in the
-  // library" lists every other published profile including this game's own
+  // Asserted inside the profile's answer, not across the page. "More
+  // profiles" lists every other published profile including this game's own
   // sibling — deliberately, since a sibling is a different evaluated experience
-  // and belongs on the shelf — so each page legitimately carries the other's
-  // one-line experience in a card. Mutual exclusion is the wrong property; what
-  // matters is which evaluation the profile itself is rendering.
+  // and belongs on the rail — so each page legitimately carries the other's
+  // one-line experience in a poster preview. Mutual exclusion is the wrong
+  // property; what matters is which evaluation the profile itself is rendering.
   await page.goto(GAME);
-  const primaryBand = page.locator(".gp__band");
-  await expect(primaryBand.getByText("bullet-hell shooter")).toBeVisible();
-  await expect(primaryBand.getByText("escalating endurance test")).toHaveCount(0);
-  // Scoped to the score rows: `.gp__num` also carries every subcriterion
-  // value inside the expanded panels.
-  const primaryScores = await page
-    .locator(".gp__row .gp__num")
-    .allTextContents();
+  const primaryAnswer = page.locator(".gp-answer");
+  await expect(primaryAnswer.getByText("bullet-hell shooter")).toBeVisible();
+  await expect(primaryAnswer.getByText("escalating endurance test")).toHaveCount(0);
+  // Scoped to the dimension rows' values, not the subcriterion values inside
+  // the expanded panels.
+  const primaryScores = await page.locator(".gp-row__num").allTextContents();
   expect(primaryScores).toHaveLength(8);
 
   await page.goto(SIBLING);
-  const siblingBand = page.locator(".gp__band");
-  await expect(siblingBand.getByText("escalating endurance test")).toBeVisible();
-  await expect(siblingBand.getByText("bullet-hell shooter")).toHaveCount(0);
-  const siblingScores = await page
-    .locator(".gp__row .gp__num")
-    .allTextContents();
+  const siblingAnswer = page.locator(".gp-answer");
+  await expect(siblingAnswer.getByText("escalating endurance test")).toBeVisible();
+  await expect(siblingAnswer.getByText("bullet-hell shooter")).toHaveCount(0);
+  const siblingScores = await page.locator(".gp-row__num").allTextContents();
   expect(siblingScores).toHaveLength(8);
 
   // The synthetic sibling moves three subcriteria, so at least one dimension

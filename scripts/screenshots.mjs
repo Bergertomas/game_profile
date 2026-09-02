@@ -26,6 +26,7 @@ const PAGES = [
   { name: "methodology", path: "/methodology" },
   { name: "radar-states", path: "/dev/radar-states" },
   { name: "home-states", path: "/dev/home-states" },
+  { name: "profile-states", path: "/dev/profile-states" },
 ];
 
 /**
@@ -42,6 +43,22 @@ const CONFORMANCE = [
   { name: "home-320", path: "/", width: 320, height: 568 },
   { name: "home-200pc-1280", path: "/", width: 1280, height: 800, rootFontPx: 32 },
   { name: "home-200pc-390", path: "/", width: 390, height: 844, rootFontPx: 32 },
+  // The profile. Art-led on a preview build (the evaluation overlay resolves
+  // there); the artless parity state is captured from the harness below.
+  { name: "profile-390x667", path: "/games/alan-wake-2", width: 390, height: 667 },
+  { name: "profile-320", path: "/games/alan-wake-2", width: 320, height: 568 },
+  { name: "profile-200pc-1280", path: "/games/alan-wake-2", width: 1280, height: 800, rootFontPx: 32 },
+  { name: "profile-200pc-390", path: "/games/alan-wake-2", width: 390, height: 844, rootFontPx: 32 },
+];
+
+/**
+ * The artless parity state, captured as the profile element alone from the
+ * Slice 3 harness: the same Alan Wake 2 record with no artwork, at the desktop
+ * and phone references. Production renders this state on every profile today.
+ */
+const ARTLESS = [
+  { name: "profile-artless-1440", width: 1440, height: 900 },
+  { name: "profile-artless-390", width: 390, height: 844 },
 ];
 
 mkdirSync(OUT, { recursive: true });
@@ -103,6 +120,38 @@ for (const shot of CONFORMANCE) {
   }
   await page.evaluate(() => document.fonts.ready);
   await page.screenshot({ path: `${OUT}/${shot.name}.png` });
+  await context.close();
+}
+
+for (const shot of ARTLESS) {
+  const context = await browser.newContext({
+    viewport: { width: shot.width, height: shot.height },
+  });
+  const page = await context.newPage();
+  await page.goto(`${BASE}/dev/profile-states`, { waitUntil: "networkidle" });
+  await page.evaluate(() => document.fonts.ready);
+  await page
+    .locator('.gp[data-art="less"]')
+    .first()
+    .screenshot({ path: `${OUT}/${shot.name}.png` });
+  await context.close();
+}
+
+// A dimension disclosure open on the profile, at the phone reference: the
+// state a full-page capture cannot show, and the one the disclosure contract
+// is about.
+{
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 2,
+  });
+  const page = await context.newPage();
+  await page.goto(`${BASE}/games/alan-wake-2`, { waitUntil: "networkidle" });
+  const why = page.locator(".gp-row__why").nth(5);
+  await why.scrollIntoViewIfNeeded();
+  await why.click();
+  await page.waitForTimeout(300);
+  await page.locator(".gp-row").nth(5).screenshot({ path: `${OUT}/profile-disclosure-open-mobile.png` });
   await context.close();
 }
 

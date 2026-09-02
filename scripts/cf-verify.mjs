@@ -314,6 +314,7 @@ try {
   const DESIGN_SURFACES = [
     "/dev/radar-states",
     "/dev/home-states",
+    "/dev/profile-states",
     "/design-lab",
     "/design-lab/d3/alan-wake-2",
   ];
