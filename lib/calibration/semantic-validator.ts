@@ -427,7 +427,9 @@ function checkReferenceIntegrity(pkg: ScoringPackage, log: IssueLog): void {
     }
   }
 
-  const frameIds = new Set(corpus.coverage_frames.map((frame) => frame.coverage_frame_id));
+  // Insufficiency references are criterion-scoped, so the frames are carried by
+  // key rather than flattened into one id set (§6 Step 7).
+  const framesByKey = new Map(corpus.coverage_frames.map((frame) => [frame.subcriterion_key, frame]));
   const unitIds = new Set(
     corpus.coverage_frames.flatMap((frame) => frame.coverage_units.map((unit) => unit.unit_id)),
   );
@@ -437,7 +439,7 @@ function checkReferenceIntegrity(pkg: ScoringPackage, log: IssueLog): void {
     ["primary_pass", content.primary_pass],
     ["audit_pass", content.audit_pass],
   ] as const) {
-    checkPassReferences(path, pass, sourceIds, unitIds, frameIds, candidateIds, log);
+    checkPassReferences(path, pass, sourceIds, unitIds, framesByKey, candidateIds, log);
   }
 
   // Experience-tag keys are unique. The schema's uniqueItems compares whole
@@ -499,12 +501,83 @@ function checkReferenceIntegrity(pkg: ScoringPackage, log: IssueLog): void {
   }
 }
 
+/** What a namespace's claim lookup made of an insufficiency reference. */
+type ClaimRefOutcome =
+  | { readonly kind: "not_a_claim" }
+  | { readonly kind: "claims"; readonly claims: readonly Claim[] }
+  | { readonly kind: "invalid"; readonly message: string };
+
+/**
+ * §6 Step 7 insufficiency references — one definition, both namespaces.
+ *
+ * "References that prove the insufficiency" is a criterion-scoped claim, so
+ * membership somewhere in the package is not enough: another criterion's frame,
+ * unit or claim says nothing about this criterion's coverage, and a rejected
+ * claim was excluded from consideration rather than shown to be missing.
+ *
+ * Three of the four permitted object kinds mean exactly the same thing wherever
+ * the reference appears — the scored criterion's own frozen frame, a unit of
+ * that frame, or a record in the frozen candidate log. Only the claim kind
+ * differs: a pass names its own pass-local claim, an adjudicated or owner-stage
+ * carrier names a reconciled claim (§11.3). `resolveClaimRef` supplies that one
+ * difference, so the two carriers cannot drift into two readings of one rule.
+ */
+function insufficiencyRefChecker(
+  framesByKey: ReadonlyMap<string, CoverageFrame>,
+  candidateIds: ReadonlySet<string>,
+  claimKindLabel: string,
+  resolveClaimRef: (referenceId: string) => ClaimRefOutcome,
+  log: IssueLog,
+): (at: string, referenceId: string, subcriterionKey: string) => void {
+  return (at, referenceId, subcriterionKey) => {
+    const frame = framesByKey.get(subcriterionKey);
+    if (frame) {
+      if (referenceId === frame.coverage_frame_id) return;
+      if (frame.coverage_units.some((unit) => unit.unit_id === referenceId)) return;
+    }
+    if (candidateIds.has(referenceId)) return;
+
+    const outcome = resolveClaimRef(referenceId);
+    if (outcome.kind === "invalid") {
+      log.add("reference_integrity", 4, at, outcome.message);
+      return;
+    }
+    if (outcome.kind === "claims") {
+      const mapped = outcome.claims.filter((claim) => claim.subcriterion_key === subcriterionKey);
+      if (mapped.length === 0) {
+        log.add(
+          "reference_integrity",
+          4,
+          at,
+          `insufficiency reference "${referenceId}" reaches no claim mapped to ${subcriterionKey}`,
+        );
+        return;
+      }
+      if (mapped.every((claim) => claim.disposition === "rejected")) {
+        log.add(
+          "reference_integrity",
+          4,
+          at,
+          `insufficiency reference "${referenceId}" reaches only rejected claims, which do not evidence insufficiency`,
+        );
+      }
+      return;
+    }
+    log.add(
+      "reference_integrity",
+      4,
+      at,
+      `insufficiency reference "${referenceId}" names no ${claimKindLabel}, candidate source, or coverage frame or unit of ${subcriterionKey} (§6 Step 7)`,
+    );
+  };
+}
+
 function checkPassReferences(
   path: string,
   pass: ScoringPass,
   sourceIds: ReadonlySet<string>,
   unitIds: ReadonlySet<string>,
-  frameIds: ReadonlySet<string>,
+  framesByKey: ReadonlyMap<string, CoverageFrame>,
   candidateIds: ReadonlySet<string>,
   log: IssueLog,
 ): void {
@@ -578,24 +651,18 @@ function checkPassReferences(
     }
   };
 
-  // Insufficiency references point at claims, candidate-source records or the
-  // coverage frame (Protocol §6 Step 7). Every carrier that has them is
-  // checked, not only the base decision.
-  const checkInsufficiencyRef = (at: string, referenceId: string): void => {
-    if (
-      !claims.has(referenceId) &&
-      !candidateIds.has(referenceId) &&
-      !frameIds.has(referenceId) &&
-      !unitIds.has(referenceId)
-    ) {
-      log.add(
-        "reference_integrity",
-        4,
-        at,
-        `insufficiency reference "${referenceId}" resolves to no claim, candidate source or coverage frame`,
-      );
-    }
-  };
+  // A pass's insufficiency references name its own pass-local claims; every
+  // other rule is the shared one.
+  const checkInsufficiencyRef = insufficiencyRefChecker(
+    framesByKey,
+    candidateIds,
+    "claim",
+    (referenceId) => {
+      const claim = claims.get(referenceId);
+      return claim ? { kind: "claims", claims: [claim] } : { kind: "not_a_claim" };
+    },
+    log,
+  );
 
   for (const decision of pass.decisions) {
     const at = `${path}.decisions[${decision.subcriterion_key}]`;
@@ -603,7 +670,7 @@ function checkPassReferences(
       checkClaimRef(at, claimId, decision.subcriterion_key);
     }
     for (const referenceId of decision.insufficiency_reference_ids) {
-      checkInsufficiencyRef(at, referenceId);
+      checkInsufficiencyRef(at, referenceId, decision.subcriterion_key);
     }
     // §9: "criterion-specific evidence spanning the relevant scope" — so a
     // scope-spanning claim must map to the criterion being gated, and a
@@ -626,7 +693,7 @@ function checkPassReferences(
         checkClaimRef(overrideAt, claimId, decision.subcriterion_key);
       }
       for (const referenceId of override.insufficiency_reference_ids) {
-        checkInsufficiencyRef(overrideAt, referenceId);
+        checkInsufficiencyRef(overrideAt, referenceId, decision.subcriterion_key);
       }
     }
   }
@@ -1374,78 +1441,33 @@ function checkFinalClaimReferences(pkg: ScoringPackage, log: IssueLog): void {
     }
   };
 
-  /**
-   * §6 Step 7 insufficiency references, at adjudication stage.
-   *
-   * The field is polymorphic by design, so "resolves" is not one lookup: a
-   * reference names a package-level reconciled claim, a frozen candidate-source
-   * record, the criterion's own coverage frame, or a unit of that frame.
-   * Anything else is rejected — treating an arbitrary `$defs/id` as valid is
-   * what let an Unknown final justify itself with a string.
-   *
-   * The frame and unit cases are criterion-scoped: another criterion's frame
-   * says nothing about this one's coverage. A reconciled claim must reach
-   * evidence mapped to this criterion, and rejected evidence proves nothing —
-   * a claim excluded from consideration is not proof that evidence is missing.
-   */
-  const candidateIds = new Set(
-    content.corpus.candidate_source_log.map((candidate) => candidate.candidate_id),
-  );
-  const framesByKey = new Map(
-    content.corpus.coverage_frames.map((frame) => [frame.subcriterion_key, frame]),
-  );
-  const checkInsufficiencyRef = (
-    at: string,
-    referenceId: string,
-    subcriterionKey: string,
-  ): void => {
-    const frame = framesByKey.get(subcriterionKey);
-    if (frame) {
-      if (referenceId === frame.coverage_frame_id) return;
-      if (frame.coverage_units.some((unit) => unit.unit_id === referenceId)) return;
-    }
-    if (candidateIds.has(referenceId)) return;
-
-    const resolution = resolveReconciled(referenceId);
-    if (resolution.kind === "resolved") {
-      const mapped = resolution.claims.filter(
-        (claim) => claim.subcriterion_key === subcriterionKey,
-      );
-      if (mapped.length === 0) {
-        log.add(
-          "reference_integrity",
-          4,
-          at,
-          `insufficiency reference "${referenceId}" reaches no claim mapped to ${subcriterionKey}`,
-        );
-        return;
+  // An adjudicated or owner-stage carrier names reconciled claims (§11.3);
+  // every other rule is the shared one.
+  const checkInsufficiencyRef = insufficiencyRefChecker(
+    new Map(content.corpus.coverage_frames.map((frame) => [frame.subcriterion_key, frame])),
+    new Set(content.corpus.candidate_source_log.map((candidate) => candidate.candidate_id)),
+    "reconciled claim",
+    (referenceId) => {
+      const resolution = resolveReconciled(referenceId);
+      if (resolution.kind === "resolved") {
+        return { kind: "claims", claims: resolution.claims };
       }
-      if (mapped.every((claim) => claim.disposition === "rejected")) {
-        log.add(
-          "reference_integrity",
-          4,
-          at,
-          `insufficiency reference "${referenceId}" reaches only rejected claims, which do not evidence insufficiency`,
-        );
+      if (resolution.kind === "ambiguous") {
+        return {
+          kind: "invalid",
+          message: `insufficiency reference "${referenceId}" matches more than one reconciled claim record`,
+        };
       }
-      return;
-    }
-    if (resolution.kind === "ambiguous") {
-      log.add(
-        "reference_integrity",
-        4,
-        at,
-        `insufficiency reference "${referenceId}" matches more than one reconciled claim record`,
-      );
-      return;
-    }
-    log.add(
-      "reference_integrity",
-      4,
-      at,
-      `insufficiency reference "${referenceId}" names no reconciled claim, candidate source, or coverage frame or unit of ${subcriterionKey} (§6 Step 7)`,
-    );
-  };
+      if (resolution.kind === "empty") {
+        return {
+          kind: "invalid",
+          message: `insufficiency reference "${referenceId}" names a reconciled record with no primary or audit claim`,
+        };
+      }
+      return { kind: "not_a_claim" };
+    },
+    log,
+  );
 
   for (const decision of content.adjudication.final_decisions) {
     const at = `adjudication.final_decisions[${decision.subcriterion_key}]`;

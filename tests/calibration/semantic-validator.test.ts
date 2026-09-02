@@ -640,44 +640,138 @@ describe("§15.1(4) reference integrity and collection standard", () => {
     ).toBe(true);
   });
 
-  it("resolves a PASS platform override's insufficiency references", () => {
-    const result = reject(
-      mutate((draft) => {
-        decisionIn(draft, "primary_pass", "technical_stability").platform_overrides = [
-          {
-            platform_key: "pc",
-            score_value_kind: "unknown",
-            numeric_score: null,
-            anchor_id: null,
-            unknown_reason: "platform coverage absent",
-            missing_coverage_classes: ["platform"],
-            insufficiency_reference_ids: ["no-such-reference"],
-            zero_reason: null,
-            rationale: "Placeholder override rationale.",
-            claim_ids: ["primary-claim-technical_stability-1"],
-            confidence_facts: {
-              coverage_state: "materially_limited",
-              conflict_state: "none",
-              stability_state: "stable",
-            },
-            subcriterion_confidence: "Low",
-            coverage_observed_unit_ids: [
-              "technical_stability-u1",
-              "technical_stability-u2",
-              "technical_stability-u3",
-            ],
-            coverage_missing_unit_ids: ["technical_stability-u4"],
+  /** An Unknown platform override on a PRIMARY-pass numeric base decision. */
+  function withUnknownPassOverride(refs: string[]) {
+    return mutate((draft) => {
+      decisionIn(draft, "primary_pass", "technical_stability").platform_overrides = [
+        {
+          platform_key: "pc",
+          score_value_kind: "unknown",
+          numeric_score: null,
+          anchor_id: null,
+          unknown_reason: "late-game coverage absent on this platform",
+          missing_coverage_classes: ["temporal_stratum"],
+          insufficiency_reference_ids: refs,
+          zero_reason: null,
+          rationale: "Placeholder override rationale.",
+          claim_ids: ["primary-claim-technical_stability-1"],
+          confidence_facts: {
+            coverage_state: "materially_limited",
+            conflict_state: "none",
+            stability_state: "stable",
           },
-        ];
-      }),
-    );
-    expect(
-      result.issues.some(
-        (issue) =>
-          issue.path.includes("platform_overrides") &&
-          /insufficiency reference "no-such-reference" resolves to no claim/.test(issue.message),
+          subcriterion_confidence: "Low",
+          coverage_observed_unit_ids: [
+            "technical_stability-u1",
+            "technical_stability-u2",
+            "technical_stability-u3",
+          ],
+          coverage_missing_unit_ids: ["technical_stability-u4"],
+        },
+      ];
+    });
+  }
+
+  const passInsufficiency = (key: string) =>
+    new RegExp(`names no claim, candidate source, or coverage frame or unit of ${key}`);
+
+  it.each([
+    ["its own criterion's non-rejected claim", (set: string) => [`${set.replace("_pass", "")}-claim-story_hook-1`]],
+    ["its own coverage frame", () => ["frame-story_hook"]],
+    ["one of its own frame's units", () => ["story_hook-u4"]],
+    ["a frozen candidate-source record", () => ["cand-1"]],
+  ])("ACCEPTS a PASS Unknown citing %s", (_label, refsFor) => {
+    const result = validatePackageSemantics(
+      withUnknownStoryHook(
+        ["frame-story_hook"],
+        undefined,
+        refsFor as (set: "primary_pass" | "audit_pass") => string[],
       ),
-    ).toBe(true);
+    );
+    expect(result.issues).toEqual([]);
+    expect(result.valid).toBe(true);
+  });
+
+  it.each([
+    ["another criterion's claim", (set: string) => [`${set.replace("_pass", "")}-claim-character_investment-1`]],
+    ["another criterion's coverage frame", () => ["frame-character_investment"]],
+    ["another criterion's coverage unit", () => ["character_investment-u4"]],
+    ["a nonexistent object", () => ["no-such-reference"]],
+  ])("rejects a PASS Unknown citing %s, on BOTH passes", (_label, refsFor) => {
+    const result = reject(
+      withUnknownStoryHook(
+        ["frame-story_hook"],
+        undefined,
+        refsFor as (set: "primary_pass" | "audit_pass") => string[],
+      ),
+    );
+    for (const pass of ["primary_pass", "audit_pass"]) {
+      expect(
+        result.issues.some(
+          (issue) =>
+            issue.path === `${pass}.decisions[story_hook]` &&
+            (passInsufficiency("story_hook").test(issue.message) ||
+              /reaches no claim mapped to story_hook/.test(issue.message)),
+        ),
+        pass,
+      ).toBe(true);
+    }
+  });
+
+  it("rejects a PASS Unknown citing a REJECTED claim of its own criterion", () => {
+    // A claim excluded from consideration is not proof that evidence is
+    // missing, so it cannot be what demonstrates insufficiency.
+    const result = reject(
+      withUnknownStoryHook(
+        ["frame-story_hook"],
+        undefined,
+        (set) => [`${set.replace("_pass", "")}-claim-story_hook-1`],
+        (draft) => {
+          const content = draft.scoring_content as Record<string, unknown>;
+          for (const passName of ["primary_pass", "audit_pass"] as const) {
+            const ledger = (content[passName] as Record<string, unknown>).claim_ledger as Record<
+              string,
+              unknown
+            >[];
+            ledger.find((claim) =>
+              String(claim.claim_id).endsWith("claim-story_hook-1"),
+            )!.disposition = "rejected";
+          }
+        },
+      ),
+    );
+    for (const pass of ["primary_pass", "audit_pass"]) {
+      expect(
+        result.issues.some(
+          (issue) =>
+            issue.path === `${pass}.decisions[story_hook]` &&
+            /reaches only rejected claims, which do not evidence insufficiency/.test(issue.message),
+        ),
+        pass,
+      ).toBe(true);
+    }
+  });
+
+  it("resolves a PASS platform override's insufficiency references, criterion-scoped", () => {
+    // Positive: the override's own frame unit is admissible evidence.
+    const accepted = validatePackageSemantics(
+      withUnknownPassOverride(["technical_stability-u4"]),
+    );
+    expect(accepted.issues).toEqual([]);
+
+    // Negative: another criterion's unit, and a string that names nothing.
+    for (const bad of ["story_hook-u4", "no-such-reference"]) {
+      const result = reject(withUnknownPassOverride([bad]));
+      expect(
+        result.issues.some(
+          (issue) =>
+            issue.path.startsWith("primary_pass") &&
+            issue.path.includes("platform_overrides") &&
+            passInsufficiency("technical_stability").test(issue.message),
+        ),
+        bad,
+      ).toBe(true);
+    }
   });
 
   it("rejects a numeric FINAL whose reconciled claim reaches only rejected claims", () => {
@@ -842,7 +936,12 @@ describe("§15.1(4) reference integrity and collection standard", () => {
    * `overrideRefs`, when given, moves the same test onto a final platform
    * override instead of the final decision.
    */
-  function withUnknownStoryHook(finalRefs: string[], overrideRefs?: string[]) {
+  function withUnknownStoryHook(
+    finalRefs: string[],
+    overrideRefs?: string[],
+    passRefsFor: (set: "primary_pass" | "audit_pass") => string[] = () => ["frame-story_hook"],
+    also?: (draft: Record<string, unknown>) => void,
+  ) {
     return mutate((draft) => {
       for (const set of ["primary_pass", "audit_pass", "final"] as const) {
         Object.assign(decisionIn(draft, set, "story_hook"), {
@@ -851,7 +950,7 @@ describe("§15.1(4) reference integrity and collection standard", () => {
           anchor_id: null,
           unknown_reason: "late-game coverage absent",
           missing_coverage_classes: ["temporal_stratum"],
-          insufficiency_reference_ids: set === "final" ? finalRefs : ["frame-story_hook"],
+          insufficiency_reference_ids: set === "final" ? finalRefs : passRefsFor(set),
           subcriterion_confidence: "Low",
           zero_reason: null,
           lower_anchor_rejection: null,
@@ -910,6 +1009,7 @@ describe("§15.1(4) reference integrity and collection standard", () => {
       const summary = content.audit_summary as Record<string, unknown>;
       summary.numeric_rate_primary = 39 / 40;
       summary.numeric_rate_audit = 39 / 40;
+      also?.(draft);
     });
   }
 
