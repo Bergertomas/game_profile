@@ -23,7 +23,11 @@ describe("a pair address", () => {
     const headers = await nextConfig.headers!();
     const rule = headers.find((entry) => entry.source === "/compare");
     expect(rule).toBeDefined();
-    expect(rule!.has).toEqual([{ type: "query", key: "games" }]);
+    // The value is what keeps the OpenNext router from matching an absent
+    // parameter (see next.config.ts): it must require a non-empty value.
+    expect(rule!.has).toEqual([{ type: "query", key: "games", value: ".+" }]);
+    expect(new RegExp(rule!.has![0]!.value!).test("")).toBe(false);
+    expect(new RegExp(rule!.has![0]!.value!).test("alan-wake-2,returnal")).toBe(true);
     expect(rule!.headers).toEqual([{ key: "x-robots-tag", value: "noindex, follow" }]);
   });
 });

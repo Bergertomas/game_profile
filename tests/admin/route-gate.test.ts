@@ -55,7 +55,7 @@ describe("Admin response headers", () => {
     for (const rule of rules) {
       if (rule.source.startsWith("/admin")) continue;
       expect(rule.source).toBe("/compare");
-      expect(rule.has).toEqual([{ type: "query", key: "games" }]);
+      expect(rule.has).toEqual([{ type: "query", key: "games", value: ".+" }]);
       expect(rule.headers.map((header) => header.key)).toEqual(["x-robots-tag"]);
       expect(rule.headers[0]!.value).toBe("noindex, follow");
     }
