@@ -569,9 +569,18 @@
     grid-column: 2;
     grid-row: 2;
     flex-direction: column;
+    /* A stretched column that may wrap starts a second column beside the
+       first once its height is spent — and the row is as tall as the
+       identities, so the note would wrap into the right identity's space. */
+    flex-wrap: nowrap;
     align-items: flex-start;
     padding: calc(var(--size-radar-compare-desktop) / 2 + var(--space-4)) 0 var(--space-6);
     border-top: 0;
+  }
+
+  .cp-legend__note {
+    flex-basis: auto;
+    width: 100%;
   }
 }
 

@@ -356,6 +356,9 @@ test.describe("the composition in a browser", () => {
     expect(leftId!.x + leftId!.width).toBeLessThanOrEqual(legend!.x + 1);
     expect(legend!.x + legend!.width).toBeLessThanOrEqual(rightId!.x + 1);
     expect(legend!.y).toBeLessThan(leftId!.y + leftId!.height);
+    // And the note stays inside the legend rather than wrapping beside it.
+    const note = await page.locator(".cp-legend__note").boundingBox();
+    expect(note!.x + note!.width).toBeLessThanOrEqual(legend!.x + legend!.width + 1);
   });
 
   test("at 200% text on 1280 the stage is one column and the identities keep their width", async ({ page }) => {
