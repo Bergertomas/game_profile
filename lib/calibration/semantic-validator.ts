@@ -1132,14 +1132,6 @@ function checkAdjudication(pkg: ScoringPackage, pairedKeys: readonly string[], l
         "a material or endpoint-touching difference must be marked for owner review (§11.3)",
       );
     }
-    if (difference.owner_review_required && !content.audit_summary.difference_ids.includes(difference.difference_id)) {
-      log.add(
-        "adjudication",
-        7,
-        at,
-        "a difference marked for owner review is not listed among the adjudicated difference_ids",
-      );
-    }
   }
 
   // One difference record per paired decision, so the rates below have a domain.
@@ -1164,6 +1156,36 @@ function checkAdjudication(pkg: ScoringPackage, pairedKeys: readonly string[], l
         `unresolved difference reference "${differenceId}"`,
       );
     }
+  }
+
+  // `difference_ids` is the set of per-key records representing an ACTUAL
+  // divergence needing reconciliation or retention: a non-exact class, or any
+  // recorded secondary difference in claim inclusion, mapping, disposition or
+  // confidence. Clean exact rows with no secondary difference are omitted.
+  // Owner review on material/endpoint differences remains a stricter subset.
+  // (Owner determination, 2026-09-02, on the Item 4 review of this contract.)
+  const divergent = differences
+    .filter(
+      (difference) =>
+        difference.difference_class !== "exact" ||
+        difference.claim_inclusion_differs ||
+        difference.mapping_differs ||
+        difference.disposition_differs ||
+        difference.confidence_differs,
+    )
+    .map((difference) => difference.difference_id);
+  const recordedIds = [...summary.difference_ids].sort();
+  if (recordedIds.join("|") !== [...divergent].sort().join("|")) {
+    const missing = divergent.filter((id) => !summary.difference_ids.includes(id));
+    const extra = summary.difference_ids.filter((id) => !divergent.includes(id));
+    log.add(
+      "adjudication",
+      7,
+      "audit_summary.difference_ids",
+      "difference_ids is not exactly the set of divergent per-key records" +
+        (missing.length > 0 ? `; missing ${missing.join(", ")}` : "") +
+        (extra.length > 0 ? `; unexpected ${extra.join(", ")}` : ""),
+    );
   }
 
   const paired = pairedKeys.length;

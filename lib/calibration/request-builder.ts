@@ -74,6 +74,16 @@ export interface ScoringRequest {
     /** Over the exact semantic request bytes — the drift detector. */
     readonly semantic_request_digest: string;
   };
+  /**
+   * The derived transport schema's digest.
+   *
+   * Deliberately NOT `digests.output_schema_digest`: the run manifest's
+   * controlled-input digests are defined over the exact Item 3-approved bytes,
+   * and the derived scoring-pass schema is a request artefact rather than a
+   * controlled input. It is carried here for the local ledger and proof report,
+   * and it is already covered by `semantic_request_digest`.
+   */
+  readonly scoringPassSchemaDigest: string;
   readonly canonical_source_order: readonly string[];
 }
 
@@ -142,7 +152,10 @@ export function buildScoringRequest(options: BuildOptions): ScoringRequest {
     prompt_template_digest: controlledDigest(lock, "scoring_prompt"),
     rubric_digest: controlledDigest(lock, "rubric"),
     protocol_digest: controlledDigest(lock, "protocol"),
-    output_schema_digest: scoringPassSchemaDigest(passSchema),
+    // Gate 6: a run-manifest controlled-input digest is the SHA-256 of the
+    // approved canonical package-schema bytes, never of the derived transport
+    // schema. See `scoringPassSchemaDigest` below for the latter.
+    output_schema_digest: controlledDigest(lock, "output_schema"),
     normalized_packet_digest: normalizedPacketDigest,
     // The seed is excluded: it is the one permitted pair difference, so a digest
     // that included it could never be equal across a legitimate pair.
@@ -165,6 +178,7 @@ export function buildScoringRequest(options: BuildOptions): ScoringRequest {
       schema: passSchema.schema,
     },
     digests,
+    scoringPassSchemaDigest: scoringPassSchemaDigest(passSchema),
     canonical_source_order: options.semanticInput.canonical_source_order,
   };
 }
@@ -206,6 +220,12 @@ export function checkPairInvariants(
     if (primary.digests[field] !== audit.digests[field]) {
       issues.push({ field: `digests.${field}`, message: "digest differs between the pair" });
     }
+  }
+  if (primary.scoringPassSchemaDigest !== audit.scoringPassSchemaDigest) {
+    issues.push({
+      field: "scoringPassSchemaDigest",
+      message: "transport schema differs between the pair",
+    });
   }
 
   const { seed: primarySeed, ...primaryConfig } = primary.configuration;

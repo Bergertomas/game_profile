@@ -694,6 +694,93 @@ describe("§15.1(7) differences, audit rates and adjudication", () => {
     );
   });
 
+  it("requires one difference record per paired decision, exact ones included", () => {
+    // The owner-confirmed reading: `differences` carries a row for every paired
+    // key, `difference_class = exact` included, which is what makes the paired
+    // metrics and the per-key secondary differences reproducible.
+    const result = reject(
+      mutate((draft) => {
+        const adjudication = (draft.scoring_content as Record<string, unknown>)
+          .adjudication as Record<string, unknown>;
+        const differences = adjudication.differences as Record<string, unknown>[];
+        // Drop the exact row for one paired key.
+        adjudication.differences = differences.filter(
+          (difference) => difference.subcriterion_key !== "story_hook",
+        );
+        const summary = (draft.scoring_content as Record<string, unknown>)
+          .audit_summary as Record<string, unknown>;
+        summary.exact_count = 39;
+      }),
+    );
+    expect(
+      result.issues.some((issue) => /no difference record for paired key "story_hook"/.test(issue.message)),
+    ).toBe(true);
+  });
+
+  it("requires difference_ids to be exactly the divergent per-key records", () => {
+    // A row whose class is exact but which records a SECONDARY difference is
+    // still a divergence needing retention, so it must be listed.
+    const unlisted = reject(
+      mutate((draft) => {
+        const differences = (
+          (draft.scoring_content as Record<string, unknown>).adjudication as Record<string, unknown>
+        ).differences as Record<string, unknown>[];
+        differences.find((d) => d.subcriterion_key === "story_hook")!.mapping_differs = true;
+        // difference_ids left empty by the fixture.
+      }),
+    );
+    expect(
+      unlisted.issues.some((issue) => /missing diff-story_hook/.test(issue.message)),
+    ).toBe(true);
+
+    // Listing it satisfies the rule.
+    const listed = mutate((draft) => {
+      const content = draft.scoring_content as Record<string, unknown>;
+      const differences = (content.adjudication as Record<string, unknown>)
+        .differences as Record<string, unknown>[];
+      differences.find((d) => d.subcriterion_key === "story_hook")!.mapping_differs = true;
+      (content.audit_summary as Record<string, unknown>).difference_ids = ["diff-story_hook"];
+    });
+    expect(validatePackageSemantics(listed).valid).toBe(true);
+
+    // And a clean exact row with no secondary difference must NOT be listed.
+    const overlisted = reject(
+      mutate((draft) => {
+        const content = draft.scoring_content as Record<string, unknown>;
+        (content.audit_summary as Record<string, unknown>).difference_ids = ["diff-story_hook"];
+      }),
+    );
+    expect(
+      overlisted.issues.some((issue) => /unexpected diff-story_hook/.test(issue.message)),
+    ).toBe(true);
+  });
+
+  it("lists a confidence-only divergence even when the values agree exactly", () => {
+    const result = reject(
+      mutate((draft) => {
+        const content = draft.scoring_content as Record<string, unknown>;
+        // Same value, different confidence: an exact class with a real secondary
+        // difference the audit record must retain.
+        const audit = decisionIn(draft, "audit_pass", "story_hook");
+        audit.confidence_facts = {
+          coverage_state: "bounded",
+          conflict_state: "none",
+          stability_state: "stable",
+        };
+        audit.subcriterion_confidence = "Medium";
+        const differences = (content.adjudication as Record<string, unknown>)
+          .differences as Record<string, unknown>[];
+        differences.find((d) => d.subcriterion_key === "story_hook")!.confidence_differs = true;
+        const summary = content.audit_summary as Record<string, unknown>;
+        summary.confidence_exact_rate = 39 / 40;
+        // difference_ids still empty — the defect under test.
+      }),
+    );
+    expect(
+      result.issues.some((issue) => /missing diff-story_hook/.test(issue.message)),
+    ).toBe(true);
+  });
+
   it("rejects a final value that is neither a pass resolution nor a documented override", () => {
     const result = reject(
       mutate((draft) => {

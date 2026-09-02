@@ -172,10 +172,11 @@ duplicated; rules JSON Schema cannot express are implemented here, including:
 - the reassessment one-hop graph, baseline binding and carried-forward
   complement.
 
-## 6. Open items for the Item 4 gate audit
+## 6. Open items and owner determinations
 
-These are reported rather than resolved. Two are owner/orchestrator decisions;
-one is an environment gap.
+Updated 2026-09-02 after Tomas's Item 4 forensic review of PR #43. Two of the
+four items below were resolved by owner determination and are now implemented;
+one remains an owner/orchestrator follow-up; one is an environment gap.
 
 ### 6.1 The live probe has not been run — gate 1 remains PARTIAL
 
@@ -193,7 +194,7 @@ OPENAI_API_KEY=... npm run calib:probe -- --live --schema-probe
 
 Gate 1 cannot close on repository evidence alone.
 
-### 6.2 Coverage-state centrality is not recoverable from the record
+### 6.2 Coverage-state centrality is not recoverable from the record — gate 5 PARTIAL
 
 Protocol §6.1 separates `bounded` from `materially_limited` partly by whether the
 missing stratum is **central**:
@@ -215,29 +216,74 @@ mode/platform/build gap or two or more missing classes is `materially_limited`.
 The residual gap is that a `bounded` which should be `materially_limited` on
 centrality grounds is accepted.
 
-**Decision needed from ChatGPT/Tomas**, since the schema is a controlled input
-and engineering may not amend it: either record the missing unit IDs (a schema
-amendment, re-approved through the preregistration), or accept the documented
-partial check as sufficient for Phase 3A.
+**Owner determination, 2026-09-02:** the escalation is accepted as valid. The
+controlled schema is **not** to be amended in this engineering PR and no
+semantics are to be invented. **Gate 5 is therefore PARTIAL pending
+owner/orchestrator resolution**, which will be handled as a controlled Item 4
+follow-up. The validator keeps the documented partial check meanwhile.
 
-### 6.3 `audit_summary.difference_ids` — floor implemented, exact set not stated
+### 6.3 `audit_summary.difference_ids` — RESOLVED by owner determination
 
-Protocol §15 says `audit_summary` carries "IDs for every adjudicated difference".
-The validator enforces the unambiguous floor — every `owner_review_required`
-difference must be listed, and every listed ID must resolve — but does not
-require set equality, because "adjudicated" is not defined tightly enough to rule
-out an editor also listing a reconciled adjacent difference. Confirmation that
-the floor is the intended rule would let this be tightened.
+**Owner determination, 2026-09-02.** `difference_ids` is not limited to
+`owner_review_required`. It equals the IDs of every per-key record representing
+an actual divergence requiring reconciliation or retention:
 
-### 6.4 One difference record per paired decision
+> `difference_class != exact` **or** any of `claim_inclusion_differs`,
+> `mapping_differs`, `disposition_differs`, `confidence_differs` is true.
 
-The audit rates are defined over the paired decision set, so the validator
-requires a difference record for every paired key, including exact agreements
-(the `difference_class` enum admits `exact`). This is the reading that makes
-`exact_count` and `exact_rate` recomputable. If differences were instead intended
-to list only disagreements, the counts would need another source and this rule
-should be revisited.
+Clean exact rows with no secondary difference are omitted. Material/endpoint
+owner review remains a stricter subset. The validator now enforces this as **set
+equality** in both directions — a missing divergent row and an unexpected clean
+row are both rejected — replacing the earlier floor-only check.
 
-## 7. Verification
+### 6.4 One difference record per paired decision — CONFIRMED by owner
+
+**Owner determination, 2026-09-02.** `adjudication.differences` contains one
+record per paired decision, `difference_class = exact` included. This is the
+coherent reading of the closed enum and is what makes the paired metrics, and
+the per-key claim/mapping/disposition/confidence differences, reproducible. The
+validator requires a record for every paired key, and a test covers the omission
+case.
+
+## 7. Contract defects corrected in review
+
+Two defects were found by Tomas's Item 4 forensic review of PR #43 on
+2026-09-02 and are fixed on this branch. Both were real, and both are recorded
+here because each concerns a digest that later work will rely on.
+
+### 7.1 RFC 8785 must fail on invalid Unicode
+
+`canonical-json.ts` originally iterated UTF-16 code units and deliberately let
+an unpaired surrogate pass through, on the reasoning that JCS escapes only
+characters below U+0020. That reasoning was wrong about the consequence: a lone
+surrogate has **no UTF-8 encoding**, so `Buffer.from(…, "utf8")` silently
+substitutes U+FFFD. The canonical bytes would then no longer represent the
+input, two distinct inputs could produce the same digest, and hash
+interoperability would break precisely where the digest is load-bearing — the
+package `content_digest` and the `owner_approval.approved_digest` bound to it.
+
+`serializeString` now terminates canonicalization on an unpaired high or low
+surrogate, in property names as well as values, while emitting a valid
+surrogate pair unchanged. Tests cover a lone high surrogate, a lone low
+surrogate, a lone surrogate inside a property name, a nested occurrence with its
+reported path, and a valid pair that round-trips through UTF-8 without
+substitution.
+
+### 7.2 `run_manifest.output_schema_digest` binds the approved schema
+
+The builder originally set `output_schema_digest` to the digest of the **derived
+transport schema**. The run manifest's controlled-input digests are defined over
+the exact Item 3-approved bytes (gate 6), so that field must be the SHA-256 of
+`docs/schemas/Game_Profile_Scoring_Package_v1.0_DRAFT.schema.json` — otherwise
+the manifest attests to an artefact the owner never approved.
+
+`output_schema_digest` is now `controlledDigest(lock, "output_schema")`. The
+derived schema's digest is still recorded, as a separate
+`scoringPassSchemaDigest` field on the request for the local ledger and proof
+report, and it remains covered by `semantic_request_digest`. A regression test
+asserts the manifest field equals the controlled output-schema lock and that the
+transport digest is a different value.
+
+## 8. Verification
 
 See the pull request for the exact commands and results.

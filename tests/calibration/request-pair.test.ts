@@ -9,6 +9,10 @@ import {
   type SemanticInput,
 } from "@/lib/calibration/request-builder";
 import { verifyControlledInputs } from "@/lib/calibration/controlled-inputs";
+import {
+  buildScoringPassSchema,
+  scoringPassSchemaDigest,
+} from "@/lib/calibration/scoring-pass-contract";
 
 /**
  * Work order §5(13)–§5(15): primary/audit semantic request equality, pair drift
@@ -81,6 +85,23 @@ describe("the paired requests are identical by construction (§5(13))", () => {
     expect(request.configuration.model).toBe(PREREGISTERED_MODEL);
     expect(request.configuration.store).toBe(false);
     expect(request.configuration.tools).toEqual([]);
+  });
+
+  it("binds output_schema_digest to the APPROVED canonical schema, not the transport one", () => {
+    // Gate 6 defines run-manifest controlled-input digests over the exact Item 3
+    // bytes. The derived scoring-pass schema is a request artefact and must not
+    // occupy that field, or the manifest would attest to something the owner
+    // never approved.
+    const lock = verifyControlledInputs();
+    const approved = lock.inputs.find((input) => input.role === "output_schema")!.sha256;
+    const request = build();
+    expect(request.digests.output_schema_digest).toBe(approved);
+    // The transport schema is still recorded, just not there.
+    expect(request.scoringPassSchemaDigest).not.toBe(approved);
+    expect(request.scoringPassSchemaDigest).toMatch(/^[a-f0-9]{64}$/);
+    expect(request.scoringPassSchemaDigest).toBe(
+      scoringPassSchemaDigest(buildScoringPassSchema()),
+    );
   });
 
   it("serialises the semantic payload canonically, so member order cannot drift", () => {

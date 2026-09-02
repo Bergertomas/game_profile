@@ -51,6 +51,36 @@ describe("RFC 8785 canonicalization", () => {
     expect(canonicalize("\u00e9\u2603")).toBe('"\u00e9\u2603"');
   });
 
+  it("rejects invalid Unicode rather than emitting it", () => {
+    // RFC 8785 fails on invalid Unicode. A lone surrogate has no UTF-8
+    // encoding, so emitting it would let `Buffer.from(…, "utf8")` substitute
+    // U+FFFD — the canonical bytes would stop representing the input and two
+    // different inputs could digest identically.
+    expect(() => canonicalize("\ud800")).toThrow(CanonicalizationError);
+    expect(() => canonicalize("\ud800")).toThrow(/unpaired high surrogate U\+D800/);
+    expect(() => canonicalize("a\udbffb")).toThrow(/unpaired high surrogate U\+DBFF/);
+    expect(() => canonicalize("\udc00")).toThrow(/unpaired low surrogate U\+DC00/);
+    expect(() => canonicalize("a\udfffb")).toThrow(/unpaired low surrogate U\+DFFF/);
+    // Inside a nested value, with the path reported.
+    expect(() => canonicalize({ a: { b: ["\ud800"] } })).toThrow(/\.a\.b\[0\]/);
+  });
+
+  it("rejects a lone surrogate in a PROPERTY NAME too", () => {
+    expect(() => canonicalize({ "\ud800": 1 })).toThrow(CanonicalizationError);
+    expect(() => canonicalize({ "bad\udc00key": 1 })).toThrow(/unpaired low surrogate/);
+  });
+
+  it("accepts a valid surrogate pair and encodes it normally", () => {
+    // U+1F600, written as its surrogate pair — valid Unicode, so it passes.
+    expect(canonicalize("\ud83d\ude00")).toBe('"\ud83d\ude00"');
+    expect(canonicalize({ "\ud83d\ude00": 1 })).toBe('{"\ud83d\ude00":1}');
+    // And it round-trips through UTF-8 without substitution.
+    const bytes = Buffer.from(canonicalize("\ud83d\ude00"), "utf8");
+    expect(bytes.toString("utf8")).toBe('"\ud83d\ude00"');
+    expect(bytes).not.toContain(Buffer.from("\ufffd", "utf8"));
+    expect(canonicalDigest("\ud83d\ude00")).toMatch(/^[a-f0-9]{64}$/);
+  });
+
   it("rejects values outside the JSON domain rather than dropping them", () => {
     // `JSON.stringify` silently drops an undefined member; JCS has no
     // representation for one, so canonicalization must fail instead.

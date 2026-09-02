@@ -40,8 +40,8 @@ export class CanonicalizationError extends Error {
 /**
  * Escapes per RFC 8785 §3.2.2.2: the seven two-character forms where one
  * exists, `\u00xx` with LOWERCASE hex for the remaining C0 controls, and every
- * other code point literal — including DEL, U+2028/U+2029 and unpaired
- * surrogates, none of which JCS escapes.
+ * other code point literal — including DEL and U+2028/U+2029, neither of which
+ * JCS escapes.
  */
 const SHORT_ESCAPES = new Map<number, string>([
   [0x08, "\\b"],
@@ -53,10 +53,52 @@ const SHORT_ESCAPES = new Map<number, string>([
   [0x5c, "\\\\"],
 ]);
 
-function serializeString(value: string): string {
+const HIGH_SURROGATE_START = 0xd800;
+const HIGH_SURROGATE_END = 0xdbff;
+const LOW_SURROGATE_START = 0xdc00;
+const LOW_SURROGATE_END = 0xdfff;
+
+/**
+ * Serialize a JSON string, rejecting invalid Unicode.
+ *
+ * RFC 8785 requires canonicalization to FAIL on invalid Unicode rather than
+ * emit it, and a lone surrogate is the case that matters: it has no UTF-8
+ * encoding at all, so `Buffer.from(…, "utf8")` would silently substitute
+ * U+FFFD. The canonical bytes would then no longer represent the input, two
+ * different inputs could digest identically, and hash/signature
+ * interoperability would break exactly where a digest is load-bearing — which
+ * for this project is the package `content_digest` and the approval bound to
+ * it. So an unpaired high or low surrogate terminates canonicalization.
+ *
+ * A valid surrogate PAIR is fine and is emitted unchanged; it encodes to UTF-8
+ * normally. Property names run through this same function, so a key carrying a
+ * lone surrogate fails too.
+ */
+function serializeString(value: string, path: string): string {
   let out = '"';
-  for (const char of splitUtf16(value)) {
-    const code = char.charCodeAt(0);
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+
+    if (code >= HIGH_SURROGATE_START && code <= HIGH_SURROGATE_END) {
+      const next = index + 1 < value.length ? value.charCodeAt(index + 1) : -1;
+      if (next < LOW_SURROGATE_START || next > LOW_SURROGATE_END) {
+        throw new CanonicalizationError(
+          `unpaired high surrogate U+${code.toString(16).toUpperCase().padStart(4, "0")} at offset ${index}; RFC 8785 fails on invalid Unicode rather than emitting it`,
+          path,
+        );
+      }
+      // A valid pair: emit both units and step past the low surrogate.
+      out += value[index]! + value[index + 1]!;
+      index += 1;
+      continue;
+    }
+    if (code >= LOW_SURROGATE_START && code <= LOW_SURROGATE_END) {
+      throw new CanonicalizationError(
+        `unpaired low surrogate U+${code.toString(16).toUpperCase().padStart(4, "0")} at offset ${index}; RFC 8785 fails on invalid Unicode rather than emitting it`,
+        path,
+      );
+    }
+
     const short = SHORT_ESCAPES.get(code);
     if (short !== undefined) {
       out += short;
@@ -66,21 +108,9 @@ function serializeString(value: string): string {
       out += `\\u${code.toString(16).padStart(4, "0")}`;
       continue;
     }
-    out += char;
+    out += value[index]!;
   }
   return `${out}"`;
-}
-
-/**
- * Iterate UTF-16 code units, not code points. Escaping only ever applies to
- * characters below U+0020, so splitting surrogate pairs is harmless here and
- * keeps lone surrogates (which are legal in a JS string) passing through
- * unchanged rather than being replaced.
- */
-function splitUtf16(value: string): string[] {
-  const units: string[] = [];
-  for (let i = 0; i < value.length; i += 1) units.push(value[i]!);
-  return units;
 }
 
 /**
@@ -118,7 +148,7 @@ function canonicalizeValue(value: unknown, path: string): string {
     case "number":
       return serializeNumber(value, path);
     case "string":
-      return serializeString(value);
+      return serializeString(value, path);
     case "bigint":
       throw new CanonicalizationError("bigint is not a JSON value", path);
     case "undefined":
@@ -155,7 +185,7 @@ function canonicalizeValue(value: unknown, path: string): string {
         path,
       );
     }
-    return `${serializeString(key)}:${canonicalizeValue(child, `${path}.${key}`)}`;
+    return `${serializeString(key, `${path}.${key}`)}:${canonicalizeValue(child, `${path}.${key}`)}`;
   });
   return `{${members.join(",")}}`;
 }
