@@ -1,6 +1,6 @@
 # ADR 0036 — Phase 3A measured scoring uses controlled GPT-5.6 Sol API executions
 
-- **Status:** Proposed — requires Tomas approval with the Phase 3A preregistration
+- **Status:** Accepted owner decision for Phase 3A calibration execution; does not authorize scoring by itself
 - **Date:** 2026-09-02
 - **Owner / final editorial authority:** Tomas
 - **Related:** Scoring Protocol v1.0 candidate §§2.3, 11, 13 and Appendix B; Phase 3A preregistration; ADR 0035
@@ -13,7 +13,7 @@ OpenAI's current GPT-5.6 Sol model documentation exposes `gpt-5.6-sol` as the co
 
 The project still wants ChatGPT to remain the orchestrator and GPT-5.6 Sol High to remain the editorial scorer. Engineering agents must not become scorers merely because execution moves to an API harness.
 
-## Proposed decision
+## Decision
 
 For the measured Phase 3A primary/audit executions:
 
@@ -28,11 +28,21 @@ For the measured Phase 3A primary/audit executions:
 9. Where the chosen endpoint exposes no seed, record `parameter_unavailable` exactly as the candidate protocol permits; do not fabricate one.
 10. Codex/Claude may implement/run/validate the harness but may not choose, repair or adjudicate semantic scores. Any semantic model retry is a new run and is logged.
 
+## Owner approval
+
+Tomas explicitly approved this execution direction on 2026-09-02 together with the Phase 3A scope/execution gates. This approval fixes the intended measured execution surface for Item 3. It does **not** assert that the harness already exists or works: Item 4 must prove the implementation before D1 can start.
+
 ## Consequence
 
 ChatGPT web remains the project/orchestration conversation and owner-facing decision surface. The measured scoring pair becomes a reproducible machine execution of the same designated GPT model rather than an informal two-tab comparison.
 
-This ADR does not authorize scoring by itself. The preregistration, harness proof, protocol amendment, scope/DLC gates and Tomas approval must all close first.
+The checklist boundary is deliberate:
+
+- **Item 3 preregisters and freezes this contract.**
+- **Item 4 proves the API/harness/validator/digest implementation against it.**
+- **D1 remains blocked until Item 4 passes.**
+
+This avoids making Item 3 depend on completion of the next checklist item while preserving the exact same safety gate before scoring.
 
 ## Failure boundary
 
