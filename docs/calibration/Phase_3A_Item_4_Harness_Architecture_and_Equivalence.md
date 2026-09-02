@@ -189,8 +189,8 @@ Both credential-safe probes were run manually on 2026-09-02 from clean current
 only through the local environment. No credential or secret value was printed
 or committed. Both requests used the fixed non-game probe input, exact model
 `gpt-5.6-sol`, `reasoning.effort = high`, `reasoning.context = current_turn`,
-standard reasoning mode, `store = false`, `tools = []`, and the 256-token output
-cap.
+`store = false`, `tools = []`, and the 256-token output cap. The successful call
+returned standard reasoning mode in its effective reasoning metadata.
 
 The tiny-contract capability probe started at `2026-09-02T17:00:38.983Z` and
 returned **PASS**:
