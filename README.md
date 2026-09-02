@@ -41,14 +41,14 @@ Slice 2 completes the accepted homepage system on top of it — the
 bounded "Choosing between…" presentation contract, whose editorial
 configurations ship empty pending owner-approved membership — and is merged on
 `main` too. Engineering Slice 3 implements the accepted A3–A6 profile system
-on this integration branch: the decision before the instrument, complete
+in the current codebase: the decision before the instrument, complete
 art-led/artless parity, the labelled radar with eight permanent exact rows,
 Range/Unknown/Provisional/confidence as words, and the restored platform
 warning, platform-note and override projection. Practical time and store
 destinations render only from approved records, and none exists yet, so
-neither appears. **Production deployment remains pending**: the deployed site
-still serves the earlier three-profile experience until `main` is deliberately
-deployed.
+neither appears. **None of the three slices is yet deliberately deployed to
+production**: the deployed site still serves the earlier three-profile
+experience until `main` is deliberately deployed.
 
 **Remote admin and production Live proof are exercised.** The current state is:
 
@@ -771,8 +771,9 @@ so the homepage's curated-Compare module publishes no route into Compare, and
 the profile offers no "Compare with" and no "Where to play": no editor-selected
 pair and no verified storefront destination exist, and a control that goes
 nowhere is worse than an honest absence. Static Search and the accepted
-homepage system are merged on `main`; the accepted profile system is on its
-integration branch; none of it is deployed to production. No profile carries an
+homepage system are merged on `main` (Slices 1 and 2); the accepted profile
+system is implemented in the current codebase (Slice 3); none of it is yet
+deliberately deployed to production. No profile carries an
 approved practical-time record, so no profile shows total commitment or a
 useful-session window; the component renders them from a record or not at all. The authored evergreen/living
 shelves and the "Choosing between…" entries have their grammar, configuration

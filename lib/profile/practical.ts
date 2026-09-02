@@ -32,6 +32,14 @@ import {
  * The public session-summary phrase matrix is a provisional decision (Master
  * Plan §17.2). So the two session facts are stated as the two facts they are —
  * window and interruption flexibility — and no sentence is composed from them.
+ *
+ * ── Scope binding ───────────────────────────────────────────────────────────
+ *
+ * Both records are scope-aware: a base game, a mode, an edition and a DLC each
+ * have their own scope and their own time. A record is therefore accepted only
+ * for the scope of the profile being rendered. The caller names that scope,
+ * and a record bound to any other scope fails loudly rather than lending its
+ * hours to a profile they do not describe.
  */
 
 /** One practical fact, in words. `state` lets a surface mark Unknown as such. */
@@ -82,12 +90,33 @@ function formatHours(low: number, high: number): string {
   return low === high ? `${low} h` : `${low}–${high} h`;
 }
 
-/** The headline band, from the engaged-play estimate (ADR 0027). */
+/** The record must be bound to exactly the scope of the profile being rendered. */
+function assertBoundToScope(
+  what: "Total commitment" | "Session suitability",
+  record: { readonly scopeId: string },
+  expectedScopeId: string,
+): void {
+  if (!expectedScopeId.trim()) {
+    throw new Error(`${what} cannot be rendered without the profile's scope.`);
+  }
+  if (record.scopeId !== expectedScopeId) {
+    throw new Error(
+      `${what} record is bound to scope "${record.scopeId}", not to the profile's scope "${expectedScopeId}".`,
+    );
+  }
+}
+
+/**
+ * The headline band, from the engaged-play estimate (ADR 0027), for a record
+ * bound to `scopeId` — the scope of the profile being rendered.
+ */
 export function describeCommitment(
   record: TotalCommitmentRecord | null | undefined,
+  scopeId: string,
 ): PracticalFact | null {
   if (!record) return null;
   validateTotalCommitmentRecord(record);
+  assertBoundToScope("Total commitment", record, scopeId);
 
   const label = "Total commitment";
   const { estimate } = record.engagedPlay;
@@ -123,14 +152,16 @@ export function describeCommitment(
   }
 }
 
-/** The two session facts, each stated on its own. */
+/** The two session facts, each stated on its own, for a record bound to `scopeId`. */
 export function describeSession(
   record: SessionSuitabilityRecord | null | undefined,
+  scopeId: string,
 ): { readonly session: PracticalFact; readonly interruption: PracticalFact } | null {
   if (!record) return null;
   if (!record.scopeId.trim()) {
     throw new Error("Session suitability requires a scopeId.");
   }
+  assertBoundToScope("Session suitability", record, scopeId);
   const window = record.usefulSessionWindow;
   const flexibility = record.interruptionFlexibility;
   return {
@@ -158,15 +189,17 @@ export function describeSession(
 }
 
 /**
- * Everything the practical band may say. All three are null when no record
- * exists, which is the signal to render nothing rather than a row of Unknowns
- * that would imply a record was consulted and came back empty.
+ * Everything the practical band may say for the profile whose scope is
+ * `scopeId`. All three are null when no record exists, which is the signal to
+ * render nothing rather than a row of Unknowns that would imply a record was
+ * consulted and came back empty. A record for any other scope throws.
  */
 export function describePractical(
   records: PracticalRecords | null | undefined,
+  scopeId: string,
 ): PracticalFacts {
-  const commitment = describeCommitment(records?.commitment);
-  const session = describeSession(records?.session);
+  const commitment = describeCommitment(records?.commitment, scopeId);
+  const session = describeSession(records?.session, scopeId);
   return {
     commitment,
     session: session?.session ?? null,

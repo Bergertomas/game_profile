@@ -336,7 +336,7 @@ describe("Practical commitment from an approved record", () => {
     const html = render(alanWake2, null, {
       practical: {
         commitment: {
-          scopeId: "fixture",
+          scopeId: alanWake2.scope.id,
           engagedPlay: {
             kind: "engaged_play",
             estimate: { kind: "hours", low: 12, high: 16 },
@@ -349,7 +349,7 @@ describe("Practical commitment from an approved record", () => {
           },
         },
         session: {
-          scopeId: "fixture",
+          scopeId: alanWake2.scope.id,
           usefulSessionWindow: "unknown",
           interruptionFlexibility: "low",
           rationale: "Fixture.",
@@ -370,6 +370,22 @@ describe("Practical commitment from an approved record", () => {
     );
     // Eight rows, still.
     expect([...html.matchAll(/gp-row__num"/g)]).toHaveLength(8);
+  });
+
+  it("refuses to render a record bound to another scope of the game", () => {
+    // The profile is the main game; the record is for an expansion's scope.
+    expect(() =>
+      render(alanWake2, null, {
+        practical: {
+          session: {
+            scopeId: "scp_alan_wake_2_night_springs",
+            usefulSessionWindow: "short",
+            interruptionFlexibility: "low",
+            rationale: "Fixture.",
+          },
+        },
+      }),
+    ).toThrow(/bound to scope "scp_alan_wake_2_night_springs", not to the profile's scope "scp_alan_wake_2_default"/);
   });
 });
 

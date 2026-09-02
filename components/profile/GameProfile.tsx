@@ -70,9 +70,11 @@ export function GameProfile({
    */
   scopes?: readonly ScopeLink[];
   /**
-   * Approved practical-time records for this scope, or nothing. No data path
-   * supplies one yet, so the public page passes nothing and the practical
-   * band is omitted; the harness proves the grammar with labelled fixtures.
+   * Approved practical-time records for this scope, or nothing. Each record
+   * must be bound to `profile.scope.id`; one for any other scope throws
+   * rather than renders. No data path supplies one yet, so the public page
+   * passes nothing and the practical band is omitted; the harness proves the
+   * grammar with labelled fixtures.
    */
   practical?: PracticalRecords | null;
 }) {
@@ -80,7 +82,7 @@ export function GameProfile({
   const { game } = profile;
   const accent = accentFor(game.slug);
   const platforms = projectPlatforms(profile);
-  const practicalFacts = describePractical(practical);
+  const practicalFacts = describePractical(practical, profile.scope.id);
 
   return (
     <article

@@ -165,7 +165,7 @@ const WITH_OVERRIDE: GameWithEvaluation = (() => {
 })();
 
 const COMMITMENT_FIXTURE: TotalCommitmentRecord = {
-  scopeId: "fixture:alan-wake-2",
+  scopeId: alanWake2.scope.id,
   engagedPlay: {
     kind: "engaged_play",
     estimate: { kind: "hours", low: 12, high: 16 },
@@ -184,7 +184,7 @@ const COMMITMENT_UNKNOWN: TotalCommitmentRecord = {
 };
 
 const SESSION_FIXTURE: SessionSuitabilityRecord = {
-  scopeId: "fixture:alan-wake-2",
+  scopeId: alanWake2.scope.id,
   usefulSessionWindow: "short",
   interruptionFlexibility: "low",
   rationale: "Fixture rationale.",
