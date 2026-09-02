@@ -5,7 +5,7 @@
 - **Status:** Owner-approved candidate — authorized for Appendix B calibration; not governing pending its gates and final approval
 - **Date:** 2026-08-25
 - **Owner/final editorial authority:** Tomas
-- **Primary scoring editor:** Approved GPT scoring agent (initially GPT Chat)
+- **Primary scoring editor:** GPT-5.6 Sol High for Phase 3A measured calibration (ADR 0036)
 
 ---
 
@@ -68,11 +68,19 @@ production-record decisions are tracked in Master Plan v0.9 Phase 3A.
 
 The protocol is intended for:
 
-- manual GPT Chat-led launch-catalog production;
-- later skill/API-assisted scoring;
+- manual GPT-led launch-catalog production;
+- skill/API-assisted scoring;
 - editorial audit and correction;
 - blind rescoring and calibration;
 - generation of validated draft-import packages.
+
+**Phase 3A measured execution — ADR 0036.** For the Appendix B measured
+primary/audit passes, references in this candidate to a GPT Chat scoring pass are
+implemented as repository-controlled, stateless OpenAI API executions of
+`gpt-5.6-sol` at High reasoning under ADR 0036 and the approved Phase 3A
+preregistration. This changes the controlled execution surface, not who owns the
+editorial judgment. ChatGPT remains the owner-facing orchestration surface;
+Codex/Claude may implement/run/validate the harness but do not become scorers.
 
 No AI output may publish automatically. Tomas remains responsible for the final
 editorial judgment.
@@ -98,12 +106,13 @@ editorial judgment.
 
 There is no replacement rubric competing with Rubric v1.0. Appendix A and the
 rest of this protocol operationalize that existing rubric; they do not create a
-second set of dimensions or scores. Calibration asks whether independent GPT
-Chat passes can apply Rubric v1.0 through this evidence/anchor procedure with
-acceptable reliability.
+second set of dimensions or scores. Calibration asks whether independent
+approved-GPT passes can apply Rubric v1.0 through this evidence/anchor procedure
+with acceptable reliability.
 
 - Tomas approves the calibration corpus and remains final editorial authority.
-- GPT Chat performs the separate research, primary and blind-audit runs.
+- The designated GPT scorer performs the separate research, primary and
+  blind-audit runs under the preregistered execution surface.
 - Repeated ambiguity first changes protocol wording, examples or anchors.
 - A genuine defect in a rubric dimension/subcriterion is escalated to Tomas as
   a separate Rubric v1.1 decision. Rubric v1.0 continues to govern unless that
@@ -177,12 +186,12 @@ A final result is publishable and auditable only if:
 The research pass constructs and freezes the corpus without selecting any
 anchor or writing an interpretation. It records the candidate-source log,
 coverage frame and normalized packet. That context ends before scoring begins.
-The research collector may be GPT Chat, but may not continue into either
+The research collector may be a GPT execution, but may not continue into either
 measured scoring pass in the same context.
 
-### 2.2 GPT Chat — primary scoring editor
+### 2.2 GPT-5.6 Sol — primary scoring editor
 
-A clean-context GPT Chat pass:
+A clean-context designated-GPT scoring pass:
 
 - extracts atomic claims;
 - maps claims to subcriteria;
@@ -192,8 +201,9 @@ A clean-context GPT Chat pass:
 - writes concise public rationales and interpretation;
 - produces the structured draft package.
 
-The interpretation is withheld until scoring/adjudication under §12; it is not
-shown to the auditor.
+For Phase 3A measured calibration this is `gpt-5.6-sol` at High reasoning under
+ADR 0036 and the preregistered harness. The interpretation is withheld until
+scoring/adjudication under §12; it is not shown to the auditor.
 
 ### 2.3 Blind audit pass
 
@@ -209,9 +219,9 @@ The audit pass independently extracts claims, maps them, records
 inclusion/rejection and scores the complete active decision set: all 40 for an
 initial/full evaluation or the graph-derived set for a bounded reassessment.
 
-The auditor may be a second GPT Chat run using the same approved model snapshot
-and protocol version. It must not be primed with the first result. A later
-cross-model robustness test is reported separately from same-snapshot
+The auditor may be a second designated-GPT run using the same approved model
+snapshot and protocol version. It must not be primed with the first result. A
+later cross-model robustness test is reported separately from same-snapshot
 repeatability.
 
 For a paired audit or calibration result to count, provider/model and exact
@@ -249,12 +259,14 @@ Codex, Claude or other engineering agents may:
 
 - validate/import the approved structured package;
 - implement deterministic derivation and validation;
+- implement/run the preregistered harness and capture immutable run artefacts;
 - report structural inconsistencies.
 
 They do not independently reinterpret or rescore editorial content unless
-explicitly assigned an audit role under the same protocol. After Tomas approves,
-the authenticated editor—currently Tomas—executes publication through the
-existing validated admin action.
+explicitly assigned an audit role under the same protocol. For Phase 3A ADR
+0036 does not assign them that role: GPT-5.6 Sol remains the scorer. After Tomas
+approves, the authenticated editor—currently Tomas—executes publication through
+the existing validated admin action.
 
 ---
 
@@ -297,9 +309,16 @@ Compatibility is fixed:
 | `pre_release_playable` | `pre_release` | must be null for the evaluated release |
 | `released` | `newly_released` or `mature` | required |
 
-`newly_released` lasts through the twelve-month maturity check; older catalog
-games evaluated for the first time are `mature`. Stability is orthogonal and
-may change without changing release state or maturity.
+A released scope begins as `newly_released` and may become `mature` after an
+explicit evidence- and stability-based maturity review under ADR 0035. There is
+no minimum release age. Twelve months is a mandatory backstop review for any
+scope still marked `newly_released`, not a waiting period or automatic
+promotion; a scope may remain `newly_released` after twelve months when the
+maturity review still fails. Stability is orthogonal and may change without
+changing release state or maturity. Ordinary seasons, maps, weapons, events,
+tuning or patches do not by themselves prevent a sufficiently understood
+released scope from being mature. Age-sensitive subcriterion safeguards remain
+independent and are never satisfied merely by profile-level maturity.
 
 ---
 
@@ -897,8 +916,8 @@ differ.
 
 Prefer the claim that is more specific, better scoped, more current, based on
 deeper relevant access, independently corroborated and directly tied to the
-  subcriterion. Do not prefer it because the outlet is larger or because it agrees
-  with Tomas or the primary scorer.
+subcriterion. Do not prefer it because the outlet is larger or because it agrees
+with Tomas or the primary scorer.
 
 ### 8.3 Unresolved disagreement
 
@@ -1029,10 +1048,9 @@ as a whole.
 - **Low:** every other state.
 
 Profiles with `release_state = announced | showcased` are Low. Other
-pre-release profiles and games
-under active remediation cannot exceed Medium. The importer recomputes
-dimension and overall confidence from the stored facts; imported derived labels
-are never trusted.
+pre-release profiles and games under active remediation cannot exceed Medium.
+The importer recomputes dimension and overall confidence from the stored facts;
+imported derived labels are never trusted.
 
 Deriving the dimension and overall labels from stored facts supersedes ADR 0006
 §1's decision that per-dimension confidence is a stored editorial input: the
@@ -1203,20 +1221,24 @@ silently resolve material disagreement, or publish automatically.
 
 The scheduled clock begins on the public release date of the evaluated
 edition/scope—not the research date, profile publication date or an unrelated
-platform's release. For newly released games:
+platform's release. For a released scope still classified `newly_released`:
 
 - three-month stabilization check;
 - six-month check only when instability, active remediation, live-service change
   or unresolved uncertainty remains;
-- twelve-month maturity check;
+- twelve-month **backstop maturity review if still `newly_released`**;
 - event-triggered review at any time after a material change.
+
+A scope may become `mature` before twelve months when ADR 0035's evidence- and
+stability-based review passes. Reaching twelve months does not automatically
+promote it, and a failed review may leave it `newly_released` afterward.
 
 Checks do not automatically create revisions. A revision is required when
 evidence changes a dimension/range/Unknown, confidence, Primary Pull/Risk,
 fit interpretation, material platform warning or evaluation scope.
 
-Older mature launch-catalog games receive one current-state evaluation and then
-move to trigger-based monitoring.
+Mature catalog games receive one current-state evaluation and then move to
+trigger-based monitoring.
 
 Material triggers include major patches/overhauls, progression/economy/balance
 redesign, material performance change, expansions affecting the base experience,
@@ -1226,11 +1248,12 @@ review average or renewed online controversy is not itself a trigger; it opens
 an investigation only when it points to a concrete claim about the evaluated
 experience.
 
-Initially, GPT Chat performs each scheduled or triggered evidence check and Tomas
-approves its disposition. Later automation may surface candidate changes but
-may not revise a profile. A no-change check records its trigger, date, sources,
-affected-set analysis and conclusion in the evaluation history; it does not
-create a new public revision or imply that the full profile was rescored.
+Initially, the designated GPT scorer performs each scheduled or triggered
+evidence check and Tomas approves its disposition. Later automation may surface
+candidate changes but may not revise a profile. A no-change check records its
+trigger, date, sources, affected-set analysis and conclusion in the evaluation
+history; it does not create a new public revision or imply that the full profile
+was rescored.
 
 For a revision, the research pass starts from the prior approved source corpus,
 adds the change evidence and marks obsolete items `superseded` without deleting
@@ -1460,6 +1483,20 @@ minor revision.
 
 #### Draft changelog
 
+- **2026-09-02 — owner-approved maturity amendment (ADR 0035).** Released-game
+  `evaluation_maturity` is evidence- and stability-based rather than age-gated.
+  A released scope starts `newly_released`, may become `mature` whenever an
+  explicit maturity review passes, and receives a mandatory backstop review at
+  twelve months if still newly released. Twelve months is neither a minimum
+  wait nor automatic promotion. Stability remains orthogonal and age-sensitive
+  subcriterion safeguards remain unchanged. §§3 and 14 incorporate the rule.
+- **2026-09-02 — owner-approved Phase 3A measured execution amendment (ADR
+  0036).** The Appendix B measured primary/audit passes use repository-controlled
+  stateless OpenAI API executions of `gpt-5.6-sol` at High reasoning with the
+  preregistered controlled inputs/configuration. Engineering agents may
+  implement/run/validate the harness but do not replace the designated GPT
+  scorer. This execution-surface decision does not make the candidate protocol
+  governing or authorize scoring before preregistration and engineering gates.
 - **2026-08-25 — owner approval to enter calibration.** The candidate protocol
   and ADR 0024 are approved as the Appendix B basis, without making either
   governing. Master Plan v0.9 Phase 3A records the deferred gates and ADR 0024
@@ -1683,6 +1720,6 @@ adds another. Display labels may differ; stored meaning may not.
 value; it is not an additional number. `snapshot_unavailable` is the declared
 value of `model_snapshot_build_id` when the provider exposes no snapshot
 identifier, and `parameter_unavailable` the declared value of `seed` when none
-is exposed; both are limitations, not hidden defaults (§2.3, §13). `blocking_or_defining` takes its meaning
-from claim direction and selected anchor and must not be interpreted without
-the claim text.
+is exposed; both are limitations, not hidden defaults (§2.3, §13).
+`blocking_or_defining` takes its meaning from claim direction and selected
+anchor and must not be interpreted without the claim text.
