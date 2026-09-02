@@ -93,8 +93,9 @@ construct outside the Structured Outputs subset. On the approved bytes it finds
 Reproduce with `npm run calib:report`. This settles the deterministic half of the
 question on repository evidence: an explicitly equivalent derived schema is
 required, not merely convenient. The live half — that the derived schema is in
-fact accepted by the API — is `npm run calib:probe -- --live --schema-probe`, and
-is **not yet run** (§6).
+fact accepted by the API — was tested with
+`npm run calib:probe -- --live --schema-probe` and failed at the API schema
+boundary (§6).
 
 ### 4.2 What the model is asked for, and what it is not
 
@@ -174,25 +175,56 @@ duplicated; rules JSON Schema cannot express are implemented here, including:
 
 ## 6. Open items and owner determinations
 
-Updated 2026-09-02 after Tomas's Item 4 forensic review of PR #43. Two of the
-four items below were resolved by owner determination and are now implemented;
-one remains an owner/orchestrator follow-up; one is an environment gap.
+Updated 2026-09-02 after Tomas's Item 4 forensic review of PR #43 and the live
+Gate 1 probes from current `main` at
+`1e113f587595ee2fdcc4648f253d0fa702076836`. Two of the four items below were
+resolved by owner determination and are now implemented; one remains an
+owner/orchestrator follow-up; the live probe has now exposed an implementation
+gap in the derived transport schema.
 
-### 6.1 The live probe has not been run — gate 1 remains PARTIAL
+### 6.1 Live Gate 1 evidence — gate 1 remains PARTIAL
 
-`OPENAI_API_KEY` is not configured in the engineering environment, so the live
-capability probe was not executed. Actual project access, returned model
-identity, effective reasoning configuration, whether the API exposes a snapshot
-identifier stronger than the model ID, and whether the derived scoring-pass
-schema is accepted by Structured Outputs are therefore **unproven**. The probe is
-implemented, exercised on both refusal paths, and ready:
+Both credential-safe probes were run manually on 2026-09-02 from clean current
+`main` at `1e113f587595ee2fdcc4648f253d0fa702076836`, with the credential supplied
+only through the local environment. No credential or secret value was printed
+or committed. Both requests used the fixed non-game probe input, exact model
+`gpt-5.6-sol`, `reasoning.effort = high`, `reasoning.context = current_turn`,
+`store = false`, `tools = []`, and the 256-token output cap. The successful call
+returned standard reasoning mode in its effective reasoning metadata.
 
-```
-OPENAI_API_KEY=... npm run calib:probe -- --live
-OPENAI_API_KEY=... npm run calib:probe -- --live --schema-probe
-```
+The tiny-contract capability probe started at `2026-09-02T17:00:38.983Z` and
+returned **PASS**:
 
-Gate 1 cannot close on repository evidence alone.
+- HTTP 200;
+- requested and returned model `gpt-5.6-sol`; identity matched;
+- effective reasoning `{context: current_turn, effort: high, mode: standard,
+  summary: null}`;
+- no stronger snapshot/build identifier exposed by the API;
+- response ID
+  `resp_0eaf2b924f801e4b016a985638465487d298fed854eb85d734`;
+- 78 input, 23 output, 101 total tokens; 0 reasoning tokens reported;
+- 3,328 ms API elapsed time; and
+- structured output accepted under the tiny probe schema.
+
+The real derived scoring-pass schema probe started at
+`2026-09-02T17:00:51.482Z` and returned **FAIL** before model execution:
+
+- HTTP 400;
+- no returned model, response ID, reasoning metadata, token usage or structured
+  output; and
+- provider error:
+  `Invalid schema for response_format 'phase3a_scoring_pass': In context=('anyOf', '0'), 'additionalProperties' is required to be supplied and to be false.`
+
+The first result proves configured project access to the exact preregistered
+model and effective High/current-turn/standard reasoning configuration. The
+second result disproves the current architecture record's expectation that the
+derived scoring-pass schema is accepted by the live Structured Outputs API.
+This is a fail-closed transport-schema implementation defect, not calibration
+evidence and not a scoring result.
+
+Gate 1 remains **PARTIAL**, Item 4 remains incomplete, and D1 remains blocked
+until the derived schema is corrected and the live schema probe passes. No
+calibration game was researched or scored by either probe.
 
 ### 6.2 Coverage-state centrality is not recoverable from the record — gate 5 PARTIAL
 
