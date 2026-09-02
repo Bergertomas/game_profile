@@ -885,7 +885,7 @@ function checkCoverageAndTime(pkg: ScoringPackage, log: IssueLog): void {
       }
     }
 
-    const claims = new Map(pass.claim_ledger.map((claim) => [claim.claim_id, claim]));
+    const claims = passClaimLookup(pass);
     for (const decision of pass.decisions) {
       const at = `${path}.decisions[${decision.subcriterion_key}]`;
       const frame = frames.get(decision.subcriterion_key);
@@ -902,19 +902,21 @@ function checkCoverageAndTime(pkg: ScoringPackage, log: IssueLog): void {
     }
   }
 
-  // Final decisions carry their own coverage state too. Their claim IDs span
-  // both ledgers, so the claim-compatibility rule is checked on the passes,
-  // where the ledger that owns each claim is unambiguous.
+  // Final decisions carry their own coverage state, and the claim/coverage
+  // invariant applies to them too. Their claim IDs resolve against the union of
+  // both ledgers (§5.2); an ID matching in both is rejected as ambiguous by
+  // `checkFinalClaimReferences` rather than resolved arbitrarily here.
+  const finalClaims = unionClaimLookup(content);
   for (const decision of content.adjudication.final_decisions) {
     const at = `adjudication.final_decisions[${decision.subcriterion_key}]`;
     const frame = frames.get(decision.subcriterion_key);
-    checkCoverageRecord(at, decision, frame, null, log);
+    checkCoverageRecord(at, decision, frame, finalClaims, log);
     for (const override of decision.platform_overrides) {
       checkCoverageRecord(
         `${at}.platform_overrides[${override.platform_key}]`,
         override,
         frame,
-        null,
+        finalClaims,
         log,
       );
     }
@@ -991,15 +993,19 @@ interface CoverageCarrier {
 /**
  * Check one coverage record — a decision or a platform override.
  *
- * `claims` is the pass's ledger, used for the rule that a linked non-rejected
- * claim's observed units may not be recorded missing. It is absent for final
- * decisions, whose claim IDs span both passes.
+ * `claims` maps a claim ID to every claim carrying it. For a pass that is its
+ * own ledger; for a final decision it is the union of both ledgers, because
+ * §5.2 states that "primary and audit passes create separate claim ledgers" and
+ * a final decision adjudicates across them. A claim ID matching in both ledgers
+ * names two different claims, so the invariant is applied only where the
+ * resolution is unique; `checkFinalClaimReferences` reports the unresolved and
+ * ambiguous cases, so they are not double-reported here.
  */
 function checkCoverageRecord(
   at: string,
   carrier: CoverageCarrier,
   frame: CoverageFrame | undefined,
-  claims: ReadonlyMap<string, Claim> | null,
+  claims: ReadonlyMap<string, readonly Claim[]> | null,
   log: IssueLog,
 ): void {
   const observed = carrier.coverage_observed_unit_ids;
@@ -1066,8 +1072,11 @@ function checkCoverageRecord(
   // A linked, non-rejected claim's observed units may not be recorded missing.
   if (claims) {
     for (const claimId of carrier.claim_ids) {
-      const claim = claims.get(claimId);
-      if (!claim || claim.disposition === "rejected") continue;
+      const matches = claims.get(claimId) ?? [];
+      // Exactly one match, or the reference is not a usable link.
+      if (matches.length !== 1) continue;
+      const claim = matches[0]!;
+      if (claim.disposition === "rejected") continue;
       for (const unitId of claim.observed_unit_ids) {
         if (missing.includes(unitId)) {
           log.add(
@@ -1118,6 +1127,93 @@ function checkCoverageRecord(
           (absent.length > 0 ? `; absent ${absent.join(", ")}` : "") +
           (extra.length > 0 ? `; unexpected ${extra.join(", ")}` : ""),
       );
+    }
+  }
+}
+
+/**
+ * Build the claim lookup a final decision resolves against.
+ *
+ * §5.2: "Primary and audit passes create separate claim ledgers." Claim IDs are
+ * therefore pass-local, and `reconciledClaim` keeps `primary_claim_ids` and
+ * `audit_claim_ids` apart for exactly that reason. A final decision adjudicates
+ * across both, so its references are resolved against the union — and an ID
+ * present in both ledgers names two different claims, so it is rejected as
+ * ambiguous rather than silently resolved to one of them.
+ */
+function unionClaimLookup(
+  content: ScoringPackage["scoring_content"],
+): ReadonlyMap<string, readonly Claim[]> {
+  return groupClaims([
+    ...content.primary_pass.claim_ledger,
+    ...content.audit_pass.claim_ledger,
+  ]);
+}
+
+/** One pass's ledger in the same shape, so both carriers share one code path. */
+function passClaimLookup(pass: ScoringPass): ReadonlyMap<string, readonly Claim[]> {
+  return groupClaims(pass.claim_ledger);
+}
+
+function groupClaims(claims: readonly Claim[]): ReadonlyMap<string, readonly Claim[]> {
+  const lookup = new Map<string, Claim[]>();
+  for (const claim of claims) {
+    const existing = lookup.get(claim.claim_id);
+    if (existing) existing.push(claim);
+    else lookup.set(claim.claim_id, [claim]);
+  }
+  return lookup;
+}
+
+/**
+ * §15.1(4) for the adjudicated set: every claim a final decision, its endpoint
+ * gate or its platform overrides names must resolve to exactly one claim across
+ * the two pass ledgers, and must be mapped to the criterion it supports.
+ *
+ * Without this the final decisions were the one decision set whose claim
+ * references went unchecked entirely.
+ */
+function checkFinalClaimReferences(pkg: ScoringPackage, log: IssueLog): void {
+  const content = pkg.scoring_content;
+  const lookup = unionClaimLookup(content);
+
+  const resolve = (at: string, claimId: string, subcriterionKey: string | null): void => {
+    const matches = lookup.get(claimId) ?? [];
+    if (matches.length === 0) {
+      log.add("reference_integrity", 4, at, `unresolved claim reference "${claimId}"`);
+      return;
+    }
+    if (matches.length > 1) {
+      log.add(
+        "reference_integrity",
+        4,
+        at,
+        `claim reference "${claimId}" matches in both pass ledgers and is ambiguous; claim IDs are pass-local (§5.2)`,
+      );
+      return;
+    }
+    const claim = matches[0]!;
+    if (subcriterionKey !== null && claim.subcriterion_key !== subcriterionKey) {
+      log.add(
+        "reference_integrity",
+        4,
+        at,
+        `claim "${claimId}" is mapped to ${claim.subcriterion_key} but supports a ${subcriterionKey} decision`,
+      );
+    }
+  };
+
+  for (const decision of content.adjudication.final_decisions) {
+    const at = `adjudication.final_decisions[${decision.subcriterion_key}]`;
+    for (const claimId of decision.claim_ids) resolve(at, claimId, decision.subcriterion_key);
+    for (const claimId of decision.endpoint_gate?.scope_spanning_claim_ids ?? []) {
+      resolve(`${at}.endpoint_gate`, claimId, null);
+    }
+    for (const override of decision.platform_overrides) {
+      const overrideAt = `${at}.platform_overrides[${override.platform_key}]`;
+      for (const claimId of override.claim_ids) {
+        resolve(overrideAt, claimId, decision.subcriterion_key);
+      }
     }
   }
 }
@@ -1761,6 +1857,7 @@ export function validatePackageSemantics(
   checkReferenceIntegrity(pkg, log);
   checkTierD(pkg, log);
   checkScoreRecords(pkg, log);
+  checkFinalClaimReferences(pkg, log);
   checkCoverageFrames(pkg, log);
   checkCoverageAndTime(pkg, log);
   checkAdjudication(pkg, pairedKeys, log);

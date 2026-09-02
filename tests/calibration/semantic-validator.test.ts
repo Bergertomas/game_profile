@@ -275,6 +275,59 @@ describe("§15.1(4) reference integrity and collection standard", () => {
     expect(result.issues.some((issue) => /Tier-D claim/.test(issue.message))).toBe(true);
   });
 
+  it("resolves final-decision claim references, rejecting unresolved ones", () => {
+    const result = reject(
+      mutate((draft) => {
+        decisionIn(draft, "final", "story_hook").claim_ids = ["no-such-claim"];
+      }),
+    );
+    expect(
+      result.issues.some(
+        (issue) =>
+          issue.path.startsWith("adjudication.final_decisions") &&
+          /unresolved claim reference/.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects a final-decision claim reference that matches in BOTH ledgers", () => {
+    // §5.2: the passes create separate ledgers, so one ID matching in both
+    // names two different claims. Resolving it to either would be inventing a
+    // convention the controlled contract does not state.
+    const result = reject(
+      mutate((draft) => {
+        const content = draft.scoring_content as Record<string, unknown>;
+        const auditLedger = (content.audit_pass as Record<string, unknown>)
+          .claim_ledger as Record<string, unknown>[];
+        // Give an audit claim the same ID as the primary claim the final cites.
+        auditLedger.find((claim) => claim.claim_id === "audit-claim-story_hook-1")!.claim_id =
+          "primary-claim-story_hook-1";
+        const auditDecision = decisionIn(draft, "audit_pass", "story_hook");
+        auditDecision.claim_ids = ["primary-claim-story_hook-1"];
+      }),
+    );
+    expect(
+      result.issues.some((issue) => /matches in both pass ledgers and is ambiguous/.test(issue.message)),
+    ).toBe(true);
+  });
+
+  it("rejects a final decision citing a claim mapped to another criterion", () => {
+    const result = reject(
+      mutate((draft) => {
+        decisionIn(draft, "final", "story_hook").claim_ids = [
+          "primary-claim-character_investment-1",
+        ];
+      }),
+    );
+    expect(
+      result.issues.some(
+        (issue) =>
+          issue.path.startsWith("adjudication.final_decisions") &&
+          /is mapped to character_investment/.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
   it("rejects a duplicated experience tag key", () => {
     const result = reject(
       mutate((draft) => {
@@ -647,6 +700,70 @@ describe("§15.1(6) coverage, calendar dates and retrospective minima", () => {
     );
     expect(
       result.issues.some((issue) => /which this record marks missing/.test(issue.message)),
+    ).toBe(true);
+  });
+
+  it("applies the claim/coverage invariant to FINAL decisions too", () => {
+    // Regression for the review finding: final decisions were passed a null
+    // claim lookup, so this invariant was silently unenforced on the very set
+    // that feeds derivation. The fixture gives finals primary-pass claim IDs,
+    // so the gap was observable rather than hypothetical.
+    const result = reject(
+      mutate((draft) => {
+        const decision = decisionIn(draft, "final", "story_hook");
+        // The linked claim observes u1 and u2.
+        decision.coverage_observed_unit_ids = ["story_hook-u2", "story_hook-u3", "story_hook-u4"];
+        decision.coverage_missing_unit_ids = ["story_hook-u1"];
+      }),
+    );
+    expect(
+      result.issues.some(
+        (issue) =>
+          issue.path.startsWith("adjudication.final_decisions") &&
+          /which this record marks missing/.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("applies it to a FINAL platform override as well", () => {
+    const result = reject(
+      mutate((draft) => {
+        decisionIn(draft, "final", "technical_stability").platform_overrides = [
+          {
+            platform_key: "pc",
+            score_value_kind: "numeric",
+            numeric_score: 1,
+            anchor_id: "technical_stability@1",
+            unknown_reason: null,
+            missing_coverage_classes: [],
+            insufficiency_reference_ids: [],
+            zero_reason: null,
+            rationale: "Placeholder override rationale.",
+            claim_ids: ["primary-claim-technical_stability-1"],
+            confidence_facts: {
+              coverage_state: "full",
+              conflict_state: "none",
+              stability_state: "stable",
+            },
+            subcriterion_confidence: "High",
+            // Marks a unit the linked claim observes as missing.
+            coverage_observed_unit_ids: [
+              "technical_stability-u2",
+              "technical_stability-u3",
+              "technical_stability-u4",
+            ],
+            coverage_missing_unit_ids: ["technical_stability-u1"],
+          },
+        ];
+      }),
+    );
+    expect(
+      result.issues.some(
+        (issue) =>
+          issue.path.includes("final_decisions") &&
+          issue.path.includes("platform_overrides") &&
+          /which this record marks missing/.test(issue.message),
+      ),
     ).toBe(true);
   });
 
