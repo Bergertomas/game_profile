@@ -20,6 +20,14 @@ import { SelectorDialog } from "./SelectorDialog";
  * touches the other: the caller writes the new address with the other slug
  * exactly where it was.
  *
+ * Focus is returned from ONE place: the dialog's native `close` event, which
+ * fires after the dialog has closed and the page is no longer inert. Calling
+ * `.focus()` any earlier — while the modal is still open — is a no-op on an
+ * inert element, and whether focus came back then depended on the browser's
+ * own restoration, which Safari does not perform after a tap. The side that
+ * opened the dialog is remembered in a ref so the right control is the one
+ * that gets it.
+ *
  * ── Copy link ───────────────────────────────────────────────────────────────
  *
  * The control's accessible name never changes while it has focus; success and
@@ -39,23 +47,31 @@ export function CompareControls({
   onChoose: (side: Side, slug: string) => void;
 }) {
   const [openSide, setOpenSide] = useState<Side | null>(null);
+  /** The side whose control opened the dialog; it gets focus back on close. */
+  const invokerRef = useRef<Side | null>(null);
   const leftRef = useRef<HTMLButtonElement>(null);
   const rightRef = useRef<HTMLButtonElement>(null);
   const { left, right } = selection;
 
-  const close = useCallback(() => {
-    setOpenSide((side) => {
-      if (side === "left") leftRef.current?.focus();
-      if (side === "right") rightRef.current?.focus();
-      return null;
-    });
+  const openFor = useCallback((side: Side) => {
+    invokerRef.current = side;
+    setOpenSide(side);
+  }, []);
+
+  /** The dialog has closed — by choice, Close, Escape or the backdrop. */
+  const closed = useCallback(() => {
+    setOpenSide(null);
+    const side = invokerRef.current;
+    invokerRef.current = null;
+    (side === "right" ? rightRef : leftRef).current?.focus();
   }, []);
 
   const chooseFor = useCallback(
     (side: Side) => (slug: string) => {
       onChoose(side, slug);
+      // Closing the dialog is the effect's job; the `close` event that follows
+      // is what returns focus, once the page can take it again.
       setOpenSide(null);
-      (side === "left" ? leftRef : rightRef).current?.focus();
     },
     [onChoose],
   );
@@ -69,7 +85,7 @@ export function CompareControls({
           className={`cp-button${left ? "" : " cp-button--primary"}`}
           aria-haspopup="dialog"
           aria-expanded={openSide === "left"}
-          onClick={() => setOpenSide("left")}
+          onClick={() => openFor("left")}
         >
           {left ? `Replace ${left.title} on the left` : "Choose the first game"}
         </button>
@@ -80,7 +96,7 @@ export function CompareControls({
             className={`cp-button${right ? "" : " cp-button--primary"}`}
             aria-haspopup="dialog"
             aria-expanded={openSide === "right"}
-            onClick={() => setOpenSide("right")}
+            onClick={() => openFor("right")}
           >
             {right ? `Replace ${right.title} on the right` : "Choose the right game"}
           </button>
@@ -104,7 +120,7 @@ export function CompareControls({
         current={openSide === "right" ? right : left}
         other={openSide === "right" ? left : right}
         onChoose={chooseFor(openSide ?? "left")}
-        onClose={close}
+        onClosed={closed}
       />
     </div>
   );

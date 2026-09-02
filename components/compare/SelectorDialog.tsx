@@ -37,8 +37,10 @@ import { EVIDENCE_STATUS_LABEL } from "@/lib/profile/vocabulary";
  *
  * A native `<dialog>` with `showModal()`: the user agent contains focus and
  * makes the page inert, Escape closes it natively, and the `close` event is
- * the single place the invoker gets focus back — the contract the header's
- * Search dialog already proves.
+ * the single place the caller learns it has closed — the contract the header's
+ * Search dialog already proves. Close, Escape and the backdrop all call
+ * `dialog.close()` rather than the caller directly, so `onClosed` fires once,
+ * after the dialog has actually closed and the page can take focus again.
  */
 export function SelectorDialog({
   open,
@@ -47,7 +49,7 @@ export function SelectorDialog({
   current,
   other,
   onChoose,
-  onClose,
+  onClosed,
 }: {
   open: boolean;
   side: Side;
@@ -57,7 +59,8 @@ export function SelectorDialog({
   /** The game on the other side, if any — offered, but refused on choice. */
   other: CompareProfile | null;
   onChoose: (slug: string) => void;
-  onClose: () => void;
+  /** The dialog has closed, by any route. Fired from the native `close` event. */
+  onClosed: () => void;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -75,9 +78,14 @@ export function SelectorDialog({
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
-    dialog.addEventListener("close", onClose);
-    return () => dialog.removeEventListener("close", onClose);
-  }, [onClose]);
+    dialog.addEventListener("close", onClosed);
+    return () => dialog.removeEventListener("close", onClosed);
+  }, [onClosed]);
+
+  /** Every dismissal goes through the element, so `close` fires exactly once. */
+  const dismiss = useCallback(() => {
+    dialogRef.current?.close();
+  }, []);
 
   const heading = current
     ? `Replace ${current.title} on the ${side}`
@@ -90,7 +98,7 @@ export function SelectorDialog({
       aria-modal="true"
       aria-labelledby={titleId}
       onMouseDown={(event) => {
-        if (event.target === dialogRef.current) onClose();
+        if (event.target === dialogRef.current) dismiss();
       }}
     >
       <div className="sip-search-dialog__panel">
@@ -98,7 +106,7 @@ export function SelectorDialog({
           <h2 id={titleId} className="sip-label">
             {heading}
           </h2>
-          <button type="button" className="sip-search-dialog__close" onClick={onClose}>
+          <button type="button" className="sip-search-dialog__close" onClick={dismiss}>
             Close
             <span className="sip-key" aria-hidden="true">
               esc
@@ -111,7 +119,7 @@ export function SelectorDialog({
             side={side}
             other={other}
             onChoose={onChoose}
-            onDismiss={onClose}
+            onDismiss={dismiss}
           />
         )}
       </div>

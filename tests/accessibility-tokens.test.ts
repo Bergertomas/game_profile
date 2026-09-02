@@ -155,6 +155,52 @@ describe("the brand and evidence accents", () => {
   });
 });
 
+describe("the game accents (matrix X-04)", () => {
+  /**
+   * Game colours identify the two sides of a comparison, and each game has two
+   * tints because the page has two grounds (lib/profile/accent.ts). Compare
+   * paints a game marker on the warm relationship surface as well as on the
+   * dark ones, and the marker is a non-text carrier of identity: 3:1 against
+   * its ground is the bar. Lift meets it on every dark surface and misses it
+   * on the editorial paper by a wide margin; base is the tint for the paper.
+   */
+  const GAMES = ["alanWake2", "returnal", "redfall", "fallback"] as const;
+
+  it("lift reads on every dark surface", () => {
+    for (const game of GAMES) {
+      for (const surface of SURFACES) {
+        expect(
+          contrastOn(`color.game.${game}.lift`, surface),
+          `${game}.lift on ${surface}`,
+        ).toBeGreaterThanOrEqual(3);
+      }
+    }
+  });
+
+  it("base reads on the warm editorial surface, where lift does not", () => {
+    for (const game of GAMES) {
+      expect(
+        contrastOn(`color.game.${game}.base`, "color.surface.editorial"),
+        `${game}.base on editorial`,
+      ).toBeGreaterThanOrEqual(3);
+      expect(
+        contrastOn(`color.game.${game}.lift`, "color.surface.editorial"),
+        `${game}.lift on editorial`,
+      ).toBeLessThan(3);
+    }
+  });
+
+  it("is the base tint that Compare paints on the relationship surface", () => {
+    const compare = readFileSync("components/compare/compare.css", "utf8");
+    const rules =
+      compare.match(/\.cp-relations \.cp-scale__mark[^{]*\{[^}]*\}/g) ?? [];
+    expect(rules).toHaveLength(2);
+    expect(rules.join("\n")).toMatch(/--cp-left-base/);
+    expect(rules.join("\n")).toMatch(/--cp-right-base/);
+    expect(rules.join("\n")).not.toMatch(/var\(--cp-(left|right)\)/);
+  });
+});
+
 describe("motion (handoff §3.5)", () => {
   it("uses the contract's four durations and standard easing", () => {
     expect(tokenValue("motion.duration.fast")).toBe("150ms");

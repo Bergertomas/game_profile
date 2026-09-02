@@ -2,10 +2,13 @@
    FULL COMPARE — the accepted C1–C4 system (ADR 0033, ADR 0034).
 
    Every colour, size, radius and duration is a role played with the canonical
-   contract in app/globals.css. The component injects three values per pair:
-   `--cp-left` and `--cp-right`, the two games' lift accents, and `--cp-ground`,
-   the surface the paired radar's markers are cut out against. An accent is
-   identity, never quality: neither side's colour means better.
+   contract in app/globals.css. The component injects five values per pair:
+   `--cp-left` and `--cp-right`, the two games' lift accents for the dark
+   grounds; `--cp-left-base` and `--cp-right-base`, their base accents for the
+   warm editorial surface, where lift measures under 2.4:1 and base over 5:1
+   (matrix X-04); and `--cp-ground`, the surface the paired radar's markers
+   are cut out against. An accent is identity, never quality: neither side's
+   colour means better.
 
    Three rules are contracts rather than taste:
 
@@ -854,12 +857,17 @@
   border-radius: 50%;
 }
 
+/* On the warm surface a game marker takes the game's BASE tint. Lift is the
+   dark-ground tint and measures 1.6–2.4:1 against the editorial paper; base
+   measures 5.4–7.3:1 (matrix X-04, non-text contrast). */
 .cp-relations .cp-scale__mark[data-side="left"] {
+  background: var(--cp-left-base);
   border-color: var(--color-surface-editorial);
 }
 
 .cp-relations .cp-scale__mark[data-side="right"] {
   background: var(--color-surface-editorial);
+  border-color: var(--cp-right-base);
 }
 
 /* --------------------------------------------------------------------------

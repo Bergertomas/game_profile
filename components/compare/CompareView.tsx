@@ -55,6 +55,11 @@ export function CompareView({
         {
           "--cp-left": left?.accent.lift ?? "var(--color-game-fallback-lift)",
           "--cp-right": right?.accent.lift ?? "var(--color-game-fallback-lift)",
+          // The base tints, for the one warm surface: lift is measured for the
+          // dark grounds and does not read on the editorial paper (1.6–2.4:1);
+          // base does (5.4–7.3:1). compare.css uses these inside .cp-relations only.
+          "--cp-left-base": left?.accent.base ?? "var(--color-game-fallback-base)",
+          "--cp-right-base": right?.accent.base ?? "var(--color-game-fallback-base)",
           "--cp-ground": "var(--color-surface-stage)",
         } as React.CSSProperties
       }

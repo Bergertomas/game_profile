@@ -155,6 +155,39 @@ test.describe("selection and the address", () => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Returnal and Redfall");
   });
 
+  test("the launcher's start link opens the left-only state by client navigation", async ({ page }) => {
+    // A Next <Link> to the same route with a different query: no popstate, no
+    // remount. The address changed and the page did not, until the bridge to
+    // Next's own search-parameter state was added.
+    await page.goto("/compare");
+    await page.getByRole("link", { name: "Start with Returnal on the left" }).click();
+    await expect(page).toHaveURL(/\/compare\?games=returnal$/);
+    await expect(page.locator(".cp")).toHaveAttribute("data-state", "left-only");
+    await expect(page.getByText("Returnal is on the left.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Choose the right game" })).toBeVisible();
+    await expect(page.locator(".cp-stage")).toHaveCount(1);
+    // And a reload lands on the same state from the address alone.
+    await page.reload();
+    await expect(page.locator(".cp")).toHaveAttribute("data-state", "left-only");
+    await expect(page.getByRole("button", { name: "Choose the right game" })).toBeVisible();
+  });
+
+  test("the header's Compare link returns an active pair to the launcher, and back restores the pair", async ({ page }) => {
+    await openPair(page, PAIR);
+    await page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Compare" }).click();
+    await expect(page).toHaveURL(/\/compare$/);
+    await expect(page.locator(".cp")).toHaveAttribute("data-state", "empty");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Compare two Game Profiles");
+    await expect(page.locator(".cp-stage")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Choose the first game" })).toBeVisible();
+    await expect(page).toHaveTitle(/^Compare two Game Profiles/);
+    await page.goBack();
+    await expect(page).toHaveURL(/\/compare\?games=alan-wake-2,returnal$/);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Alan Wake 2 and Returnal");
+    await expect(page.locator(".cp-identity").first()).toContainText("Alan Wake 2");
+    await expect(page.locator(".cp-row")).toHaveCount(8);
+  });
+
   test("the back button restores the previous pair", async ({ page }) => {
     await openPair(page, PAIR);
     await replaceRight(page).click();
@@ -244,8 +277,13 @@ test.describe("the selector dialog", () => {
     await page.getByRole("button", { name: "Choose the first game" }).tap();
     await field(page).fill("Redfall");
     await page.waitForTimeout(60);
-    await dialog(page).getByRole("option", { name: /^Redfall/ }).dispatchEvent("mousedown");
+    // A real tap. Selection rides on the compatibility `mousedown` a tap
+    // produces after `touchend`; dispatching `mousedown` directly would keep
+    // passing if that ever stopped, so the gesture itself is what is tested.
+    await dialog(page).getByRole("option", { name: /^Redfall/ }).tap();
     await expect(page).toHaveURL(/\/compare\?games=redfall$/);
+    // Focus is returned by the dialog's close event, after a tap as after a key.
+    await expect(replaceLeft(page)).toBeFocused();
     await context.close();
   });
 });
@@ -300,6 +338,27 @@ test.describe("index policy on a pair", () => {
       )
       .toBe(true);
     await expect(page).toHaveTitle(/Alan Wake 2 and Returnal, compared/);
+  });
+
+  test("leaving a pair for a profile leaves no Compare title or robots rule behind", async ({ page }) => {
+    // The title and robots rule are written into the document by the client,
+    // and a client navigation away from Compare must not carry them along:
+    // the profile owns its title, and the layout owns the robots tags.
+    await openPair(page, PAIR);
+    await expect(page).toHaveTitle(/Alan Wake 2 and Returnal, compared/);
+    await page.locator(".cp-identity__link").first().click();
+    await expect(page).toHaveURL(/\/games\/alan-wake-2$/);
+    await expect(page).toHaveTitle("Should I Play Alan Wake 2? | Should I Play?");
+    const robots = () =>
+      page.locator('meta[name="robots"]').evaluateAll((metas) =>
+        metas.map((meta) => (meta as HTMLMetaElement).content),
+      );
+    await expect.poll(robots).not.toContain("noindex, follow");
+    // Not merely a race that the assertions above won: the state holds.
+    await page.waitForTimeout(500);
+    await expect(page).toHaveTitle("Should I Play Alan Wake 2? | Should I Play?");
+    expect((await robots()).every((content) => content !== "noindex, follow")).toBe(true);
+    expect(await page.locator('meta[name="robots"][data-launcher]').count()).toBe(0);
   });
 
   test("the sitemap carries the launcher and no pair", async ({ request }) => {

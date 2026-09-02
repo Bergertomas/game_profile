@@ -106,7 +106,9 @@ describe("runtime-injected custom properties", () => {
     expect([...injected].sort()).toEqual([
       "--cp-ground",
       "--cp-left",
+      "--cp-left-base",
       "--cp-right",
+      "--cp-right-base",
       "--sip-accent-base",
       "--sip-accent-lift",
       "--sip-radar-ground",
