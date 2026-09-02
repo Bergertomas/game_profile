@@ -122,6 +122,10 @@ function decision(overrides: Record<string, unknown> = {}) {
     zero_reason: null,
     endpoint_gate: null,
     platform_overrides: [],
+    // Required since the issue #44 coverage amendment: the decision's share of
+    // the frozen frame, disjoint and total (Protocol §6.1).
+    coverage_observed_unit_ids: ["u1"],
+    coverage_missing_unit_ids: [],
     ...overrides,
   };
 }
@@ -435,6 +439,8 @@ describe("corpus and run manifests", () => {
       label: `unit ${i}`,
       unit_class: "temporal_stratum",
       centrality: "central",
+      // A central unit is always materially_limiting (§6.1, amendment 1).
+      omission_effect: "materially_limiting",
     });
     const frame = {
       coverage_frame_id: "f1",

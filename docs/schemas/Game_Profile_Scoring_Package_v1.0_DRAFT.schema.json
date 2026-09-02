@@ -672,12 +672,13 @@
     "coverageUnit": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["unit_id", "label", "unit_class", "centrality"],
+      "required": ["unit_id", "label", "unit_class", "centrality", "omission_effect"],
       "properties": {
         "unit_id": { "$ref": "#/$defs/id" },
         "label": { "$ref": "#/$defs/nonEmptyString" },
         "unit_class": { "enum": ["temporal_stratum", "progression_state", "core_loop", "mode", "platform", "build", "optional_endgame"] },
-        "centrality": { "enum": ["central", "noncentral"] }
+        "centrality": { "enum": ["central", "noncentral"] },
+        "omission_effect": { "enum": ["materially_limiting", "bounding", "nonlimiting"] }
       }
     },
     "runManifest": {
@@ -1029,7 +1030,7 @@
           "type": "array",
           "uniqueItems": true,
           "items": {
-            "enum": ["temporal_stratum", "progression_state", "core_loop", "mode", "platform", "build", "retrospective_elapsed", "source_scarcity", "unresolved_scope", "material_conflict"]
+            "enum": ["temporal_stratum", "progression_state", "core_loop", "mode", "platform", "build", "optional_endgame", "retrospective_elapsed", "source_scarcity", "unresolved_scope", "material_conflict"]
           }
         },
         "observed_pattern": { "$ref": "#/$defs/nonEmptyString" },
@@ -1086,7 +1087,9 @@
         "subcriterion_confidence",
         "zero_reason",
         "endpoint_gate",
-        "platform_overrides"
+        "platform_overrides",
+        "coverage_observed_unit_ids",
+        "coverage_missing_unit_ids"
       ],
       "properties": {
         "subcriterion_key": { "$ref": "#/$defs/subcriterionKey" },
@@ -1103,7 +1106,7 @@
           "type": "array",
           "uniqueItems": true,
           "items": {
-            "enum": ["temporal_stratum", "progression_state", "core_loop", "mode", "platform", "build", "retrospective_elapsed", "source_scarcity", "unresolved_scope", "material_conflict"]
+            "enum": ["temporal_stratum", "progression_state", "core_loop", "mode", "platform", "build", "optional_endgame", "retrospective_elapsed", "source_scarcity", "unresolved_scope", "material_conflict"]
           }
         },
         "observed_pattern": { "$ref": "#/$defs/nonEmptyString" },
@@ -1138,6 +1141,16 @@
         "platform_overrides": {
           "type": "array",
           "items": { "$ref": "#/$defs/platformOverride" }
+        },
+        "coverage_observed_unit_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        },
+        "coverage_missing_unit_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
         }
       },
       "allOf": [
@@ -1437,7 +1450,7 @@
     "platformOverride": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["platform_key", "score_value_kind", "numeric_score", "anchor_id", "unknown_reason", "missing_coverage_classes", "insufficiency_reference_ids", "zero_reason", "rationale", "claim_ids", "confidence_facts", "subcriterion_confidence"],
+      "required": ["platform_key", "score_value_kind", "numeric_score", "anchor_id", "unknown_reason", "missing_coverage_classes", "insufficiency_reference_ids", "zero_reason", "rationale", "claim_ids", "confidence_facts", "subcriterion_confidence", "coverage_observed_unit_ids", "coverage_missing_unit_ids"],
       "properties": {
         "platform_key": { "$ref": "#/$defs/id" },
         "score_value_kind": { "enum": ["numeric", "unknown"] },
@@ -1450,7 +1463,7 @@
           "type": "array",
           "uniqueItems": true,
           "items": {
-            "enum": ["temporal_stratum", "progression_state", "core_loop", "mode", "platform", "build", "retrospective_elapsed", "source_scarcity", "unresolved_scope", "material_conflict"]
+            "enum": ["temporal_stratum", "progression_state", "core_loop", "mode", "platform", "build", "optional_endgame", "retrospective_elapsed", "source_scarcity", "unresolved_scope", "material_conflict"]
           }
         },
         "insufficiency_reference_ids": {
@@ -1470,7 +1483,17 @@
           "items": { "$ref": "#/$defs/id" }
         },
         "confidence_facts": { "$ref": "#/$defs/confidenceFacts" },
-        "subcriterion_confidence": { "$ref": "#/$defs/confidence" }
+        "subcriterion_confidence": { "$ref": "#/$defs/confidence" },
+        "coverage_observed_unit_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        },
+        "coverage_missing_unit_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        }
       },
       "allOf": [
         {

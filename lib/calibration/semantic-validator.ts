@@ -19,9 +19,13 @@ import {
 import type {
   Claim,
   CompactScore,
+  ConfidenceFacts,
+  CoverageFrame,
+  CoverageUnit,
   DerivedDimension,
   Difference,
   ScoreDecision,
+  ScoreValueKind,
   ScoringPackage,
   ScoringPass,
   Source,
@@ -881,8 +885,38 @@ function checkCoverageAndTime(pkg: ScoringPackage, log: IssueLog): void {
       }
     }
 
+    const claims = new Map(pass.claim_ledger.map((claim) => [claim.claim_id, claim]));
     for (const decision of pass.decisions) {
-      checkCoverageState(`${path}.decisions[${decision.subcriterion_key}]`, decision, frames, log);
+      const at = `${path}.decisions[${decision.subcriterion_key}]`;
+      const frame = frames.get(decision.subcriterion_key);
+      checkCoverageRecord(at, decision, frame, claims, log);
+      for (const override of decision.platform_overrides) {
+        checkCoverageRecord(
+          `${at}.platform_overrides[${override.platform_key}]`,
+          override,
+          frame,
+          claims,
+          log,
+        );
+      }
+    }
+  }
+
+  // Final decisions carry their own coverage state too. Their claim IDs span
+  // both ledgers, so the claim-compatibility rule is checked on the passes,
+  // where the ledger that owns each claim is unambiguous.
+  for (const decision of content.adjudication.final_decisions) {
+    const at = `adjudication.final_decisions[${decision.subcriterion_key}]`;
+    const frame = frames.get(decision.subcriterion_key);
+    checkCoverageRecord(at, decision, frame, null, log);
+    for (const override of decision.platform_overrides) {
+      checkCoverageRecord(
+        `${at}.platform_overrides[${override.platform_key}]`,
+        override,
+        frame,
+        null,
+        log,
+      );
     }
   }
 
@@ -902,85 +936,226 @@ function checkCoverageAndTime(pkg: ScoringPackage, log: IssueLog): void {
 }
 
 /**
- * Protocol §6.1 coverage bands, expressed over the fields the package records.
+ * Protocol §6.1 coverage-state derivation, over the frozen coverage frame.
  *
- * KNOWN LIMITATION, deliberately not papered over: §6.1 separates `bounded`
- * from `materially_limited` partly by whether the missing stratum is CENTRAL,
- * and the package records missing coverage *classes*, not the missing *units*,
- * so centrality is not recoverable from the record. These checks therefore
- * implement the part that is unambiguous and never reject a package the
- * protocol permits. See the Item 4 report's open-question list.
+ * Since the issue #44 amendment this is total rather than partial: the frame
+ * freezes each unit's `omission_effect` before claim extraction, and the
+ * decision records which units it observed and which it missed. Coverage state
+ * is therefore recomputed, never accepted on assertion, and no rule here reads
+ * a `label` or any other free text.
+ *
+ * The same record applies to a platform override, which carries its own
+ * coverage state and so needs its own partition.
  */
-function checkCoverageState(
+export function deriveCoverageState(
+  missingUnits: readonly CoverageUnit[],
+): "full" | "bounded" | "materially_limited" {
+  if (missingUnits.some((unit) => unit.omission_effect === "materially_limiting")) {
+    return "materially_limited";
+  }
+  const bounding = missingUnits.filter((unit) => unit.omission_effect === "bounding").length;
+  if (bounding === 0) return "full";
+  if (bounding === 1) return "bounded";
+  return "materially_limited";
+}
+
+/** The classes of missing units that actually contribute to insufficiency. */
+function contributingMissingClasses(missingUnits: readonly CoverageUnit[]): Set<string> {
+  return new Set(
+    missingUnits
+      .filter((unit) => unit.omission_effect !== "nonlimiting")
+      .map((unit) => unit.unit_class),
+  );
+}
+
+/** Frame-bound missing classes; the rest name conditions outside the frame. */
+const FRAME_BOUND_CLASSES: readonly string[] = [
+  "temporal_stratum",
+  "progression_state",
+  "core_loop",
+  "mode",
+  "platform",
+  "build",
+  "optional_endgame",
+];
+
+interface CoverageCarrier {
+  readonly score_value_kind: ScoreValueKind;
+  readonly missing_coverage_classes: readonly string[];
+  readonly confidence_facts: ConfidenceFacts;
+  readonly claim_ids: readonly string[];
+  readonly coverage_observed_unit_ids: readonly string[];
+  readonly coverage_missing_unit_ids: readonly string[];
+}
+
+/**
+ * Check one coverage record — a decision or a platform override.
+ *
+ * `claims` is the pass's ledger, used for the rule that a linked non-rejected
+ * claim's observed units may not be recorded missing. It is absent for final
+ * decisions, whose claim IDs span both passes.
+ */
+function checkCoverageRecord(
   at: string,
-  decision: ScoreDecision,
-  frames: ReadonlyMap<string, { readonly coverage_units: readonly { unit_class: string }[] }>,
+  carrier: CoverageCarrier,
+  frame: CoverageFrame | undefined,
+  claims: ReadonlyMap<string, Claim> | null,
   log: IssueLog,
 ): void {
-  const facts = decision.confidence_facts;
-  const missing = decision.missing_coverage_classes;
+  const observed = carrier.coverage_observed_unit_ids;
+  const missing = carrier.coverage_missing_unit_ids;
 
-  if (facts.coverage_state === "full" && missing.length > 0) {
+  const overlap = observed.filter((id) => missing.includes(id));
+  if (overlap.length > 0) {
     log.add(
       "coverage_and_time",
       6,
       at,
-      `coverage_state "full" contradicts recorded missing coverage classes (${missing.join(", ")})`,
+      `coverage units recorded as both observed and missing: ${overlap.join(", ")}`,
     );
   }
-  if (facts.coverage_state !== "full" && missing.length === 0 && decision.score_value_kind === "unknown") {
+
+  if (!frame) {
     log.add(
       "coverage_and_time",
       6,
       at,
-      `coverage_state "${facts.coverage_state}" records no missing coverage class`,
+      "no frozen coverage frame exists for this criterion; coverage state cannot be derived (§6.1)",
     );
+    return;
   }
-  // "bounded coverage is missing exactly one noncentral stratum and has no known
-  // material mode/platform/build gap."
-  if (facts.coverage_state === "bounded") {
-    const gapClasses = missing.filter((cls) =>
-      ["mode", "platform", "build", "material_conflict"].includes(cls),
-    );
-    if (gapClasses.length > 0) {
-      log.add(
-        "coverage_and_time",
-        6,
-        at,
-        `coverage_state "bounded" cannot carry a ${gapClasses.join("/")} gap; that is materially_limited (§6.1)`,
-      );
-    }
-    if (missing.length > 1) {
-      log.add(
-        "coverage_and_time",
-        6,
-        at,
-        `coverage_state "bounded" admits exactly one missing stratum; ${missing.length} recorded`,
-      );
+
+  const frameUnits = new Map(frame.coverage_units.map((unit) => [unit.unit_id, unit]));
+  for (const [field, ids] of [
+    ["coverage_observed_unit_ids", observed],
+    ["coverage_missing_unit_ids", missing],
+  ] as const) {
+    for (const id of ids) {
+      if (!frameUnits.has(id)) {
+        log.add("coverage_and_time", 6, at, `${field} names "${id}", which is not in the frozen frame`);
+      }
     }
   }
 
-  // A missing stratum class must exist in this criterion's frozen frame.
-  const frame = frames.get(decision.subcriterion_key);
-  if (frame) {
-    const unitClasses = new Set(frame.coverage_units.map((unit) => unit.unit_class));
-    const frameBound = ["temporal_stratum", "progression_state", "core_loop", "mode", "platform", "build"];
-    for (const cls of missing) {
-      if (frameBound.includes(cls) && !unitClasses.has(cls)) {
+  // Total partition: no frame unit may silently leave coverage accounting.
+  const accounted = new Set([...observed, ...missing]);
+  const unaccounted = [...frameUnits.keys()].filter((id) => !accounted.has(id));
+  if (unaccounted.length > 0) {
+    log.add(
+      "coverage_and_time",
+      6,
+      at,
+      `frame units in neither coverage list: ${unaccounted.join(", ")} — observed and missing must together cover the whole frozen frame (§6.1)`,
+    );
+  }
+
+  const missingUnits = missing
+    .map((id) => frameUnits.get(id))
+    .filter((unit): unit is CoverageUnit => unit !== undefined);
+
+  // A numeric value requires at least one observed unit.
+  if (carrier.score_value_kind === "numeric" && observed.length === 0) {
+    log.add(
+      "coverage_and_time",
+      6,
+      at,
+      "a numeric value requires at least one observed coverage unit (§6.1)",
+    );
+  }
+
+  // A linked, non-rejected claim's observed units may not be recorded missing.
+  if (claims) {
+    for (const claimId of carrier.claim_ids) {
+      const claim = claims.get(claimId);
+      if (!claim || claim.disposition === "rejected") continue;
+      for (const unitId of claim.observed_unit_ids) {
+        if (missing.includes(unitId)) {
+          log.add(
+            "coverage_and_time",
+            6,
+            at,
+            `claim "${claimId}" observes unit "${unitId}", which this record marks missing`,
+          );
+        } else if (frameUnits.has(unitId) && !observed.includes(unitId)) {
+          log.add(
+            "coverage_and_time",
+            6,
+            at,
+            `claim "${claimId}" observes frame unit "${unitId}", which this record does not list as observed`,
+          );
+        }
+      }
+    }
+  }
+
+  // The state is derived, never asserted.
+  const derived = deriveCoverageState(missingUnits);
+  if (derived !== carrier.confidence_facts.coverage_state) {
+    log.add(
+      "coverage_and_time",
+      6,
+      at,
+      `coverage_state "${carrier.confidence_facts.coverage_state}" does not derive from the missing units (expected "${derived}") (§6.1)`,
+    );
+  }
+
+  // Where `missing_coverage_classes` is populated — Unknown decisions only — its
+  // frame-bound classes are the classes of the missing units that contribute to
+  // insufficiency. A missed `nonlimiting` unit does not create one.
+  if (carrier.missing_coverage_classes.length > 0) {
+    const recorded = new Set(
+      carrier.missing_coverage_classes.filter((cls) => FRAME_BOUND_CLASSES.includes(cls)),
+    );
+    const expected = contributingMissingClasses(missingUnits);
+    const absent = [...expected].filter((cls) => !recorded.has(cls));
+    const extra = [...recorded].filter((cls) => !expected.has(cls));
+    if (absent.length > 0 || extra.length > 0) {
+      log.add(
+        "coverage_and_time",
+        6,
+        at,
+        "frame-bound missing_coverage_classes do not match the contributing missing units" +
+          (absent.length > 0 ? `; absent ${absent.join(", ")}` : "") +
+          (extra.length > 0 ? `; unexpected ${extra.join(", ")}` : ""),
+      );
+    }
+  }
+}
+
+/**
+ * Frame-level check: a `central` unit is always `materially_limiting`.
+ *
+ * §6.1 makes a missing central stratum or central core loop materially
+ * limiting, so a frame that freezes a weaker effect on a central unit would
+ * legalise an understated coverage state before scoring ever begins.
+ */
+function checkCoverageFrames(pkg: ScoringPackage, log: IssueLog): void {
+  for (const frame of pkg.scoring_content.corpus.coverage_frames) {
+    const at = `corpus.coverage_frames[${frame.coverage_frame_id}]`;
+    const ids = frame.coverage_units.map((unit) => unit.unit_id);
+    const duplicates = ids.filter((id, index) => ids.indexOf(id) !== index);
+    if (duplicates.length > 0) {
+      log.add("coverage_and_time", 6, at, `duplicate unit ids: ${[...new Set(duplicates)].join(", ")}`);
+    }
+    for (const unit of frame.coverage_units) {
+      if (unit.centrality === "central" && unit.omission_effect !== "materially_limiting") {
         log.add(
           "coverage_and_time",
           6,
-          at,
-          `missing coverage class "${cls}" is not a unit class in the frozen coverage frame`,
+          `${at}.coverage_units[${unit.unit_id}]`,
+          `a central unit must be materially_limiting; "${unit.omission_effect}" understates §6.1`,
         );
       }
     }
-  } else if (decision.score_value_kind === "numeric") {
+  }
+  const keys = pkg.scoring_content.corpus.coverage_frames.map((frame) => frame.subcriterion_key);
+  const duplicateKeys = keys.filter((key, index) => keys.indexOf(key) !== index);
+  if (duplicateKeys.length > 0) {
     log.add(
       "coverage_and_time",
       6,
-      at,
-      "no frozen coverage frame exists for this criterion; coverage cannot be checked before an anchor (§6 Step 2)",
+      "corpus.coverage_frames",
+      `more than one frame for: ${[...new Set(duplicateKeys)].join(", ")}`,
     );
   }
 }
@@ -1586,6 +1761,7 @@ export function validatePackageSemantics(
   checkReferenceIntegrity(pkg, log);
   checkTierD(pkg, log);
   checkScoreRecords(pkg, log);
+  checkCoverageFrames(pkg, log);
   checkCoverageAndTime(pkg, log);
   checkAdjudication(pkg, pairedKeys, log);
   checkDerivation(pkg, options, log);

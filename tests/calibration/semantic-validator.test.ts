@@ -363,6 +363,13 @@ describe("§15.1(5) score records", () => {
               stability_state: "stable",
             },
             subcriterion_confidence: "High",
+            coverage_observed_unit_ids: [
+              "technical_stability-u1",
+              "technical_stability-u2",
+              "technical_stability-u3",
+              "technical_stability-u4",
+            ],
+            coverage_missing_unit_ids: [],
           },
         ];
       }),
@@ -393,6 +400,13 @@ describe("§15.1(5) score records", () => {
               stability_state: "stable",
             },
             subcriterion_confidence: "High",
+            coverage_observed_unit_ids: [
+              "technical_stability-u1",
+              "technical_stability-u2",
+              "technical_stability-u3",
+              "technical_stability-u4",
+            ],
+            coverage_missing_unit_ids: [],
           },
         ];
       }),
@@ -465,17 +479,29 @@ describe("§15.1(6) coverage, calendar dates and retrospective minima", () => {
     expect(result.issues.some((issue) => /does not reproduce/.test(issue.message))).toBe(true);
   });
 
-  it("rejects a coverage_state of full alongside recorded missing classes", () => {
-    const result = reject(
-      mutate((draft) => {
-        const decision = decisionIn(draft, "primary_pass", "story_hook");
+  /**
+   * Turn one decision into an Unknown with an explicit coverage partition.
+   * `missing` is the 1-based frame unit indices to record as missing; the frame
+   * marks unit 4 (late/end) `central` + `materially_limiting` and units 1–3
+   * `bounding`, so every derivation branch is reachable from one fixture.
+   */
+  function withCoverage(
+    key: string,
+    missing: number[],
+    state: "full" | "bounded" | "materially_limited",
+    sets: readonly ("primary_pass" | "audit_pass" | "final")[] = ["primary_pass"],
+  ) {
+    return mutate((draft) => {
+      for (const set of sets) {
+        const decision = decisionIn(draft, set, key);
+        const all = [1, 2, 3, 4].map((n) => `${key}-u${n}`);
         Object.assign(decision, {
           score_value_kind: "unknown",
           numeric_score: null,
           anchor_id: null,
-          unknown_reason: "late-game coverage absent",
-          missing_coverage_classes: ["temporal_stratum"],
-          insufficiency_reference_ids: ["frame-story_hook"],
+          unknown_reason: "coverage absent",
+          missing_coverage_classes: missing.length > 0 ? ["temporal_stratum"] : [],
+          insufficiency_reference_ids: [`frame-${key}`],
           subcriterion_confidence: "Low",
           zero_reason: null,
           lower_anchor_rejection: null,
@@ -483,21 +509,187 @@ describe("§15.1(6) coverage, calendar dates and retrospective minima", () => {
           endpoint_gate: null,
           claim_ids: [],
           facet_records: [],
-          // The contradiction under test: "full" with a missing class recorded.
           confidence_facts: {
-            coverage_state: "full",
+            coverage_state: state,
             conflict_state: "none",
             stability_state: "stable",
           },
+          coverage_observed_unit_ids: all.filter(
+            (_, index) => !missing.includes(index + 1),
+          ),
+          coverage_missing_unit_ids: missing.map((n) => `${key}-u${n}`),
         });
-      }),
-    );
-    expect(result.issues.some((issue) => /contradicts recorded missing/.test(issue.message))).toBe(
-      true,
-    );
+      }
+    });
+  }
+
+  it("derives `full` when nothing relevant is missing", () => {
+    expect(validatePackageSemantics(buildValidPackage()).valid).toBe(true);
   });
 
-  it("rejects `bounded` coverage carrying a platform gap", () => {
+  it("derives `bounded` from exactly one missing bounding unit", () => {
+    const ok = withCoverage("story_hook", [2], "bounded", ["primary_pass", "audit_pass", "final"]);
+    const result = validatePackageSemantics(ok);
+    // The coverage record itself is consistent; only downstream derivation
+    // effects of turning a decision Unknown remain.
+    expect(
+      result.issues.filter((issue) => issue.family === "coverage_and_time"),
+    ).toEqual([]);
+  });
+
+  it("derives `materially_limited` from a missing late/end unit — the motivating case", () => {
+    // One missing unit, exactly as in the `bounded` case above, but this unit is
+    // the central late/end stratum. Under the pre-amendment record these two
+    // were indistinguishable.
+    const wrong = reject(withCoverage("story_hook", [4], "bounded"));
+    expect(
+      wrong.issues.some((issue) => /expected "materially_limited"/.test(issue.message)),
+    ).toBe(true);
+    const right = withCoverage("story_hook", [4], "materially_limited", [
+      "primary_pass",
+      "audit_pass",
+      "final",
+    ]);
+    expect(
+      validatePackageSemantics(right).issues.filter(
+        (issue) => issue.family === "coverage_and_time",
+      ),
+    ).toEqual([]);
+  });
+
+  it("derives `materially_limited` from two missing bounding units", () => {
+    const wrong = reject(withCoverage("story_hook", [1, 2], "bounded"));
+    expect(
+      wrong.issues.some((issue) => /expected "materially_limited"/.test(issue.message)),
+    ).toBe(true);
+  });
+
+  it("rejects an asserted coverage_state that does not derive", () => {
+    // A numeric decision with nothing missing: the only honest state is `full`.
+    const result = reject(
+      mutate((draft) => {
+        const decision = decisionIn(draft, "primary_pass", "story_hook");
+        decision.confidence_facts = {
+          coverage_state: "materially_limited",
+          conflict_state: "none",
+          stability_state: "stable",
+        };
+        decision.subcriterion_confidence = "Low";
+      }),
+    );
+    expect(
+      result.issues.some((issue) => /does not derive from the missing units/.test(issue.message)),
+    ).toBe(true);
+  });
+
+  it("rejects overlapping observed and missing lists", () => {
+    const result = reject(
+      mutate((draft) => {
+        const decision = decisionIn(draft, "primary_pass", "story_hook");
+        decision.coverage_missing_unit_ids = ["story_hook-u1"];
+      }),
+    );
+    expect(
+      result.issues.some((issue) => /both observed and missing/.test(issue.message)),
+    ).toBe(true);
+  });
+
+  it("rejects a partition that does not cover the whole frozen frame", () => {
+    const result = reject(
+      mutate((draft) => {
+        const decision = decisionIn(draft, "primary_pass", "story_hook");
+        // Silently drop a unit from accounting — the audit hole the three-state
+        // `omission_effect` exists to close.
+        decision.coverage_observed_unit_ids = ["story_hook-u1", "story_hook-u2", "story_hook-u3"];
+      }),
+    );
+    expect(
+      result.issues.some((issue) => /in neither coverage list: story_hook-u4/.test(issue.message)),
+    ).toBe(true);
+  });
+
+  it("rejects a coverage unit id that is not in the frozen frame", () => {
+    const result = reject(
+      mutate((draft) => {
+        const decision = decisionIn(draft, "primary_pass", "story_hook");
+        decision.coverage_observed_unit_ids = [
+          ...(decision.coverage_observed_unit_ids as string[]),
+          "not-a-frame-unit",
+        ];
+      }),
+    );
+    expect(
+      result.issues.some((issue) => /is not in the frozen frame/.test(issue.message)),
+    ).toBe(true);
+  });
+
+  it("rejects a numeric value with no observed coverage unit", () => {
+    const result = reject(
+      mutate((draft) => {
+        const decision = decisionIn(draft, "primary_pass", "story_hook");
+        decision.coverage_observed_unit_ids = [];
+        decision.coverage_missing_unit_ids = [1, 2, 3, 4].map((n) => `story_hook-u${n}`);
+      }),
+    );
+    expect(
+      result.issues.some((issue) => /requires at least one observed coverage unit/.test(issue.message)),
+    ).toBe(true);
+  });
+
+  it("rejects a unit a linked non-rejected claim observed being marked missing", () => {
+    const result = reject(
+      mutate((draft) => {
+        const decision = decisionIn(draft, "primary_pass", "story_hook");
+        // The fixture's claim observes u1 and u2.
+        decision.coverage_observed_unit_ids = ["story_hook-u2", "story_hook-u3", "story_hook-u4"];
+        decision.coverage_missing_unit_ids = ["story_hook-u1"];
+      }),
+    );
+    expect(
+      result.issues.some((issue) => /which this record marks missing/.test(issue.message)),
+    ).toBe(true);
+  });
+
+  it("rejects a central frame unit frozen with a weaker omission effect", () => {
+    const result = reject(
+      mutate((draft) => {
+        const frames = (
+          (draft.scoring_content as Record<string, unknown>).corpus as Record<string, unknown>
+        ).coverage_frames as Record<string, unknown>[];
+        const units = frames[0]!.coverage_units as Record<string, unknown>[];
+        const central = units.find((unit) => unit.centrality === "central")!;
+        central.omission_effect = "bounding";
+      }),
+    );
+    expect(
+      result.issues.some((issue) => /must be materially_limiting/.test(issue.message)),
+    ).toBe(true);
+  });
+
+  it("does not let a missing nonlimiting unit lower coverage or create a class", () => {
+    const relaxed = mutate((draft) => {
+      const frames = (
+        (draft.scoring_content as Record<string, unknown>).corpus as Record<string, unknown>
+      ).coverage_frames as Record<string, unknown>[];
+      const frame = frames.find((f) => f.subcriterion_key === "story_hook")!;
+      const units = frame.coverage_units as Record<string, unknown>[];
+      units.find((unit) => unit.unit_id === "story_hook-u3")!.omission_effect = "nonlimiting";
+      for (const set of ["primary_pass", "audit_pass", "final"] as const) {
+        const decision = decisionIn(draft, set, "story_hook");
+        decision.coverage_observed_unit_ids = ["story_hook-u1", "story_hook-u2", "story_hook-u4"];
+        decision.coverage_missing_unit_ids = ["story_hook-u3"];
+      }
+    });
+    // Still `full`: a missing nonlimiting unit does not reduce coverage, and
+    // it contributes no insufficiency class.
+    expect(
+      validatePackageSemantics(relaxed).issues.filter(
+        (issue) => issue.family === "coverage_and_time",
+      ),
+    ).toEqual([]);
+  });
+
+  it("requires frame-bound missing classes to match the contributing missing units", () => {
     const result = reject(
       mutate((draft) => {
         const decision = decisionIn(draft, "primary_pass", "story_hook");
@@ -505,8 +697,9 @@ describe("§15.1(6) coverage, calendar dates and retrospective minima", () => {
           score_value_kind: "unknown",
           numeric_score: null,
           anchor_id: null,
-          unknown_reason: "platform coverage absent",
-          missing_coverage_classes: ["platform"],
+          unknown_reason: "coverage absent",
+          // Claims a mode gap the missing units do not support.
+          missing_coverage_classes: ["mode"],
           insufficiency_reference_ids: ["frame-story_hook"],
           subcriterion_confidence: "Low",
           zero_reason: null,
@@ -520,12 +713,14 @@ describe("§15.1(6) coverage, calendar dates and retrospective minima", () => {
             conflict_state: "none",
             stability_state: "stable",
           },
+          coverage_observed_unit_ids: ["story_hook-u1", "story_hook-u3", "story_hook-u4"],
+          coverage_missing_unit_ids: ["story_hook-u2"],
         });
       }),
     );
-    expect(result.issues.some((issue) => /that is materially_limited/.test(issue.message))).toBe(
-      true,
-    );
+    expect(
+      result.issues.some((issue) => /do not match the contributing missing units/.test(issue.message)),
+    ).toBe(true);
   });
 
   it("rejects a delayed-effect value that lacks two independent retrospective claims", () => {
@@ -868,6 +1063,9 @@ describe("§15.1(8) derivation", () => {
             conflict_state: "none",
             stability_state: "stable",
           },
+          // The late/end unit is missing, which derives to materially_limited.
+          coverage_observed_unit_ids: ["story_hook-u1", "story_hook-u2", "story_hook-u3"],
+          coverage_missing_unit_ids: ["story_hook-u4"],
         });
       }
       const content = draft.scoring_content as Record<string, unknown>;

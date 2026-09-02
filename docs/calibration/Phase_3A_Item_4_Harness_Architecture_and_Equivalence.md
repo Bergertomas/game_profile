@@ -226,33 +226,35 @@ Gate 1 remains **PARTIAL**, Item 4 remains incomplete, and D1 remains blocked
 until the derived schema is corrected and the live schema probe passes. No
 calibration game was researched or scored by either probe.
 
-### 6.2 Coverage-state centrality is not recoverable from the record — gate 5 PARTIAL
+### 6.2 Coverage-state centrality — RESOLVED by controlled amendment (issue #44)
 
-Protocol §6.1 separates `bounded` from `materially_limited` partly by whether the
-missing stratum is **central**:
+The gap: §6.1 separated `bounded` from `materially_limited` partly by whether a
+missing stratum was central or late/end, and the package recorded missing
+*classes*, not missing *units*. Worse, the schema's numeric branch forces
+`missing_coverage_classes` empty, so a **numeric** decision carried no
+machine-readable coverage gap at all and the shipped check was vacuous there.
 
-> `materially_limited` coverage is missing a **central or late/end stratum**, more
-> than one noncentral stratum, or any materially variable included
-> mode/platform/build.
+Resolved by Amendment 1, owner-approved on 2026-09-02 as revised by the
+orchestrator (preregistration §15.2):
 
-The coverage frame records each unit's `centrality`, but a decision records only
-`missing_coverage_classes` — which *classes* are missing, never which *units*. A
-decision missing exactly one `temporal_stratum` is therefore indistinguishable,
-from the record alone, between a missing noncentral stratum (`bounded`) and a
-missing late/end stratum (`materially_limited`).
+- `coverageUnit.omission_effect` — `materially_limiting | bounding |
+  nonlimiting`, frozen with the frame. A `central` unit must be
+  `materially_limiting`.
+- `coverage_observed_unit_ids` / `coverage_missing_unit_ids` on `scoreDecision`
+  and `platformOverride`, disjoint and together covering the **whole** frozen
+  frame. The three-state effect exists so irrelevance is declared at freeze
+  time rather than by dropping a unit from accounting after anchors are visible.
+- Coverage state is derived: any missing `materially_limiting` →
+  `materially_limited`; else 0 `bounding` → `full`, 1 → `bounded`, ≥2 →
+  `materially_limited`. Missing `nonlimiting` units never lower it.
+- A linked non-rejected claim's observed units may not be recorded missing, and
+  a numeric value requires at least one observed unit.
+- `optional_endgame` added to `missing_coverage_classes`, which stays
+  Unknown-only; when populated, its frame-bound classes are the classes of the
+  missing units that actually contribute to insufficiency.
 
-Rather than invent a rule, the validator implements the unambiguous part and
-never rejects a package the protocol permits: `full` iff no missing classes;
-`bounded` requires exactly one missing class and none of mode/platform/build; any
-mode/platform/build gap or two or more missing classes is `materially_limited`.
-The residual gap is that a `bounded` which should be `materially_limited` on
-centrality grounds is accepted.
-
-**Owner determination, 2026-09-02:** the escalation is accepted as valid. The
-controlled schema is **not** to be amended in this engineering PR and no
-semantics are to be invented. **Gate 5 is therefore PARTIAL pending
-owner/orchestrator resolution**, which will be handled as a controlled Item 4
-follow-up. The validator keeps the documented partial check meanwhile.
+Coverage-state meanings, rubric anchors, cohort/scope, evidence rules, holdout
+rules and scoring authority are unchanged.
 
 ### 6.3 `audit_summary.difference_ids` — RESOLVED by owner determination
 
@@ -316,6 +318,63 @@ report, and it remains covered by `semantic_request_digest`. A regression test
 asserts the manifest field equals the controlled output-schema lock and that the
 transport digest is a different value.
 
-## 8. Verification
+## 8. Amendment 1 and the transport correction
+
+### 8.1 Controlled bytes
+
+Amendment 1 changed four of the six controlled inputs — package schema,
+candidate protocol, research prompt, scoring prompt. The rubric and the
+execution system instructions are byte-identical to their Item 3 identities.
+New Git blob IDs and SHA-256 values are recorded in preregistration §15.2, and
+the harness lock in `lib/calibration/controlled-inputs.ts` was updated to the
+amended bytes; the lock-set digest moved from
+`fd202c048c564353a8d644ec3b10a8f71e2e627bca53cf73d941a199b670a18d` to
+`62d90b14fcde14af639e0c51259b28b41b4e2ce2063398d91eb2244e9637c42c`.
+
+The design is owner-approved; the resulting **bytes** are not. ChatGPT/Tomas
+review the exact controlled diff and provenance before the implementing pull
+request merges.
+
+`scoring-pass-contract.ts` needed no change: the transport schema is derived
+from the canonical schema at runtime, so the two new decision fields reached the
+model contract automatically. A test asserts that, and asserts that
+`omission_effect` does **not** reach it — the research pass freezes it, and the
+scoring model is never asked for it.
+
+### 8.2 The Structured Outputs transport correction
+
+Separate from Amendment 1 and carried in its own commit. PR #45's live Gate 1
+probe returned HTTP 400 before the model ran:
+
+> Invalid schema for response_format 'phase3a_scoring_pass': In
+> context=('anyOf', '0'), 'additionalProperties' is required to be supplied and
+> to be false.
+
+The closure step keyed off `type === "object"`, and `retrospectiveTime.oneOf`
+carries two branches that declare only `properties` — a cross-field constraint
+("exactly one date basis"), not a type alternative. They were converted to
+`anyOf` and left unclosed.
+
+Closing them in place would have been worse than the bug: each branch names two
+of the four members, so `required` of its own keys plus
+`additionalProperties: false` forbids the other two members the parent still
+requires, making the branch — and the union — unsatisfiable. The API would
+accept that schema and no model output could ever validate against it, which
+surfaces only after a measured run has been spent.
+
+`oneOf` is therefore classified rather than converted: a type union (every
+branch carries `type`/`$ref`/`const`/`enum`) becomes `anyOf`; a
+property-constraint `oneOf` is dropped for transport like `allOf` and
+`if`/`then`, and re-imposed by canonical validation. Closure now applies to
+anything object-shaped at every depth, and
+`structuredOutputsClosureViolations` is run by `buildScoringPassSchema`, which
+throws rather than returning a schema the API would reject. Ajv compiles
+unclosed objects happily, so without that guard the local suite stays green
+while the live call fails.
+
+Gate 1 stays PARTIAL until the live schema probe is re-run and passes on the
+corrected schema.
+
+## 9. Verification
 
 See the pull request for the exact commands and results.

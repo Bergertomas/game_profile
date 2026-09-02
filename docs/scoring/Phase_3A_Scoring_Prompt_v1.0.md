@@ -41,7 +41,7 @@ For every active subcriterion key:
 
 1. Build an independent criterion-specific claim set from the frozen corpus. One source observation may inform multiple criteria only through linked criterion-specific claims with distinct consequences.
 2. Record claim type, direction, observation basis, scope/platform/build/time relevance, exact locator, observed coverage units, recurrence/consequence where applicable, anchor-condition mapping, corroboration/contradiction, limitations, and disposition.
-3. Check criterion coverage before choosing any anchor. Missing evidence is `Unknown`, never a neutral `1` or a zero.
+3. Check criterion coverage before choosing any anchor. Record every unit of the frozen coverage frame as either observed or missing, with no unit left out of both; a unit observed by a linked, non-rejected claim is observed. Coverage state is derived from that record and from the frame's frozen omission effects — do not assert it. Missing evidence is `Unknown`, never a neutral `1` or a zero.
 4. For Memory Residue and Lasting Impact, enforce the protocol's dated retrospective-evidence minima and elapsed-time constraints exactly. The model's own memory or reaction is never evidence.
 5. State the observed pattern neutrally: representative units, recurrence/spread, consequence, dominant pattern, and limitations.
 6. Select the behaviorally anchored half-step value (`0`, `0.5`, `1`, `1.5`, `2`) whose observable description best fits the accepted evidence, or `Unknown` when the protocol requires it.

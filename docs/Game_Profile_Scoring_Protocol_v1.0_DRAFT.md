@@ -633,6 +633,34 @@ anchor.
   than one noncentral stratum, or any materially variable included
   mode/platform/build.
 
+Those three states are meanings, not a procedure, so the record makes them
+reproducible without reading a label or a free-text note. Each coverage unit
+carries an `omission_effect`, frozen with the frame before claim extraction:
+
+- `materially_limiting` — a required or late/end stratum, a central core loop,
+  or a materially variable included mode/platform/build; its absence alone
+  makes coverage materially limited. A unit recorded `central` is always
+  `materially_limiting`.
+- `bounding` — a noncentral stratum whose absence alone bounds coverage.
+- `nonlimiting` — a frozen frame unit whose absence does not reduce this
+  criterion's coverage state. It may still contribute evidence when observed;
+  `nonlimiting` describes the consequence of its absence, nothing else.
+
+Each decision, and each platform override, records
+`coverage_observed_unit_ids` and `coverage_missing_unit_ids`. The two are
+disjoint and together account for **every** unit of that criterion's frozen
+frame: a frame unit may not silently leave coverage accounting after evidence
+or a candidate anchor is visible, which is why irrelevance is stated as
+`nonlimiting` at freeze time rather than by omitting a unit later. A numeric
+value requires at least one observed unit. Where a linked, non-rejected claim
+observes a unit, that unit is observed for the decision and may not be recorded
+missing.
+
+Coverage state is then derived rather than asserted: `materially_limited` if
+any missing unit is `materially_limiting`, or if two or more are `bounding`;
+`bounded` if exactly one is `bounding`; otherwise `full`. Missing `nonlimiting`
+units never lower the state.
+
 To choose between opposing observed patterns:
 
 1. separate scope/build/mode differences first under §8;
@@ -1415,8 +1443,12 @@ The validator has no editorial discretion. It rejects unless all are true:
    records/minima and platform base-difference rules hold; every numeric
    decision carries the adjacent anchor-rejection rationales its value admits;
    and every endpoint decision carries its §9 `endpoint_gate` record;
-6. coverage states reproduce from the frozen coverage frame, Unknown reasons
-   name a controlled missing class, every date is calendar-valid (the schema
+6. coverage states recompute exactly from the decision's recorded observed and
+   missing coverage units and those units' frozen `omission_effect` values, the
+   two lists being disjoint and together covering the whole frozen frame;
+   Unknown reasons name a controlled missing class, and where
+   `missing_coverage_classes` is populated its frame-bound classes are the unit
+   classes of the missing units that actually contribute to insufficiency; every date is calendar-valid (the schema
    patterns bound fields and ranges; only the semantic validator knows
    February), and elapsed retrospective dates/lower bounds
    reproduce arithmetically; and the §6 Step 2 retrospective minima recompute
