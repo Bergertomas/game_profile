@@ -1,0 +1,1444 @@
+/* ==========================================================================
+   FULL COMPARE — the accepted C1–C4 system (ADR 0033, ADR 0034).
+
+   Every colour, size, radius and duration is a role played with the canonical
+   contract in app/globals.css. The component injects five values per pair:
+   `--cp-left` and `--cp-right`, the two games' lift accents for the dark
+   grounds; `--cp-left-base` and `--cp-right-base`, their base accents for the
+   warm editorial surface, where lift measures under 2.4:1 and base over 5:1
+   (matrix X-04); and `--cp-ground`, the surface the paired radar's markers
+   are cut out against. An accent is identity, never quality: neither side's
+   colour means better.
+
+   Three rules are contracts rather than taste:
+
+     - THE DOM ORDER IS THE READING ORDER. Left identity before right; left
+       value before right value; the relation after both. On a wide screen the
+       relation sits between the sides and the legend sits under the radar —
+       neither holds a control, so focus order never moves (handoff §10.6).
+     - IDENTITY IS NEVER COLOUR ALONE. The left game is a solid edge and a
+       square marker; the right is a dashed edge and a round marker; both are
+       named in text wherever they appear. Relations are words, and the four
+       relation words carry four border structures.
+     - BOTH TERRITORIES ARE EQUAL. With one, both or no artwork, the two fields
+       are the same height and the same authored composition sits under any
+       image, so `loading`, `failed` and `absent` never leave a frame empty
+       (handoff §4.2).
+
+   Scoped to `.cp` so it cannot reach the chrome or any other surface.
+   ========================================================================== */
+
+.cp {
+  background: var(--color-surface-canvas);
+  color: var(--color-text-primary);
+  font-family: var(--font-ui);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  overflow-wrap: anywhere;
+  /* The stage's wide layout is decided by a CONTAINER query, not a media
+     query. A media query measures `rem` in the initial font size, so at 200%
+     text a 64rem breakpoint still fires at 1024px and the three-column stage
+     squeezes its identities to a few words a line; a container query
+     measures `rem` against the real root font, so the wide layout appears
+     only when 64rem genuinely fit. */
+  container-type: inline-size;
+  container-name: compare;
+}
+
+.cp-measure {
+  width: 100%;
+  max-width: var(--size-content-max);
+  margin: 0 auto;
+  padding-inline: var(--size-gutter-mobile);
+  min-width: 0;
+}
+
+@media (min-width: 40rem) {
+  .cp-measure {
+    padding-inline: var(--size-gutter-desktop);
+  }
+}
+
+.cp-kicker {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-minimum);
+  line-height: 1.35;
+  text-transform: uppercase;
+  color: var(--color-text-quiet);
+}
+
+.cp-link {
+  color: var(--color-text-primary);
+  text-decoration: underline;
+  text-underline-offset: 5px;
+  text-decoration-color: var(--color-brand-coral);
+  transition: color var(--duration-fast) linear;
+}
+
+.cp-link:hover {
+  color: var(--color-brand-coral-hover);
+}
+
+/* --------------------------------------------------------------------------
+   0. The head: one h1, whatever the state.
+   -------------------------------------------------------------------------- */
+
+.cp-head {
+  padding: var(--space-6) 0 var(--space-4);
+}
+
+.cp-head__kicker {
+  color: var(--color-brand-evidence-cyan);
+}
+
+.cp-head__title {
+  margin: var(--space-2) 0 0;
+  font-size: clamp(var(--text-profile-title-mobile), 5vw, var(--text-profile-title-desktop));
+  line-height: var(--leading-tight);
+  text-wrap: balance;
+}
+
+.cp-head__and {
+  font-family: var(--font-prose);
+  font-style: italic;
+  font-weight: var(--font-weight-regular);
+  color: var(--color-text-muted);
+}
+
+.cp-head__lede {
+  margin: var(--space-3) 0 0;
+  max-width: 60ch;
+  font-size: var(--text-label);
+  line-height: var(--leading-body);
+  color: var(--color-text-secondary);
+  text-wrap: pretty;
+}
+
+/* Notices: what the address asked for that cannot be shown, in words, before
+   the composition. The valid side stays exactly where it was. */
+.cp-notices {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-5);
+  padding: 0;
+  list-style: none;
+}
+
+.cp-notice {
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-label);
+  line-height: var(--leading-body);
+  color: var(--color-text-secondary);
+  background: var(--color-surface-panel-raised);
+  border-left: 0.25rem solid var(--color-state-provisional);
+  text-wrap: pretty;
+}
+
+.cp-notice[data-kind="self"] {
+  border-left-color: var(--color-brand-coral);
+  color: var(--color-text-primary);
+}
+
+/* --------------------------------------------------------------------------
+   1. The stage: two equal territories, the radar at the seam, two identities.
+   -------------------------------------------------------------------------- */
+
+.cp-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* The visual strip. Two fields side by side at EVERY width — the diptych is
+   the one two-dimensional component the responsive contract allows to stay
+   side by side, because its text lives in the identities below (§3.4). */
+.cp-art {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  height: 8rem;
+}
+
+.cp-stage[data-art="both"] .cp-art,
+.cp-stage[data-art="left"] .cp-art,
+.cp-stage[data-art="right"] .cp-art {
+  height: 12rem;
+}
+
+.cp-art__field {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--color-surface-stage);
+}
+
+/* The authored territory: the game's accent as one wash, and its own outline
+   as a faint fragment. ALWAYS painted; cleared artwork sits over it. */
+.cp-art__wash {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      120% 140% at 30% 0%,
+      color-mix(in oklab, var(--cp-left) 42%, transparent) 0%,
+      transparent 64%
+    ),
+    linear-gradient(to bottom, var(--color-surface-stage), var(--color-surface-canvas));
+}
+
+.cp-art__field[data-side="right"] .cp-art__wash {
+  background:
+    radial-gradient(
+      120% 140% at 70% 0%,
+      color-mix(in oklab, var(--cp-right) 42%, transparent) 0%,
+      transparent 64%
+    ),
+    linear-gradient(to bottom, var(--color-surface-stage), var(--color-surface-canvas));
+}
+
+.cp-art__mark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 11rem;
+  height: 11rem;
+  transform: translate(-50%, -50%);
+  opacity: 0.42;
+}
+
+.cp-art__field img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* A failed image would paint its alt text and a glyph. It has no alt; the
+     glyph is suppressed; the territory beneath shows through. */
+  color: transparent;
+}
+
+.cp-art__scrim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to top,
+    var(--color-overlay-scrim-strong) 0%,
+    var(--color-overlay-scrim-soft) 42%,
+    transparent 78%
+  );
+}
+
+/* The open right side of a left-only selection: a quiet field with a dashed
+   edge, no fake opponent. */
+.cp-art__field--open .cp-art__wash {
+  background: linear-gradient(to bottom, var(--color-surface-stage), var(--color-surface-canvas));
+}
+
+.cp-art__field--open {
+  border-left: var(--border-thin) dashed var(--color-border-default);
+}
+
+/* The seam: the paired radar straddles the bottom edge of the strip, so it
+   emanates from both images rather than sitting beside them. */
+.cp-seam {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: var(--size-radar-compare-mobile);
+  aspect-ratio: 1;
+  transform: translate(-50%, 50%);
+  background: radial-gradient(circle, var(--cp-ground) 60%, transparent 68%);
+}
+
+.cp-radar__svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Identities: solid edge for the left game, dashed for the right. */
+.cp-identity {
+  min-width: 0;
+  padding: var(--space-5) var(--space-4) var(--space-5);
+  border-left: 0.25rem solid var(--cp-left);
+}
+
+.cp-identity[data-side="left"] {
+  padding-top: calc(var(--size-radar-compare-mobile) / 2 + var(--space-5));
+}
+
+.cp-identity[data-side="right"] {
+  border-left-style: dashed;
+  border-left-color: var(--cp-right);
+}
+
+.cp-identity--open {
+  border-left: 0.25rem dashed var(--color-border-default);
+}
+
+.cp-identity__open {
+  margin: var(--space-2) 0 0;
+  max-width: 40ch;
+  font-size: var(--text-label);
+  color: var(--color-text-muted);
+}
+
+.cp-title {
+  margin: var(--space-2) 0 0;
+  font-size: clamp(1.5rem, 4.5vw, 2.25rem);
+  line-height: var(--leading-tight);
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+.cp-byline {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-label);
+  color: var(--color-text-muted);
+}
+
+.cp-platforms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-platforms li {
+  padding: 0.2rem 0.6rem;
+  font-size: var(--text-small);
+  line-height: var(--leading-body);
+  color: var(--color-text-secondary);
+  border: var(--border-thin) solid var(--color-border-control);
+  border-radius: var(--radius-structural);
+}
+
+.cp-facts {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-4) 0 0;
+}
+
+.cp-facts dt {
+  margin: 0;
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-minimum);
+  line-height: 1.35;
+  text-transform: uppercase;
+  color: var(--color-text-quiet);
+}
+
+.cp-facts dd {
+  margin: 0.2rem 0 0;
+  font-size: var(--text-label);
+  line-height: var(--leading-body);
+  color: var(--color-text-secondary);
+  text-wrap: pretty;
+}
+
+.cp-facts__state {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.cp-facts__state[data-status="provisional"],
+.cp-facts__state[data-status="pre_release"] {
+  color: var(--color-state-provisional);
+}
+
+.cp-warning {
+  margin: var(--space-4) 0 0;
+  max-width: 64ch;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-label);
+  line-height: var(--leading-body);
+  color: var(--color-text-secondary);
+  background: var(--color-surface-panel-raised);
+  border-left: 0.25rem solid var(--color-state-provisional);
+  text-wrap: pretty;
+}
+
+.cp-warning strong {
+  color: var(--color-text-primary);
+}
+
+.cp-identity__line {
+  margin: var(--space-4) 0 0;
+  max-width: 44ch;
+  font-size: var(--text-body-large);
+  line-height: var(--leading-editorial);
+  color: var(--color-text-primary);
+  text-wrap: pretty;
+}
+
+/* The pull and the tax, as the profile states them. Two facts, one voice. */
+.cp-pulltax {
+  display: grid;
+  gap: var(--space-3);
+  margin: var(--space-4) 0 0;
+  max-width: 44ch;
+}
+
+.cp-pulltax dt {
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-minimum);
+  line-height: 1.35;
+  text-transform: uppercase;
+  color: var(--color-text-quiet);
+}
+
+.cp-pulltax dd {
+  margin: 0.2rem 0 0;
+  font-size: var(--text-label);
+  line-height: var(--leading-body);
+  color: var(--color-text-secondary);
+  text-wrap: pretty;
+}
+
+.cp-identity__link,
+.cp-launch__start {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-control-minimum);
+  margin-top: var(--space-4);
+  padding: 0 var(--space-3);
+  font-family: var(--font-ui);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-label);
+  color: var(--color-text-primary);
+  text-decoration: none;
+  border: var(--border-thin) solid var(--color-border-control);
+  border-radius: var(--radius-control);
+  transition: border-color var(--duration-fast) linear,
+    background-color var(--duration-fast) linear;
+}
+
+.cp-identity__link:hover,
+.cp-launch__start:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-panel-raised);
+}
+
+.cp-credit {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-small);
+  line-height: var(--leading-body);
+  color: var(--color-text-quiet);
+  overflow-wrap: anywhere;
+}
+
+/* The legend: which shape is which, in words and in marker grammar. */
+.cp-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-3) var(--space-6);
+  padding: var(--space-4) var(--space-4) var(--space-6);
+  border-top: var(--border-thin) solid var(--color-border-subtle);
+}
+
+.cp-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: var(--text-label);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.cp-swatch {
+  position: relative;
+  display: inline-block;
+  width: 1.75rem;
+  height: 0.85rem;
+  flex: 0 0 auto;
+}
+
+.cp-swatch::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 2px solid var(--cp-left);
+}
+
+.cp-swatch[data-side="right"]::before {
+  border-top: 2px dashed var(--cp-right);
+}
+
+.cp-swatch::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0.55rem;
+  height: 0.55rem;
+  transform: translate(-50%, -50%);
+  background: var(--cp-left);
+}
+
+.cp-swatch[data-side="right"]::after {
+  background: var(--cp-ground);
+  border: 2px solid var(--cp-right);
+  border-radius: 50%;
+  width: 0.65rem;
+  height: 0.65rem;
+}
+
+.cp-legend__note {
+  flex-basis: 100%;
+  margin: 0;
+  max-width: 62ch;
+  font-size: var(--text-small);
+  line-height: var(--leading-body);
+  color: var(--color-text-muted);
+  text-wrap: pretty;
+}
+
+@media (min-width: 40rem) {
+  .cp-art {
+    height: 10rem;
+  }
+
+  .cp-stage[data-art="both"] .cp-art,
+  .cp-stage[data-art="left"] .cp-art,
+  .cp-stage[data-art="right"] .cp-art {
+    height: 18rem;
+  }
+
+  .cp-seam {
+    width: 14rem;
+  }
+
+  .cp-identity {
+    padding-inline: var(--space-5);
+  }
+
+  .cp-identity[data-side="left"] {
+    padding-top: calc(7rem + var(--space-5));
+  }
+}
+
+/* The wide layout: the two identities flank the seam column, and the legend
+   sits in that column under the radar. DOM order is unchanged; the rows are
+   named explicitly because auto-placement would otherwise push the legend,
+   which follows the right identity in the DOM, onto a row of its own. */
+@container compare (min-width: 64rem) {
+  .cp-stage {
+    grid-template-columns: minmax(0, 1fr) var(--size-radar-compare-desktop) minmax(0, 1fr);
+    column-gap: var(--space-6);
+  }
+
+  .cp-art {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    height: 12rem;
+  }
+
+  .cp-stage[data-art="both"] .cp-art,
+  .cp-stage[data-art="left"] .cp-art,
+  .cp-stage[data-art="right"] .cp-art {
+    height: 24rem;
+  }
+
+  .cp-seam {
+    width: var(--size-radar-compare-desktop);
+  }
+
+  .cp-identity {
+    padding-top: var(--space-6);
+  }
+
+  .cp-identity[data-side="left"] {
+    grid-column: 1;
+    grid-row: 2;
+    padding-top: var(--space-6);
+  }
+
+  .cp-identity[data-side="right"] {
+    grid-column: 3;
+    grid-row: 2;
+  }
+
+  .cp-legend {
+    grid-column: 2;
+    grid-row: 2;
+    flex-direction: column;
+    /* A stretched column that may wrap starts a second column beside the
+       first once its height is spent — and the row is as tall as the
+       identities, so the note would wrap into the right identity's space. */
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    padding: calc(var(--size-radar-compare-desktop) / 2 + var(--space-4)) 0 var(--space-6);
+    border-top: 0;
+  }
+
+  .cp-legend__note {
+    flex-basis: auto;
+    width: 100%;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   2. Where they differ, and where they meet — on the warm editorial surface.
+   -------------------------------------------------------------------------- */
+
+.cp-relations {
+  padding: var(--space-7) 0 var(--space-8);
+  background: var(--color-surface-editorial);
+  color: var(--color-text-on-editorial);
+}
+
+.cp-relations .cp-kicker,
+.cp-fact__label {
+  color: var(--color-text-on-editorial-muted);
+}
+
+.cp-relations__frame {
+  margin: var(--space-3) 0 0;
+  font-family: var(--font-ui);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-heading-small);
+  line-height: var(--leading-heading);
+  color: var(--color-text-on-editorial);
+}
+
+.cp-relations__summary {
+  margin: var(--space-3) 0 0;
+  max-width: 64ch;
+  font-size: var(--text-body-large);
+  line-height: var(--leading-editorial);
+  color: var(--color-text-on-editorial);
+  text-wrap: pretty;
+}
+
+.cp-facts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: var(--space-6) var(--space-8);
+  margin-top: var(--space-7);
+}
+
+/* Three structures, not three cards: the edge says which. */
+.cp-fact {
+  min-width: 0;
+  padding-top: var(--space-4);
+  border-top: var(--border-thin) solid var(--color-border-on-editorial);
+}
+
+.cp-fact[data-relation="clear"] {
+  border-top-width: 0.25rem;
+}
+
+.cp-fact[data-relation="close"] {
+  border-top-width: 0.25rem;
+  border-top-style: dotted;
+}
+
+.cp-fact[data-relation="equal"] {
+  border-top-width: 0.25rem;
+  border-top-style: double;
+}
+
+.cp-fact[data-relation="caveat"] {
+  border-top-width: 0.25rem;
+  border-top-style: dashed;
+  border-top-color: var(--color-state-provisional);
+}
+
+.cp-fact__label {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-minimum);
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+
+.cp-fact__dimension {
+  margin: var(--space-2) 0 0;
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-body-large);
+  line-height: var(--leading-heading);
+  color: var(--color-text-on-editorial);
+}
+
+.cp-fact__pair {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-top: var(--space-3);
+}
+
+.cp-fact__end {
+  display: grid;
+  gap: 0.15rem;
+  margin: 0;
+  min-width: 0;
+}
+
+.cp-fact__end[data-side="right"] {
+  text-align: right;
+}
+
+.cp-fact__game {
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-on-editorial-muted);
+}
+
+.cp-fact__value {
+  font-size: var(--text-heading-medium);
+  line-height: 1;
+  color: var(--color-text-on-editorial);
+}
+
+.cp-fact__confidence {
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-minimum);
+  line-height: 1.35;
+  text-transform: uppercase;
+  color: var(--color-text-on-editorial-muted);
+}
+
+.cp-fact__relation {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-label);
+  line-height: var(--leading-body);
+  color: var(--color-text-on-editorial);
+}
+
+.cp-fact__sentence {
+  display: block;
+  margin-top: 0.3rem;
+  color: var(--color-text-on-editorial-muted);
+}
+
+.cp-fact__caveats {
+  margin: var(--space-3) 0 0;
+  padding-left: 1.1rem;
+  list-style: square;
+  font-size: var(--text-label);
+  line-height: var(--leading-body);
+  color: var(--color-text-on-editorial);
+}
+
+.cp-fact__caveats li + li {
+  margin-top: 0.5rem;
+}
+
+.cp-fact__none {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-label);
+  line-height: var(--leading-body);
+  color: var(--color-text-on-editorial-muted);
+}
+
+/* The four relation words. Four border structures; the colour is the
+   reinforcement, and on the warm surface the ink is the surface's own. */
+.cp-word {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-minimum);
+  line-height: 1.35;
+  text-transform: uppercase;
+  border: var(--border-thin) solid currentColor;
+  border-radius: var(--radius-structural);
+}
+
+.cp-word[data-relation="equal"] {
+  border-style: double;
+  border-width: 0.2rem;
+  color: var(--color-state-equal);
+}
+
+.cp-word[data-relation="close"] {
+  border-style: dotted;
+  color: var(--color-state-close);
+}
+
+.cp-word[data-relation="clear"] {
+  border-width: 0.125rem;
+  color: var(--color-state-difference);
+}
+
+.cp-word[data-relation="indeterminate"] {
+  border-style: dashed;
+  color: var(--color-state-indeterminate);
+}
+
+.cp-relations .cp-word {
+  color: var(--color-text-on-editorial);
+}
+
+/* --------------------------------------------------------------------------
+   The paired scale — shared by the relationship field and every row.
+   -------------------------------------------------------------------------- */
+
+.cp-scale {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 1.25rem;
+  margin-top: var(--space-3);
+}
+
+.cp-scale--large {
+  height: 2rem;
+  margin-top: var(--space-4);
+}
+
+.cp-scale::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: var(--border-thin) solid var(--color-border-strong);
+}
+
+.cp-relations .cp-scale::before {
+  border-top-color: var(--color-border-on-editorial);
+}
+
+.cp-scale__bridge {
+  position: absolute;
+  top: 50%;
+  height: 0;
+  margin-top: -1.5px;
+  border-top: 3px solid var(--color-text-primary);
+}
+
+.cp-relations .cp-scale__bridge {
+  border-top-color: var(--color-text-on-editorial);
+}
+
+.cp-scale[data-relation="close"] .cp-scale__bridge {
+  border-top-style: dotted;
+}
+
+.cp-scale__reach {
+  position: absolute;
+  top: 50%;
+  margin-top: -1px;
+  border-top: 2px dotted var(--color-state-range);
+}
+
+.cp-scale__mark {
+  position: absolute;
+  top: 50%;
+  width: 0.75rem;
+  height: 0.75rem;
+  transform: translate(-50%, -50%);
+}
+
+.cp-scale--large .cp-scale__mark {
+  width: 1rem;
+  height: 1rem;
+}
+
+.cp-scale__mark[data-side="left"] {
+  background: var(--cp-left);
+  border: 2px solid var(--cp-ground);
+}
+
+.cp-scale__mark[data-side="right"] {
+  background: var(--cp-ground);
+  border: 2px solid var(--cp-right);
+  border-radius: 50%;
+}
+
+/* On the warm surface a game marker takes the game's BASE tint. Lift is the
+   dark-ground tint and measures 1.6–2.4:1 against the editorial paper; base
+   measures 5.4–7.3:1 (matrix X-04, non-text contrast). */
+.cp-relations .cp-scale__mark[data-side="left"] {
+  background: var(--cp-left-base);
+  border-color: var(--color-surface-editorial);
+}
+
+.cp-relations .cp-scale__mark[data-side="right"] {
+  background: var(--color-surface-editorial);
+  border-color: var(--cp-right-base);
+}
+
+/* --------------------------------------------------------------------------
+   3. The tag map.
+   -------------------------------------------------------------------------- */
+
+.cp-tags {
+  padding: var(--space-8) 0;
+  border-top: var(--border-thin) solid var(--color-border-subtle);
+}
+
+.cp-tags__note {
+  margin: var(--space-2) 0 0;
+  max-width: 62ch;
+  font-size: var(--text-label);
+  line-height: var(--leading-body);
+  color: var(--color-text-muted);
+  text-wrap: pretty;
+}
+
+.cp-tags__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: var(--space-5);
+  margin-top: var(--space-6);
+}
+
+/* Solid edge for the left game, dashed for the right, a double frame for
+   what they share. */
+.cp-tags__group {
+  min-width: 0;
+  padding: var(--space-4);
+  border: var(--border-thin) solid var(--color-border-default);
+}
+
+.cp-tags__group[data-group="left"] {
+  border-left: 0.25rem solid var(--cp-left);
+}
+
+.cp-tags__group[data-group="right"] {
+  border-left: 0.25rem dashed var(--cp-right);
+}
+
+.cp-tags__group[data-group="shared"] {
+  background: var(--color-surface-panel-raised);
+  border: 0.25rem double var(--color-border-strong);
+}
+
+.cp-tags__heading {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-minimum);
+  line-height: 1.35;
+  text-transform: uppercase;
+  color: var(--color-text-primary);
+}
+
+.cp-tags__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-tag {
+  padding: 0.3rem 0.65rem;
+  font-size: var(--text-small);
+  line-height: var(--leading-body);
+  color: var(--color-text-secondary);
+  border: var(--border-thin) solid var(--color-border-control);
+  border-radius: var(--radius-structural);
+}
+
+.cp-tags__group[data-group="shared"] .cp-tag {
+  color: var(--color-text-primary);
+  border-color: var(--color-border-strong);
+}
+
+.cp-tag__label {
+  color: var(--color-text-primary);
+}
+
+.cp-tag__intensity {
+  font-weight: var(--font-weight-semibold);
+}
+
+.cp-tag__note {
+  color: var(--color-text-muted);
+}
+
+.cp-tags__empty {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-small);
+  color: var(--color-text-quiet);
+}
+
+/* --------------------------------------------------------------------------
+   4. The paired instrument.
+   -------------------------------------------------------------------------- */
+
+.cp-instrument {
+  padding: var(--space-8) 0 var(--space-9);
+  background: var(--color-surface-panel);
+  border-top: var(--border-thin) solid var(--color-border-subtle);
+}
+
+.cp-instrument__rule {
+  margin: var(--space-2) 0 0;
+  max-width: 62ch;
+  font-size: var(--text-label);
+  line-height: var(--leading-body);
+  color: var(--color-text-muted);
+  text-wrap: pretty;
+}
+
+.cp-rows {
+  margin: var(--space-6) 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: var(--border-thin) solid var(--color-border-default);
+}
+
+.cp-row {
+  padding: var(--space-4) 0;
+  border-bottom: var(--border-thin) solid var(--color-border-default);
+}
+
+.cp-row__name {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-body);
+  line-height: var(--leading-heading);
+  color: var(--color-text-primary);
+}
+
+.cp-row__gloss {
+  margin: 0.25rem 0 0;
+  max-width: 48ch;
+  font-size: var(--text-small);
+  line-height: var(--leading-body);
+  color: var(--color-text-muted);
+  text-wrap: pretty;
+}
+
+.cp-row__pair {
+  display: grid;
+  grid-template-areas:
+    "left"
+    "right"
+    "relation";
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.cp-row__side {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "game value"
+    "confidence confidence";
+  column-gap: var(--space-3);
+  align-items: baseline;
+  min-width: 0;
+  padding-left: var(--space-3);
+  border-left: 0.25rem solid var(--cp-left);
+}
+
+.cp-row__side[data-side="left"] {
+  grid-area: left;
+}
+
+.cp-row__side[data-side="right"] {
+  grid-area: right;
+  border-left-style: dashed;
+  border-left-color: var(--cp-right);
+}
+
+.cp-row__game {
+  grid-area: game;
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+}
+
+.cp-row__value {
+  grid-area: value;
+  justify-self: end;
+  line-height: 1;
+}
+
+.cp-row__num {
+  font-size: var(--text-heading-small);
+  color: var(--color-text-primary);
+}
+
+.cp-row__kind {
+  font-size: var(--text-minimum);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  color: var(--color-state-range);
+}
+
+.cp-row__notscored {
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-label);
+  text-transform: uppercase;
+  color: var(--color-state-unknown);
+}
+
+.cp-row__confidence {
+  grid-area: confidence;
+  margin-top: 0.2rem;
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-minimum);
+  line-height: 1.35;
+  text-transform: uppercase;
+  color: var(--color-text-quiet);
+}
+
+.cp-row__side[data-confidence="low"] .cp-row__confidence {
+  color: var(--color-state-provisional);
+}
+
+.cp-row__side[data-side="left"] .cp-row__varies {
+  color: var(--cp-left);
+}
+
+.cp-row__side[data-side="right"] .cp-row__varies {
+  color: var(--cp-right);
+}
+
+.cp-row__relation {
+  grid-area: relation;
+  min-width: 0;
+}
+
+.cp-row__word {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-small);
+  line-height: var(--leading-body);
+  color: var(--color-text-secondary);
+}
+
+.cp-row__sentence {
+  display: block;
+  margin-top: 0.25rem;
+}
+
+@media (min-width: 40rem) {
+  .cp-row__pair {
+    grid-template-columns: minmax(0, 1fr) minmax(11rem, 1.2fr) minmax(0, 1fr);
+    grid-template-areas: "left relation right";
+    gap: var(--space-5);
+    align-items: start;
+  }
+
+  .cp-row__side[data-side="right"] {
+    justify-items: end;
+    text-align: right;
+    padding-left: 0;
+    padding-right: var(--space-3);
+    border-left: 0;
+    border-right: 0.25rem dashed var(--cp-right);
+  }
+
+  .cp-row__relation {
+    text-align: center;
+  }
+
+  .cp-row__relation .cp-scale {
+    margin-top: 0.4rem;
+  }
+}
+
+/* The disclosure: explicit, 44px, stable label, `aria-expanded` state. */
+.cp-row__why {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: var(--size-control-minimum);
+  margin-top: var(--space-3);
+  padding: 0 var(--space-3);
+  font-family: var(--font-ui);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-minimum);
+  line-height: 1.35;
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--color-text-primary);
+  background: transparent;
+  border: var(--border-thin) solid var(--color-border-control);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) linear,
+    border-color var(--duration-fast) linear;
+}
+
+.cp-row__why:hover,
+.cp-row__why[aria-expanded="true"] {
+  background: var(--color-surface-panel-raised);
+  border-color: var(--color-border-strong);
+}
+
+.cp-row__chevron {
+  font-size: var(--text-label);
+  line-height: 1;
+  transition: transform var(--duration-standard) var(--ease-standard);
+}
+
+.cp-row__why[aria-expanded="true"] .cp-row__chevron {
+  transform: rotate(180deg);
+}
+
+.cp-row__panel {
+  margin-top: var(--space-4);
+  padding: var(--space-4);
+  background: var(--color-surface-canvas);
+  border: var(--border-thin) solid var(--color-border-default);
+}
+
+.cp-row__question {
+  margin: 0;
+  font-size: var(--text-body-large);
+  color: var(--color-text-secondary);
+  text-wrap: pretty;
+}
+
+.cp-row__panel-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: var(--space-5);
+  margin-top: var(--space-4);
+}
+
+.cp-row__detail {
+  min-width: 0;
+  padding-left: var(--space-3);
+  border-left: 0.25rem solid var(--cp-left);
+}
+
+.cp-row__detail[data-side="right"] {
+  border-left-style: dashed;
+  border-left-color: var(--cp-right);
+}
+
+.cp-row__detail-name {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-label);
+  color: var(--color-text-primary);
+}
+
+.cp-row__detail-note {
+  margin: 0.35rem 0 0;
+  font-size: var(--text-small);
+  line-height: var(--leading-body);
+  color: var(--color-text-secondary);
+}
+
+.cp-row__variance {
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-row__variance li {
+  margin: 0.5rem 0 0;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-small);
+  line-height: var(--leading-body);
+  color: var(--color-text-secondary);
+  background: var(--color-surface-panel);
+}
+
+.cp-row__variance strong {
+  color: var(--color-text-primary);
+}
+
+.cp-row__detail .cp-link {
+  display: inline-block;
+  margin-top: var(--space-3);
+  font-size: var(--text-label);
+}
+
+/* --------------------------------------------------------------------------
+   5. Controls: Replace left, Replace right, Copy link. After the rows.
+   -------------------------------------------------------------------------- */
+
+.cp-controls {
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-7) 0 var(--space-9);
+}
+
+.cp-controls__replace {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.cp-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-control-minimum);
+  padding: 0 var(--space-4);
+  font-family: var(--font-ui);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-label);
+  line-height: 1.3;
+  text-align: left;
+  color: var(--color-text-primary);
+  background: transparent;
+  border: var(--border-thin) solid var(--color-border-control);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) linear,
+    border-color var(--duration-fast) linear;
+}
+
+.cp-button:hover {
+  background: var(--color-surface-panel-raised);
+  border-color: var(--color-border-strong);
+}
+
+.cp-button--primary {
+  color: var(--color-text-inverse);
+  background: var(--color-brand-coral);
+  border-color: var(--color-brand-coral);
+}
+
+.cp-button--primary:hover {
+  background: var(--color-brand-coral-hover);
+  border-color: var(--color-brand-coral-hover);
+}
+
+.cp-share {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 40rem;
+}
+
+.cp-share__status {
+  margin: 0;
+  min-height: 1.5em;
+  font-size: var(--text-label);
+  line-height: var(--leading-body);
+  color: var(--color-text-secondary);
+}
+
+.cp-share__fallback {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.cp-share__field {
+  width: 100%;
+  min-height: var(--size-control-minimum);
+  padding: 0 var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  color: var(--color-text-primary);
+  background: var(--color-surface-panel);
+  border: var(--border-thin) solid var(--color-border-control);
+  border-radius: var(--radius-control);
+}
+
+.cp-share__how {
+  margin: 0;
+  font-size: var(--text-small);
+  line-height: var(--leading-body);
+  color: var(--color-text-muted);
+}
+
+/* The selector's inline refusal: associated with the field, announced once. */
+.cp-selector__error {
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-label);
+  line-height: var(--leading-body);
+  color: var(--color-text-primary);
+  background: var(--color-surface-panel-raised);
+  border-left: 0.25rem solid var(--color-brand-coral);
+}
+
+/* --------------------------------------------------------------------------
+   6. The launcher.
+   -------------------------------------------------------------------------- */
+
+.cp-launch {
+  padding: var(--space-2) 0 var(--space-2);
+}
+
+.cp-launch__guide {
+  display: grid;
+  gap: var(--space-7);
+  max-width: 64rem;
+}
+
+.cp-launch__section .sip-prose {
+  margin: var(--space-2) 0 0;
+  max-width: 62ch;
+  font-size: var(--text-body-large);
+  line-height: var(--leading-editorial);
+  color: var(--color-text-secondary);
+  text-wrap: pretty;
+}
+
+.cp-launch__rules {
+  display: grid;
+  gap: var(--space-3);
+  margin: var(--space-3) 0 0;
+  max-width: 62ch;
+}
+
+.cp-launch__rules dt {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.cp-launch__rules dd {
+  margin: 0.15rem 0 0;
+  font-size: var(--text-label);
+  line-height: var(--leading-body);
+  color: var(--color-text-secondary);
+}
+
+.cp-launch__list {
+  display: grid;
+  gap: 0;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-launch__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) 0;
+  border-top: var(--border-thin) solid var(--color-border-subtle);
+}
+
+.cp-launch__meta {
+  font-size: var(--text-small);
+  color: var(--color-text-muted);
+}
+
+.cp-launch__start {
+  margin-top: 0;
+  margin-left: auto;
+}
+
+/* ==========================================================================
+   Motion. Nothing here animates the meaning; under reduced motion every
+   transition is immediate.
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-button,
+  .cp-row__why,
+  .cp-row__chevron,
+  .cp-identity__link,
+  .cp-launch__start,
+  .cp-link {
+    transition: none;
+  }
+}

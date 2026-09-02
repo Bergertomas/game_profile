@@ -28,14 +28,15 @@ const WORDMARK = SITE_NAME.replace(/\?+$/, "");
  * do — and nodding when you point at it. A solemn newspaper masthead would be
  * a more impressive piece of design and a worse fit for what this is.
  *
- * ── Why there are three controls and not six ───────────────────────────────
+ * ── Why there are four controls and not six ────────────────────────────────
  *
- * Because there are three things behind them. Search is built, and it is here
- * as a real control with the `/` key that reaches it from anywhere. "How we
- * score" is a real page. Compare and "What should I play?" are accepted work
- * and are NOT built, so they are not in the header: navigation that promises
- * rooms which do not exist is the fastest way to make a small product feel like
- * a mock-up.
+ * Because there are four things behind them. Search is built, and it is here
+ * as a real control with the `/` key that reaches it from anywhere. Compare
+ * is built (Slice 4) and is the ranked second journey (handoff §5.1, §5.2),
+ * so it is a real link. "How we score" is a real page. "What should I play?"
+ * is accepted work and is NOT built, so it is not in the header: navigation
+ * that promises a room which does not exist is the fastest way to make a
+ * small product feel like a mock-up.
  *
  * The search trigger renders only when this build could actually read the
  * catalogue. It reads that from the layout's provider rather than from a prop,
@@ -66,7 +67,13 @@ export function SiteHeader() {
         </Link>
         <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 sm:gap-x-4">
           <SearchDialog />
-          <nav aria-label="Primary">
+          <nav aria-label="Primary" className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <Link
+              href="/compare"
+              className="sip-label text-bone-soft underline decoration-transparent decoration-2 underline-offset-[6px] transition-colors duration-150 hover:text-bone hover:decoration-signal"
+            >
+              Compare
+            </Link>
             <Link
               href="/methodology"
               className="sip-label text-bone-soft underline decoration-transparent decoration-2 underline-offset-[6px] transition-colors duration-150 hover:text-bone hover:decoration-signal"

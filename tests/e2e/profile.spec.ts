@@ -371,7 +371,7 @@ test("a profile exits onto the rest of the catalogue, never onto itself", async 
 test("the development harnesses are reachable for review, unindexed", async ({
   page,
 }) => {
-  for (const route of ["/dev/radar-states", "/dev/profile-states"]) {
+  for (const route of ["/dev/radar-states", "/dev/profile-states", "/dev/compare-states"]) {
     const response = await page.goto(route);
     expect(response?.status(), route).toBe(200);
     await expect(page.locator('meta[name="robots"]'), route).toHaveAttribute(

@@ -172,3 +172,33 @@ test("the synthetic titles are not published anywhere but the field", async ({
   expect(sitemap.ok()).toBe(true);
   expect(await sitemap.text()).not.toContain("lantern-parade");
 });
+
+test.describe("a recognised title in Compare", () => {
+  // Compare's selector speaks the Search index's truth: a recognised,
+  // unprofiled title is offered as a row that says it cannot be chosen, and
+  // an address naming it says the same. Neither invents a comparison.
+
+  test("is offered as information, and cannot be chosen", async ({ page }) => {
+    await page.goto("/compare");
+    await page.getByRole("button", { name: "Choose the first game" }).click();
+    const dialogField = page.getByRole("dialog").getByRole("combobox");
+    await dialogField.fill(RECOGNISED);
+    await page.waitForTimeout(60);
+    const row = page.getByRole("dialog").getByRole("option", { name: new RegExp(RECOGNISED) });
+    await expect(row).toHaveCount(1);
+    await expect(row).toHaveAttribute("aria-disabled", "true");
+    await expect(row).toContainText("Recognised — not yet profiled");
+    await dialogField.press("ArrowDown");
+    await dialogField.press("Enter");
+    await expect(page).toHaveURL(/\/compare$/);
+    await expect(page.getByRole("dialog")).toBeVisible();
+  });
+
+  test("is named as unprofiled when an address asks for it", async ({ page }) => {
+    await page.goto("/compare?games=test-corpus-lantern-parade,alan-wake-2");
+    await expect(page.locator(".cp-notice")).toContainText(`We know ${RECOGNISED} and have not profiled it yet`);
+    await expect(page.locator(".cp-instrument")).toHaveCount(0);
+    // Alan Wake 2 was named on the right and stays there: nothing fills the left.
+    await expect(page.getByRole("button", { name: "Choose the first game" })).toBeVisible();
+  });
+});

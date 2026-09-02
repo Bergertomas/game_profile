@@ -34,9 +34,9 @@ import "./home-opening.css";
  * ── What is deliberately not here ──────────────────────────────────────────
  *
  * No ranking, no winner, no aggregate, no popularity, no trending, and no
- * controls for journeys that do not exist. Compare and "What should I play?"
- * are named — they are real, accepted, and next — but they are named as text,
- * because a button that goes nowhere is worse than an honest label.
+ * controls for journeys that do not exist. Compare exists (Slice 4) and is a
+ * real link to `/compare`; "What should I play?" is named as text, because a
+ * button that goes nowhere is worse than an honest label.
  */
 
 export interface HomeOpeningProps {
@@ -98,11 +98,12 @@ export function HomeOpening({ profiles }: HomeOpeningProps) {
 /**
  * The three paths, named exactly, ranked by form.
  *
- * Search is marked as where you are; the other two are text and say so. They
- * are not tabs, not buttons and not links, because there is nothing behind them
- * yet — and a control that responds to a click by doing nothing teaches a
- * visitor that the product is a mock-up. Naming them costs nothing and is true:
- * both are accepted work and neither is built.
+ * Search is marked as where you are and is the field above. Compare is a real
+ * link, because `/compare` is a real page (Slice 4) — and it stays a link
+ * rather than a tab, because it opens its own journey rather than switching
+ * this region (handoff §5.2). "What should I play?" is text and says so:
+ * there is nothing behind it yet, and a control that responds to a click by
+ * doing nothing teaches a visitor that the product is a mock-up.
  */
 function Journeys() {
   return (
@@ -115,7 +116,13 @@ function Journeys() {
               label === "Search" ? " is-current" : ""
             }`}
           >
-            {label}
+            {label === "Compare" ? (
+              <Link className="sip-open__path-link" href="/compare">
+                Compare
+              </Link>
+            ) : (
+              label
+            )}
             {label === "Search" && (
               <span className="sr-only"> — the journey shown here</span>
             )}
@@ -123,9 +130,10 @@ function Journeys() {
         ))}
       </ul>
       <p className="sip-open__paths-note">
-        Search is the one you can use today. Compare and{" "}
-        <em>What should I play?</em> are the next two journeys and are not built
-        yet, so they are named here rather than offered as controls.
+        Search is the one in front of you. Compare puts two Game Profiles side
+        by side on its own page. <em>What should I play?</em> is the third
+        journey and is not built yet, so it is named here rather than offered
+        as a control.
       </p>
     </div>
   );

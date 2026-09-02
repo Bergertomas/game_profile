@@ -27,7 +27,14 @@ import { expect, test, type Page } from "@playwright/test";
 const FLOOR_PX = 12;
 
 /** The public surfaces, plus the chrome that appears on all of them. */
-const PAGES = ["/", "/methodology", "/games/alan-wake-2", "/games/redfall"] as const;
+const PAGES = [
+  "/",
+  "/methodology",
+  "/games/alan-wake-2",
+  "/games/redfall",
+  "/compare",
+  "/compare?games=alan-wake-2,returnal",
+] as const;
 
 const VIEWPORTS = [
   { label: "320", width: 320, height: 640 },

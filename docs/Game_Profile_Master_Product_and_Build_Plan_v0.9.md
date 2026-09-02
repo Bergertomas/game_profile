@@ -7,10 +7,10 @@
 **Product and project orchestration:** ChatGPT
 **Engineering:** Codex and Claude
 **Public product design:** Tomas, ChatGPT, and the reconciled Fable design work
-**Status:** Current product and roadmap constitution — amended through accepted Gate A, Gate B and full Compare direction, the completed shared handoff, Engineering Slices 1 and 2 merged on `main`, and the Slice 3 profile system implemented in the current codebase; none of the three is yet deliberately deployed to production; Scoring Protocol calibration remains active
-**Current checkpoint:** Phase 2's editorial/publishing architecture is substantially complete and in support mode. Gate A A1/A2 Rev 5.1, Gate B A3–A6 and full Compare C1–C4/C-rail are accepted. ADR 0013 is superseded; ADR 0031 governs the static Search index; ADRs 0033/0034 govern Compare. The cross-surface design-system and interaction handoff is complete. Engineering Slice 1 — the canonical shared tokens/font foundation, the editorially governed static Search and its four truthful states, accessible inline/header Search, and the bounded accepted homepage opening — is merged on `main`. Engineering Slice 2 completes the accepted homepage system on top of it: the “Start somewhere interesting” poster rail, the authored-shelf grammar with objective/evergreen/living kinds, publication windows, expiry and evergreen fallback, and the bounded “Choosing between…” presentation contract whose route into full Compare is explicitly deferred. Its qualitative editorial configurations ship empty pending owner-approved membership under P0.3, and it is merged on `main`. Engineering Slice 3 implements the accepted A3–A6 profile system in the current codebase — decision before instrument, complete art-led/artless parity, the three-level radar with permanent exact rows, Range/Unknown/Provisional/confidence states, and the restored platform-warning, platform-note and override projection — with practical time and store destinations rendered only from approved records, which do not yet exist. Full Compare follows. The first application-originated Cloudflare Builds dispatch and one complete new-profile Publish → dispatch → Live cycle remain unexercised and will be proved by the first real catalog publication, not by further standalone admin hardening.
-**Public-product state:** production still exposes the earlier three-profile experience. Slices 1 and 2 — the shared foundation, static Search and the accepted homepage system — are merged on `main`, and Slice 3 implements the accepted A3–A6 profile system in the current codebase; **none of it is yet deliberately deployed to production**, and that deployment is a separate, deliberate step. Deterministic What should I play?, exactly-two Compare, accountability, catalog, governed analytics and mixed-artwork product remain unbuilt. Practical-time records and verified storefront destinations remain absent, so the profile renders neither time/session guidance nor storefront actions until an approved record exists. The 12–15-profile corpus is a private validation milestone; quiet public release requires approximately 100 substantive profiles.
-**Date:** 2026-08-26 · **Gate A amendment:** 2026-08-28 · **Gate B/Search amendment:** 2026-08-30 · **Compare acceptance:** 2026-08-31 · **Slice 1 integration:** 2026-09-01 · **Slice 2 homepage system:** 2026-09-01 · **Slice 3 profile system:** 2026-09-01
+**Status:** Current product and roadmap constitution — amended through accepted Gate A, Gate B and full Compare direction, the completed shared handoff, Engineering Slices 1, 2 and 3 merged on `main`, and the Slice 4 full Compare system implemented in the current codebase under the 2 September 2026 ADR 0033 amendment; none of the four is yet deliberately deployed to production; Scoring Protocol calibration remains active
+**Current checkpoint:** Phase 2's editorial/publishing architecture is substantially complete and in support mode. Gate A A1/A2 Rev 5.1, Gate B A3–A6 and full Compare C1–C4/C-rail are accepted. ADR 0013 is superseded; ADR 0031 governs the static Search index; ADRs 0033/0034 govern Compare. The cross-surface design-system and interaction handoff is complete. Engineering Slice 1 — the canonical shared tokens/font foundation, the editorially governed static Search and its four truthful states, accessible inline/header Search, and the bounded accepted homepage opening — is merged on `main`. Engineering Slice 2 completes the accepted homepage system on top of it: the “Start somewhere interesting” poster rail, the authored-shelf grammar with objective/evergreen/living kinds, publication windows, expiry and evergreen fallback, and the bounded “Choosing between…” presentation contract whose route into full Compare is explicitly deferred. Its qualitative editorial configurations ship empty pending owner-approved membership under P0.3, and it is merged on `main`. Engineering Slice 3 implements the accepted A3–A6 profile system — decision before instrument, complete art-led/artless parity, the three-level radar with permanent exact rows, Range/Unknown/Provisional/confidence states, and the restored platform-warning, platform-note and override projection — with practical time and store destinations rendered only from approved records, which do not yet exist; it is merged on `main`. Engineering Slice 4 implements the accepted C1–C4 full Compare system in the current codebase: the order-preserving `/compare?games=<left>,<right>` state with the launcher indexable and every pair `noindex, follow`; the art-led, mixed and complete artless identity stage around the paired radar; the deterministic interval-aware relationship field; the canonical Shared/left-only/right-only tag map; eight paired exact rows; Replace and Copy-link controls. Its first release compares published primary profiles only (ADR 0033 amendment, 2 September 2026); sibling-scope Compare is a later decision. The first application-originated Cloudflare Builds dispatch and one complete new-profile Publish → dispatch → Live cycle remain unexercised and will be proved by the first real catalog publication, not by further standalone admin hardening.
+**Public-product state:** production still exposes the earlier three-profile experience. Slices 1, 2 and 3 — the shared foundation, static Search, the accepted homepage system and the accepted A3–A6 profile system — are merged on `main`, and Slice 4 implements the accepted exactly-two full Compare in the current codebase; **none of it is yet deliberately deployed to production**, and that deployment is a separate, deliberate step. Deterministic What should I play?, accountability, catalog, governed analytics and mixed-artwork product remain unbuilt; sibling-scope Compare and the profile's editor-selected "Compare with" entry point remain deferred. Practical-time records and verified storefront destinations remain absent, so the profile renders neither time/session guidance nor storefront actions until an approved record exists. The 12–15-profile corpus is a private validation milestone; quiet public release requires approximately 100 substantive profiles.
+**Date:** 2026-08-26 · **Gate A amendment:** 2026-08-28 · **Gate B/Search amendment:** 2026-08-30 · **Compare acceptance:** 2026-08-31 · **Slice 1 integration:** 2026-09-01 · **Slice 2 homepage system:** 2026-09-01 · **Slice 3 profile system:** 2026-09-01 · **Slice 4 full Compare:** 2026-09-02
 
 ---
 
@@ -492,9 +492,11 @@ Planned routes/surfaces:
   published, recognized-unprofiled, ambiguous and unrecognized states. ADR
   0031 governs an editorially included static build-time index; there is no
   request-time public database or provider call;
-- `/compare` — exactly-two-profile launcher;
-- canonical two-profile comparison results subordinate to their source
-  profiles. The dedicated Compare pass decides URL shape and index policy;
+- `/compare` — exactly-two-profile launcher, indexable with its standalone
+  guidance;
+- order-preserving `/compare?games=<left>,<right>` comparison states,
+  subordinate to their source profiles, `noindex, follow`, unlisted and not
+  prerendered (ADR 0033);
 - a durable noindex What should I play? result state supporting refinement,
   trade-offs, sharing, refresh and browser navigation; exact route name is a
   design/IA implementation detail;
@@ -542,8 +544,12 @@ midpointed, confidence does not change the geometric relation, and the aligned
 eight rows remain authoritative. Initial summary prominence thresholds remain
 presentational defaults to test on the validation corpus, not rubric semantics.
 
-The launcher permits arbitrary published pairs, including the same game across
-different scopes. Scope-aware identity is required. ADR 0033 fixes an
+The launcher permits any two published profiles. Scope-aware identity is
+required, and the first release is bounded to **published primary profiles**
+(ADR 0033 amendment, 2 September 2026): the accepted address identifies each
+side by game slug, so a DLC, expansion, mode or other sibling scope is
+temporarily ineligible rather than encoded by an invented scheme. Sibling-scope
+Compare is a deliberate later decision, not a prohibition. ADR 0033 fixes an
 order-preserving `/compare?games=<left>,<right>` share state: pair URLs are
 `noindex, follow`, absent from the sitemap and rating/review schema, and are not
 all prerendered. Unordered normalization is internal-only and never reorders
@@ -1163,9 +1169,10 @@ Preview/design/admin surfaces stay out of the public index and sitemap; authenti
 Acquisition depends on stable substantive profiles and truthful editorial
 surfaces, not mass-generated combination pages or artificial categories.
 Recognized-unprofiled Search results do not create public stubs. Generated What
-should I play? results are noindex and excluded from the sitemap. The dedicated
-Compare pass decides Compare URL, canonical and index policy; until then no
-pair-result indexing or all-pair prerender contract is assumed. Stable
+should I play? results are noindex and excluded from the sitemap. ADR 0033 fixes
+Compare URL, canonical and index policy: the launcher is indexable with its
+standalone guidance, pair states are `noindex, follow`, unlisted and not
+prerendered. Stable
 substantive editorial collections may be indexable.
 
 ### 11.2 Analytics and privacy contract
@@ -1559,11 +1566,12 @@ the same controlled concepts.
    production deployment remains a separate step**
 8. Implement the accepted homepage/profile composition in bounded vertical
    slices, including truthful platform projections and no fabricated practical
-   time. **HOMEPAGE DONE; merged on `main` in Slice 2. PROFILE DONE; Slice 3
-   implements it in the current codebase. Neither is yet deliberately
-   deployed to production. Practical time and store destinations render only
-   from approved records, none of which exist yet; the "Evaluated" label
-   remains withheld**
+   time. **HOMEPAGE DONE; merged on `main` in Slice 2. PROFILE DONE; merged
+   on `main` in Slice 3. FULL COMPARE DONE; Slice 4 implements it in the
+   current codebase, bounded to primary profiles by the 2 September 2026
+   ADR 0033 amendment. None is yet deliberately deployed to production.
+   Practical time and store destinations render only from approved records,
+   none of which exist yet; the "Evaluated" label remains withheld**
 9. Complete review of the candidate Scoring Protocol/package contract and run
    the six-development/four-holdout program. **OPEN IN PARALLEL; precondition to
    bulk catalog production**

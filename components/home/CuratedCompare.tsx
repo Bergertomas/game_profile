@@ -25,25 +25,24 @@ import "./home-sections.css";
  * its own fingerprint as decoration over its own written shape description, so
  * nothing is said by polygon or colour alone.
  *
- * ── The CTA is deferred, and says so ───────────────────────────────────────
+ * ── The CTA goes only where a comparison exists ─────────────────────────────
  *
- * `/compare` is Slice 4 and does not exist. Two failures were available here
- * and both are refused: linking to it anyway publishes a broken route, and
- * writing "See the full comparison" as inert text implies a destination the
- * product does not have. So when the caller supplies no route, the module
- * states plainly that full Compare is not built and leaves the reader with the
- * two profile links, which are real. When Slice 4 lands, the page passes
- * `compareRouteFor` and the accepted label appears with no change here — the
- * label is fixed as "See the full comparison" (handoff §2.2; the prototype's
- * "artwork-free" wording is obsolete).
+ * `/compare` exists (Slice 4), and its first release compares published
+ * PRIMARY profiles only (ADR 0033, 2 September 2026 amendment). The page
+ * supplies `compareRouteFor`, which answers the order-preserving pair address
+ * for an eligible pair and null for one that names a sibling scope — and for
+ * that pair the module says so instead of printing "See the full comparison"
+ * over a route that would refuse it. The label is fixed as "See the full
+ * comparison" (handoff §2.2; the prototype's "artwork-free" wording is
+ * obsolete).
  */
 export interface CuratedCompareProps {
   readonly pairs: readonly CuratedPairView[];
   /**
-   * Destination for a pair, or omitted while full Compare does not exist.
-   * Order is preserved by the caller: left stays left.
+   * The Compare address for a pair, or null where the pair is not eligible
+   * for Compare yet. Order is preserved by the caller: left stays left.
    */
-  readonly compareRouteFor?: (pair: CuratedPairView) => Route;
+  readonly compareRouteFor: (pair: CuratedPairView) => Route | null;
 }
 
 export function CuratedCompare({ pairs, compareRouteFor }: CuratedCompareProps) {
@@ -83,30 +82,45 @@ export function CuratedCompare({ pairs, compareRouteFor }: CuratedCompareProps) 
                   <p className="sip-choosing__context">{pair.context}</p>
                 )}
 
-                {compareRouteFor ? (
-                  <Link
-                    className="sip-choosing__cta"
-                    href={compareRouteFor(pair)}
-                  >
-                    See the full comparison
-                    <span className="sr-only">
-                      {" "}
-                      of {pair.left.game.canonicalTitle} and{" "}
-                      {pair.right.game.canonicalTitle}
-                    </span>
-                  </Link>
-                ) : (
-                  <p className="sip-choosing__deferred">
-                    Full Compare is not built yet, so there is no comparison
-                    page to open. Both Game Profiles are linked above.
-                  </p>
-                )}
+                <PairAction pair={pair} route={compareRouteFor(pair)} />
               </article>
             </li>
           ))}
         </ul>
       </div>
     </section>
+  );
+}
+
+/**
+ * The accepted CTA, or the truthful reason there is none: Compare's first
+ * release covers each game's main profile, so a pair naming an expansion or
+ * mode has no page to open yet. Both Game Profiles are linked above either way.
+ */
+function PairAction({
+  pair,
+  route,
+}: {
+  pair: CuratedPairView;
+  route: Route | null;
+}) {
+  if (!route) {
+    return (
+      <p className="sip-choosing__deferred">
+        Compare covers each game&rsquo;s main profile for now, and this pairing
+        names another evaluated experience, so there is no comparison page to
+        open yet. Both Game Profiles are linked above.
+      </p>
+    );
+  }
+  return (
+    <Link className="sip-choosing__cta" href={route}>
+      See the full comparison
+      <span className="sr-only">
+        {" "}
+        of {pair.left.game.canonicalTitle} and {pair.right.game.canonicalTitle}
+      </span>
+    </Link>
   );
 }
 

@@ -13,10 +13,10 @@ import { buildProfileView } from "@/lib/profile/build";
 /**
  * "CHOOSING BETWEEN…", and the line it must not cross.
  *
- * The module is a teaser for a journey that does not exist yet, which makes it
- * the easiest place on the homepage to publish something untrue: a link to a
- * route Slice 4 has not built, a winner implied by ordering, or a pairing
- * nobody approved. All three are asserted against here.
+ * The module is a teaser for full Compare, which makes it the easiest place
+ * on the homepage to publish something untrue: a link to a comparison Compare
+ * would refuse (a sibling scope, in the first release), a winner implied by
+ * ordering, or a pairing nobody approved. All three are asserted against here.
  *
  * The shipped configuration is empty (content/curated-compare.ts), so every
  * fixture below is local and says so.
@@ -31,8 +31,17 @@ const PAIR: CuratedPairConfig = {
   tension: "Fixture tension sentence. A real entry names one decision.",
 };
 
-const render = (props: Parameters<typeof CuratedCompare>[0]) =>
-  renderToStaticMarkup(createElement(CuratedCompare, props));
+/** The order-preserving pair address, as the homepage supplies it. */
+const routeFor = (pair: { left: { game: { slug: string } }; right: { game: { slug: string } } }) =>
+  `/compare?games=${pair.left.game.slug},${pair.right.game.slug}` as Route;
+
+const render = (
+  props: Omit<Parameters<typeof CuratedCompare>[0], "compareRouteFor"> &
+    Partial<Pick<Parameters<typeof CuratedCompare>[0], "compareRouteFor">>,
+) =>
+  renderToStaticMarkup(
+    createElement(CuratedCompare, { compareRouteFor: routeFor, ...props }),
+  );
 
 describe("resolving configured pairs", () => {
   it("keeps left on the left", () => {
@@ -106,22 +115,19 @@ describe("the module's presentation contract", () => {
     expect(html).toContain(`href="/games/${returnal.game.slug}"`);
   });
 
-  it("publishes no route to Compare while Compare does not exist", () => {
-    const html = render({ pairs });
-    // The two failures available here, both refused: a link to a route Slice 4
-    // has not built, and the accepted CTA label printed as inert text, which
-    // implies a destination the product does not have.
+  it("prints no route for a pair Compare cannot open yet, and says why", () => {
+    // The first Compare release covers main profiles only (ADR 0033, 2 Sept
+    // 2026 amendment). A pair naming a sibling scope gets no CTA — not a link
+    // to a page that would refuse it, and not the accepted label as inert
+    // text — and the module states the reason.
+    const html = render({ pairs, compareRouteFor: () => null });
     expect(html).not.toContain("/compare");
     expect(html).not.toContain("See the full comparison");
-    expect(html).toContain("Full Compare is not built yet");
+    expect(html).toContain("main profile for now");
   });
 
   it("shows the accepted CTA once a route is supplied", () => {
-    const html = render({
-      pairs,
-      compareRouteFor: (pair) =>
-        `/compare?games=${pair.left.game.slug},${pair.right.game.slug}` as Route,
-    });
+    const html = render({ pairs });
     // The accepted label, exactly. The prototype's "artwork-free" wording is
     // obsolete (handoff §2.2) and must never reappear.
     expect(html).toContain("See the full comparison");
@@ -129,7 +135,7 @@ describe("the module's presentation contract", () => {
     expect(html).toContain(
       `href="/compare?games=${alanWake2.game.slug},${returnal.game.slug}"`,
     );
-    expect(html).not.toContain("Full Compare is not built yet");
+    expect(html).not.toContain("main profile for now");
   });
 
   it("states no winner, no aggregate and no match", () => {

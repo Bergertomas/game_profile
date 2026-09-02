@@ -31,6 +31,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 1,
     },
     {
+      // The Compare launcher: standalone guidance and the eligible list, so it
+      // is indexable (ADR 0033). Pair addresses are noindex and are never
+      // listed; this is the one Compare entry there will ever be.
+      url: absoluteUrl("/compare"),
+      lastModified: catalogueChangedAt,
+      changeFrequency: "monthly",
+      priority: 0.6,
+    },
+    {
       url: absoluteUrl("/methodology"),
       // Rendered from the typed rubric, so it changes when the rubric is relocked.
       lastModified: RUBRIC_V1.lockedAt,

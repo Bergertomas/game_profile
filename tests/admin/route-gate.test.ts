@@ -45,11 +45,19 @@ describe("Admin response headers", () => {
    * The public site is prerendered and served from deployed assets. A header
    * rule matching `/games/*` would be harmless, but a rule matching everything
    * is how a "just add noindex" edit reaches the public catalogue.
+   *
+   * One public rule exists on purpose: a Compare PAIR (`/compare` with the
+   * `games` query) is `noindex, follow` by ADR 0033. It is conditioned on that
+   * query, so the launcher itself is untouched, and it sets no cache policy.
    */
-  it("do not reach any public route", async () => {
+  it("do not reach any public route, beyond the query-conditioned Compare pair rule", async () => {
     const rules = await nextConfig.headers!();
     for (const rule of rules) {
-      expect(rule.source.startsWith("/admin")).toBe(true);
+      if (rule.source.startsWith("/admin")) continue;
+      expect(rule.source).toBe("/compare");
+      expect(rule.has).toEqual([{ type: "query", key: "games", value: ".+" }]);
+      expect(rule.headers.map((header) => header.key)).toEqual(["x-robots-tag"]);
+      expect(rule.headers[0]!.value).toBe("noindex, follow");
     }
   });
 });

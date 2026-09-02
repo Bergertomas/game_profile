@@ -55,6 +55,27 @@ const nextConfig: NextConfig = {
    */
   async headers() {
     return [
+      /**
+       * A Compare PAIR is `noindex, follow` (ADR 0033). The launcher at
+       * `/compare` is one prerendered document and every pair address serves
+       * it, so the distinction cannot live in the HTML; it lives in the
+       * response header, attached to any request for the launcher that carries
+       * the `games` parameter. The client restores the pair and repeats the
+       * rule in the document's robots meta (components/compare/CompareApp.tsx).
+       *
+       * The `value` is load-bearing. Next treats a `has` query condition with
+       * no value as "the parameter is present"; the OpenNext router tests an
+       * EMPTY regex against the parameter's value, and an empty regex matches
+       * the empty string a missing parameter reads as — so without a value
+       * the deployed Worker marked the launcher itself noindex, which
+       * `npm run cf:verify` caught. `.+` requires a non-empty parameter in
+       * both runtimes.
+       */
+      {
+        source: "/compare",
+        has: [{ type: "query", key: "games", value: ".+" }],
+        headers: [{ key: "x-robots-tag", value: "noindex, follow" }],
+      },
       {
         source: "/admin/:path*",
         headers: [
