@@ -408,8 +408,9 @@ test.describe("the composition in a browser", () => {
       expect(index, `${pattern} in ${JSON.stringify(sequence)}`).toBeGreaterThanOrEqual(0);
       return index;
     };
-    expect(indexOf(/Read the Game Profile/)).toBeLessThan(indexOf(/Details/));
-    expect(indexOf(/Details/)).toBeLessThan(indexOf(/Replace Alan Wake 2 on the left/));
+    // `innerText` reports the painted text, which the control sets in capitals.
+    expect(indexOf(/Read the Game Profile/)).toBeLessThan(indexOf(/Details/i));
+    expect(indexOf(/Details/i)).toBeLessThan(indexOf(/Replace Alan Wake 2 on the left/));
     expect(indexOf(/Replace Alan Wake 2 on the left/)).toBeLessThan(indexOf(/Replace Returnal on the right/));
     expect(indexOf(/Replace Returnal on the right/)).toBeLessThan(indexOf(/Copy link/));
   });

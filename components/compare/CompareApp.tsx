@@ -59,12 +59,13 @@ export function CompareApp({
   // launcher restores what each tag said.
   useEffect(() => {
     const pair = left && right;
-    document.title = pair
+    const title = pair
       ? `${left.title} and ${right.title}, compared | ${SITE_NAME}`
       : `Compare two Game Profiles | ${SITE_NAME}`;
 
     const selected = Boolean(selection.tokens.left || selection.tokens.right);
     const apply = () => {
+      if (document.title !== title) document.title = title;
       for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="robots"]')) {
         if (selected) {
           if (!meta.dataset.launcher) meta.dataset.launcher = meta.content;
