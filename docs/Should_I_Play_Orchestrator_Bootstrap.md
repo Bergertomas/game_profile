@@ -70,6 +70,8 @@ Read these active records before any Phase 3A work:
 - `docs/Game_Profile_Phase_3A_Cohort_Lock_2026-09-02.md`
 - `docs/Game_Profile_Phase_3A_Preregistration_v1.0_DRAFT.md`
 - `docs/Game_Profile_Phase_3A_Item_3_Approval_and_Item_4_Handoff_2026-09-02.md`
+- `docs/audits/Game_Profile_Phase_3A_Item_4_Engineering_Readiness_Audit_2026-09-02.md`
+- `docs/work-orders/Phase_3A_Item_4_Calibration_Harness_Engineering_Work_Order_2026-09-02.md`
 - `docs/scoring/Phase_3A_Execution_System_Instructions_v1.0.md`
 - `docs/scoring/Phase_3A_Research_Prompt_v1.0.md`
 - `docs/scoring/Phase_3A_Scoring_Prompt_v1.0.md`
