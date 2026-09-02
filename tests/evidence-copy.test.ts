@@ -41,6 +41,23 @@ const populatedProfile = buildProfileView({
   evaluation: { ...alanWake2.evaluation, evidenceLedger: "populated" },
 });
 
+const profileWithInternalDirectPlay = buildProfileView({
+  ...alanWake2,
+  evaluation: {
+    ...alanWake2.evaluation,
+    sources: [
+      ...alanWake2.evaluation.sources,
+      {
+        id: "internal_direct_play_record",
+        title: "Internal full-game direct-play record",
+        tier: "A",
+        category: "direct_play",
+        supports: ["story"],
+      },
+    ],
+  },
+});
+
 describe("linkedEvidenceSummary", () => {
   it("never states a number while the ledger is pending", () => {
     for (const count of [0, 1, 2, 7]) {
@@ -117,6 +134,14 @@ describe("The profile page on a pending ledger", () => {
   it("holds on the score-state fixture too", () => {
     const html = render(buildProfileView(scoreStateFixture("D3")));
     expect(html).not.toMatch(NUMERIC_SOURCE_CLAIM);
+  });
+
+  it("keeps direct-play coverage internal rather than presenting it publicly", () => {
+    expect(profileWithInternalDirectPlay.evidence.hasDirectPlay).toBe(true);
+
+    const html = render(profileWithInternalDirectPlay);
+    expect(html).not.toContain("Direct play");
+    expect(html).not.toContain("Internal full-game direct-play record");
   });
 });
 

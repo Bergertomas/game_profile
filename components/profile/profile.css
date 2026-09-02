@@ -1201,13 +1201,6 @@ a.gp-scopes__item:hover {
   color: var(--color-text-quiet);
 }
 
-.gp-evidence__direct {
-  font-weight: var(--font-weight-regular);
-  font-size: var(--text-label);
-  text-transform: none;
-  color: var(--color-text-secondary);
-}
-
 .gp-evidence__counts {
   display: flex;
   flex-wrap: wrap;
