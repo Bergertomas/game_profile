@@ -6,6 +6,7 @@ import { ProfileRail } from "@/components/home/ProfileRail";
 import { ProfileRadar } from "@/components/profile/radar";
 import { full } from "@/components/profile/radar-layout";
 import { CURATED_COMPARISONS } from "@/content/curated-compare";
+import { comparePath } from "@/lib/compare/url";
 import { HOME_SHELVES } from "@/content/home-shelves";
 import { resolveCuratedPairs } from "@/lib/home/curated-compare";
 import { resolveShelves } from "@/lib/home/shelves";
@@ -88,10 +89,18 @@ export default async function HomePage() {
 
       <EditorialShelves shelves={shelves} />
 
-      {/* Compare is accepted and unbuilt, so no route is passed and the module
-          says so rather than publishing a link to a page that does not exist.
-          Slice 4 supplies `compareRouteFor` and the accepted CTA appears. */}
-      <CuratedCompare pairs={pairs} />
+      {/* Full Compare exists and compares each game's main profile (ADR 0033
+          amendment, 2 Sept 2026): an eligible pair gets its order-preserving
+          address, a pair naming a sibling scope gets none and the module says
+          so. Neither invents a pair; the configuration is still empty. */}
+      <CuratedCompare
+        pairs={pairs}
+        compareRouteFor={(pair) =>
+          pair.left.scope.isPrimary && pair.right.scope.isPrimary
+            ? comparePath(pair.left.game.slug, pair.right.game.slug)
+            : null
+        }
+      />
 
       {/* ── Now that you have seen the games: what the mark on them means. ── */}
       {example && <ProfileExplainer example={example} />}

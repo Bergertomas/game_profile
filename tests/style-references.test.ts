@@ -37,6 +37,7 @@ const SHEETS = [
   "components/home/home-opening.css",
   "components/home/home-sections.css",
   "components/profile/profile.css",
+  "components/compare/compare.css",
 ] as const;
 
 /** `--name:` declarations in a stylesheet. */
@@ -78,6 +79,7 @@ const OWNING_COMPONENTS = [
   "components/home",
   "components/search",
   "components/profile",
+  "components/compare",
 ] as const;
 
 function runtimeInjected(): Set<string> {
@@ -102,6 +104,9 @@ describe("runtime-injected custom properties", () => {
     // the assertions below would then flag legitimate accent variables.
     expect(injected.size).toBeGreaterThan(0);
     expect([...injected].sort()).toEqual([
+      "--cp-ground",
+      "--cp-left",
+      "--cp-right",
       "--sip-accent-base",
       "--sip-accent-lift",
       "--sip-radar-ground",

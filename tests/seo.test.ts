@@ -118,7 +118,7 @@ describe("robots.txt", () => {
 });
 
 describe("sitemap.xml", () => {
-  it("lists the home page, the methodology and every published game", async () => {
+  it("lists the home page, the methodology, the Compare launcher and every published game", async () => {
     const sitemap = (await import("@/app/sitemap")).default;
     const entries = await sitemap();
     const urls = entries.map((entry) => entry.url);
@@ -126,8 +126,11 @@ describe("sitemap.xml", () => {
 
     expect(urls).toContain(`${SITE_URL}/`);
     expect(urls).toContain(`${SITE_URL}/methodology`);
+    // The launcher only: a Compare PAIR is noindex and is never listed (ADR 0033).
+    expect(urls).toContain(`${SITE_URL}/compare`);
+    expect(urls.some((url) => url.includes("games="))).toBe(false);
     for (const slug of slugs) expect(urls).toContain(gameUrl(slug));
-    expect(urls).toHaveLength(slugs.length + 2);
+    expect(urls).toHaveLength(slugs.length + 3);
   });
 
   it("uses the canonical production origin for every entry", async () => {

@@ -186,3 +186,42 @@ test.describe("search across two scopes", () => {
     await expect(page).toHaveURL(new RegExp(`${GAME}$`));
   });
 });
+
+test.describe("Compare across two scopes", () => {
+  // The first Compare release compares published PRIMARY profiles only (ADR
+  // 0033, 2 September 2026 amendment): the accepted address names a game by
+  // slug, and a sibling scope has no place in it. The sibling is still KNOWN
+  // to the selector — it is offered as a row that says why it cannot be chosen
+  // — and the address grammar that would name it is refused in words.
+
+  test("the selector offers the sibling scope as ineligible, not as a choice", async ({ page }) => {
+    await page.goto("/compare");
+    await page.getByRole("button", { name: "Choose the first game" }).click();
+    const field = page.getByRole("dialog").getByRole("combobox");
+    await field.fill("Tower of Sisyphus");
+    await page.waitForTimeout(60);
+    const row = page.getByRole("dialog").getByRole("option", { name: /Tower of Sisyphus/ });
+    await expect(row).toHaveCount(1);
+    await expect(row).toHaveAttribute("aria-disabled", "true");
+    await expect(row).toContainText("Not yet eligible in Compare");
+    await field.press("ArrowDown");
+    await field.press("Enter");
+    // Nothing happened: no address, no selection.
+    await expect(page).toHaveURL(/\/compare$/);
+    await expect(page.getByRole("dialog")).toBeVisible();
+  });
+
+  test("the sibling's address grammar is refused and the other side is kept", async ({ page }) => {
+    await page.goto("/compare?games=alan-wake-2,returnal/tower-of-sisyphus");
+    await expect(page.locator(".cp-notice")).toContainText("Tower of Sisyphus");
+    await expect(page.locator(".cp-notice")).toContainText("main profile for now");
+    await expect(page.getByText("Alan Wake 2 is on the left.")).toBeVisible();
+    await expect(page.locator(".cp-instrument")).toHaveCount(0);
+  });
+
+  test("the primary profile of the same game compares normally", async ({ page }) => {
+    await page.goto("/compare?games=alan-wake-2,returnal");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Alan Wake 2 and Returnal");
+    await expect(page.locator(".cp-row")).toHaveCount(8);
+  });
+});

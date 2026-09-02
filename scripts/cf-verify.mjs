@@ -195,6 +195,38 @@ try {
   // they are reachable, which is exactly when it would be easy to list them.
   check("sitemap omits dev surfaces", !sitemap.includes("/dev/") && !sitemap.includes("/design-lab"));
 
+  // ── Compare: the launcher is a page; a pair is the same page, noindex ───
+  //
+  // The pair's `noindex, follow` lives in a query-conditioned response header
+  // (next.config.ts), because every pair address serves the one prerendered
+  // launcher. Whether the deployed runtime honours a `has` query condition is
+  // exactly the kind of question only workerd can answer.
+  const launcher = await get("/compare");
+  check("Compare launcher is served", launcher.status === 200, `got ${launcher.status}`);
+  check(
+    "Compare launcher is canonical to production",
+    launcher.body.includes('href="https://shouldiplay.gg/compare"'),
+  );
+  check(
+    "Compare launcher carries its standalone guidance",
+    launcher.body.includes("How a relation is decided"),
+  );
+  check(
+    "Compare launcher has no pair noindex header",
+    !(launcher.headers?.get("x-robots-tag") ?? "").includes("noindex"),
+    launcher.headers?.get("x-robots-tag") ?? "absent",
+  );
+  const pairResponse = await get("/compare?games=alan-wake-2,returnal");
+  check("Compare pair is served", pairResponse.status === 200, `got ${pairResponse.status}`);
+  check(
+    "Compare pair answers X-Robots-Tag noindex, follow",
+    (pairResponse.headers?.get("x-robots-tag") ?? "") === "noindex, follow",
+    pairResponse.headers?.get("x-robots-tag") ?? "absent",
+  );
+  check("Compare pair publishes no rating", !/aggregateRating|ratingValue|reviewRating/.test(pairResponse.body));
+  check("sitemap lists the Compare launcher", sitemap.includes("<loc>https://shouldiplay.gg/compare</loc>"));
+  check("sitemap lists no Compare pair", !sitemap.includes("games="));
+
   // ── The artifact's inventory of itself ──────────────────────────────────
   //
   // Phase 2D-2 derives Live from this document and nothing else, so a build
@@ -315,6 +347,7 @@ try {
     "/dev/radar-states",
     "/dev/home-states",
     "/dev/profile-states",
+    "/dev/compare-states",
     "/design-lab",
     "/design-lab/d3/alan-wake-2",
   ];

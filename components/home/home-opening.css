@@ -125,6 +125,23 @@
   padding-bottom: 0.2rem;
 }
 
+/* Compare is a real link now. It inherits the path's colour and takes the
+   same underline every other journey link on the site takes on hover. */
+.sip-open__path-link {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-decoration-thickness: 0.125rem;
+  text-underline-offset: 0.35rem;
+  transition: color var(--duration-fast) linear,
+    text-decoration-color var(--duration-fast) linear;
+}
+
+.sip-open__path-link:hover {
+  color: var(--color-text-primary);
+  text-decoration-color: var(--color-brand-coral);
+}
+
 .sip-open__paths-note {
   margin: 0.6rem 0 0;
   font-size: var(--text-small);

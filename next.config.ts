@@ -55,6 +55,19 @@ const nextConfig: NextConfig = {
    */
   async headers() {
     return [
+      /**
+       * A Compare PAIR is `noindex, follow` (ADR 0033). The launcher at
+       * `/compare` is one prerendered document and every pair address serves
+       * it, so the distinction cannot live in the HTML; it lives in the
+       * response header, attached to any request for the launcher that carries
+       * the `games` parameter. The client restores the pair and repeats the
+       * rule in the document's robots meta (components/compare/CompareApp.tsx).
+       */
+      {
+        source: "/compare",
+        has: [{ type: "query", key: "games" }],
+        headers: [{ key: "x-robots-tag", value: "noindex, follow" }],
+      },
       {
         source: "/admin/:path*",
         headers: [

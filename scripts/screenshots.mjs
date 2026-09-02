@@ -27,6 +27,9 @@ const PAGES = [
   { name: "radar-states", path: "/dev/radar-states" },
   { name: "home-states", path: "/dev/home-states" },
   { name: "profile-states", path: "/dev/profile-states" },
+  { name: "compare-launcher", path: "/compare" },
+  { name: "compare-pair", path: "/compare?games=alan-wake-2,returnal" },
+  { name: "compare-states", path: "/dev/compare-states" },
 ];
 
 /**
@@ -49,6 +52,26 @@ const CONFORMANCE = [
   { name: "profile-320", path: "/games/alan-wake-2", width: 320, height: 568 },
   { name: "profile-200pc-1280", path: "/games/alan-wake-2", width: 1280, height: 800, rootFontPx: 32 },
   { name: "profile-200pc-390", path: "/games/alan-wake-2", width: 390, height: 844, rootFontPx: 32 },
+  // Compare. Art-led on a preview build; the artless production state and
+  // the mixed states are captured from the harness below.
+  { name: "compare-390x667", path: "/compare?games=alan-wake-2,returnal", width: 390, height: 667 },
+  { name: "compare-320", path: "/compare?games=alan-wake-2,returnal", width: 320, height: 568 },
+  { name: "compare-200pc-1280", path: "/compare?games=alan-wake-2,returnal", width: 1280, height: 800, rootFontPx: 32 },
+  { name: "compare-200pc-390", path: "/compare?games=alan-wake-2,returnal", width: 390, height: 844, rootFontPx: 32 },
+];
+
+/**
+ * Compare states from the Slice 4 harness, captured as the component alone:
+ * the artless production state at both references, the two mixed-art states,
+ * and the relation fixture with a Range, Not scored and every relation word.
+ */
+const COMPARE_STATES = [
+  { name: "compare-artless-1440", anchor: "artless", width: 1440, height: 900 },
+  { name: "compare-artless-390", anchor: "artless", width: 390, height: 844 },
+  { name: "compare-left-art-1440", anchor: "left-art", width: 1440, height: 900 },
+  { name: "compare-right-art-390", anchor: "right-art", width: 390, height: 844 },
+  { name: "compare-relations-1440", anchor: "relations", width: 1440, height: 900 },
+  { name: "compare-self-pair-390", anchor: "self-pair", width: 390, height: 844 },
 ];
 
 /**
@@ -133,6 +156,19 @@ for (const shot of ARTLESS) {
   await page
     .locator('.gp[data-art="less"]')
     .first()
+    .screenshot({ path: `${OUT}/${shot.name}.png` });
+  await context.close();
+}
+
+for (const shot of COMPARE_STATES) {
+  const context = await browser.newContext({
+    viewport: { width: shot.width, height: shot.height },
+  });
+  const page = await context.newPage();
+  await page.goto(`${BASE}/dev/compare-states`, { waitUntil: "networkidle" });
+  await page.evaluate(() => document.fonts.ready);
+  await page
+    .locator(`#${shot.anchor} + .cp`)
     .screenshot({ path: `${OUT}/${shot.name}.png` });
   await context.close();
 }

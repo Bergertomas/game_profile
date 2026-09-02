@@ -46,9 +46,17 @@ art-led/artless parity, the labelled radar with eight permanent exact rows,
 Range/Unknown/Provisional/confidence as words, and the restored platform
 warning, platform-note and override projection. Practical time and store
 destinations render only from approved records, and none exists yet, so
-neither appears. **None of the three slices is yet deliberately deployed to
-production**: the deployed site still serves the earlier three-profile
-experience until `main` is deliberately deployed.
+neither appears. Engineering Slice 4 implements the accepted C1–C4 full
+Compare system in the current codebase: `/compare` as an indexable launcher
+with standalone guidance, the order-preserving `?games=<left>,<right>` pair
+state that is `noindex, follow` and never in the sitemap, two equal identity
+territories around the paired radar in art-led, mixed and complete artless
+states, the deterministic interval-aware relationship field, the canonical
+Shared/left-only/right-only tag map, eight paired exact rows, and Replace and
+Copy-link controls. Its first release compares published primary profiles only
+(ADR 0033 amendment, 2 September 2026). **None of the four slices is yet
+deliberately deployed to production**: the deployed site still serves the
+earlier three-profile experience until `main` is deliberately deployed.
 
 **Remote admin and production Live proof are exercised.** The current state is:
 
@@ -114,10 +122,14 @@ app/
     games/[slug]/[scope]/      a sibling profile scope; the primary key 308s
     games/[slug]/opengraph-image  prerendered share card, silhouette and all
     methodology/page.tsx       renders itself from the typed rubric
+    compare/page.tsx           the Compare launcher, prerendered once; a pair is a
+                               client-restored state of it, noindex by response header
     dev/radar-states/          unknown/range harness, non-production only
     dev/home-states/           rail, shelf and curated-pair harness, non-production only
     dev/profile-states/        art-led/artless, range/unknown, provisional, override,
                                practical-time and long-title profile states, non-production only
+    dev/compare-states/        empty/left-only/pair/self-pair/invalid, every relation and tag
+                               state, both/one/no/failed artwork, non-production only
   admin/                       the editorial tool. Authenticated, noindex, never prerendered
     layout.tsx                 the shell, and the guard every page passes through
     actions.ts                 every editorial mutation, one transaction each
@@ -132,7 +144,16 @@ components/
   home/PosterRail.tsx          the rail's controls and scroll position; no autoplay, ever
   home/ProfilePoster.tsx       one poster: art-led or artless, one link, one disclosure
   home/EditorialShelf.tsx      the authored shelves, or nothing at all
-  home/CuratedCompare.tsx      two identities, one decision, and a deferred CTA
+  home/CuratedCompare.tsx      two identities, one decision, and the route into Compare
+  compare/CompareApp.tsx       the client shell: the address is the state
+  compare/CompareView.tsx      every Compare state from a resolved selection, compare.css beside it
+  compare/CompareStage.tsx     two equal territories, the paired radar at the seam, two identities
+  compare/PairedRadar.tsx      two shapes on one set of axes: solid/square and dashed/round
+  compare/RelationField.tsx    clearest difference, exact alignment, read with care
+  compare/TagMap.tsx           Shared, left-only, right-only — by key, no count
+  compare/PairedInstrument.tsx eight paired exact rows with the relation in words
+  compare/SelectorDialog.tsx   the Search grammar choosing a side; ineligible rows say why
+  compare/CompareControls.tsx  Replace left, Replace right, Copy link with its fallback
   profile/GameProfile.tsx      the canonical A3–A6 profile, server-rendered, profile.css beside it
   profile/IdentityStage.tsx    identity stage (art-led or artless), platforms, scope and evidence state
   profile/DecisionBand.tsx     the answer, the pull and the tax, fit guidance, practical commitment
@@ -148,6 +169,12 @@ lib/
   home/curated-compare.ts      the curated-pair contract, without full Compare
   profile/platform.ts          warning, platform notes and overrides, projected without moving a total
   profile/practical.ts         practical time from an approved record, Unknown, or nothing
+  compare/relationship.ts      Equal / Close / Clear difference / Indeterminate — never a midpoint
+  compare/pair.ts              eight paired rows, the deterministic opening facts, the caveats
+  compare/tags.ts              the tag map by canonical key, both intensities where they differ
+  compare/index.ts             the build-time Compare index: eligible primary profiles only
+  compare/selection.ts         what `?games=` resolves to, every failure in words
+  compare/url.ts               `/compare?games=<left>,<right>`, order preserved
   search/registry.ts           four-state published/unprofiled coverage registry
   discovery/                   deterministic intent, Unknown, threshold and time rules
   metadata/provenance.ts       primary/official/manual factual precedence
@@ -192,7 +219,7 @@ These are product semantics, not preferences. Most are covered by a test.
 | No aggregate score is computed, stored or displayed | no summing code exists; asserted in `tests/e2e` and `tests/radar-geometry.test.ts` |
 | No aggregate score is published in JSON-LD or on a share card either | no `Review`/`AggregateRating` schema, asserted in `tests/seo.test.ts` |
 | A preview deployment can never be indexed or become canonical | `lib/site.ts` fails closed; asserted in `tests/seo.test.ts` and against the real Worker by `npm run cf:verify` |
-| The sitemap lists exactly the published profiles, dated by publication | `app/sitemap.ts`, `tests/seo.test.ts` |
+| The sitemap lists exactly the published profiles, the methodology and the Compare launcher, dated by publication | `app/sitemap.ts`, `tests/seo.test.ts` |
 | Sources are evidence, never votes averaged into a score | no source value reaches a number; wording is "supported by", never "calculated from" |
 | Dimension totals are derived from subcriteria, never entered | `lib/scoring/derive.ts`, `dimension_scores` view |
 | Scores are 0–2 in 0.5 increments | schema check constraints, `tests/scoring.test.ts` |
@@ -246,7 +273,12 @@ These are product semantics, not preferences. Most are covered by a test.
 | An objective shelf that would hold the whole catalogue has selected nothing, and disappears | `lib/home/shelves.ts`, P0.3's no-padding rule |
 | A collection naming a profile this build does not publish fails the build | `lib/home/shelves.ts`, `lib/home/curated-compare.ts` |
 | A time-bounded shelf expires into its evergreen fallback, never into stale copy | publication window + `fallbackId`, `tests/home-shelves.test.ts` |
-| The curated pair publishes no route into Compare until Compare exists | `components/home/CuratedCompare.tsx`, `tests/curated-compare.test.ts` |
+| The curated pair links only a Compare pair that Compare can open — two primary profiles | `components/home/CuratedCompare.tsx`, `tests/curated-compare.test.ts` |
+| A Compare relation is Equal at 0, Close at 0.5, Clear difference at 1.0 or more, and Indeterminate for any Range or Not scored — never a midpoint, never moved by confidence | `lib/compare/relationship.ts`, `tests/compare-relationship.test.ts` |
+| Compare tags are compared by canonical key, never by label; a shared tag with two intensities writes both; nothing is counted | `lib/compare/tags.ts`, `tests/compare-tags.test.ts` |
+| Compare is exactly two published primary profiles; a self-pair, an unknown, a recognised-only title or a sibling scope is refused in words and the valid side stays where it was written | `lib/compare/selection.ts`, `tests/compare-selection.test.ts`, `tests/e2e/compare.spec.ts` |
+| A Compare pair is `noindex, follow`, never in the sitemap, and carries no rating or review schema; the launcher is indexable with its guidance | `next.config.ts`, `app/sitemap.ts`, `tests/compare-metadata.test.ts`, `npm run cf:verify` |
+| Compare publishes no winner, aggregate, match percentage, ranking or hidden total, in UI, metadata or code | `tests/compare-composition.test.ts` scans the rendered document; no summing code exists |
 | A missing, slow or failed image resolves to the authored artless composition | the sleeve renders under the artwork, never instead of it |
 
 ## Where the data comes from
@@ -765,15 +797,16 @@ not post them anywhere durable. See
 
 ## Not built, deliberately
 
-C1–C4 Compare, What should I play? UI, `/about`, the 12–15-profile validation
-corpus and the approximately-100-profile quiet-release catalog are not built —
-so the homepage's curated-Compare module publishes no route into Compare, and
-the profile offers no "Compare with" and no "Where to play": no editor-selected
-pair and no verified storefront destination exist, and a control that goes
-nowhere is worse than an honest absence. Static Search and the accepted
-homepage system are merged on `main` (Slices 1 and 2); the accepted profile
-system is implemented in the current codebase (Slice 3); none of it is yet
-deliberately deployed to production. No profile carries an
+What should I play? UI, `/about`, sibling-scope Compare, the 12–15-profile
+validation corpus and the approximately-100-profile quiet-release catalog are
+not built. The profile offers no "Compare with" and no "Where to play": no
+editor-selected pair and no verified storefront destination exist, and a
+control that goes nowhere is worse than an honest absence. The homepage's
+curated-Compare module can now link an eligible pair into Compare, and its
+configuration is still empty. Static Search, the accepted homepage system and
+the accepted profile system are merged on `main` (Slices 1 to 3); the accepted
+full Compare system is implemented in the current codebase (Slice 4); none of
+it is yet deliberately deployed to production. No profile carries an
 approved practical-time record, so no profile shows total commitment or a
 useful-session window; the component renders them from a record or not at all. The authored evergreen/living
 shelves and the "Choosing between…" entries have their grammar, configuration

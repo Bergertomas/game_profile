@@ -3,6 +3,7 @@ import { CuratedCompare } from "@/components/home/CuratedCompare";
 import { EditorialShelves } from "@/components/home/EditorialShelf";
 import { ProfileRail } from "@/components/home/ProfileRail";
 import { alanWake2, redfall, returnal } from "@/content";
+import { comparePath } from "@/lib/compare/url";
 import { resolveCuratedPairs } from "@/lib/home/curated-compare";
 import { resolveShelves, type ShelfDefinition } from "@/lib/home/shelves";
 import { buildProfileView } from "@/lib/profile/build";
@@ -131,10 +132,13 @@ export default function HomeStatesPage() {
       />
 
       <Heading>
-        7 · Curated comparison with its CTA deferred — full Compare is Slice 4,
-        so the module says so instead of publishing a dead route
+        7 · Curated comparison with the accepted CTA into full Compare — the
+        pair address preserves left and right
       </Heading>
       <CuratedCompare
+        compareRouteFor={(pair) =>
+          comparePath(pair.left.game.slug, pair.right.game.slug)
+        }
         pairs={resolveCuratedPairs(
           [
             {

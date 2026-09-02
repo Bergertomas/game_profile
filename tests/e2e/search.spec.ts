@@ -39,16 +39,19 @@ test.describe("the opening", () => {
     );
     await expect(field(page)).toBeVisible();
 
-    // The three journeys are named exactly, and the two that are not built are
-    // not controls: no link and no button carries either label.
+    // The three journeys are named exactly. Compare exists (Slice 4) and is a
+    // real link; "What should I play?" is not built and is not a control.
     const opening = page.locator(".sip-open");
     await expect(opening).toContainText("Compare");
     await expect(opening).toContainText("What should I play?");
     await expect(
       opening.getByRole("link", { name: /^Compare$/ }),
-    ).toHaveCount(0);
+    ).toHaveAttribute("href", "/compare");
     await expect(
       opening.getByRole("button", { name: /What should I play/ }),
+    ).toHaveCount(0);
+    await expect(
+      opening.getByRole("link", { name: /What should I play/ }),
     ).toHaveCount(0);
   });
 
