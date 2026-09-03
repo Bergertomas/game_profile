@@ -157,12 +157,12 @@ components/
   compare/SelectorDialog.tsx   the Search grammar choosing a side; ineligible rows say why
   compare/CompareControls.tsx  Replace left, Replace right, Copy link with its fallback
   profile/GameProfile.tsx      the canonical A3–A6 profile, server-rendered, profile.css beside it
-  profile/IdentityStage.tsx    identity stage (art-led or artless), platforms, scope and evidence state
-  profile/DecisionBand.tsx     the answer, the pull and the tax, fit guidance, practical commitment
+  profile/IdentityStage.tsx    identity stage (art-led or artless): evidence kicker, title, platforms, scope, the answer
+  profile/DecisionBand.tsx     the pull and the tax, fit guidance, practical commitment
   profile/ProfileInstrument.tsx the one client leaf: labelled radar, eight exact rows, disclosures
   profile/instrument.tsx       one exact row: value, confidence, gloss, platform truth, rationale
   profile/radar.tsx            the only radar in the product, at three levels
-  profile/ProfileDetail.tsx    platform notes and overrides, experience traits
+  profile/ReadingBand.tsx      the warm reading ground: traits, platform warning and notes, scope detail
   profile/TrustBand.tsx        how this profile was made: scope record, evidence, credits
   profile/ScopeSwitcher.tsx    sibling navigation, only where a game has siblings
   admin/                       editorial form plumbing and panels
@@ -227,7 +227,7 @@ These are product semantics, not preferences. Most are covered by a test.
 | Scores are 0–2 in 0.5 increments | schema check constraints, `tests/scoring.test.ts` |
 | `unknown` is never zero, on screen or in the database | `NULL` in Postgres, `null` vertex in geometry, [ADR 0004](docs/decisions/0004-unknown-and-range-scores.md) |
 | Exact scores are readable without hover or interaction | `components/profile/instrument.tsx`, asserted in e2e |
-| The profile answers before it explains: identity, scope, answer, pull/tax, fit, instrument, detail, trust — in DOM order at every width | `components/profile/GameProfile.tsx`, `tests/profile-composition.test.ts`, `tests/e2e/profile-conformance.spec.ts` |
+| The profile answers before it explains: identity and scope with the answer, pull/tax, fit, instrument, the warm reading ground, trust — in DOM order at every width | `components/profile/GameProfile.tsx`, `tests/profile-composition.test.ts`, `tests/e2e/profile-conformance.spec.ts` |
 | Art-led and artless profiles carry identical content in identical order; no artwork never reserves a hole | `components/profile/IdentityStage.tsx`, asserted in both suites |
 | Platform warning, subcriterion platform notes and overrides reach the page without moving a total | `lib/profile/platform.ts`, `tests/platform-projection.test.ts` |
 | Practical time renders only from an approved record — a band, `Unknown`, or nothing; never the design specimen | `lib/profile/practical.ts`, `tests/practical-presentation.test.ts` |

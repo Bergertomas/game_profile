@@ -19,6 +19,7 @@ For the first **material** Should I Play? task in every new repository-native ag
 3. Read `docs/Should_I_Play_Orchestrator_Bootstrap.md`.
 4. Follow the bootstrap's current-phase mandatory read set.
 5. Read the task-specific governing document(s), relevant ADRs, and affected implementation/tests before acting.
+6. For any task that implements or audits an accepted Claude/Fable public surface for visual fidelity, also read `docs/design/Should_I_Play_Canonical_Design_Source.md` and import the canonical Claude Design file it names before editing; stop rather than reconstruct the accepted composition from prose, screenshots or memory.
 
 If current repository authority cannot be read, disclose that limitation and stop before making a material project decision from chat/model memory alone. The bootstrap is a navigation/status aid; repository governing documents remain authoritative.
 
@@ -37,7 +38,8 @@ Before beginning material product, editorial, design, data-model, or implementat
 6. for scoring/calibration work, `docs/Game_Profile_Scoring_Protocol_v1.0_DRAFT.md`
    and its package schema — both remain candidate material until calibration
 7. the ADRs relevant to the work under `docs/decisions/`
-8. the current `README.md`, code, and tests in the area being changed
+8. for visual implementation or conformance work, `docs/design/Should_I_Play_Canonical_Design_Source.md`, the shared design-system handoff, the accessibility/conformance matrix and the deliberate-drift log under `docs/design/`
+9. the current `README.md`, code, and tests in the area being changed
 
 For a narrow correction, reuse already verified governing context and reload
 only the authorities and implementation surfaces affected by the change. For
@@ -57,6 +59,7 @@ Use these authority boundaries:
 - The candidate Scoring Protocol operationalizes evidence-to-number work but is not governing until its calibration gates pass and Tomas approves it; its explicit proposed supersessions remain provisional meanwhile.
 - Calibration reports own their approved calibration outcomes and locked totals.
 - The Brand/SEO foundation, art-direction brief, D3 records, and ADR 0013 own their respective brand, visual, and design-system decisions.
+- The accepted Claude Design artifact located by `docs/design/Should_I_Play_Canonical_Design_Source.md` owns visual composition, hierarchy, geometry and art-direction reference for the accepted A1–A6/C1–C4 screens where the governing records above have not explicitly superseded it; it never owns semantics, data truth, accessibility requirements or artwork rights.
 - ADRs own accepted implementation decisions within the boundaries above.
 - The README, code, migrations, and tests describe implemented behavior and provide evidence; they do not silently amend the governing documents.
 

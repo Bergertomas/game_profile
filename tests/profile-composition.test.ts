@@ -73,23 +73,26 @@ describe("The reading order", () => {
   const text = textOf(html);
 
   it("answers the question before the instrument, in the accepted order", () => {
+    // The governed semantic order (handoff §8.1): identity, scope and state,
+    // the rapid answer, the pull and the tax, fit guidance, practical
+    // commitment, the full instrument, then the reading ground and trust.
     const marks = [
+      "Verified", // evidence state, in the kicker over the title
       "Alan Wake 2", // h1
       "PlayStation 5", // platforms
       "Scope", // scope/build
-      "Verified", // evidence state
       "Should I play this?",
       alanWake2.evaluation.oneLineExperience,
-      "Platform warning", // directly under the answer it qualifies
       "The pull",
       "The tax",
-      "Who this is for",
+      "Who this is for", // fit guidance, before the instrument
       "Great fit if…",
-      "The Game Profile",
+      "The instrument",
       "Story & Character Investment",
       "Pacing & Time Respect",
-      "Platform and build",
-      "Experience traits",
+      "Traits", // the warm reading ground
+      "Platform warning", // beside the scope detail, on the reading ground
+      "Scope detail",
       "How this profile was made",
     ];
     let cursor = -1;
@@ -115,7 +118,7 @@ describe("The reading order", () => {
   it("shows every exact value and confidence without interaction", () => {
     const values = [...html.matchAll(/gp-row__num">([^<]+)</g)].map((m) => m[1]);
     expect(values).toEqual(["9.5", "9.5", "10.0", "10.0", "7.5", "9.0", "8.5", "8.0"]);
-    const confidences = [...html.matchAll(/gp-row__confidence">([^<·]+)/g)].map(
+    const confidences = [...html.matchAll(/gp-row__level">([^<]+)/g)].map(
       (m) => m[1]!.trim(),
     );
     expect(confidences).toEqual([
@@ -267,12 +270,17 @@ describe("Uncertainty states are words", () => {
 });
 
 describe("Provisional is visible near the identity", () => {
-  it("marks Redfall provisional with a caveat before the answer", () => {
+  it("marks Redfall provisional over the title, with a caveat before the pull", () => {
     const text = textOf(render(redfall));
+    // The state is a word in the kicker, before the answer is read.
+    expect(text.indexOf("Provisional")).toBeLessThan(
+      text.indexOf("Should I play this?"),
+    );
+    expect(text).toContain("Provisional · Medium confidence · Evidence cut-off");
+    // And the caveat follows the stage, before the decision is argued.
     const caveat = text.indexOf("Provisional. Released, but the evidence");
     expect(caveat).toBeGreaterThan(-1);
-    expect(caveat).toBeLessThan(text.indexOf("Should I play this?"));
-    expect(text).toContain("Medium confidence · Evidence cut-off");
+    expect(caveat).toBeLessThan(text.indexOf("The pull"));
   });
 
   it("does not caveat a verified profile", () => {
@@ -281,16 +289,20 @@ describe("Provisional is visible near the identity", () => {
 });
 
 describe("Platform truth reaches the decision", () => {
-  it("states the warning beside the platform facts and the note on its row", () => {
+  it("states the warning as the reading ground's aside and the note on its row", () => {
     const html = render(alanWake2);
     const text = textOf(html);
-    expect(text).toContain("Platform warning. PC performance varies sharply");
-    // Execution & Polish carries the technical-stability note.
+    // The accepted placement: the accent-ruled aside beside the scope detail.
+    expect(text).toContain("Platform warning PC performance varies sharply");
+    // Execution & Polish carries the technical-stability note on its row.
     const execution = html.slice(html.indexOf("Execution &amp; Polish"));
     expect(execution).toContain("Varies by platform");
     expect(execution).toContain("Platform note.");
-    expect(text).toContain("Platform and build");
+    // And the itemised record follows the warning.
     expect(text).toContain("Execution & Polish · Technical Stability");
+    expect(text.indexOf("Execution & Polish · Technical Stability")).toBeGreaterThan(
+      text.indexOf("Platform warning PC performance"),
+    );
   });
 
   it("states an override with its platform, value and base, without moving the total", () => {
@@ -357,16 +369,20 @@ describe("Practical commitment from an approved record", () => {
       },
     });
     const text = textOf(html);
-    expect(text).toContain("Total commitment Moderate · Engaged play 12–16 h");
+    expect(text).toContain("Total commitment Moderate Engaged play 12–16 h");
     expect(text).toContain("Useful session Unknown");
     expect(text).toContain("Interruption flexibility Low");
     expect(text).toContain("Time never changes a score");
-    // Before the instrument, after the fit guidance.
+    // The accepted ruled row, in the governed position (handoff §8.1): after
+    // the fit guidance, before the instrument.
+    expect(text.indexOf("Practical commitment")).toBeGreaterThan(
+      text.indexOf("The tax"),
+    );
     expect(text.indexOf("Practical commitment")).toBeGreaterThan(
       text.indexOf("Who this is for"),
     );
     expect(text.indexOf("Practical commitment")).toBeLessThan(
-      text.indexOf("The Game Profile"),
+      text.indexOf("The instrument"),
     );
     // Eight rows, still.
     expect([...html.matchAll(/gp-row__num"/g)]).toHaveLength(8);

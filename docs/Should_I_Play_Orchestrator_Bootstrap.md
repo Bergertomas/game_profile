@@ -50,6 +50,7 @@ Do **not** blindly read every historical document at the start of every task. Hi
 - `docs/Game_Profile_Scoring_Rubric_v1.0.md` — scoring semantics.
 - `docs/Game_Profile_Editorial_Evidence_and_Data_Sourcing_SOP_v0.2.md` — evidence operations and pre-release workflow, except where explicitly superseded.
 - `docs/Game_Profile_Scoring_Protocol_v1.0_DRAFT.md` + package schema + accepted amendments — candidate evidence-to-number contract while Phase 3A is active; **not governing** until its gates pass and Tomas gives final approval.
+- `docs/design/Should_I_Play_Canonical_Design_Source.md` — where the accepted Claude Design artifact lives and how to import it; mandatory before any visual implementation or conformance work on an accepted public surface (Issue #47). It is a locator, not a design manual.
 
 ## Active checkpoint — Phase 3A scoring-protocol calibration
 

@@ -71,7 +71,10 @@ export function TrustBand({
     // how much of the game the evaluation could actually reach (SOP §10.1).
     ...(evaluation.evidenceMaturity
       ? ([
-          ["Evidence maturity", EVIDENCE_MATURITY_LABEL[evaluation.evidenceMaturity]],
+          [
+            "Evidence maturity",
+            EVIDENCE_MATURITY_LABEL[evaluation.evidenceMaturity],
+          ],
         ] as const)
       : []),
     ["Edition", evaluation.scope.edition],
@@ -83,100 +86,129 @@ export function TrustBand({
   return (
     <section className="gp-trust" aria-labelledby={`${id}-trust`}>
       <div className="gp-measure">
-        <h2 id={`${id}-trust`} className="gp-kicker">
-          How this profile was made
-        </h2>
-
-        <p className="sip-prose gp-trust__lead">
-          {derived
-            ? "These values were derived against the published rubric and have not yet been editor approved. "
-            : "Editor reviewed against the published rubric and the scoped evidence record. "}
-          Sources inform the judgement; they are not averaged as votes.{" "}
-          <Link href="/methodology" className="gp-link">
-            How we score
-          </Link>
-          .
-        </p>
-
-        <div className="gp-trust__grid">
-          <div>
-            <dl className="gp-facts">
-              {facts.map(([term, value]) => (
-                <div key={term} className="gp-facts__item">
-                  <dt>{term}</dt>
-                  <dd>{value}</dd>
-                </div>
-              ))}
-            </dl>
-
-            <p className="gp-trust__rule">
-              Each of the eight dimensions is scored 0–10 on its own, from five
-              subcriteria worth 0–2 each. Totals are derived from those five,
-              never entered by hand. There is no overall score, and nothing is
-              calculated from the area the profile shape encloses — the shape
-              describes what kind of game this is, not how good it is.
-            </p>
-
-            {/* Provenance and revision history. Both say how much weight the
-                published numbers can carry, so neither is optional. */}
-            {evaluation.scoreProvenance.note && (
-              <div className="gp-trust__aside">
-                <h3 className="gp-kicker">Score provenance</h3>
-                <p>{evaluation.scoreProvenance.note}</p>
-              </div>
-            )}
-            {evaluation.changeSummary && (
-              <div className="gp-trust__aside">
-                <h3 className="gp-kicker">What changed</h3>
-                <p>{evaluation.changeSummary}</p>
-              </div>
-            )}
+        <div className="gp-panel gp-trust__panel">
+          {/* The accepted trust head: the kicker, then the public review status,
+            evidence state and confidence as square chips, and the cut-off in
+            the notation voice. Words, never colour, carry each state. */}
+          <div className="gp-trust__head">
+            <h2 id={`${id}-trust`} className="gp-kicker">
+              How this profile was made
+            </h2>
+            <span className="gp-chip">
+              {publicProvenanceLabel(evaluation.scoreProvenance)}
+            </span>
+            <span className="gp-chip" data-status={evaluation.evidenceStatus}>
+              {EVIDENCE_STATUS_LABEL[evaluation.evidenceStatus]}
+            </span>
+            <span className="gp-chip">
+              {CONFIDENCE_LABEL[evaluation.confidence]} confidence
+            </span>
+            <span className="gp-trust__date">
+              Evidence cut-off{" "}
+              <span className="tabular">
+                {formatDate(evaluation.evidenceCutoffAt)}
+              </span>
+            </span>
           </div>
 
-          <div>
-            <h3 className="gp-kicker">Evidence</h3>
+          <p className="sip-prose gp-trust__lead">
+            {derived
+              ? "These values were derived against the published rubric and have not yet been editor approved. "
+              : "Editor reviewed against the published rubric and the scoped evidence record. "}
+            Sources inform the judgement; they are not averaged as votes.{" "}
+            <Link href="/methodology" className="gp-link">
+              How we score
+            </Link>
+            .
+          </p>
 
-            {/* Counts of evidence by kind, never votes to be averaged. The
-                breakdown is the point: "supported by 6 sources" hides whether
-                those are hands-on hours or six people repeating one preview
-                (SOP §6). */}
-            {evaluation.evidenceLedger === "pending" ? (
-              <ul className="gp-evidence__classes">
-                {publicCategoryCounts.map(({ category }) => (
-                  <li key={category}>{SOURCE_CATEGORY_LABEL[category]}</li>
-                ))}
-              </ul>
-            ) : (
-              <dl className="gp-evidence__counts" data-evidence-counts="reconciled">
-                {publicCategoryCounts.map(({ category, count }) => (
-                  <div key={category}>
-                    <dt>{SOURCE_CATEGORY_LABEL[category]}</dt>
-                    <dd className="sip-num">{count}</dd>
+          <div className="gp-trust__grid">
+            <div>
+              <dl className="gp-facts">
+                {facts.map(([term, value]) => (
+                  <div key={term} className="gp-facts__item">
+                    <dt>{term}</dt>
+                    <dd>{value}</dd>
                   </div>
                 ))}
               </dl>
-            )}
 
-            <ol className="gp-evidence__sources">
-              {publicSources.map((source) => (
-                <li key={source.id}>
-                  {source.title}
-                  <span className="gp-evidence__tier"> Tier {source.tier}</span>
-                </li>
-              ))}
-            </ol>
-            <p className="gp-evidence__note">
-              {evaluation.evidenceLedger === "pending"
-                ? "The ledger holds these classes of source, not yet the individual records behind them. No source count is published until it does."
-                : "Sources are evidence, not votes. Nothing here is averaged."}
-            </p>
+              <p className="gp-trust__rule">
+                Each of the eight dimensions is scored 0–10 on its own, from
+                five subcriteria worth 0–2 each. Totals are derived from those
+                five, never entered by hand. There is no overall score, and
+                nothing is calculated from the area the profile shape encloses —
+                the shape describes what kind of game this is, not how good it
+                is.
+              </p>
+
+              {/* Provenance and revision history. Both say how much weight the
+                published numbers can carry, so neither is optional. */}
+              {evaluation.scoreProvenance.note && (
+                <div className="gp-trust__aside">
+                  <h3 className="gp-kicker">Score provenance</h3>
+                  <p>{evaluation.scoreProvenance.note}</p>
+                </div>
+              )}
+              {evaluation.changeSummary && (
+                <div className="gp-trust__aside">
+                  <h3 className="gp-kicker">What changed</h3>
+                  <p>{evaluation.changeSummary}</p>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <h3 className="gp-kicker">Evidence</h3>
+
+              {/* Counts of evidence by kind, never votes to be averaged. The
+                breakdown is the point: "supported by 6 sources" hides whether
+                those are hands-on hours or six people repeating one preview
+                (SOP §6). */}
+              {evaluation.evidenceLedger === "pending" ? (
+                <ul className="gp-evidence__classes">
+                  {publicCategoryCounts.map(({ category }) => (
+                    <li key={category}>{SOURCE_CATEGORY_LABEL[category]}</li>
+                  ))}
+                </ul>
+              ) : (
+                <dl
+                  className="gp-evidence__counts"
+                  data-evidence-counts="reconciled"
+                >
+                  {publicCategoryCounts.map(({ category, count }) => (
+                    <div key={category}>
+                      <dt>{SOURCE_CATEGORY_LABEL[category]}</dt>
+                      <dd className="sip-num">{count}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+
+              <ol className="gp-evidence__sources">
+                {publicSources.map((source) => (
+                  <li key={source.id}>
+                    {source.title}
+                    <span className="gp-evidence__tier">
+                      {" "}
+                      Tier {source.tier}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+              <p className="gp-evidence__note">
+                {evaluation.evidenceLedger === "pending"
+                  ? "The ledger holds these classes of source, not yet the individual records behind them. No source count is published until it does."
+                  : "Sources are evidence, not votes. Nothing here is averaged."}
+              </p>
+            </div>
           </div>
-        </div>
 
-        {/* Credit, and — for artwork held on an evaluation basis — the full
+          {/* Credit, and — for artwork held on an evaluation basis — the full
             rights notice. Required wherever the image renders, so the basis is
             visible on the page carrying it rather than only in an ADR. */}
-        {artwork && <p className="gp-credit">{creditLineFor(artwork)}</p>}
+          {artwork && <p className="gp-credit">{creditLineFor(artwork)}</p>}
+        </div>
       </div>
     </section>
   );

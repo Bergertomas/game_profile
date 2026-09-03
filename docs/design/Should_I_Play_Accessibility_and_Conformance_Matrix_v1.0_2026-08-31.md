@@ -98,7 +98,10 @@ state, then complete keyboard, screen-reader, zoom and visual inspection.
 ## 6. Visual conformance checkpoints
 
 At each implementation slice, capture production and compare against the
-accepted reference at the same viewport. Judge in this order:
+accepted reference at the same viewport. The reference is the imported
+canonical Claude Design file named in
+[`Should_I_Play_Canonical_Design_Source.md`](Should_I_Play_Canonical_Design_Source.md),
+not a remembered screenshot or derived prose. Judge in this order:
 
 1. proposition/decision hierarchy;
 2. section order and relative visual weight;
