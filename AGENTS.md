@@ -73,3 +73,16 @@ directed otherwise.
 A Master Plan's own header may lag the repository between checkpoints — a phase can complete before the status line naming it is rewritten. That is drift to reconcile at the next checkpoint, not licence to treat the plan as stale on questions of product meaning.
 
 If documents or implementation conflict, do not resolve the conflict silently or by convenience. Identify it, determine which authority owns the question, and report the discrepancy before encoding a material product decision. When code differs from the governing documents, treat that as drift to reconcile, not as an implicit amendment.
+
+## Repository-native Claude runner
+
+When invoked through the official Claude Code GitHub Action, also read
+`docs/operations/Claude_Code_GitHub_Runner.md` before substantive work. The
+triggering issue/PR owns the bounded assignment; the Working Agreement owns
+review/integration behavior.
+
+The generic runner may implement, test, commit, push, and create/update the task
+PR, but it must not self-merge, declare checklist acceptance, mutate production,
+publish editorial/scoring content, or broaden the assignment without current
+authority. Use the effort level chosen by the orchestrator and stop when the
+bounded acceptance contract is satisfied rather than chasing unrelated polish.
