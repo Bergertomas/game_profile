@@ -2,7 +2,6 @@ import { useId } from "react";
 import type { ProfileView } from "@/lib/profile/build";
 import type { PracticalFacts } from "@/lib/profile/practical";
 import { hasPracticalFacts } from "@/lib/profile/practical";
-import { BLOCK_ORDER, blockHeadings } from "@/lib/profile/vocabulary";
 
 /**
  * THE DECISION, before the instrument.
@@ -22,14 +21,15 @@ import { BLOCK_ORDER, blockHeadings } from "@/lib/profile/vocabulary";
  * penalty, and the two are set as equal columns so the page never reads as a
  * verdict with a footnote.
  *
- * ── Fit guidance is the three governed blocks, once ─────────────────────────
+ * ── Fit guidance is not here ────────────────────────────────────────────────
  *
- * The record carries three interpretation blocks and nothing shorter. A
- * "concise" fit line summarising them would be new editorial content nobody
- * approved, so the blocks ARE the fit guidance, rendered once, in the accepted
- * position before the instrument, in the accepted three-column grammar. Their
- * headings switch with the evidence state (SOP §10.8): a pre-release profile
- * says "Looks promising if…", never "Great fit if…".
+ * A3–A6 draw the decision twice: a one-line summary of each fit block on this
+ * dark ground, and the three full lists on the warm ground after the
+ * instrument (`ReadingBand`). The record carries the lists and nothing
+ * shorter, and a summary line composed from them would be new editorial
+ * content nobody approved — so the lists render once, in the accepted
+ * position for lists, and this ground carries no fit summary at all rather
+ * than an invented one.
  */
 export function DecisionBand({
   profile,
@@ -40,7 +40,6 @@ export function DecisionBand({
 }) {
   const id = useId();
   const { evaluation } = profile;
-  const headings = blockHeadings(evaluation.evidenceStatus);
 
   return (
     <section className="gp-decision" aria-labelledby={`${id}-decision`}>
@@ -64,28 +63,6 @@ export function DecisionBand({
         </div>
 
         <PracticalCommitment facts={practical} />
-
-        <div className="gp-fit">
-          <h3 id={`${id}-fit`} className="sr-only">
-            Who this is for
-          </h3>
-          <div className="gp-fit__blocks" aria-labelledby={`${id}-fit`}>
-            {BLOCK_ORDER.map((type) => (
-              <div key={type} className="gp-fit__block" data-block={type}>
-                <h4 className="gp-kicker gp-fit__heading">
-                  {headings[type].title}
-                </h4>
-                <ul className="gp-fit__list">
-                  {evaluation.blocks[type].map((item) => (
-                    <li key={item} className="sip-prose">
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
     </section>
   );
@@ -93,7 +70,7 @@ export function DecisionBand({
 
 /**
  * Total commitment and useful session, as separate facts in the accepted
- * ruled row between the pull/tax pair and the fit guidance — and only when an
+ * ruled row under the pull/tax pair, where A3–A6 place it — and only when an
  * approved, scope-aware record says so.
  *
  * Practical time is outside the eight dimensions and never a ninth axis (ADR

@@ -37,10 +37,10 @@ import "./profile.css";
  *
  *   1. the identity stage — evidence kicker, one h1, developer, full platform
  *      names, exact scope, and the answer: the one-line experience
- *   2. the pull and the tax, practical commitment where a record exists,
- *      and who this is for
+ *   2. the pull and the tax, and practical commitment where a record exists
  *   3. the instrument — labelled radar and eight permanent exact rows
- *   4. the warm reading ground — traits, platform warning and scope detail
+ *   4. the warm reading ground — who this is for, traits, platform warning
+ *      and scope detail
  *   5. how this profile was made — evidence, scope record, credits
  *
  * The exit (more profiles) is the page's, not the profile's, and follows it in

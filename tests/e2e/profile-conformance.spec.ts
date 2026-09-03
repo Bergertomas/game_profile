@@ -42,7 +42,10 @@ test.beforeEach(async ({ page }) => {
 async function sidewaysOverflow(page: Page): Promise<string[]> {
   await page.evaluate(() => document.fonts.ready);
   await page.evaluate(
-    () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+    () =>
+      new Promise((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(resolve)),
+      ),
   );
   return page.evaluate(() => {
     const root = document.documentElement;
@@ -55,7 +58,11 @@ async function sidewaysOverflow(page: Page): Promise<string[]> {
       let clipped = false;
       while (ancestor && ancestor !== document.body) {
         const overflow = getComputedStyle(ancestor).overflowX;
-        if (overflow === "auto" || overflow === "hidden" || overflow === "scroll") {
+        if (
+          overflow === "auto" ||
+          overflow === "hidden" ||
+          overflow === "scroll"
+        ) {
           clipped = true;
           break;
         }
@@ -70,7 +77,10 @@ async function sidewaysOverflow(page: Page): Promise<string[]> {
     // Text can overflow its block without any element box reaching past the
     // viewport — one unbreakable word wider than its column. Measure the
     // text itself, so that case is named too.
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const walker = document.createTreeWalker(
+      document.body,
+      NodeFilter.SHOW_TEXT,
+    );
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
       if (!node.textContent?.trim()) continue;
       const range = document.createRange();
@@ -82,7 +92,10 @@ async function sidewaysOverflow(page: Page): Promise<string[]> {
         );
       }
     }
-    return [`document ${root.scrollWidth} > ${root.clientWidth}`, ...culprits.slice(0, 12)];
+    return [
+      `document ${root.scrollWidth} > ${root.clientWidth}`,
+      ...culprits.slice(0, 12),
+    ];
   });
 }
 
@@ -112,14 +125,22 @@ async function bandTops(page: Page, root = ".gp"): Promise<number[]> {
 }
 
 test.describe("the first viewport", () => {
-  test("holds the title, the scope and the answer at 390×667", async ({ page }) => {
+  test("holds the title, the scope and the answer at 390×667", async ({
+    page,
+  }) => {
     await page.setViewportSize({ width: 390, height: 667 });
     await page.goto(ART_LED);
 
     const bottomOf = (selector: string) =>
-      page.locator(selector).first().evaluate((el) => el.getBoundingClientRect().bottom);
+      page
+        .locator(selector)
+        .first()
+        .evaluate((el) => el.getBoundingClientRect().bottom);
     const topOf = (selector: string) =>
-      page.locator(selector).first().evaluate((el) => el.getBoundingClientRect().top);
+      page
+        .locator(selector)
+        .first()
+        .evaluate((el) => el.getBoundingClientRect().top);
 
     expect(await bottomOf("h1")).toBeLessThan(667);
     expect(await bottomOf(".gp-scope")).toBeLessThan(667);
@@ -133,11 +154,16 @@ test.describe("the first viewport", () => {
     expect(stage!.height).toBeLessThan(667 / 2);
   });
 
-  test("holds the title, scope, answer and pull/tax at 1440×900", async ({ page }) => {
+  test("holds the title, scope, answer and pull/tax at 1440×900", async ({
+    page,
+  }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(ART_LED);
     const topOf = (selector: string) =>
-      page.locator(selector).first().evaluate((el) => el.getBoundingClientRect().top);
+      page
+        .locator(selector)
+        .first()
+        .evaluate((el) => el.getBoundingClientRect().top);
     expect(await topOf(".gp-answer")).toBeLessThan(900 - 60);
     // The pull and the tax begin on screen: their headings and first line.
     expect(await topOf(".gp-pulltax__text")).toBeLessThan(900 - 24);
@@ -179,7 +205,9 @@ test.describe("reading order", () => {
       .evaluateAll((nodes) => nodes.map((n) => Number(n.tagName.slice(1))));
     // No level is skipped on the way down.
     for (let i = 1; i < levels.length; i += 1) {
-      expect(levels[i]! - levels[i - 1]!, `heading ${i}`).toBeLessThanOrEqual(1);
+      expect(levels[i]! - levels[i - 1]!, `heading ${i}`).toBeLessThanOrEqual(
+        1,
+      );
     }
   });
 });
@@ -222,7 +250,9 @@ test.describe("art-led and artless parity", () => {
     const title = await less.locator("h1").boundingBox();
     // The plate is the stage: the title sits inside it, not under a blank.
     expect(title!.y).toBeGreaterThan(identity!.y);
-    expect(title!.y + title!.height).toBeLessThan(identity!.y + identity!.height);
+    expect(title!.y + title!.height).toBeLessThan(
+      identity!.y + identity!.height,
+    );
     expect(identity!.height).toBeLessThan(560);
   });
 });
@@ -233,7 +263,9 @@ test.describe("reflow", () => {
     ["390×667", 390, 667],
     ["1440×900", 1440, 900],
   ] as const) {
-    test(`does not scroll the document sideways at ${label}`, async ({ page }) => {
+    test(`does not scroll the document sideways at ${label}`, async ({
+      page,
+    }) => {
       await page.setViewportSize({ width, height });
       await page.goto(ART_LED);
       expect(await scrollsSideways(page)).toBe(false);
@@ -264,6 +296,42 @@ test.describe("reflow", () => {
       expect(await scrollsSideways(page)).toBe(false);
     });
   }
+
+  test("gives a dimension name a line of its own at 200% on a phone", async ({
+    page,
+  }) => {
+    // The three-column row cannot hold a name once the value and the 44px
+    // control are doubled: at 200% on a 390 phone it had 84px and six lines.
+    // Below the width where a name can hold a line the row is one column.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(ART_LED);
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = "32px";
+    });
+    await page.waitForTimeout(100);
+    const measured = await page
+      .locator(".gp-row")
+      .first()
+      .evaluate((row) => {
+        const name = row.querySelector(".gp-row__name")!;
+        const style = getComputedStyle(name);
+        return {
+          row: row.getBoundingClientRect().width,
+          name: name.getBoundingClientRect().width,
+          lines: Math.round(
+            name.getBoundingClientRect().height /
+              Number.parseFloat(style.lineHeight),
+          ),
+        };
+      });
+    expect(measured.name / measured.row).toBeGreaterThan(0.8);
+    expect(measured.lines).toBeLessThanOrEqual(3);
+    // The number and its disclosure are still there, and still a real target.
+    await expect(page.locator(".gp-row__num").first()).toBeVisible();
+    const why = await page.locator(".gp-row__why").first().boundingBox();
+    expect(why!.width).toBeGreaterThanOrEqual(44);
+    expect(why!.height).toBeGreaterThanOrEqual(44);
+  });
 
   test("the artless states reflow at 320 too", async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 568 });
@@ -301,7 +369,10 @@ test.describe("the radar", () => {
     const rows = await page.locator(".gp-row__num").allTextContents();
     expect(chart).toEqual(rows);
     // The chart is a picture; the rows are the representation.
-    await expect(page.locator(".gp-radar")).toHaveAttribute("aria-hidden", "true");
+    await expect(page.locator(".gp-radar")).toHaveAttribute(
+      "aria-hidden",
+      "true",
+    );
   });
 
   test("is a decorative overview on a phone, with the rows immediately after", async ({
@@ -342,7 +413,9 @@ test.describe("keyboard", () => {
     await page.keyboard.press("Space");
     await expect(second).toHaveAttribute("aria-expanded", "true");
     // Opening the second did not close the first.
-    await expect(first).toHaveAttribute("aria-expanded", "false").catch(() => {});
+    await expect(first)
+      .toHaveAttribute("aria-expanded", "false")
+      .catch(() => {});
     await expect(page.locator(".gp-row__panel").nth(0)).toBeVisible();
     await expect(page.locator(".gp-row__panel").nth(1)).toBeVisible();
 
@@ -407,22 +480,32 @@ test.describe("uncertainty and platform states, in a browser", () => {
 
     const proof = page.locator(".gp", { hasText: "Score-state proof" }).first();
     await expect(proof.locator('.gp-row[data-kind="range"]')).toHaveCount(2);
-    await expect(proof.locator('.gp-row[data-kind="insufficient"]')).toHaveCount(1);
+    await expect(
+      proof.locator('.gp-row[data-kind="insufficient"]'),
+    ).toHaveCount(1);
     await expect(proof.getByText("Not scored").first()).toBeVisible();
     await expect(proof.getByText("Low confidence").first()).toBeVisible();
     // The chart says the word, never a zero, for the unscored axis.
     await expect(
-      proof.locator('.gp-radar__label[data-kind="insufficient"] .gp-radar__value'),
+      proof.locator(
+        '.gp-radar__label[data-kind="insufficient"] .gp-radar__value',
+      ),
     ).toHaveText("Not scored");
 
-    const redfall = page.locator(".gp", { hasText: "Redfall (fixture render)" }).first();
-    await expect(redfall.locator('.gp-identity__status[data-status="provisional"]')).toHaveText(
-      "Provisional",
-    );
+    const redfall = page
+      .locator(".gp", { hasText: "Redfall (fixture render)" })
+      .first();
+    await expect(
+      redfall.locator('.gp-identity__status[data-status="provisional"]'),
+    ).toHaveText("Provisional");
     await expect(redfall.locator(".gp-caveat")).toContainText("Provisional.");
 
-    const override = page.locator(".gp", { hasText: "Platform-override fixture" }).first();
-    await expect(override.getByText("Varies by platform").first()).toBeVisible();
+    const override = page
+      .locator(".gp", { hasText: "Platform-override fixture" })
+      .first();
+    await expect(
+      override.getByText("Varies by platform").first(),
+    ).toBeVisible();
     await override.locator(".gp-row__why").nth(5).click();
     // Stated inside the row's panel, and again in the platform section.
     await expect(
@@ -444,11 +527,17 @@ test.describe("uncertainty and platform states, in a browser", () => {
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(STATES, { waitUntil: "domcontentloaded" });
-    const withRecord = page.locator(".gp", { hasText: "Practical-time fixture" }).first();
+    const withRecord = page
+      .locator(".gp", { hasText: "Practical-time fixture" })
+      .first();
     await expect(withRecord.locator(".gp-practical")).toHaveCount(1);
     await expect(withRecord.locator(".gp-practical")).toContainText("Moderate");
-    await expect(withRecord.locator(".gp-practical")).toContainText("30–60 minutes");
-    const unknown = page.locator(".gp", { hasText: "Practical-time fixture — Unknown" }).first();
+    await expect(withRecord.locator(".gp-practical")).toContainText(
+      "30–60 minutes",
+    );
+    const unknown = page
+      .locator(".gp", { hasText: "Practical-time fixture — Unknown" })
+      .first();
     await expect(unknown.locator(".gp-practical")).toContainText("Unknown");
     // And none of the specimen anywhere on the harness either.
     const text = await page.locator("body").innerText();

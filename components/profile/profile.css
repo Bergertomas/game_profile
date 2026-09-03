@@ -538,8 +538,9 @@ a.gp-scopes__item:hover {
   color: var(--color-text-quiet);
 }
 
+/* Who this is for, opening the warm ground as A3–A6 draw it. */
 .gp-fit {
-  margin-top: 1.2rem;
+  margin: 0;
 }
 
 .gp-fit__blocks {
@@ -547,8 +548,12 @@ a.gp-scopes__item:hover {
   gap: 0.9rem;
 }
 
+.gp-fit__heading {
+  color: var(--color-text-on-editorial-muted);
+}
+
 .gp-fit__block[data-block="great_fit"] .gp-fit__heading {
-  color: var(--color-brand-coral);
+  color: var(--sip-accent-base);
 }
 
 .gp-fit__list {
@@ -564,15 +569,15 @@ a.gp-scopes__item:hover {
 .gp-fit__list li {
   margin: 0.1rem 0;
   padding: 0.25rem 0 0.25rem 0.7rem;
-  border-left: var(--border-thin) solid var(--color-border-control);
+  border-left: var(--border-thin) solid var(--color-border-on-editorial);
   font-size: var(--text-label);
   line-height: 1.5;
-  color: var(--color-text-muted);
+  color: var(--color-text-on-editorial-muted);
   text-wrap: pretty;
 }
 
 .gp-fit__block[data-block="great_fit"] .gp-fit__list li {
-  color: var(--color-text-secondary);
+  color: var(--color-text-on-editorial);
 }
 
 @media (min-width: 40rem) {
@@ -598,10 +603,6 @@ a.gp-scopes__item:hover {
   .gp-practical__list {
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
     gap: 0.6rem 3rem;
-  }
-
-  .gp-fit {
-    margin-top: 1.3rem;
   }
 
   .gp-fit__blocks {
@@ -954,6 +955,31 @@ a.gp-scopes__item:hover {
   border-color: var(--color-border-strong);
 }
 
+/* Under heavy zoom the three-column row has no width left for the name: at
+   200% on a phone the fixed value and 44px control take all of it. Below the
+   width where a name can still hold a line, the row becomes one reading
+   column — the name and its confidence, the number beside its disclosure,
+   then the explanation (handoff §3.4). */
+@container rows (max-width: 11rem) {
+  .gp-row__head {
+    grid-template-columns: minmax(0, 1fr) var(--size-control-minimum);
+    grid-template-areas:
+      "lead lead"
+      "value why"
+      "gloss gloss";
+    gap: 0.45rem 0.6rem;
+    align-items: end;
+  }
+
+  .gp-row__value {
+    text-align: left;
+  }
+
+  .gp-row__gloss {
+    margin-right: 0;
+  }
+}
+
 @container rows (min-width: 36rem) {
   .gp-row__head {
     grid-template-columns:
@@ -1187,7 +1213,12 @@ a.gp-scopes__item:hover {
   gap: 1rem;
 }
 
-.gp-reading__grid[data-traits="true"] {
+/* A hairline between the regions of this ground, drawn by whichever pair
+   actually renders — a profile with no traits still separates fit from the
+   platform and scope columns. */
+.gp-fit + .gp-traits-row,
+.gp-fit + .gp-reading__grid,
+.gp-traits-row + .gp-reading__grid {
   margin-top: 1.2rem;
   padding-top: 1rem;
   border-top: var(--border-thin) solid var(--color-border-on-editorial);
@@ -1283,7 +1314,9 @@ a.gp-scopes__item:hover {
     gap: 1rem 4rem;
   }
 
-  .gp-reading__grid[data-traits="true"] {
+  .gp-fit + .gp-traits-row,
+  .gp-fit + .gp-reading__grid,
+  .gp-traits-row + .gp-reading__grid {
     margin-top: 1.9rem;
     padding-top: 1.5rem;
   }

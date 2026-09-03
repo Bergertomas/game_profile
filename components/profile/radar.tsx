@@ -59,8 +59,8 @@ export interface RadarSkin {
  * and the full instrument cannot drift into two different-looking devices.
  */
 export const GRAPHITE_SKIN: RadarSkin = {
-  grid: "rgba(237,235,231,0.20)",
-  gridOuter: "rgba(237,235,231,0.46)",
+  grid: "var(--color-border-default)",
+  gridOuter: "var(--color-border-strong)",
   fill: "var(--sip-accent-lift)",
   fillOpacity: 0.35,
   stroke: "var(--sip-accent-lift)",

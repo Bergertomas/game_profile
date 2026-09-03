@@ -158,11 +158,11 @@ components/
   compare/CompareControls.tsx  Replace left, Replace right, Copy link with its fallback
   profile/GameProfile.tsx      the canonical A3–A6 profile, server-rendered, profile.css beside it
   profile/IdentityStage.tsx    identity stage (art-led or artless): evidence kicker, title, platforms, scope, the answer
-  profile/DecisionBand.tsx     the pull and the tax, practical commitment, fit guidance
+  profile/DecisionBand.tsx     the pull and the tax, practical commitment
   profile/ProfileInstrument.tsx the one client leaf: labelled radar, eight exact rows, disclosures
   profile/instrument.tsx       one exact row: value, confidence, gloss, platform truth, rationale
   profile/radar.tsx            the only radar in the product, at three levels
-  profile/ReadingBand.tsx      the warm reading ground: traits, platform warning and notes, scope detail
+  profile/ReadingBand.tsx      the warm reading ground: fit guidance, traits, platform warning and notes, scope detail
   profile/TrustBand.tsx        how this profile was made: scope record, evidence, credits
   profile/ScopeSwitcher.tsx    sibling navigation, only where a game has siblings
   admin/                       editorial form plumbing and panels
