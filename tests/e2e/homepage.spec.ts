@@ -514,6 +514,38 @@ test.describe("conformance to the accepted composition", () => {
     }
   });
 
+  test("uses the handoff's compact fingerprint sizes on every tile", async ({
+    page,
+  }) => {
+    // Handoff §7.1: 72px desktop, 64px mobile — the production targets, not
+    // the specimen's larger hero radars.
+    for (const [width, height, expected] of [
+      [1440, 900, 72],
+      [390, 667, 64],
+    ] as const) {
+      await page.setViewportSize({ width, height });
+      await page.goto("/");
+      const widths = await page
+        .locator(".sip-open__fingerprint")
+        .evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().width));
+      expect(widths).toHaveLength(3);
+      for (const w of widths) expect(w).toBeCloseTo(expected, 0);
+    }
+  });
+
+  test("keeps a visible label on the Search field in the console", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 667 });
+    await page.goto("/");
+    const label = page.locator(".sip-open__search .sip-search__label");
+    await expect(label).toBeVisible();
+    const box = (await label.boundingBox())!;
+    // Real, painted text — not a clipped 1px box — inside the first viewport.
+    expect(box.height).toBeGreaterThan(10);
+    expect(box.y + box.height).toBeLessThanOrEqual(667);
+  });
+
   test("paints no broken-image glyph when artwork fails to load", async ({
     page,
   }) => {

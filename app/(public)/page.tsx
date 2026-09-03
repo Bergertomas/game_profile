@@ -226,8 +226,8 @@ function ProfileExplainer({ example }: { example: ProfileView }) {
 
 /** The instrument's skin on the canvas: the shared dark grammar, contract tokens. */
 const EXPLAINER_SKIN = {
-  grid: "rgba(242,241,238,0.20)",
-  gridOuter: "rgba(242,241,238,0.46)",
+  grid: "var(--color-border-default)",
+  gridOuter: "var(--color-border-strong)",
   fill: "var(--sip-accent-lift)",
   fillOpacity: 0.35,
   stroke: "var(--sip-accent-lift)",

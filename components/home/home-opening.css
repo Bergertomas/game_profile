@@ -9,7 +9,7 @@
 
      - THE HERO IS COMPACT. The specimen's 420px mosaic is 360px here so the
        hero stays inside the handoff's ~27.5rem maximum (ADR 0030 owner
-       refinement); 228px on the phone against A2's 250. Content and zoom may make it
+       refinement); 216px on the phone against A2's 250. Content and zoom may make it
        taller; nothing is clipped to hold a specimen height.
      - AT 390×667 THE HEADER, THE WHOLE HERO AND THE SEARCH INPUT ARE ON SCREEN
        WITHOUT SCROLLING (matrix H-01). Artwork depth gives way first on a
@@ -122,15 +122,15 @@
 }
 
 /* One game at scale in the left column, two stacked beside it — the same
-   grammar at every width, 228px tall on the phone (250 on A2, trimmed with the
-   same owner refinement that shortens the desktop hero) and 360px on the
-   desktop. */
+   grammar at every width, 216px tall on the phone (250 on A2, trimmed with the
+   same owner refinement that shortens the desktop hero, so the labelled field
+   still fits 390×667) and 360px on the desktop. */
 .sip-open__tiles {
   display: grid;
   grid-template-columns: 1.15fr 1fr;
   grid-template-rows: 1fr 1fr;
   gap: 0.5rem;
-  height: 14.25rem;
+  height: 13.5rem;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -139,7 +139,7 @@
 /* A short phone: artwork depth gives way first (handoff §3.4). */
 @media (max-height: 40rem) {
   .sip-open__tiles {
-    height: 12.5rem;
+    height: 12rem;
   }
 }
 
@@ -221,25 +221,26 @@
   object-fit: cover;
 }
 
-/* The specimen's scrim: near-solid at the plate, clear by two thirds up. */
+/* The scrim, from the contract's overlay tokens: strong at the plate, soft
+   a third of the way up, clear by two thirds. */
 .sip-open__scrim {
   position: absolute;
   inset: 0;
   background: linear-gradient(
     0deg,
-    rgba(11, 12, 15, 0.96) 0%,
-    rgba(11, 12, 15, 0.6) 36%,
-    rgba(11, 12, 15, 0) 62%
+    var(--color-overlay-scrim-strong) 0%,
+    var(--color-overlay-scrim-soft) 40%,
+    transparent 64%
   );
 }
 
 .sip-open__tile.is-lead .sip-open__scrim {
   background: linear-gradient(
     0deg,
-    rgba(11, 12, 15, 0.97) 0%,
-    rgba(11, 12, 15, 0.78) 24%,
-    rgba(11, 12, 15, 0.25) 52%,
-    rgba(11, 12, 15, 0) 68%
+    var(--color-overlay-scrim-strong) 0%,
+    var(--color-overlay-scrim-strong) 16%,
+    var(--color-overlay-scrim-soft) 48%,
+    transparent 68%
   );
 }
 
@@ -360,12 +361,12 @@
 }
 
 /* The integrated fingerprint, in a soft well so the polygon stays legible over
-   any artwork under it. Sized as the accepted tiles size it: large in the
-   lead tile, smaller in the two beside it, smaller again on the phone. */
+   any artwork under it. 64px on the phone and 72px on the desktop on every
+   tile — the production targets handoff §7.1 fixes for the opening. */
 .sip-open__fingerprint {
   position: relative;
   flex: 0 0 auto;
-  width: 2.875rem;
+  width: var(--size-radar-compact-mobile);
 }
 
 .sip-open__fingerprint::before {
@@ -374,8 +375,8 @@
   inset: -14%;
   background: radial-gradient(
     closest-side,
-    rgba(11, 12, 15, 0.88) 42%,
-    rgba(11, 12, 15, 0) 100%
+    var(--color-overlay-scrim-strong) 42%,
+    transparent 100%
   );
 }
 
@@ -383,17 +384,9 @@
   position: relative;
 }
 
-.sip-open__tile.is-lead .sip-open__fingerprint {
-  width: 4.75rem;
-}
-
 @container (min-width: 60em) {
   .sip-open__fingerprint {
-    width: 6rem;
-  }
-
-  .sip-open__tile.is-lead .sip-open__fingerprint {
-    width: 7.5rem;
+    width: var(--size-radar-compact);
   }
 }
 
@@ -429,7 +422,7 @@
   width: 100%;
   max-width: var(--size-content-max);
   margin: 0 auto;
-  padding: 1rem var(--size-gutter-mobile) var(--space-6);
+  padding: 0.8rem var(--size-gutter-mobile) var(--space-6);
 }
 
 @media (min-width: 40rem) {
@@ -445,7 +438,7 @@
   background: var(--color-surface-chrome);
   border: var(--border-thin) solid var(--color-border-default);
   border-radius: var(--radius-feature);
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 24px 70px var(--color-overlay-modal);
 }
 
 @media (min-width: 40rem) {
@@ -540,19 +533,11 @@
   }
 }
 
-/* The filled "Search" pill above is the region's visible name; the field's own
-   label is kept for the accessible name and taken out of the paint, so the
-   word is not printed twice a line apart (drift log F-15). */
+/* The field keeps its persistent visible label (handoff §6.2, matrix H-01):
+   the pill above names the selected journey, the label names the control. */
 .sip-open__search .sip-search__label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
+  margin-bottom: 0.35rem;
+  color: var(--color-text-muted);
 }
 
 .sip-open__search .sip-search__well {

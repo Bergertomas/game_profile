@@ -138,8 +138,8 @@ export function ProfilePoster({ profile }: { profile: ProfileView }) {
  * identity and never its quality.
  */
 const POSTER_MARK_SKIN = {
-  grid: "rgba(242,241,238,0.24)",
-  gridOuter: "rgba(242,241,238,0.48)",
+  grid: "var(--color-border-default)",
+  gridOuter: "var(--color-border-strong)",
   fill: "var(--sip-accent-lift)",
   fillOpacity: 0.32,
   stroke: "var(--sip-accent-lift)",

@@ -285,8 +285,8 @@ function Tile({ profile, lead }: { profile: ProfileView; lead: boolean }) {
  * own identity and never its quality.
  */
 const FINGERPRINT_SKIN = {
-  grid: "rgba(242,241,238,0.24)",
-  gridOuter: "rgba(242,241,238,0.48)",
+  grid: "var(--color-border-default)",
+  gridOuter: "var(--color-border-strong)",
   fill: "var(--sip-accent-lift)",
   fillOpacity: 0.28,
   stroke: "var(--sip-accent-lift)",
