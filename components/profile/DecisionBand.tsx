@@ -9,10 +9,10 @@ import { BLOCK_ORDER, blockHeadings } from "@/lib/profile/vocabulary";
  *
  * The accepted profile answers "Should I play this?" before it explains how the
  * answer was made (ADR 0032). The one-line experience sits in the identity
- * stage; this band is what follows it in the accepted A3–A6 order, on the
- * dark ground: the balanced pair the public calls the pull and the tax, then
- * — only where an approved record exists — what it asks of a reader's time,
- * then who it is for.
+ * stage; this band is what follows it, on the dark ground, in the governed
+ * order (handoff §8.1): the balanced pair the public calls the pull and the
+ * tax, then who it is for, then — only where an approved record exists —
+ * what it asks of a reader's time.
  *
  * ── The pull and the tax ────────────────────────────────────────────────────
  *
