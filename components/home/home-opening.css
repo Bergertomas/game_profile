@@ -9,7 +9,7 @@
 
      - THE HERO IS COMPACT. The specimen's 420px mosaic is 360px here so the
        hero stays inside the handoff's ~27.5rem maximum (ADR 0030 owner
-       refinement); 250px on the phone, as A2. Content and zoom may make it
+       refinement); 228px on the phone against A2's 250. Content and zoom may make it
        taller; nothing is clipped to hold a specimen height.
      - AT 390×667 THE HEADER, THE WHOLE HERO AND THE SEARCH INPUT ARE ON SCREEN
        WITHOUT SCROLLING (matrix H-01). Artwork depth gives way first on a
@@ -37,10 +37,10 @@
   width: 100%;
   max-width: var(--size-content-max);
   margin: 0 auto;
-  padding: var(--space-6) var(--size-gutter-mobile) 0;
+  padding: 1.4rem var(--size-gutter-mobile) 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-4);
+  gap: var(--space-3);
   align-items: start;
 }
 
@@ -122,13 +122,15 @@
 }
 
 /* One game at scale in the left column, two stacked beside it — the same
-   grammar at every width, 250px tall on the phone and 360px on the desktop. */
+   grammar at every width, 228px tall on the phone (250 on A2, trimmed with the
+   same owner refinement that shortens the desktop hero) and 360px on the
+   desktop. */
 .sip-open__tiles {
   display: grid;
   grid-template-columns: 1.15fr 1fr;
   grid-template-rows: 1fr 1fr;
   gap: 0.5rem;
-  height: 15rem;
+  height: 14.25rem;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -137,7 +139,7 @@
 /* A short phone: artwork depth gives way first (handoff §3.4). */
 @media (max-height: 40rem) {
   .sip-open__tiles {
-    height: 13rem;
+    height: 12.5rem;
   }
 }
 
@@ -395,13 +397,15 @@
   }
 }
 
+/* No `text-wrap: pretty` here: Chromium builds differ in how many lines it
+   spends avoiding an orphan, and one extra line at 390×667 is the Search
+   field leaving the first viewport. Plain wrapping is deterministic. */
 .sip-open__caption {
   margin: 0.4rem 0 0;
   font-size: var(--text-minimum);
   line-height: var(--leading-body);
   color: var(--color-text-quiet);
   text-align: right;
-  text-wrap: pretty;
 }
 
 /* Preview-only: the rights notice for review-clearance artwork, after the
@@ -425,7 +429,7 @@
   width: 100%;
   max-width: var(--size-content-max);
   margin: 0 auto;
-  padding: 1.2rem var(--size-gutter-mobile) var(--space-6);
+  padding: 1rem var(--size-gutter-mobile) var(--space-6);
 }
 
 @media (min-width: 40rem) {

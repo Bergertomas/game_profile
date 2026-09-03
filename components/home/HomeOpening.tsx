@@ -191,11 +191,11 @@ function Mosaic({ featured }: { featured: readonly ProfileView[] }) {
       </ul>
 
       <p className="sip-open__caption">
-        {featured.length === 1
-          ? "One published Game Profile"
-          : `${featured.length === 3 ? "Three" : featured.length} independent Game Profiles`}{" "}
-        — eight dimensions on a fixed 0–10 scale; each shape is one game and a
-        bigger shape is not better.
+        {/* A2's caption, at every width: short enough to hold two lines at
+            390 in any Chromium build, which is what keeps the console's
+            field inside a 667px first viewport. */}
+        Eight-dimension Game Profiles · fixed 0–10 — a bigger shape is not
+        better.
       </p>
     </div>
   );
