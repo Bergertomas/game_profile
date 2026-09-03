@@ -191,9 +191,18 @@ test.describe("art-led and artless parity", () => {
     const led = page.locator('.gp[data-art="led"]').first();
     const less = page.locator('.gp[data-art="less"]').first();
     await expect(led).toHaveCount(1);
+    // The DOM text, not the painted text: the artless field sets the title
+    // uppercase (the accepted A5/A6 treatment), which `innerText` would report
+    // as a different string although the content is the same.
     const textOf = async (root: typeof led) =>
-      (await root.innerText())
-        .replace(/Key art ©[^\n]*\n?/, "")
+      (
+        await root.evaluate((el) => {
+          // The only text the artwork adds is its credit line.
+          const clone = el.cloneNode(true) as HTMLElement;
+          clone.querySelector(".gp-credit")?.remove();
+          return clone.textContent ?? "";
+        })
+      )
         .replace(/\s+/g, " ")
         .trim();
     expect(await textOf(led)).toBe(await textOf(less));
