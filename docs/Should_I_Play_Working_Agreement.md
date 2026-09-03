@@ -4,11 +4,11 @@
 
 **Owner:** Tomas
 
-**Last updated:** 1 September 2026
+**Last updated:** 3 September 2026
 
 ## 1. Purpose and authority
 
-This document governs how Tomas, Codex, Claude, and other engineering agents
+This document governs how Tomas, ChatGPT, Claude, Codex, Fable, and other agents
 plan, execute, review, integrate, and report work on Should I Play.
 
 It is a process agreement, not a product specification. Product meaning,
@@ -17,29 +17,55 @@ by the Master Plan, decision and resolution documents, rubric, Evidence SOP,
 ADRs, and other authorities listed in `AGENTS.md`.
 
 The standing bias is toward useful forward motion, efficient context use, and a
-production-capable product. Small imperfections should not repeatedly stall a
-working slice. Material risk should.
+professional launch-capable product. Small imperfections should not repeatedly
+stall a working slice. Material risk should. This is not an enterprise-grade
+perfection exercise.
 
 This agreement explicitly supersedes earlier one-off instructions requiring
-Tomas to approve every routine commit, push, or pull-request action. A later
-explicit instruction from Tomas can still change the policy.
+Tomas to approve every routine commit, push, pull-request action, or ordinary
+merge. A later explicit instruction from Tomas can still change the policy.
 
 ## 2. Roles
 
-- **Tomas:** product owner and final authority for product/editorial decisions,
-  material scope changes, and production activation.
-- **Codex:** CTO/project-manager role by default — frame slices, protect product
-  authority, review actual diffs and evidence, decide engineering acceptance,
-  manage integration, and surface material trade-offs.
-- **Claude:** primary engineering executor by default — implement bounded
-  slices, test them, report exact repository state, and correct material review
-  findings.
+- **Tomas:** product owner and final authority for material product/editorial
+  decisions, material scope changes, final protocol adoption, publication, and
+  production activation.
+- **ChatGPT / GPT-5.6 Sol High:** program owner/orchestrator by default. Frame
+  work, protect authority, maintain the master checklist, independently review
+  actual diffs/evidence, decide engineering acceptance, manage integration,
+  record material decisions durably in GitHub, and surface only genuine owner
+  decisions to Tomas. During Phase 3A it is also the designated editorial
+  scorer; engineering agents do not substitute for that role.
+- **Claude / Opus:** primary engineering executor by default because the project
+  has substantial Claude Max capacity. Implement bounded slices, test them,
+  report exact repository state, and correct material review findings.
+- **Codex:** selective engineering/review specialist for independent
+  verification, credentialed environments, difficult forensic work, or tasks
+  where its marginal value is materially higher than using Claude.
+- **Fable:** specialist for long-horizon visual/design work or other tasks where
+  its particular capabilities materially improve the result; it is not the
+  default implementation agent merely because it is available.
 - **Any agent:** may challenge an instruction when it creates concrete material
   risk. The challenge must identify the evidence, likely impact, and least-cost
   safe alternative.
 
 Roles are defaults, not exclusive capability boundaries. The assigned task and
 the current repository state determine who acts.
+
+### 2.1 Claude / Opus effort routing
+
+The orchestrator chooses effort per assignment:
+
+- **High:** normal/default implementation, fixes, tests, ordinary reviews, and
+  bounded engineering work.
+- **xhigh / Extra high:** complex engineering or design where deeper reasoning
+  materially improves quality — difficult debugging, nontrivial cross-cutting
+  work, visual-system implementation, architecture-sensitive changes, or
+  ambiguous integration.
+- **Max:** reserve for unusually demanding planning, scoping, architecture,
+  groundwork, oversight, or high-consequence synthesis. Do not use Max
+  reflexively; it can overthink. A task may use Max for groundwork and then
+  High/xhigh for bounded execution.
 
 ## 3. Default delivery loop
 
@@ -53,16 +79,16 @@ the current repository state determine who acts.
 4. **Report precisely.** Include the branch and SHA, meaningful diff summary,
    checks run and results, known limitations, and any remote or production-side
    effects.
-5. **Review the actual change.** Inspect the real diff and relevant behavior,
-   not only the implementer's narrative. Classify findings as blocking or
-   follow-up using Section 5.
+5. **Review the actual change.** The orchestrator inspects the real diff and
+   relevant behavior, not only the implementer's narrative. Classify findings
+   as blocking or follow-up using Section 5.
 6. **Correct material findings.** Re-review the changed area. Avoid restarting a
    full audit for every narrow correction unless the correction changes the
    broader risk profile.
 7. **Accept and integrate.** The normal path is branch → review → correction if
-   needed → acceptance → merge. Direct work on `main` is atypical. A reviewed
-   branch may be merged without a separate ceremonial approval when integration
-   is already within the assigned task; otherwise report it as ready to merge.
+   needed → acceptance → merge. Direct work on `main` is atypical. Once the
+   orchestrator has independently accepted an in-scope, non-production PR under
+   this agreement, it may merge without a separate ceremonial owner approval.
 
 Ordinarily, one complete review/correction pass should be enough. Further
 iterations should be driven by remaining material risk, not by the existence of
@@ -82,16 +108,27 @@ recoverable actions without asking Tomas each time:
 - fetch and inspect remote repository state; and
 - make review-requested corrections within the accepted scope.
 
-Explicit authority is still required before actions with materially different
-or difficult-to-reverse consequences, including:
+The program owner/orchestrator may also merge an independently reviewed,
+non-production implementation PR when:
+
+- the delivered result follows current governing authority;
+- material review findings are resolved;
+- verification is proportionate and credible;
+- the exact merge head/base are known and integration is sound; and
+- the merge itself does not activate production, publish editorial content,
+  mutate authoritative data, or make another owner-reserved decision.
+
+Explicit Tomas authority is still required before actions with materially
+different or difficult-to-reverse consequences, including:
 
 - activating or changing production deployments;
 - production database migrations, writes, imports, or destructive data work;
 - changing secrets, credentials, access policy, domains, DNS, billing, or live
   Cloudflare/Neon configuration;
 - deleting or rewriting material history or user work;
-- publishing editorial content or making external communications when that was
-  not part of the assigned task; or
+- publishing editorial/scoring content or making external communications when
+  that was not already explicitly authorized;
+- final candidate freeze or Protocol v1.0 adoption; or
 - choosing among materially different product directions when current authority
   does not resolve the choice.
 
@@ -118,16 +155,22 @@ execution constraint, not a project-management approval ceremony.
 
 - small styling or design-token misreferences that do not change the intended
   experience;
-- dead code, minor duplication, naming cleanup, or test-harness polish;
+- dead code, minor duplication, naming cleanup, stale comments, or test-harness
+  polish;
 - cosmetic inconsistencies and low-impact edge cases;
+- hypothetical enterprise edge cases that are not credible launch risks;
 - temporary migration or documentation drift that does not make the current
   slice unsafe or misleading; or
 - broader cleanup that is better handled once several slices are integrated.
 
-Non-blocking findings belong in the task/PR handoff or a cleanup list. They do
-not need to trigger another implementation loop. If several small issues combine
-into meaningful product, maintenance, or release risk, classify the combined
-effect as material and explain why.
+Non-blocking findings belong in the task/PR handoff or a cleanup list when they
+are worth preserving at all. They do not need to trigger another implementation
+loop. If several small issues combine into meaningful product, maintenance, or
+release risk, classify the combined effect as material and explain why.
+
+The acceptance target is **professional, coherent, and launch-worthy**, not
+perfect. Do not spend more project time eliminating a minor imperfection than
+its expected user/project value justifies.
 
 ## 6. Verification and context efficiency
 
@@ -163,13 +206,33 @@ effect as material and explain why.
 - Lead with outcome and material risk. Keep routine mechanics concise.
 - Use exact branches, SHAs, checks, and observed effects when they matter.
 - Do not turn small cleanup observations into release-blocking language.
-- Do not wave through a material risk for speed. If Codex or Claude overrules
-  Tomas's initial preference, provide concrete evidence and downstream impact.
+- Do not wave through a material risk for speed.
 - When uncertainty is inexpensive and reversible, make a reasonable scoped
   assumption and continue. Ask Tomas when the answer would materially change the
-  product, scope, production state, or irreversible outcome.
+  product, scope, production state, methodology, publication state, legal
+  position, or another owner-reserved outcome.
+- Batch non-urgent owner decisions when possible instead of interrupting Tomas
+  one at a time.
+- Do not make Tomas the message bus when a durable GitHub issue/comment/review
+  can carry an engineering instruction directly.
 
-## 9. Maintaining this agreement
+## 9. Repository-native autonomous runner
+
+The canonical runner guide is
+`docs/operations/Claude_Code_GitHub_Runner.md`.
+
+The official Claude Code GitHub Action is the preferred default implementation
+transport once its smoke test has passed. The program owner may create/update a
+bounded issue, invoke Claude at the appropriate effort level, review the result,
+post one bounded correction round, and merge the accepted non-production PR
+without Tomas manually opening Claude or relaying messages.
+
+The generic runner must not contain production credentials and cannot authorize
+its own merge, production action, checklist advancement, scoring-methodology
+change, or publication. Repository preflight and task-specific authority still
+apply to every material run.
+
+## 10. Maintaining this agreement
 
 Update this document when Tomas changes the standing workflow. Keep project-level
 memory and agent instruction files as short pointers to this canonical copy so
