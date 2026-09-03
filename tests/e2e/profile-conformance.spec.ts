@@ -219,9 +219,9 @@ test.describe("art-led and artless parity", () => {
     const led = page.locator('.gp[data-art="led"]').first();
     const less = page.locator('.gp[data-art="less"]').first();
     await expect(led).toHaveCount(1);
-    // The DOM text, not the painted text: the artless field sets the title
-    // uppercase (the accepted A5/A6 treatment), which `innerText` would report
-    // as a different string although the content is the same.
+    // The DOM text, not the painted text: `innerText` reports what CSS paints,
+    // so any future case-transform on either stage would read as different
+    // content when only the treatment differs.
     const textOf = async (root: typeof led) =>
       (
         await root.evaluate((el) => {

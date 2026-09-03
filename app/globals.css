@@ -355,12 +355,9 @@
      somebody asks, and setting it condensed, heavy and shouted in capitals
      turned it into a film poster about itself.
 
-     The condensed all-caps treatment has two homes left: the wordmark
-     (`sip-wordmark`), which is a logotype and is supposed to be a logotype,
-     and the artless Game Profile identity field, where the accepted A5/A6
-     screens set the title condensed in place of the artwork
-     (components/profile/profile.css). It is no longer the product's global
-     display language.
+     The condensed all-caps treatment has exactly one home left: the wordmark
+     (`sip-wordmark`), which is a logotype and is supposed to be a logotype. It
+     is no longer the product's global display language.
 
      `sip-label` is the instrument voice: the small uppercase key that names a
      field, an axis or a section. 12px floor, never smaller.

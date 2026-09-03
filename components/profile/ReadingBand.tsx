@@ -4,26 +4,18 @@ import {
   describeOverride,
   type PlatformProjection,
 } from "@/lib/profile/platform";
-import {
-  BLOCK_ORDER,
-  blockHeadings,
-  CONFIDENCE_LABEL,
-} from "@/lib/profile/vocabulary";
+import { CONFIDENCE_LABEL } from "@/lib/profile/vocabulary";
 
 /**
  * THE WARM READING GROUND — the one paper surface on an otherwise dark
- * product (handoff §2.2 rule 2), after the instrument, in the order the
- * accepted A3–A6 screens set: who the game is for, then experience traits,
+ * product (handoff §2.2 rule 2), after the instrument: the experience traits,
  * then the platform warning as an accent-ruled aside beside the scope detail.
  *
- * ── Who this is for ────────────────────────────────────────────────────────
- *
- * The three governed interpretation blocks, as lists, opening this ground —
- * where A3–A6 draw them. Their headings switch with the evidence state (SOP
- * §10.8): a pre-release profile says "Looks promising if…", never "Great fit
- * if…". The frames also carry a one-line summary of each block before the
- * instrument; the record holds nothing shorter than these lists, so that
- * position stays empty rather than carrying composed copy (drift G-02).
+ * Fit guidance is not here. A3–A6 draw the three lists on this ground, but
+ * handoff §8.1 fixes the semantic order — fit guidance before practical
+ * commitment and the instrument — and the governing record owns semantic
+ * order where the artifact only draws a composition (drift G-02, G-04). The
+ * blocks render once, in `DecisionBand`.
  *
  * ── Platform truth, where it changes the decision ───────────────────────────
  *
@@ -52,7 +44,6 @@ export function ReadingBand({
 }) {
   const id = useId();
   const { evaluation, scope } = profile;
-  const headings = blockHeadings(evaluation.evidenceStatus);
   const hasVariance =
     projection.notes.length > 0 || projection.overrides.length > 0;
   const hasPlatform = projection.warning !== null || hasVariance;
@@ -63,28 +54,6 @@ export function ReadingBand({
         <h2 id={`${id}-reading`} className="sr-only">
           Traits, platform and scope
         </h2>
-
-        <div className="gp-fit">
-          <h3 id={`${id}-fit`} className="sr-only">
-            Who this is for
-          </h3>
-          <div className="gp-fit__blocks" aria-labelledby={`${id}-fit`}>
-            {BLOCK_ORDER.map((type) => (
-              <div key={type} className="gp-fit__block" data-block={type}>
-                <h4 className="gp-kicker gp-fit__heading">
-                  {headings[type].title}
-                </h4>
-                <ul className="gp-fit__list">
-                  {evaluation.blocks[type].map((item) => (
-                    <li key={item} className="sip-prose">
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
 
         {profile.tags.length > 0 && (
           <div className="gp-traits-row">

@@ -2,6 +2,7 @@ import { useId } from "react";
 import type { ProfileView } from "@/lib/profile/build";
 import type { PracticalFacts } from "@/lib/profile/practical";
 import { hasPracticalFacts } from "@/lib/profile/practical";
+import { BLOCK_ORDER, blockHeadings } from "@/lib/profile/vocabulary";
 
 /**
  * THE DECISION, before the instrument.
@@ -21,15 +22,17 @@ import { hasPracticalFacts } from "@/lib/profile/practical";
  * penalty, and the two are set as equal columns so the page never reads as a
  * verdict with a footnote.
  *
- * ── Fit guidance is not here ────────────────────────────────────────────────
+ * ── Who this is for ────────────────────────────────────────────────────────
  *
- * A3–A6 draw the decision twice: a one-line summary of each fit block on this
- * dark ground, and the three full lists on the warm ground after the
- * instrument (`ReadingBand`). The record carries the lists and nothing
- * shorter, and a summary line composed from them would be new editorial
- * content nobody approved — so the lists render once, in the accepted
- * position for lists, and this ground carries no fit summary at all rather
- * than an invented one.
+ * The three governed interpretation blocks, in the semantic position handoff
+ * §8.1 fixes: fit guidance (5) before practical commitment (6) and the
+ * instrument (7). A3–A6 instead draw a one-line summary of each block here
+ * and the full lists on the warm ground after the instrument; the governing
+ * record owns semantic order, so the lists render once, here (drift G-02,
+ * G-04). Their headings switch with the evidence state (SOP §10.8): a
+ * pre-release profile says "Looks promising if…", never "Great fit if…". No
+ * summary line is composed from the lists — that would be editorial content
+ * nobody approved.
  */
 export function DecisionBand({
   profile,
@@ -40,6 +43,7 @@ export function DecisionBand({
 }) {
   const id = useId();
   const { evaluation } = profile;
+  const headings = blockHeadings(evaluation.evidenceStatus);
 
   return (
     <section className="gp-decision" aria-labelledby={`${id}-decision`}>
@@ -62,6 +66,28 @@ export function DecisionBand({
           </div>
         </div>
 
+        <div className="gp-fit">
+          <h3 id={`${id}-fit`} className="sr-only">
+            Who this is for
+          </h3>
+          <div className="gp-fit__blocks" aria-labelledby={`${id}-fit`}>
+            {BLOCK_ORDER.map((type) => (
+              <div key={type} className="gp-fit__block" data-block={type}>
+                <h4 className="gp-kicker gp-fit__heading">
+                  {headings[type].title}
+                </h4>
+                <ul className="gp-fit__list">
+                  {evaluation.blocks[type].map((item) => (
+                    <li key={item} className="sip-prose">
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+
         <PracticalCommitment facts={practical} />
       </div>
     </section>
@@ -70,8 +96,8 @@ export function DecisionBand({
 
 /**
  * Total commitment and useful session, as separate facts in the accepted
- * ruled row under the pull/tax pair, where A3–A6 place it — and only when an
- * approved, scope-aware record says so.
+ * ruled row after the fit blocks, where handoff §8.1 places it — and only when
+ * an approved, scope-aware record says so.
  *
  * Practical time is outside the eight dimensions and never a ninth axis (ADR
  * 0027). Today no profile carries a record, so today this renders nothing:

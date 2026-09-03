@@ -53,13 +53,14 @@
   }
 }
 
-/* The Field Guide's notation line: the short uppercase mono kicker that names
-   a section, a field or a state (handoff §3.2). 12px floor, never smaller;
-   the specimen's 10–11px kickers are not reproduced. */
+/* The short uppercase label that names a section or a field. Archivo, the
+   production voice for labels: JetBrains Mono is reserved for genuinely short
+   evidence and status notation (handoff §2.2, §3.2; drift G-05). 12px floor,
+   never smaller; the specimen's 10–11px kickers are not reproduced. */
 .gp-kicker {
   margin: 0;
-  font-family: var(--font-evidence);
-  font-weight: var(--font-weight-regular);
+  font-family: var(--font-ui);
+  font-weight: var(--font-weight-semibold);
   font-size: var(--text-minimum);
   line-height: 1.45;
   letter-spacing: var(--tracking-kicker);
@@ -67,10 +68,11 @@
   color: var(--color-text-quiet);
 }
 
-/* Evidence and status carry the evidence cyan; the pull carries the brand
-   coral; on the warm paper the kicker takes the paper's own muted ink, and the
-   platform warning the game's accent in its light-ground tint. */
+/* The evidence notation itself — a state, a confidence, a cut-off — is the one
+   kicker in the evidence face, and carries the evidence cyan. */
 .gp-kicker--evidence {
+  font-family: var(--font-evidence);
+  font-weight: var(--font-weight-regular);
   color: var(--color-brand-evidence-cyan);
 }
 
@@ -84,6 +86,18 @@
 
 .gp-kicker--accent {
   color: var(--sip-accent-base);
+}
+
+/* A section heading that is a sentence, not a label: the instrument's head
+   names what the reader is looking at in the production display voice —
+   Archivo, sentence case, no tracked all-caps (handoff §3.2, drift G-05). */
+.gp-section-head {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-label);
+  line-height: 1.35;
+  color: var(--color-text-secondary);
 }
 
 /* A bordered panel on the dark ground: the instrument and the trust band.
@@ -269,15 +283,13 @@
   text-wrap: balance;
 }
 
-/* Without artwork the title is the identity: the accepted A5/A6 field sets it
-   condensed, heavy and uppercase, the one place outside the wordmark that
-   treatment is accepted. Still fluid, still wrapping. */
+/* Without artwork the title is the identity, and the field around it carries
+   the weight: spine, wash and the game's own shape. The type itself stays the
+   production treatment — Archivo at a restrained weight, sentence case, no
+   faux cinematic all-caps (handoff §3.2, drift G-06). A5/A6 draw it condensed
+   and uppercase; reversing that needs a durable owner amendment first. */
 .gp[data-art="less"] .gp-title {
-  font-stretch: 72%;
-  font-weight: 800;
-  text-transform: uppercase;
-  line-height: 0.92;
-  font-size: clamp(2.7rem, 7.5vw, 4.8rem);
+  line-height: 1.02;
 }
 
 .gp-byline {
@@ -399,6 +411,15 @@
   margin-top: 0.75rem;
 }
 
+/* A sentence about the record, so sentence-case Archivo at the small size
+   rather than tracked notation. */
+.gp-scopes__count {
+  margin: 0;
+  font-size: var(--text-minimum);
+  line-height: 1.45;
+  color: var(--color-text-quiet);
+}
+
 .gp-scopes__list {
   display: flex;
   flex-wrap: wrap;
@@ -494,7 +515,7 @@ a.gp-scopes__item:hover {
 /* Practical commitment: separate facts in the accepted ruled row, visibly
    outside the eight dimensions. Rendered only from an approved record. */
 .gp-practical {
-  margin-top: 1.2rem;
+  margin-top: 1.3rem;
   border-top: var(--border-thin) solid var(--color-border-subtle);
   border-bottom: var(--border-thin) solid var(--color-border-subtle);
   padding: 0.7rem 0 0.8rem;
@@ -538,9 +559,11 @@ a.gp-scopes__item:hover {
   color: var(--color-text-quiet);
 }
 
-/* Who this is for, opening the warm ground as A3–A6 draw it. */
+/* Who this is for: the governed fit blocks in the handoff's semantic position
+   (§8.1) — after the pull and the tax, before practical commitment and the
+   instrument, on the dark decision ground. */
 .gp-fit {
-  margin: 0;
+  margin-top: 1.2rem;
 }
 
 .gp-fit__blocks {
@@ -549,11 +572,11 @@ a.gp-scopes__item:hover {
 }
 
 .gp-fit__heading {
-  color: var(--color-text-on-editorial-muted);
+  color: var(--color-text-quiet);
 }
 
 .gp-fit__block[data-block="great_fit"] .gp-fit__heading {
-  color: var(--sip-accent-base);
+  color: var(--color-brand-coral);
 }
 
 .gp-fit__list {
@@ -569,15 +592,15 @@ a.gp-scopes__item:hover {
 .gp-fit__list li {
   margin: 0.1rem 0;
   padding: 0.25rem 0 0.25rem 0.7rem;
-  border-left: var(--border-thin) solid var(--color-border-on-editorial);
+  border-left: var(--border-thin) solid var(--color-border-control);
   font-size: var(--text-label);
   line-height: 1.5;
-  color: var(--color-text-on-editorial-muted);
+  color: var(--color-text-muted);
   text-wrap: pretty;
 }
 
 .gp-fit__block[data-block="great_fit"] .gp-fit__list li {
-  color: var(--color-text-on-editorial);
+  color: var(--color-text-secondary);
 }
 
 @media (min-width: 40rem) {
@@ -1216,8 +1239,6 @@ a.gp-scopes__item:hover {
 /* A hairline between the regions of this ground, drawn by whichever pair
    actually renders — a profile with no traits still separates fit from the
    platform and scope columns. */
-.gp-fit + .gp-traits-row,
-.gp-fit + .gp-reading__grid,
 .gp-traits-row + .gp-reading__grid {
   margin-top: 1.2rem;
   padding-top: 1rem;
@@ -1314,8 +1335,6 @@ a.gp-scopes__item:hover {
     gap: 1rem 4rem;
   }
 
-  .gp-fit + .gp-traits-row,
-  .gp-fit + .gp-reading__grid,
   .gp-traits-row + .gp-reading__grid {
     margin-top: 1.9rem;
     padding-top: 1.5rem;

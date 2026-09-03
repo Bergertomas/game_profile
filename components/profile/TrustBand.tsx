@@ -91,7 +91,7 @@ export function TrustBand({
             evidence state and confidence as square chips, and the cut-off in
             the notation voice. Words, never colour, carry each state. */}
           <div className="gp-trust__head">
-            <h2 id={`${id}-trust`} className="gp-kicker gp-kicker--evidence">
+            <h2 id={`${id}-trust`} className="gp-kicker">
               How this profile was made
             </h2>
             <span className="gp-chip">

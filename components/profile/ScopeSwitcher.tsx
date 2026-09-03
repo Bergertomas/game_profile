@@ -57,7 +57,7 @@ export function ScopeSwitcher({
       aria-label={`Evaluated experiences of ${gameTitle}`}
       className="gp-scopes"
     >
-      <p className="gp-kicker gp-scopes__count">
+      <p className="gp-scopes__count">
         This game has {scopes.length} evaluated experiences
       </p>
 

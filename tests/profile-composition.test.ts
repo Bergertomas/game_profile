@@ -73,10 +73,9 @@ describe("The reading order", () => {
   const text = textOf(html);
 
   it("answers the question before the instrument, in the accepted order", () => {
-    // The accepted A3–A6 stage: evidence state, then the title, then the
-    // platforms and exact scope, then the answer — all before the pull and
-    // the tax, the instrument, the warm reading ground (fit guidance, traits,
-    // platform and scope, as A3–A6 order them) and the trust band.
+    // The governed semantic order (handoff §8.1): identity, scope and state,
+    // the rapid answer, the pull and the tax, fit guidance, practical
+    // commitment, the full instrument, then the reading ground and trust.
     const marks = [
       "Verified", // evidence state, in the kicker over the title
       "Alan Wake 2", // h1
@@ -86,12 +85,12 @@ describe("The reading order", () => {
       alanWake2.evaluation.oneLineExperience,
       "The pull",
       "The tax",
+      "Who this is for", // fit guidance, before the instrument
+      "Great fit if…",
       "The instrument",
       "Story & Character Investment",
       "Pacing & Time Respect",
-      "Who this is for", // the warm ground opens with the fit lists
-      "Great fit if…",
-      "Traits",
+      "Traits", // the warm reading ground
       "Platform warning", // beside the scope detail, on the reading ground
       "Scope detail",
       "How this profile was made",
@@ -374,16 +373,16 @@ describe("Practical commitment from an approved record", () => {
     expect(text).toContain("Useful session Unknown");
     expect(text).toContain("Interruption flexibility Low");
     expect(text).toContain("Time never changes a score");
-    // The accepted ruled row: after the pull and the tax, before the
-    // instrument and the warm ground's fit guidance.
+    // The accepted ruled row, in the governed position (handoff §8.1): after
+    // the fit guidance, before the instrument.
     expect(text.indexOf("Practical commitment")).toBeGreaterThan(
       text.indexOf("The tax"),
     );
-    expect(text.indexOf("Practical commitment")).toBeLessThan(
-      text.indexOf("The instrument"),
+    expect(text.indexOf("Practical commitment")).toBeGreaterThan(
+      text.indexOf("Who this is for"),
     );
     expect(text.indexOf("Practical commitment")).toBeLessThan(
-      text.indexOf("Who this is for"),
+      text.indexOf("The instrument"),
     );
     // Eight rows, still.
     expect([...html.matchAll(/gp-row__num"/g)]).toHaveLength(8);

@@ -113,10 +113,7 @@ export function GameProfile({
         <div className="gp-measure">
           <div className="gp-panel gp-instrument__panel">
             <div className="gp-instrument__head">
-              <h2
-                id={`${id}-instrument`}
-                className="gp-kicker gp-kicker--evidence"
-              >
+              <h2 id={`${id}-instrument`} className="gp-section-head">
                 The instrument — eight dimensions, 0–10, each answering its own
                 question
               </h2>
