@@ -174,7 +174,24 @@ After acceptance, and on Tomas's separate explicit authorization (Working Agreem
 
 D1 does not start until this integration step is complete.
 
-## 11. Verification (2026-09-02, this environment)
+## 11. Verification
+
+### Revision 2 (2026-09-03, after the first-round audit corrections)
+
+| Check | Result |
+|---|---|
+| `npm run typecheck`, `npm run lint` | pass (0 warnings) |
+| `npm run test` | 77 files, 1250 tests pass (75 under `tests/igdb/`) |
+| `npm run build` + `npm run check:containment` | pass (preview build; production containment unchanged) |
+| `npm run test:db` (Postgres 16, disposable) | 208 passed, 0 failed — section 10 now includes the crossed scope/game rejection, the scope-without-game rejection and the valid own-scope candidate; the populated upgrade path applies `0011` with the composite key |
+| `npm run test:db-read` | 12 files, 216 tests pass (17 in `igdb-staging.test.ts`, including the scope-ownership rule in code and in the database) |
+| `npm run igdb:stage-proof` (rehearsal) | idempotent yes, editorial boundary held yes, exit 0 |
+| `npm run igdb:preflight` | READY/nothing-to-do on a migrated database; **BLOCKED, exit 1** on a pre-0011 database seeded with two games sharing `igdb 777` |
+| `npm run test:e2e` (Chromium via `PLAYWRIGHT_CHROMIUM_PATH`, local Postgres) | 221 passed, 0 failed, 0 flaky |
+| GitHub Actions on `41bae50` | Quality and Integration green |
+| `npm run igdb:probe -- --live` | credentials absent in this environment; exit 1; no network |
+
+### Revision 1 (2026-09-02)
 
 | Check | Result |
 |---|---|
