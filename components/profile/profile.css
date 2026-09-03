@@ -1,5 +1,7 @@
 /* ==========================================================================
-   THE GAME PROFILE PAGE — the accepted A3–A6 system (ADR 0032).
+   THE GAME PROFILE PAGE — the accepted A3–A6 system (ADR 0032), as drawn in
+   the canonical frames of "Should I Play - Canonical Screens"
+   (docs/design/Should_I_Play_Canonical_Design_Source.md).
 
    Every colour, size, radius and duration here is a role played with the
    canonical contract in app/globals.css; this file defines no palette of its
@@ -11,14 +13,16 @@
 
      - THE DOM ORDER IS THE READING ORDER. Nothing below repositions a section
        out of source sequence at any width (handoff §8.1, matrix X-12). The
-       one thing that moves is the identity plate, which overlays the stage
-       from the content breakpoint up — it is still first.
+       identity stage is one grid whose artwork layer sits behind the content
+       in both breakpoints; the content never moves.
      - NO MEANINGFUL TEXT BELOW 0.75rem, and the radar's labels are HTML text
-       so that holds at 200% zoom. Below the content breakpoint the labels are
-       hidden and the chart is decorative; the rows immediately follow.
-     - THE ARTLESS STATE RESERVES NO HOLE. With no artwork the identity plate
-       is the stage: accent wash, spine, title. It never reserves the art-led
-       height (handoff §8.1).
+       so that holds at 200% zoom. Where the specimen set a kicker at 10–11px
+       it is 12px here (handoff §2.2 rule 4). Below the content breakpoint the
+       radar labels are hidden and the chart is decorative; the rows follow.
+     - THE ARTLESS STATE RESERVES NO HOLE. With no artwork the identity stage
+       is the authored typographic field: accent spine and wash, condensed
+       title, the game's own shape as emblem (A5/A6). It never reserves the
+       art-led height.
 
    Scoped to `.gp` so it cannot reach the chrome, the rail or the homepage.
    ========================================================================== */
@@ -49,23 +53,65 @@
   }
 }
 
-/* The instrument voice: the small uppercase key that names a section, a field
-   or a state. 12px floor, never smaller. */
+/* The Field Guide's notation line: the short uppercase mono kicker that names
+   a section, a field or a state (handoff §3.2). 12px floor, never smaller;
+   the specimen's 10–11px kickers are not reproduced. */
 .gp-kicker {
   margin: 0;
+  font-family: var(--font-evidence);
+  font-weight: var(--font-weight-regular);
+  font-size: var(--text-minimum);
+  line-height: 1.45;
+  letter-spacing: var(--tracking-kicker);
+  text-transform: uppercase;
+  color: var(--color-text-quiet);
+}
+
+/* Evidence and status carry the evidence cyan; the pull carries the brand
+   coral; on the warm paper the kicker takes the paper's own muted ink, and the
+   platform warning the game's accent in its light-ground tint. */
+.gp-kicker--evidence {
+  color: var(--color-brand-evidence-cyan);
+}
+
+.gp-kicker--pull {
+  color: var(--color-brand-coral);
+}
+
+.gp-kicker--paper {
+  color: var(--color-text-on-editorial-muted);
+}
+
+.gp-kicker--accent {
+  color: var(--sip-accent-base);
+}
+
+/* A bordered panel on the dark ground: the instrument and the trust band.
+   Square, hairline, one step up from the canvas. */
+.gp-panel {
+  border: var(--border-thin) solid var(--color-border-default);
+  background: var(--color-surface-panel);
+}
+
+/* A square state chip: a word in a box, never a colour. */
+.gp-chip {
+  display: inline-block;
+  padding: 0.12rem 0.5rem;
   font-family: var(--font-ui);
   font-weight: var(--font-weight-semibold);
   font-size: var(--text-minimum);
   line-height: 1.35;
   text-transform: uppercase;
-  color: var(--color-text-quiet);
+  color: var(--color-text-secondary);
+  border: var(--border-thin) solid var(--color-border-control);
+  border-radius: var(--radius-structural);
 }
 
-.gp-kicker--editorial {
-  color: var(--color-text-on-editorial-muted);
-}
-
+/* An inline link in reading prose. Vertical padding on an inline box does not
+   move the line, so it only widens the pointer target to the 44px floor
+   (matrix X-10) without changing the measure. */
 .gp-link {
+  padding-block: 0.875rem;
   color: var(--color-text-primary);
   text-decoration: underline;
   text-underline-offset: 5px;
@@ -78,32 +124,43 @@
 }
 
 /* --------------------------------------------------------------------------
-   1. Identity. The stage, and the plate that names the game on it.
+   1. The identity stage.
+
+   One grid, three rows: a spacer that takes the stage's slack, the lead
+   (kicker, title, byline) and the facts (platforms, scope, answer). The
+   artwork or the artless field is a grid child laid under the content. On a
+   phone it spans the lead only, so the picture is a bottom-scrimmed 16.5rem
+   band that holds the title and nothing is set over the answer; from the
+   content breakpoint it spans the whole header, which grows to the accepted
+   27rem stage with everything anchored to its lower band (A3/A4).
    -------------------------------------------------------------------------- */
 
-/* The authored identity field is ALWAYS painted: the game's accent as one
-   wash closing the top of the page over the stage ground. Cleared artwork sits
-   over it, so `loading`, `failed` and `absent` all resolve to the same
-   composition rather than to an empty black rectangle (handoff §4.2). */
 .gp-identity {
   position: relative;
-  overflow: hidden;
-  background:
-    radial-gradient(
-      120% 150% at 10% 0%,
-      color-mix(in oklab, var(--sip-accent-lift) 32%, transparent) 0%,
-      transparent 60%
-    ),
-    linear-gradient(to bottom, var(--color-surface-stage), var(--color-surface-canvas));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  background: var(--color-surface-canvas);
 }
 
-/* On a phone the picture is a compact strip above the plate, so no type is
-   ever set over a face and the title, scope and answer all fit the first
-   viewport at 390×667. The composition is compact by design, not by
-   compromise: art is identity here, not a takeover. */
-.gp-stage {
+.gp-stage,
+.gp-field {
+  grid-column: 1;
+  grid-row: 1 / 3;
   position: relative;
-  height: 8rem;
+  overflow: hidden;
+  border-bottom: var(--border-thin) solid var(--color-border-subtle);
+  /* The authored field is ALWAYS painted: the game's accent as one wash over
+     the stage ground. Cleared artwork sits over it, so `loading`, `failed`
+     and `absent` all resolve to the same composition rather than to an empty
+     black rectangle (handoff §4.2). */
+  background:
+    linear-gradient(
+      105deg,
+      color-mix(in srgb, var(--sip-accent-lift) 9%, transparent) 0%,
+      transparent 45%
+    ),
+    var(--color-surface-stage);
 }
 
 .gp-stage img {
@@ -119,139 +176,227 @@
   color: transparent;
 }
 
+/* The scrim is the lightest ramp that clears AA for the text it is under. On
+   a phone it rises from the bottom only (A4); from the content breakpoint it
+   is the accepted pair — from the left, where the text is, and from the
+   bottom — leaving the subject on the right painted as delivered: no blur,
+   no filter, no tint (A3). Every stop is the canvas at an opacity. */
 .gp-stage__scrim {
-  display: none;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    0deg,
+    color-mix(in srgb, var(--color-surface-canvas) 90%, transparent) 0%,
+    color-mix(in srgb, var(--color-surface-canvas) 30%, transparent) 50%,
+    transparent 72%
+  );
 }
 
-.gp-identity__plate {
+/* The artless identity field (A5/A6): the accent as a spine at the page's
+   edge, the wash, and the game's own shape as a quiet emblem. Not a
+   placeholder and not a hole. */
+.gp-field::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 0.1875rem;
+  background: var(--sip-accent-lift);
+}
+
+.gp-field__emblem {
+  position: absolute;
+  top: 0.9rem;
+  right: 0.9rem;
+  width: 5.25rem;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.gp-field__emblem svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.gp-identity__lead {
+  grid-column: 1;
+  grid-row: 2;
   position: relative;
-  padding: var(--space-4) 0 var(--space-6);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 16.5rem;
+  padding: 1.4rem 0 1rem;
+}
+
+.gp-identity__facts {
+  grid-column: 1;
+  grid-row: 3;
+  position: relative;
+  padding: 0.95rem 0 1rem;
 }
 
 .gp-identity__kicker {
-  margin: 0;
-  color: var(--color-brand-evidence-cyan);
+  text-wrap: balance;
 }
 
-/* Fluid between the two contract sizes, and it WRAPS — a long title grows the
-   plate rather than being clipped or shrunk below the mobile size. */
+/* Provisional and pre-release are amber as well as words. The word is the
+   carrier; the colour is the reinforcement (matrix X-11). */
+.gp-identity__status[data-status="provisional"],
+.gp-identity__status[data-status="pre_release"] {
+  color: var(--color-state-provisional);
+}
+
+/* The accepted title: Archivo at its natural width and regular weight, set
+   solid. Fluid between the two contract sizes, and it WRAPS — a long title
+   grows the stage rather than being clipped or shrunk below the mobile size. */
 .gp-title {
-  margin: var(--space-2) 0 0;
+  margin: 0.3rem 0 0;
+  font-family: var(--font-ui);
+  font-stretch: 100%;
+  font-weight: var(--font-weight-regular);
   font-size: clamp(
     var(--text-profile-title-mobile),
     6.5vw,
     var(--text-profile-title-desktop)
   );
-  line-height: var(--leading-tight);
+  line-height: 1;
   color: var(--color-text-primary);
   overflow-wrap: anywhere;
   text-wrap: balance;
 }
 
+/* Without artwork the title is the identity: the accepted A5/A6 field sets it
+   condensed, heavy and uppercase, the one place outside the wordmark that
+   treatment is accepted. Still fluid, still wrapping. */
+.gp[data-art="less"] .gp-title {
+  font-stretch: 72%;
+  font-weight: 800;
+  text-transform: uppercase;
+  line-height: 0.92;
+  font-size: clamp(2.7rem, 7.5vw, 4.8rem);
+}
+
 .gp-byline {
-  margin: var(--space-3) 0 0;
+  margin: 0.35rem 0 0;
   font-size: var(--text-label);
   color: var(--color-text-muted);
 }
 
-/* Full platform names, as a list of small square tags. No abbreviations and
-   no logos — none is approved — so the name is the whole identity. */
+/* Full platform names, inline. No abbreviations and no logos — none is
+   approved — so the name is the whole identity (matrix P-02). */
 .gp-platforms {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2) var(--space-2);
-  margin: var(--space-3) 0 0;
+  gap: 0.35rem 1.2rem;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .gp-platforms li {
-  padding: 0.2rem 0.6rem;
-  font-size: var(--text-small);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-label);
   line-height: var(--leading-body);
+  color: var(--color-text-primary);
+}
+
+/* The exact scope the numbers describe, in the notation voice. */
+.gp-scope {
+  margin: 0.6rem 0 0;
+  font-family: var(--font-evidence);
+  font-size: var(--text-minimum);
+  line-height: 1.7;
+  color: var(--color-text-quiet);
+  text-wrap: pretty;
+}
+
+/* The answer. The reading voice, italic, at its largest. */
+.gp-answer {
+  margin: 0.9rem 0 0;
+  max-width: 54ch;
+  font-style: italic;
+  font-size: var(--text-body-large);
+  line-height: 1.5;
   color: var(--color-text-secondary);
-  border: var(--border-thin) solid var(--color-border-control);
-  border-radius: var(--radius-structural);
-}
-
-/* From the content breakpoint the artwork fills the header and the plate sits
-   over its lower band. The scrim is the lightest ramp that clears AA for the
-   text it is under, and it is transparent across the upper part of the frame
-   so the subject is painted as delivered — no blur, no filter, no tint. */
-@media (min-width: 40rem) {
-  .gp[data-art="led"] .gp-stage {
-    position: absolute;
-    inset: 0;
-    height: auto;
-  }
-
-  .gp[data-art="led"] .gp-stage__scrim {
-    display: block;
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background: linear-gradient(
-      to top,
-      var(--color-overlay-scrim-strong) 0%,
-      var(--color-overlay-scrim-strong) 38%,
-      var(--color-overlay-scrim-soft) 62%,
-      transparent 84%
-    );
-  }
-
-  /* Art-led desktop stage ≈ 24–25rem with the plate: under the contract's
-     hero maximum, and short enough that the answer and the pull/tax pair are
-     on screen at 1440×900. Content and zoom may make it taller; nothing is
-     clipped. */
-  .gp[data-art="led"] .gp-identity__plate {
-    padding-top: clamp(10rem, 15vw, 12rem);
-    padding-bottom: var(--space-7);
-  }
-}
-
-/* The artless identity field. Not a placeholder: the wash above, a spine, and
-   the title set large — the same move the poster sleeve makes, so one game is
-   recognisably itself in both places. No image-shaped hole is reserved. */
-.gp[data-art="less"] .gp-identity__plate {
-  padding-top: var(--space-8);
-  padding-bottom: var(--space-7);
-}
-
-.gp[data-art="less"] .gp-identity__plate > .gp-measure {
-  position: relative;
-  padding-left: calc(var(--size-gutter-mobile) + 1.1rem);
-}
-
-.gp[data-art="less"] .gp-identity__plate > .gp-measure::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: var(--size-gutter-mobile);
-  width: 0.25rem;
-  background: var(--sip-accent-lift);
+  text-wrap: pretty;
 }
 
 @media (min-width: 40rem) {
-  .gp[data-art="less"] .gp-identity__plate {
-    padding-top: var(--space-11);
-    padding-bottom: var(--space-9);
+  .gp-identity {
+    min-height: 27rem;
   }
 
-  .gp[data-art="less"] .gp-identity__plate > .gp-measure {
-    padding-left: calc(var(--size-gutter-desktop) + 1.4rem);
+  .gp-stage,
+  .gp-field {
+    grid-row: 1 / 4;
   }
 
-  .gp[data-art="less"] .gp-identity__plate > .gp-measure::before {
-    left: var(--size-gutter-desktop);
+  .gp-stage__scrim {
+    background:
+      linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--color-surface-canvas) 93%, transparent) 0%,
+        color-mix(in srgb, var(--color-surface-canvas) 60%, transparent) 42%,
+        color-mix(in srgb, var(--color-surface-canvas) 5%, transparent) 72%
+      ),
+      linear-gradient(
+        0deg,
+        color-mix(in srgb, var(--color-surface-canvas) 85%, transparent) 0%,
+        color-mix(in srgb, var(--color-surface-canvas) 25%, transparent) 45%,
+        transparent 70%
+      );
+  }
+
+  .gp-field::before {
+    width: 0.25rem;
+  }
+
+  .gp-field__emblem {
+    top: 50%;
+    right: 5rem;
+    width: 14.375rem;
+    transform: translateY(-50%);
+  }
+
+  .gp-identity__lead {
+    min-height: 0;
+    padding: 2.2rem 0 0;
+  }
+
+  .gp-identity__facts {
+    padding: 0.75rem 0 1.8rem;
+  }
+
+  /* The artless stage is content-sized: the field, not a reserved height. */
+  .gp[data-art="less"] .gp-identity {
+    min-height: 0;
+  }
+
+  .gp[data-art="less"] .gp-identity__lead {
+    padding-top: 2.6rem;
+  }
+
+  .gp[data-art="less"] .gp-identity__facts {
+    padding-bottom: 2rem;
+  }
+
+  .gp-byline {
+    margin-top: 0.45rem;
+  }
+
+  .gp-answer {
+    font-size: var(--text-lead);
+    line-height: 1.45;
   }
 }
 
-/* The scope switcher, under the title, only where a game has siblings. */
+/* The scope switcher, under the scope line, only where a game has siblings. */
 .gp-scopes {
-  margin-top: var(--space-5);
-  padding-top: var(--space-3);
-  border-top: var(--border-thin) solid var(--color-border-default);
+  margin-top: 0.75rem;
 }
 
 .gp-scopes__list {
@@ -273,7 +418,8 @@
   text-decoration: none;
   border: var(--border-thin) solid var(--color-border-control);
   border-radius: var(--radius-structural);
-  transition: border-color var(--duration-fast) linear,
+  transition:
+    border-color var(--duration-fast) linear,
     color var(--duration-fast) linear;
 }
 
@@ -299,56 +445,11 @@ a.gp-scopes__item:hover {
   color: var(--color-text-muted);
 }
 
-/* --------------------------------------------------------------------------
-   2. Scope, build and evidence state — before the answer.
-   -------------------------------------------------------------------------- */
-
-.gp-status {
-  background: var(--color-surface-panel);
-  border-top: var(--border-thin) solid var(--color-border-subtle);
-  border-bottom: var(--border-thin) solid var(--color-border-subtle);
-}
-
-.gp-status__list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
-  gap: var(--space-3) var(--space-8);
-  margin: 0;
-  padding: var(--space-4) 0;
-}
-
-.gp-status__item dt {
-  margin: 0;
-  font-weight: var(--font-weight-semibold);
-  font-size: var(--text-minimum);
-  line-height: 1.35;
-  text-transform: uppercase;
-  color: var(--color-text-quiet);
-}
-
-.gp-status__item dd {
-  margin: 0.25rem 0 0;
-  font-size: var(--text-label);
-  line-height: var(--leading-body);
-  color: var(--color-text-secondary);
-  text-wrap: pretty;
-}
-
-.gp-status__state {
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-}
-
-/* Provisional and pre-release are amber as well as words. The word is the
-   carrier; the colour is the reinforcement (matrix X-11). */
-.gp-status__state[data-status="provisional"],
-.gp-status__state[data-status="pre_release"] {
-  color: var(--color-state-provisional);
-}
-
-.gp-caveat,
-.gp-warning {
-  margin: 0 0 var(--space-4);
+/* A provisional or pre-release profile says so before the numbers are read:
+   a ruled aside directly under the stage, words first. */
+.gp-caveat {
+  margin: 1rem 0 0;
+  max-width: 64ch;
   padding: var(--space-3) var(--space-4);
   font-size: var(--text-label);
   line-height: var(--leading-body);
@@ -358,159 +459,63 @@ a.gp-scopes__item:hover {
   text-wrap: pretty;
 }
 
-.gp-warning {
-  margin: var(--space-5) 0 0;
-  max-width: 64ch;
-  border-left-color: var(--sip-accent-lift);
-}
-
-.gp-caveat strong,
-.gp-warning strong {
+.gp-caveat strong {
   color: var(--color-text-primary);
 }
 
 /* --------------------------------------------------------------------------
-   3. The answer.
+   2. The decision: the pull and the tax, practical commitment, who this is
+   for. On the dark ground, as the accepted screens set them.
    -------------------------------------------------------------------------- */
 
-.gp-answer {
-  padding: var(--space-6) 0;
-}
-
-/* The reading voice at its largest: 18–22px on 1.6. */
-.gp-answer__lead {
-  margin: var(--space-3) 0 0;
-  max-width: 52ch;
-  font-size: var(--text-body-large);
-  line-height: var(--leading-editorial);
-  color: var(--color-text-primary);
-  text-wrap: pretty;
-}
-
-@media (min-width: 40rem) {
-  .gp-answer__lead {
-    font-size: var(--text-lead);
-  }
-}
-
-/* --------------------------------------------------------------------------
-   4–5. The pull, the tax, who this is for, practical commitment.
-   The one warm editorial surface on an otherwise dark product (handoff §2.2).
-   -------------------------------------------------------------------------- */
-
-.gp-editorial {
-  padding: var(--space-7) 0 var(--space-9);
-  background: var(--color-surface-editorial);
-  color: var(--color-text-on-editorial);
+.gp-decision {
+  padding: 1.1rem 0 0;
 }
 
 .gp-pulltax {
   display: grid;
-  gap: var(--space-6);
-}
-
-.gp-pulltax__side + .gp-pulltax__side {
-  padding-top: var(--space-5);
-  border-top: var(--border-thin) solid var(--color-border-on-editorial);
-}
-
-@media (min-width: 40rem) {
-  .gp-pulltax {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-8);
-  }
-
-  /* Equal weight, either side of one rule. Neither is wider or first-by-size. */
-  .gp-pulltax__side + .gp-pulltax__side {
-    padding-top: 0;
-    padding-left: var(--space-8);
-    border-top: 0;
-    border-left: var(--border-thin) solid var(--color-border-on-editorial);
-  }
+  gap: 0.9rem;
 }
 
 .gp-pulltax__text {
-  margin: var(--space-2) 0 0;
-  max-width: 40ch;
-  font-size: var(--text-body-large);
-  line-height: var(--leading-editorial);
-  color: var(--color-text-on-editorial);
+  margin: 0.35rem 0 0;
+  font-size: var(--text-label);
+  line-height: 1.55;
+  color: var(--color-text-secondary);
   text-wrap: pretty;
 }
 
-.gp-fit {
-  margin-top: var(--space-8);
-  padding-top: var(--space-6);
-  border-top: var(--border-thin) solid var(--color-border-on-editorial);
+/* Equal weight. The tax reads one step quieter than the pull, and neither is
+   wider or first-by-size. */
+.gp-pulltax__side--tax .gp-pulltax__text {
+  color: var(--color-text-muted);
 }
 
-.gp-fit__blocks {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
-  gap: var(--space-5) var(--space-8);
-  margin-top: var(--space-4);
-}
-
-.gp-fit__heading {
-  margin: 0;
-  font-family: var(--font-ui);
-  font-weight: var(--font-weight-semibold);
-  font-size: var(--text-body);
-  line-height: var(--leading-heading);
-  color: var(--color-text-on-editorial);
-}
-
-.gp-fit__list {
-  margin: var(--space-2) 0 0;
-  padding-left: 1.1rem;
-  list-style: square;
-  font-size: var(--text-body);
-  line-height: var(--leading-body);
-  color: var(--color-text-on-editorial-muted);
-}
-
-.gp-fit__list li + li {
-  margin-top: 0.35rem;
-}
-
-/* Practical commitment: two separate facts in a bounded structured block,
-   visibly outside the eight dimensions. Rendered only from an approved record. */
+/* Practical commitment: separate facts in the accepted ruled row, visibly
+   outside the eight dimensions. Rendered only from an approved record. */
 .gp-practical {
-  margin-top: var(--space-7);
-  max-width: 40rem;
-  padding: var(--space-5);
-  border: var(--border-thin) solid var(--color-border-on-editorial);
+  margin-top: 1.2rem;
+  border-top: var(--border-thin) solid var(--color-border-subtle);
+  border-bottom: var(--border-thin) solid var(--color-border-subtle);
+  padding: 0.7rem 0 0.8rem;
 }
 
 .gp-practical__list {
   display: grid;
-  gap: var(--space-3);
-  margin: var(--space-3) 0 0;
-}
-
-@media (min-width: 40rem) {
-  .gp-practical__list {
-    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-    gap: var(--space-5);
-  }
-}
-
-.gp-practical__item dt {
-  font-weight: var(--font-weight-semibold);
-  font-size: var(--text-minimum);
-  line-height: 1.35;
-  text-transform: uppercase;
-  color: var(--color-text-on-editorial-muted);
+  gap: 0.7rem;
+  margin: 0;
 }
 
 .gp-practical__item dd {
-  margin: 0.2rem 0 0;
-  font-size: var(--text-body);
-  color: var(--color-text-on-editorial);
+  margin: 0.25rem 0 0;
+  color: var(--color-text-primary);
 }
 
 .gp-practical__value {
-  font-weight: var(--font-weight-semibold);
+  display: block;
+  font-weight: var(--font-weight-bold);
+  font-size: var(--text-body-large);
+  line-height: 1.25;
 }
 
 .gp-practical__item[data-state="unknown"] .gp-practical__value {
@@ -519,46 +524,153 @@ a.gp-scopes__item:hover {
 }
 
 .gp-practical__detail {
-  color: var(--color-text-on-editorial-muted);
-  font-size: var(--text-label);
+  display: block;
+  margin-top: 0.1rem;
+  font-size: var(--text-small);
+  line-height: var(--leading-body);
+  color: var(--color-text-quiet);
 }
 
 .gp-practical__note {
-  margin: var(--space-3) 0 0;
+  margin: 0.5rem 0 0;
   font-size: var(--text-small);
   line-height: var(--leading-body);
-  color: var(--color-text-on-editorial-muted);
+  color: var(--color-text-quiet);
 }
 
-/* --------------------------------------------------------------------------
-   6. The instrument: labelled radar and eight permanent exact rows.
-   -------------------------------------------------------------------------- */
-
-.gp-instrument {
-  padding: var(--space-9) 0;
-  background: var(--color-surface-panel);
-  border-top: var(--border-thin) solid var(--color-border-subtle);
+.gp-fit {
+  margin-top: 1.2rem;
 }
 
-.gp-instrument__rule {
-  margin: var(--space-2) 0 0;
-  max-width: 62ch;
+.gp-fit__blocks {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.gp-fit__block[data-block="great_fit"] .gp-fit__heading {
+  color: var(--color-brand-coral);
+}
+
+.gp-fit__list {
+  display: flex;
+  flex-direction: column;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Each item is a ruled line of reading prose, as the accepted screens set
+   them; the first block reads one step brighter than the two caveats. */
+.gp-fit__list li {
+  margin: 0.1rem 0;
+  padding: 0.25rem 0 0.25rem 0.7rem;
+  border-left: var(--border-thin) solid var(--color-border-control);
   font-size: var(--text-label);
-  line-height: var(--leading-body);
+  line-height: 1.5;
   color: var(--color-text-muted);
   text-wrap: pretty;
 }
 
-/* Two columns only where two 28rem columns fit — which is the wide layout at
-   ordinary text and a single column at 200% text, without a breakpoint that
-   would have to know the root font size. Media queries measure in the initial
-   font size; `auto-fit` measures in the real one. */
+.gp-fit__block[data-block="great_fit"] .gp-fit__list li {
+  color: var(--color-text-secondary);
+}
+
+@media (min-width: 40rem) {
+  .gp-decision {
+    padding-top: 1.7rem;
+  }
+
+  .gp-pulltax {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 4rem;
+  }
+
+  .gp-pulltax__text {
+    margin-top: 0.45rem;
+    font-size: var(--text-body-large);
+  }
+
+  .gp-practical {
+    margin-top: 1.5rem;
+    padding: 0.9rem 0 1rem;
+  }
+
+  .gp-practical__list {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+    gap: 0.6rem 3rem;
+  }
+
+  .gp-fit {
+    margin-top: 1.3rem;
+  }
+
+  .gp-fit__blocks {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+    gap: 0.9rem 3rem;
+  }
+
+  .gp-fit__list li {
+    padding: 0.3rem 0 0.3rem 0.8rem;
+    margin: 0.15rem 0;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   3. The instrument: a bordered panel holding the labelled radar and the
+   eight permanent exact rows.
+   -------------------------------------------------------------------------- */
+
+.gp-instrument {
+  padding: 1.2rem 0 0;
+}
+
+/* The panel measures itself, so the two-column layout and the row grammar
+   appear only when they genuinely fit — at 200% text a 64rem breakpoint would
+   still fire at 1024px, while a container query measures rem against the real
+   root font. */
+.gp-instrument__panel {
+  container-type: inline-size;
+  container-name: instrument;
+  padding: 1rem;
+}
+
+.gp-instrument__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.4rem 1rem;
+}
+
+.gp-instrument__head h2 {
+  text-wrap: balance;
+}
+
+.gp-instrument__rubric {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-control-minimum);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-label);
+  color: var(--color-brand-coral);
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 4px;
+  transition:
+    color var(--duration-fast) linear,
+    text-decoration-color var(--duration-fast) linear;
+}
+
+.gp-instrument__rubric:hover {
+  color: var(--color-brand-coral-hover);
+  text-decoration-color: currentColor;
+}
+
 .gp-instrument__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 28rem), 1fr));
-  gap: var(--space-7) var(--space-9);
+  gap: 1rem;
   align-items: start;
-  margin-top: var(--space-6);
+  margin-top: 0.6rem;
 }
 
 .gp-instrument__chart {
@@ -568,8 +680,8 @@ a.gp-scopes__item:hover {
 /* The figure. A square frame; the SVG is inset so the eight HTML labels have
    room around the outer ring. `min()` so it never exceeds its column, at any
    zoom. Below the content breakpoint the chart is the 15rem overview and the
-   labels are hidden: eight two-word names at the floor do not fit around it on
-   a 320px phone, and shrinking them is the one thing the contract forbids
+   labels are hidden: eight two-word names at the floor do not fit around it
+   on a 320px phone, and shrinking them is the one thing the contract forbids
    (handoff §9.2). The rows immediately follow. */
 .gp-radar {
   position: relative;
@@ -594,29 +706,29 @@ a.gp-scopes__item:hover {
 }
 
 @media (min-width: 40rem) {
-  /* 22.5rem of chart (the contract's desktop profile radar) inside a 33.5rem
-     frame: 5.5rem each side for the labels, in rem so the allowance grows with
-     the text. Where the column is narrower the chart shrinks and the label
-     allowance does not, which is what keeps 200% text inside the frame. */
+  /* 22.5rem of chart (the contract's desktop profile radar) inside a 33rem
+     frame: 5.25rem each side for the labels, in rem so the allowance grows
+     with the text. Where the column is narrower the chart shrinks and the
+     label allowance does not, which is what keeps 200% text inside the frame. */
   .gp-radar {
-    width: min(100%, 33.5rem);
+    width: min(100%, 33rem);
   }
 
   .gp-radar__svg {
-    inset: 5.5rem;
+    inset: 5.25rem;
   }
 
   .gp-radar__label {
     --tx: 0;
     --ty: 0;
     /* The chart's outer radius — 100/110 of half the inset box — plus a gap. */
-    --gp-label-radius: calc((100% - 11rem) * 0.4545 + 0.9rem);
+    --gp-label-radius: calc((100% - 10.5rem) * 0.4545 + 0.9rem);
     position: absolute;
     display: block;
     max-width: 6rem;
     transform: translate(var(--tx), var(--ty));
     white-space: nowrap;
-    line-height: 1.25;
+    line-height: 1.2;
     color: var(--color-text-quiet);
     transition: color var(--duration-fast) linear;
   }
@@ -656,7 +768,7 @@ a.gp-scopes__item:hover {
   display: block;
   font-family: var(--font-ui);
   font-weight: var(--font-weight-bold);
-  font-size: var(--text-label);
+  font-size: var(--text-body-large);
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
   color: var(--color-text-primary);
@@ -679,18 +791,41 @@ a.gp-scopes__item:hover {
   color: var(--color-state-unknown);
 }
 
-/* The eight rows. Permanent, in fixed radar order, exact values in text. */
+/* The one sentence the accepted instrument says under its chart. */
+.gp-instrument__note {
+  margin: 0.6rem auto 0;
+  max-width: 44ch;
+  font-size: var(--text-small);
+  line-height: 1.55;
+  color: var(--color-text-quiet);
+  text-wrap: pretty;
+}
+
+@container instrument (min-width: 60rem) {
+  .gp-instrument__grid {
+    grid-template-columns: minmax(0, 27.5rem) minmax(0, 1fr);
+    gap: 0 3rem;
+    margin-top: 1.3rem;
+  }
+
+  .gp-instrument__note {
+    margin: 0.9rem 0 0;
+  }
+}
+
+/* The eight rows. Permanent, in fixed radar order, exact values in text.
+   The list measures itself so the accepted five-column row grammar appears
+   only where five columns genuinely fit, and the phone grammar otherwise. */
 .gp-rows {
   margin: 0;
   padding: 0;
   list-style: none;
-  border-top: var(--border-thin) solid var(--color-border-default);
+  container-type: inline-size;
+  container-name: rows;
 }
 
 .gp-row {
-  padding: var(--space-4) var(--space-3);
-  margin-inline: calc(-1 * var(--space-3));
-  border-bottom: var(--border-thin) solid var(--color-border-default);
+  border-top: var(--border-thin) solid var(--color-border-default);
   transition: background-color var(--duration-fast) linear;
 }
 
@@ -698,39 +833,21 @@ a.gp-scopes__item:hover {
   background: var(--color-surface-panel-raised);
 }
 
+/* Phone grammar: name and confidence read as one group, the value and the
+   disclosure beside them, the explanation under all three. */
 .gp-row__head {
   display: grid;
-  gap: var(--space-3);
-  align-items: start;
-}
-
-/* From the content breakpoint the head is a wrapping row: the name and gloss
-   take what is left, the reading keeps its 11rem ruler, and the disclosure
-   sits at the end. When the column cannot hold all three — 200% text — the
-   reading and the control wrap under the name instead of overflowing. */
-@media (min-width: 40rem) {
-  .gp-row__head {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    gap: var(--space-3) var(--space-4);
-  }
-
-  .gp-row__lead {
-    flex: 1 1 13rem;
-  }
-
-  .gp-row__reading {
-    flex: 0 1 11rem;
-    min-width: 8rem;
-  }
-
-  .gp-row__why {
-    flex: 0 0 auto;
-  }
+  grid-template-columns: minmax(0, 1fr) auto var(--size-control-minimum);
+  grid-template-areas:
+    "lead value why"
+    "gloss gloss gloss";
+  gap: 0 0.6rem;
+  align-items: center;
+  padding: 0.35rem 0;
 }
 
 .gp-row__lead {
+  grid-area: lead;
   min-width: 0;
 }
 
@@ -738,107 +855,54 @@ a.gp-scopes__item:hover {
   margin: 0;
   font-family: var(--font-ui);
   font-weight: var(--font-weight-semibold);
-  font-size: var(--text-body);
-  line-height: var(--leading-heading);
-  color: var(--color-text-primary);
+  font-size: var(--text-small);
+  line-height: 1.3;
+  color: var(--color-text-secondary);
+}
+
+.gp-row__confidence {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.5rem;
+  margin: 0.15rem 0 0;
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-minimum);
+  line-height: 1.35;
+  text-transform: uppercase;
+  color: var(--color-text-quiet);
+}
+
+/* Medium and Low confidence are a word in a box; High is a plain word. A
+   word, never a colour (B-rail). */
+.gp-row[data-confidence="medium"] .gp-row__level,
+.gp-row[data-confidence="low"] .gp-row__level {
+  padding: 0.14rem 0.45rem;
+  color: var(--color-text-secondary);
+  border: var(--border-thin) solid var(--color-border-control);
+}
+
+.gp-row__varies {
+  color: var(--sip-accent-lift);
 }
 
 .gp-row__gloss {
-  margin: 0.25rem 0 0;
-  max-width: 40ch;
+  grid-area: gloss;
+  margin: 0 3.4rem 0.55rem 0;
   font-size: var(--text-small);
-  line-height: var(--leading-body);
-  color: var(--color-text-muted);
+  line-height: 1.45;
+  color: var(--color-text-quiet);
   text-wrap: pretty;
-}
-
-.gp-row__reading {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas:
-    "scale value"
-    "confidence confidence";
-  column-gap: var(--space-3);
-  align-items: center;
-}
-
-@media (min-width: 40rem) {
-  .gp-row__reading {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas:
-      "value"
-      "scale"
-      "confidence";
-    justify-items: end;
-    text-align: right;
-    row-gap: 0.25rem;
-  }
-}
-
-/* The shared 0–10 reading. Square ends, hairline baseline, measured rule and an
-   accent tick — a ruler, not a filled bar. A range adds a dotted reach to its
-   ceiling and an open tick there; Unknown is a dashed baseline with no rule. */
-.gp-scale {
-  grid-area: scale;
-  position: relative;
-  display: block;
-  width: 100%;
-  height: 0.75rem;
-  color: var(--color-text-primary);
-}
-
-.gp-scale::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  border-top: var(--border-thin) solid var(--color-border-strong);
-}
-
-.gp-scale--unknown::before {
-  border-top-style: dashed;
-  border-top-color: var(--color-state-unknown);
-}
-
-.gp-scale__measure {
-  position: absolute;
-  left: 0;
-  top: 50%;
-  margin-top: -1px;
-  border-top: 2px solid currentColor;
-}
-
-.gp-scale__reach {
-  position: absolute;
-  top: 50%;
-  margin-top: -1px;
-  border-top: 2px dotted var(--color-state-range);
-}
-
-.gp-scale__tick {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  margin-left: -1px;
-  background: var(--sip-accent-lift);
-}
-
-.gp-scale__tick--open {
-  width: 0;
-  background: none;
-  border-left: 2px dotted var(--color-state-range);
 }
 
 .gp-row__value {
   grid-area: value;
   margin: 0;
   line-height: 1;
+  text-align: right;
 }
 
 .gp-row__num {
-  font-size: var(--text-heading-small);
+  font-size: var(--text-body);
   color: var(--color-text-primary);
 }
 
@@ -851,90 +915,111 @@ a.gp-scopes__item:hover {
 
 .gp-row__notscored {
   font-weight: var(--font-weight-semibold);
-  font-size: var(--text-label);
+  font-size: var(--text-small);
   text-transform: uppercase;
   color: var(--color-state-unknown);
 }
 
-.gp-row__confidence {
-  grid-area: confidence;
-  margin: 0.2rem 0 0;
-  font-weight: var(--font-weight-semibold);
-  font-size: var(--text-minimum);
-  line-height: 1.35;
-  text-transform: uppercase;
-  color: var(--color-text-quiet);
-}
-
-.gp-row[data-confidence="low"] .gp-row__confidence {
-  color: var(--color-state-provisional);
-}
-
-.gp-row__varies {
-  color: var(--sip-accent-lift);
-}
-
-/* The disclosure. An explicit 44px control with a real boundary; the label
-   never changes, `aria-expanded` carries the state and the chevron mirrors it. */
+/* The disclosure. The accepted 44×44 square control with a real boundary;
+   the accessible name never changes, `aria-expanded` carries the state and
+   the glyph mirrors it. */
 .gp-row__why {
-  position: relative;
-  display: inline-flex;
+  grid-area: why;
+  display: flex;
   align-items: center;
-  gap: 0.45rem;
-  min-height: var(--size-control-minimum);
-  padding: 0 var(--space-3);
+  justify-content: center;
+  width: var(--size-control-minimum);
+  height: var(--size-control-minimum);
+  padding: 0;
   font-family: var(--font-ui);
-  font-weight: var(--font-weight-semibold);
-  font-size: var(--text-minimum);
-  line-height: 1.35;
-  text-transform: uppercase;
-  text-align: left;
+  font-size: 1.15rem;
+  line-height: 1;
   color: var(--color-text-primary);
-  background: transparent;
+  background: var(--color-surface-panel-raised);
   border: var(--border-thin) solid var(--color-border-control);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-structural);
   cursor: pointer;
-  transition: background-color var(--duration-fast) linear,
-    border-color var(--duration-fast) linear;
+  transition:
+    background-color var(--duration-fast) linear,
+    border-color var(--duration-fast) linear,
+    color var(--duration-fast) linear;
 }
 
-.gp-row__why:hover,
-.gp-row__why[aria-expanded="true"] {
-  background: var(--color-surface-panel-raised);
+.gp-row__why:hover {
+  color: var(--color-brand-coral);
   border-color: var(--color-border-strong);
 }
 
-.gp-row__chevron {
-  font-size: var(--text-label);
-  line-height: 1;
-  transition: transform var(--duration-standard) var(--ease-standard);
+.gp-row__why[aria-expanded="true"] {
+  border-color: var(--color-border-strong);
 }
 
-.gp-row__why[aria-expanded="true"] .gp-row__chevron {
-  transform: rotate(180deg);
+@container rows (min-width: 36rem) {
+  .gp-row__head {
+    grid-template-columns:
+      minmax(8rem, 11.5rem) minmax(0, 1fr) auto minmax(6rem, 8rem)
+      var(--size-control-minimum);
+    grid-template-areas: "name gloss value conf why";
+    gap: 0 1.1rem;
+    padding: 0.38rem 0;
+  }
+
+  /* The lead dissolves into the row: the name and the confidence become
+     grid items of their own, in the accepted order, with the DOM unchanged. */
+  .gp-row__lead {
+    display: contents;
+  }
+
+  .gp-row__name {
+    grid-area: name;
+    line-height: 1.25;
+  }
+
+  /* The confidence word and, where the record varies, the platform marker
+     stack in their own column so the explanation keeps its measure. */
+  .gp-row__confidence {
+    grid-area: conf;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.25rem;
+    margin: 0;
+    text-align: right;
+  }
+
+  .gp-row__gloss {
+    margin: 0;
+    font-size: var(--text-label);
+    line-height: 1.4;
+  }
+
+  .gp-row__num {
+    font-size: var(--text-body-large);
+  }
 }
 
 .gp-row__panel {
-  margin-top: var(--space-4);
-  padding: var(--space-4);
+  margin: 0.1rem 0 0.7rem;
+  padding: 0.75rem 0.9rem 0.85rem;
   background: var(--color-surface-canvas);
   border: var(--border-thin) solid var(--color-border-default);
 }
 
 .gp-row__question {
   margin: 0;
-  font-size: var(--text-body-large);
-  color: var(--color-text-secondary);
+  font-style: italic;
+  font-size: var(--text-body);
+  color: var(--color-text-muted);
   text-wrap: pretty;
 }
 
 .gp-row__evidence {
-  margin: 0.4rem 0 0;
-  font-weight: var(--font-weight-semibold);
+  margin: 0.55rem 0 0;
+  font-family: var(--font-evidence);
   font-size: var(--text-minimum);
-  line-height: 1.35;
+  line-height: 1.45;
+  letter-spacing: var(--tracking-kicker);
   text-transform: uppercase;
-  color: var(--color-text-quiet);
+  color: var(--color-brand-evidence-cyan);
 }
 
 .gp-subs {
@@ -980,8 +1065,9 @@ a.gp-scopes__item:hover {
 
 .gp-sub__rationale {
   margin: 0.35rem 0 0;
-  max-width: 62ch;
+  max-width: 70ch;
   font-size: var(--text-body);
+  line-height: 1.55;
   color: var(--color-text-secondary);
   text-wrap: pretty;
 }
@@ -1011,7 +1097,7 @@ a.gp-scopes__item:hover {
 .gp-row__derivation {
   margin: var(--space-4) 0 0;
   padding-top: var(--space-3);
-  max-width: 62ch;
+  max-width: 70ch;
   font-size: var(--text-body);
   color: var(--color-text-muted);
   border-top: var(--border-thin) solid var(--color-border-subtle);
@@ -1035,40 +1121,101 @@ a.gp-scopes__item:hover {
   color: var(--color-text-quiet);
 }
 
+@container instrument (min-width: 40rem) {
+  .gp-instrument__panel {
+    padding: 1.7rem 2rem 1.9rem;
+  }
+}
+
+@media (min-width: 40rem) {
+  .gp-instrument {
+    padding-top: 2rem;
+  }
+}
+
 /* --------------------------------------------------------------------------
-   7. Platform detail and experience traits.
+   4. The warm reading ground: traits, platform warning, scope detail.
+   The one paper surface on an otherwise dark product (handoff §2.2).
    -------------------------------------------------------------------------- */
 
-.gp-detail {
-  padding: var(--space-8) 0;
-  border-top: var(--border-thin) solid var(--color-border-subtle);
+.gp-reading {
+  margin-top: 1.4rem;
+  padding: 1.3rem 0 1.5rem;
+  background: var(--color-surface-editorial);
+  color: var(--color-text-on-editorial);
 }
 
-.gp-detail__grid {
+.gp-traits-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.6rem;
+}
+
+.gp-traits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Square descriptive chips, never scored. */
+.gp-trait {
+  padding: 0.22rem 0.55rem;
+  font-weight: var(--font-weight-medium);
+  font-size: var(--text-small);
+  line-height: var(--leading-body);
+  color: var(--color-text-on-editorial);
+  border: var(--border-thin) solid var(--color-border-on-editorial);
+}
+
+.gp-trait__intensity {
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-minimum);
+  text-transform: uppercase;
+  color: var(--color-text-on-editorial-muted);
+}
+
+.gp-trait__note {
+  color: var(--color-text-on-editorial-muted);
+}
+
+.gp-reading__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
-  gap: var(--space-7) var(--space-9);
+  gap: 1rem;
 }
 
-.gp-detail__section {
+.gp-reading__grid[data-traits="true"] {
+  margin-top: 1.2rem;
+  padding-top: 1rem;
+  border-top: var(--border-thin) solid var(--color-border-on-editorial);
+}
+
+.gp-reading__col {
   min-width: 0;
 }
 
-.gp-detail__intro {
-  margin: var(--space-2) 0 0;
-  max-width: 52ch;
+/* The warning: an accent-ruled aside beside the affected facts — rule plus
+   words, never colour alone (B-rail). */
+.gp-warning {
+  margin: 0.4rem 0 0;
+  padding-left: 0.8rem;
+  border-left: 0.1875rem solid var(--sip-accent-base);
   font-size: var(--text-label);
-  line-height: var(--leading-body);
-  color: var(--color-text-muted);
+  line-height: 1.55;
+  color: var(--color-text-on-editorial);
+  text-wrap: pretty;
 }
 
 .gp-variance {
-  margin: var(--space-4) 0 0;
+  margin: 0.6rem 0 0;
 }
 
 .gp-variance__item {
-  padding: var(--space-3) 0;
-  border-top: var(--border-thin) solid var(--color-border-default);
+  padding: 0.5rem 0;
+  border-top: var(--border-thin) solid var(--color-border-on-editorial);
 }
 
 .gp-variance__item dt {
@@ -1076,79 +1223,131 @@ a.gp-scopes__item:hover {
   font-size: var(--text-minimum);
   line-height: 1.35;
   text-transform: uppercase;
-  color: var(--color-text-quiet);
+  color: var(--color-text-on-editorial-muted);
 }
 
 .gp-variance__item dd {
   margin: 0.3rem 0 0;
   font-size: var(--text-label);
   line-height: var(--leading-body);
-  color: var(--color-text-secondary);
+  color: var(--color-text-on-editorial);
 }
 
 .gp-variance__item strong {
-  color: var(--color-text-primary);
+  color: var(--color-text-on-editorial);
 }
 
-.gp-traits {
+.gp-variance__note {
+  margin: 0.5rem 0 0;
+  font-size: var(--text-small);
+  line-height: var(--leading-body);
+  color: var(--color-text-on-editorial-muted);
+}
+
+.gp-scope-detail {
+  margin: 0.4rem 0 0;
+  font-size: var(--text-label);
+  line-height: 1.55;
+  color: var(--color-text-on-editorial-muted);
+  text-wrap: pretty;
+}
+
+.gp-scope-detail__facts {
+  margin: 0.5rem 0 0;
+  font-family: var(--font-evidence);
+  font-size: var(--text-minimum);
+  line-height: 1.7;
+  color: var(--color-text-on-editorial-muted);
+}
+
+@media (min-width: 40rem) {
+  .gp-reading {
+    margin-top: 2.4rem;
+    padding: 2rem 0 2.2rem;
+  }
+
+  .gp-traits {
+    gap: 0.5rem;
+  }
+
+  .gp-traits-row__label {
+    margin-right: 0.6rem;
+  }
+
+  .gp-trait {
+    padding: 0.28rem 0.75rem;
+  }
+
+  .gp-reading__grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
+    gap: 1rem 4rem;
+  }
+
+  .gp-reading__grid[data-traits="true"] {
+    margin-top: 1.9rem;
+    padding-top: 1.5rem;
+  }
+
+  .gp-warning {
+    margin-top: 0.5rem;
+    padding-left: 1rem;
+    font-size: var(--text-body);
+    line-height: 1.6;
+  }
+
+  .gp-scope-detail {
+    margin-top: 0.5rem;
+    line-height: 1.6;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   5. How this profile was made: the trust panel.
+   -------------------------------------------------------------------------- */
+
+.gp-trust {
+  padding: 1.2rem 0 1.5rem;
+}
+
+.gp-trust__panel {
+  padding: 1rem 1.1rem 1.2rem;
+}
+
+.gp-trust__head {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
-  margin: var(--space-4) 0 0;
-  padding: 0;
-  list-style: none;
+  align-items: baseline;
+  gap: 0.4rem 0.6rem;
 }
 
-.gp-trait {
-  padding: 0.35rem 0.7rem;
-  font-size: var(--text-label);
-  line-height: var(--leading-body);
-  color: var(--color-text-secondary);
-  border: var(--border-thin) solid var(--color-border-default);
-}
-
-.gp-trait__intensity {
+.gp-trust__date {
   font-weight: var(--font-weight-semibold);
   font-size: var(--text-minimum);
+  line-height: 1.35;
   text-transform: uppercase;
   color: var(--color-text-quiet);
 }
 
-.gp-trait__note {
-  color: var(--color-text-muted);
-}
-
-/* --------------------------------------------------------------------------
-   8. How this profile was made.
-   -------------------------------------------------------------------------- */
-
-.gp-trust {
-  padding: var(--space-9) 0 var(--space-10);
-  background: var(--color-surface-chrome);
-  border-top: var(--border-thin) solid var(--color-border-subtle);
-  color: var(--color-text-secondary);
-}
-
 .gp-trust__lead {
-  margin: var(--space-3) 0 0;
-  max-width: 60ch;
-  font-size: var(--text-body-large);
-  color: var(--color-text-secondary);
+  margin: 0.6rem 0 0;
+  max-width: 80ch;
+  font-size: var(--text-body);
+  line-height: 1.6;
+  color: var(--color-text-muted);
   text-wrap: pretty;
 }
 
 .gp-trust__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
-  gap: var(--space-7) var(--space-9);
-  margin-top: var(--space-6);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: 1.4rem 3rem;
+  margin-top: 1.2rem;
 }
 
 .gp-facts {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
-  gap: var(--space-4) var(--space-6);
-  max-width: 44rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+  gap: 0.8rem 1.4rem;
   margin: 0;
 }
 
@@ -1169,7 +1368,7 @@ a.gp-scopes__item:hover {
 }
 
 .gp-trust__rule {
-  margin: var(--space-6) 0 0;
+  margin: 1.2rem 0 0;
   max-width: 60ch;
   font-size: var(--text-label);
   line-height: var(--leading-body);
@@ -1177,7 +1376,7 @@ a.gp-scopes__item:hover {
 }
 
 .gp-trust__aside {
-  margin-top: var(--space-5);
+  margin-top: 1rem;
   max-width: 60ch;
 }
 
@@ -1251,13 +1450,27 @@ a.gp-scopes__item:hover {
    loaded from, and a URL is one unbreakable token; `anywhere` keeps it from
    setting a min-content floor wider than a 320px phone. */
 .gp-credit {
-  margin: var(--space-7) 0 0;
-  padding-top: var(--space-4);
+  margin: 1.4rem 0 0;
+  padding-top: 0.8rem;
   font-size: var(--text-small);
   line-height: var(--leading-body);
   color: var(--color-text-quiet);
   border-top: var(--border-thin) solid var(--color-border-subtle);
   overflow-wrap: anywhere;
+}
+
+@media (min-width: 40rem) {
+  .gp-trust {
+    padding: 2rem 0 2.2rem;
+  }
+
+  .gp-trust__panel {
+    padding: 1.4rem 2rem 1.5rem;
+  }
+
+  .gp-trust__grid {
+    margin-top: 1.4rem;
+  }
 }
 
 /* ==========================================================================
@@ -1286,11 +1499,11 @@ a.gp-scopes__item:hover {
     animation: none;
   }
 
-  .gp-row__chevron,
   .gp-radar__label,
   .gp-row,
   .gp-row__why,
   .gp-scopes__item,
+  .gp-instrument__rubric,
   .gp-link {
     transition: none;
   }

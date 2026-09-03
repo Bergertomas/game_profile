@@ -98,11 +98,10 @@ async function bandTops(page: Page, root = ".gp"): Promise<number[]> {
     const scope = document.querySelector(selector)!;
     const marks = [
       ".gp-identity",
-      ".gp-status",
       ".gp-answer",
-      ".gp-editorial",
+      ".gp-decision",
       ".gp-instrument",
-      ".gp-detail",
+      ".gp-reading",
       ".gp-trust",
     ];
     return marks.map((mark) => {
@@ -123,13 +122,15 @@ test.describe("the first viewport", () => {
       page.locator(selector).first().evaluate((el) => el.getBoundingClientRect().top);
 
     expect(await bottomOf("h1")).toBeLessThan(667);
-    expect(await bottomOf(".gp-status__list")).toBeLessThan(667);
+    expect(await bottomOf(".gp-scope")).toBeLessThan(667);
     // The answer's first line is on screen before any scroll: its top is at
     // least one line-height above the fold.
-    expect(await topOf(".gp-answer__lead")).toBeLessThan(667 - 28);
-    // The art is a strip, never a takeover.
+    expect(await topOf(".gp-answer")).toBeLessThan(667 - 28);
+    // The art is the accepted 16.5rem band holding the title (A4), never a
+    // takeover: less than half the short phone.
     const stage = await page.locator(".gp-stage").boundingBox();
-    expect(stage!.height).toBeLessThan(667 / 3);
+    expect(stage!.height).toBeGreaterThanOrEqual(260);
+    expect(stage!.height).toBeLessThan(667 / 2);
   });
 
   test("holds the title, scope, answer and pull/tax at 1440×900", async ({ page }) => {
@@ -137,9 +138,13 @@ test.describe("the first viewport", () => {
     await page.goto(ART_LED);
     const topOf = (selector: string) =>
       page.locator(selector).first().evaluate((el) => el.getBoundingClientRect().top);
-    expect(await topOf(".gp-answer__lead")).toBeLessThan(900 - 60);
+    expect(await topOf(".gp-answer")).toBeLessThan(900 - 60);
     // The pull and the tax begin on screen: their headings and first line.
     expect(await topOf(".gp-pulltax__text")).toBeLessThan(900 - 24);
+    // The accepted stage geometry: about 27rem, content in its lower band.
+    const identity = await page.locator(".gp-identity").boundingBox();
+    expect(identity!.height).toBeGreaterThanOrEqual(430);
+    expect(identity!.height).toBeLessThan(560);
   });
 });
 
@@ -358,7 +363,7 @@ test.describe("keyboard", () => {
   });
 });
 
-test("strips the reveal and the chevron motion under prefers-reduced-motion", async ({
+test("strips the reveal and the control motion under prefers-reduced-motion", async ({
   browser,
 }) => {
   const context = await browser.newContext({ reducedMotion: "reduce" });
@@ -374,7 +379,7 @@ test("strips the reveal and the chevron motion under prefers-reduced-motion", as
     .evaluate((el) => getComputedStyle(el).animationName);
   expect(animation).toBe("none");
   const transition = await page
-    .locator(".gp-row__chevron")
+    .locator(".gp-row__why")
     .first()
     .evaluate((el) => getComputedStyle(el).transitionProperty);
   expect(transition).toBe("none");
@@ -402,7 +407,7 @@ test.describe("uncertainty and platform states, in a browser", () => {
     ).toHaveText("Not scored");
 
     const redfall = page.locator(".gp", { hasText: "Redfall (fixture render)" }).first();
-    await expect(redfall.locator('.gp-status__state[data-status="provisional"]')).toHaveText(
+    await expect(redfall.locator('.gp-identity__status[data-status="provisional"]')).toHaveText(
       "Provisional",
     );
     await expect(redfall.locator(".gp-caveat")).toContainText("Provisional.");

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * One exact row of the profile instrument, and the reading scale inside it.
+ * One exact row of the profile instrument.
  *
  * ── What a row permanently shows ────────────────────────────────────────────
  *
@@ -10,14 +10,16 @@
  * the rubric's one-line plain-language gloss of what the dimension measures
  * (brief §7.2, handoff §9.2). The value is never hover-only and never lives
  * only in the chart — the row is the authoritative representation and the
- * radar is its picture.
+ * radar is its picture. There is no bar or ruler: the accepted row is text
+ * and a number, and a Range is stated as both endpoints (B-rail).
  *
  * ── The disclosure ──────────────────────────────────────────────────────────
  *
- * "Why this score?" is an explicit button beside the reading, not the row
- * itself. A whole-row button would make a screen reader's accessible name for
- * the control the entire reading, gloss included; a small explicit trigger
- * keeps the reading as text and the control as a control. It carries
+ * "Why this score?" is an explicit 44×44 button at the end of the row, not
+ * the row itself — the accepted A3–A6 disclosure. A whole-row button would
+ * make a screen reader's accessible name for the control the entire reading,
+ * gloss included; a small explicit trigger keeps the reading as text and the
+ * control as a control. It carries
  * `aria-expanded` and `aria-controls`, its panel follows it in DOM order, focus
  * stays on it when it toggles, and nothing traps or moves focus (matrix P-08).
  * The panel is always in the DOM and hidden with `hidden`, so the IDREF never
@@ -41,47 +43,11 @@ import {
   type PlatformProjection,
 } from "@/lib/profile/platform";
 import type { EvidenceLedgerState } from "@/lib/profile/types";
-import { CONFIDENCE_LABEL, linkedEvidenceSummary } from "@/lib/profile/vocabulary";
+import {
+  CONFIDENCE_LABEL,
+  linkedEvidenceSummary,
+} from "@/lib/profile/vocabulary";
 import { formatScore } from "@/lib/scoring/derive";
-
-/* ========================================================================== */
-
-/**
- * The shared 0–10 reading: a hairline baseline, a measured rule to the value,
- * an accent tick — and for a range, a dotted reach to its ceiling with an open
- * tick at the end. A ruler, not a filled bar. Unknown is a dashed baseline with
- * no rule at all: never a rule to zero.
- */
-export function ScaleReading({ score }: { score: DimensionView["score"] }) {
-  if (score.kind === "insufficient") {
-    return <span className="gp-scale gp-scale--unknown" aria-hidden="true" />;
-  }
-
-  const low = score.kind === "exact" ? score.score : score.low;
-  const high = score.kind === "exact" ? score.score : score.high;
-
-  return (
-    <span className="gp-scale" aria-hidden="true">
-      <span className="gp-scale__measure" style={{ width: `${(low / 10) * 100}%` }} />
-      {score.kind === "range" && (
-        <span
-          className="gp-scale__reach"
-          style={{
-            left: `${(low / 10) * 100}%`,
-            width: `${((high - low) / 10) * 100}%`,
-          }}
-        />
-      )}
-      <span className="gp-scale__tick" style={{ left: `${(low / 10) * 100}%` }} />
-      {score.kind === "range" && (
-        <span
-          className="gp-scale__tick gp-scale__tick--open"
-          style={{ left: `${(high / 10) * 100}%` }}
-        />
-      )}
-    </span>
-  );
-}
 
 /* ========================================================================== */
 
@@ -128,44 +94,48 @@ export function DimensionRow({
       onMouseLeave={() => onHover(null)}
     >
       <div className="gp-row__head">
+        {/* Name and confidence read as one group on a phone; on a wide
+            panel the lead dissolves into the accepted five-column row —
+            name · explanation · value · confidence · disclosure — without
+            changing the DOM order (display: contents in profile.css). */}
         <div className="gp-row__lead">
           <h3 className="gp-row__name">{dimension.name}</h3>
-          <p className="gp-row__gloss">{dimension.summary}</p>
-        </div>
-
-        <div className="gp-row__reading">
-          <ScaleReading score={score} />
-          <p className="gp-row__value">
-            {score.kind === "insufficient" ? (
-              <>
-                <span className="gp-row__notscored">Not scored</span>
-                <span className="sr-only">
-                  {" "}
-                  — insufficient evidence; no total is published, and this is
-                  not zero.
-                </span>
-              </>
-            ) : (
-              <>
-                <span className="sip-num gp-row__num">{display}</span>
-                <span className="sr-only"> out of 10</span>
-                {score.kind === "range" && (
-                  <span className="gp-row__kind"> range</span>
-                )}
-              </>
-            )}
-          </p>
           <p className="gp-row__confidence">
-            {CONFIDENCE_LABEL[confidence]} confidence
+            <span className="gp-row__level">
+              {CONFIDENCE_LABEL[confidence]} confidence
+            </span>
             {varies && (
-              <>
-                {" · "}
-                <span className="gp-row__varies">Varies by platform</span>
-              </>
+              <span className="gp-row__varies">Varies by platform</span>
             )}
           </p>
         </div>
 
+        <p className="sip-prose gp-row__gloss">{dimension.summary}</p>
+
+        <p className="gp-row__value">
+          {score.kind === "insufficient" ? (
+            <>
+              <span className="gp-row__notscored">Not scored</span>
+              <span className="sr-only">
+                {" "}
+                — insufficient evidence; no total is published, and this is not
+                zero.
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="sip-num gp-row__num">{display}</span>
+              <span className="sr-only"> out of 10</span>
+              {score.kind === "range" && (
+                <span className="gp-row__kind"> range</span>
+              )}
+            </>
+          )}
+        </p>
+
+        {/* The accepted 44×44 disclosure. The glyph is decoration; the
+            accessible name carries the action and the dimension, and never
+            changes while the control is held. */}
         <button
           type="button"
           className="gp-row__why"
@@ -175,11 +145,10 @@ export function DimensionRow({
           onFocus={() => onFocus(dimension.key)}
           onBlur={() => onFocus(null)}
         >
-          Why this score?
-          <span className="sr-only"> — {dimension.name}</span>
-          <span className="gp-row__chevron" aria-hidden="true">
-            &#8964;
+          <span className="gp-row__glyph" aria-hidden="true">
+            {open ? "\u2212" : "+"}
           </span>
+          <span className="sr-only">Why this score? — {dimension.name}</span>
         </button>
       </div>
 
@@ -222,7 +191,11 @@ export function DimensionRow({
                         <strong>{describeOverride(override)}</strong>{" "}
                         {override.rationale}
                         {override.confidence && (
-                          <> ({CONFIDENCE_LABEL[override.confidence]} confidence.)</>
+                          <>
+                            {" "}
+                            ({CONFIDENCE_LABEL[override.confidence]}{" "}
+                            confidence.)
+                          </>
                         )}
                       </li>
                     ))}
@@ -233,7 +206,9 @@ export function DimensionRow({
           })}
         </ol>
 
-        <p className="sip-prose gp-row__derivation">{derivationSentence(view)}</p>
+        <p className="sip-prose gp-row__derivation">
+          {derivationSentence(view)}
+        </p>
 
         {publicLinkedSources.length > 0 && (
           <ul className="gp-row__sources">
