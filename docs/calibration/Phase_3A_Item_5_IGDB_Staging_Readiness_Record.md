@@ -163,4 +163,4 @@ Change classes and the review rule are in ADR 0037 §5; the append-only trigger 
 | `npm run igdb:report` | as §7 |
 | `npm run igdb:stage-proof` (rehearsal) | as §7; exit 0 |
 | `npm run igdb:probe -- --live` | credentials absent; exit 1; no network |
-| `npm run test:e2e` | see the PR description |
+| `npm run test:e2e` (Chromium, local Postgres) | pass, exit 0, no failures or flakes |
