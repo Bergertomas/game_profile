@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
+import { ArtworkImage } from "@/components/home/ArtworkImage";
 import { PosterPreview } from "@/components/home/PosterPreview";
+import { ShapeFragment } from "@/components/home/ShapeFragment";
 import { ProfileRadar } from "@/components/profile/radar";
 import { MARK } from "@/components/profile/radar-layout";
 import { formatYear } from "@/lib/format";
@@ -21,8 +23,9 @@ import { profilePath } from "@/lib/site";
  * ── Art-led and artless are the same component ─────────────────────────────
  *
  * Production publishes no cleared artwork today (ADR 0011), so every poster the
- * public site renders is the typographic sleeve, and that is a designed edition
- * rather than a hole: the game's own accent, cropped like a paperback, with the
+ * public site renders is the authored territory, and that is a designed edition
+ * rather than a hole: the game's own accent as a wash with a spine, its own
+ * eight-axis outline drawn faint and large across it (ShapeFragment), and the
  * same frame, the same plate and the same controls as a poster carrying key
  * art. Neither state outranks the other and a mixed rail is the normal
  * condition of this catalogue. Nothing is fabricated to fill the frame.
@@ -63,18 +66,17 @@ export function ProfilePoster({ profile }: { profile: ProfileView }) {
               a frame waiting for a slow image shows the game's own identity,
               and one whose image never arrives keeps it (handoff §4.2). */}
           <span className="sip-poster__sleeve" aria-hidden="true" />
+          <ShapeFragment profile={profile} className="sip-poster__fragment" />
           {cover && (
-            /* A plain <img>, for the reason GameCard gives: optimising art
-               hosted by somebody else needs a remotePatterns entry that would
-               ship to production and outlive its reason (ADR 0011). */
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
+            /* Leaves the document if it cannot load, so the territory beneath
+               is the picture and no broken-image glyph is painted (handoff
+               §4.2). Lazy: the rail may hold many posters. */
+            <ArtworkImage
               src={cover.url}
-              alt={cover.alt}
               width={cover.width}
               height={cover.height}
+              objectPosition={cover.objectPosition}
               loading="lazy"
-              style={{ objectPosition: cover.objectPosition }}
             />
           )}
           <span className="sip-poster__scrim" aria-hidden="true" />
@@ -136,8 +138,8 @@ export function ProfilePoster({ profile }: { profile: ProfileView }) {
  * identity and never its quality.
  */
 const POSTER_MARK_SKIN = {
-  grid: "rgba(237,235,231,0.24)",
-  gridOuter: "rgba(237,235,231,0.48)",
+  grid: "var(--color-border-default)",
+  gridOuter: "var(--color-border-strong)",
   fill: "var(--sip-accent-lift)",
   fillOpacity: 0.32,
   stroke: "var(--sip-accent-lift)",

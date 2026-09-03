@@ -124,7 +124,11 @@ describe("one poster", () => {
 
   it("is the same composition with artwork, with the picture in the frame", () => {
     const art = poster(ART_LED);
-    expect(art).toContain('alt="Fixture cover artwork."');
+    expect(art).toContain('src="https://example.invalid/fixture-cover.jpg"');
+    // Empty alt, by contract: the plate names the game, so the picture stays
+    // outside the accessibility tree (handoff §4.2) — and an empty-alt image
+    // that fails to load paints no broken-image glyph over the territory.
+    expect(art).toContain('alt=""');
     // Identical structure either way: same plate, same one link, same control.
     expect(art).toContain("sip-poster__plate");
     expect([...art.matchAll(/<a\s/g)]).toHaveLength(1);

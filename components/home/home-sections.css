@@ -31,69 +31,78 @@
   padding: var(--space-8) 0 var(--space-9);
 }
 
+/* Heading left, the one truthful line about membership right, on a shared
+   baseline — the accepted rail's head. */
 .sip-rail__head {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: baseline;
   justify-content: space-between;
-  gap: var(--space-4);
+  gap: var(--space-1) var(--space-4);
   width: 100%;
   max-width: var(--size-content-max);
   margin: 0 auto;
   padding: 0 var(--size-gutter-mobile);
 }
 
-.sip-rail__titles {
-  min-width: 0;
-}
-
 .sip-rail__heading {
   margin: 0;
-  font-size: var(--text-heading-small);
+  font-size: 1.1875rem;
   color: var(--color-text-primary);
 }
 
 .sip-rail__note {
-  margin: 0.4rem 0 0;
+  margin: 0;
   max-width: 46ch;
-  font-size: var(--text-label);
+  font-size: var(--text-minimum);
   line-height: var(--leading-body);
-  color: var(--color-text-muted);
+  color: var(--color-text-quiet);
   text-wrap: pretty;
 }
 
-.sip-rail__controls {
+/* The track and its two step controls. On a phone the controls follow the
+   track; from the content breakpoint they flank it, vertically on the
+   posters, as the accepted rail places them. */
+.sip-rail__body {
   display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
   gap: var(--space-2);
-  flex: 0 0 auto;
+  width: 100%;
+  max-width: var(--size-content-max);
+  margin: var(--space-4) auto 0;
+  padding: 0 var(--size-gutter-mobile);
 }
 
-/* 44×44 minimum, and the boundary is a real one rather than a hairline: a
-   control's outline contrast is part of the component contract. */
+/* 44×44 minimum, round, and the boundary is a real one rather than a
+   hairline: a control's outline contrast is part of the component contract. */
 .sip-rail__step {
   /* Same reason as `.sip-poster`: the control's accessible name is a
      visually-hidden absolute box, and it belongs inside the button. */
   position: relative;
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: var(--size-control-minimum);
-  min-height: var(--size-control-minimum);
-  padding: 0 var(--space-2);
+  width: var(--size-control-minimum);
+  height: var(--size-control-minimum);
+  padding: 0;
   font-family: var(--font-ui);
-  font-size: var(--text-body-large);
+  font-size: 1.3rem;
   line-height: 1;
   color: var(--color-text-primary);
-  background: var(--color-surface-panel);
+  background: var(--color-surface-chrome);
   border: var(--border-thin) solid var(--color-border-control);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-pill);
   cursor: pointer;
-  transition: background-color var(--duration-fast) linear,
+  transition:
+    color var(--duration-fast) linear,
+    background-color var(--duration-fast) linear,
     border-color var(--duration-fast) linear;
 }
 
 .sip-rail__step:hover:not(:disabled) {
-  background: var(--color-surface-panel-raised);
+  color: var(--color-brand-coral);
   border-color: var(--color-border-strong);
 }
 
@@ -102,27 +111,36 @@
    contrast, which is the one place the contract allows that. */
 .sip-rail__step:disabled {
   color: var(--color-text-quiet);
+  background: transparent;
   border-color: var(--color-border-subtle);
   cursor: default;
 }
 
+.sip-rail__step--prev {
+  order: 2;
+  margin-left: auto;
+}
+
+.sip-rail__step--next {
+  order: 3;
+}
+
 .sip-rail__track {
+  order: 1;
+  flex: 1 1 100%;
   display: flex;
   align-items: flex-start;
-  gap: var(--space-4);
-  margin: var(--space-6) 0 0;
-  padding: 0 var(--size-gutter-mobile) var(--space-3);
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0 0 var(--space-2);
   list-style: none;
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scroll-snap-type: x proximity;
-  scroll-padding-inline: var(--size-gutter-mobile);
   /* Load-bearing at 320px: see the header note. */
   min-width: 0;
 }
 
-/* `flex-start`, so opening one preview grows one poster rather than stretching
-   every poster on the rail to match it. */
 .sip-rail__credits {
   width: 100%;
   max-width: var(--size-content-max);
@@ -142,33 +160,33 @@
 
 @media (min-width: 40rem) {
   .sip-rail__head,
-  .sip-rail__credits {
+  .sip-rail__credits,
+  .sip-rail__body {
     padding-inline: var(--size-gutter-desktop);
-  }
-
-  .sip-rail__track {
-    padding-inline: var(--size-gutter-desktop);
-    scroll-padding-inline: var(--size-gutter-desktop);
   }
 
   .sip-rail__heading {
-    font-size: var(--text-heading-medium);
+    font-size: var(--text-heading-small);
   }
-}
 
-/* The rail's own content stays inside the 82rem measure while the track keeps
-   bleeding to the viewport edge, which is what makes a scrollable rail read as
-   scrollable rather than as a clipped grid. */
-@media (min-width: 87rem) {
+  .sip-rail__body {
+    flex-wrap: nowrap;
+    gap: 0.7rem;
+    margin-top: 1.1rem;
+  }
+
+  .sip-rail__step--prev,
+  .sip-rail__step--next {
+    order: 0;
+    margin-left: 0;
+    /* On the posters' vertical middle, not the plate's. */
+    margin-top: 5.75rem;
+  }
+
   .sip-rail__track {
-    padding-inline: max(
-      var(--size-gutter-desktop),
-      calc((100vw - var(--size-content-max)) / 2 + var(--size-gutter-desktop))
-    );
-    scroll-padding-inline: max(
-      var(--size-gutter-desktop),
-      calc((100vw - var(--size-content-max)) / 2 + var(--size-gutter-desktop))
-    );
+    order: 0;
+    flex: 1 1 auto;
+    gap: var(--space-4);
   }
 }
 
@@ -184,14 +202,16 @@
      poster puts every such box back inside the track that clips it. */
   position: relative;
   flex: 0 0 auto;
-  width: clamp(10rem, 62vw, 15.5rem);
+  /* 150px on the phone and 152px on the desktop, as the accepted rail sizes
+     its posters; a partial next poster is the overflow cue. */
+  width: 9.375rem;
   min-width: 0;
   scroll-snap-align: start;
 }
 
 @media (min-width: 40rem) {
   .sip-poster {
-    width: 15.5rem;
+    width: 9.5rem;
   }
 }
 
@@ -202,11 +222,10 @@
 
 .sip-poster__art {
   position: relative;
-  aspect-ratio: 3 / 4;
+  aspect-ratio: 2 / 3;
   overflow: hidden;
   background: var(--color-surface-stage);
-  border: var(--border-thin) solid var(--color-border-default);
-  border-radius: var(--radius-media);
+  border-radius: var(--radius-control);
 }
 
 .sip-poster__art img {
@@ -218,16 +237,14 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  /* An image that fails to load paints its alt text over the frame and leaves
-     neither readable. The attribute stays and assistive technology still gets
-     it; what is suppressed is only the visible rendering, and nothing is lost —
-     the plate below already states the title in text. */
-  color: transparent;
 }
 
 /* The artless state, and it is a design rather than a hole: the game's own
-   accent, cropped like a sleeve. The same move the card and the opening tile
-   make, so one game is recognisably itself everywhere it appears. */
+   accent as a wash with a spine, and its own outline drawn faint and large
+   across it (`.sip-poster__fragment`). The same move the opening tile and the
+   Compare territory make, so one game is recognisably itself everywhere it
+   appears. Both are ALWAYS painted under the picture, so a slow, blocked or
+   failed image shows the authored territory rather than an empty frame. */
 .sip-poster__sleeve {
   position: absolute;
   inset: 0;
@@ -245,6 +262,16 @@
   border-left: 0.25rem solid var(--sip-accent-lift);
 }
 
+.sip-poster__fragment {
+  position: absolute;
+  left: 54%;
+  top: 40%;
+  width: 132%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  opacity: 0.36;
+}
+
 .sip-poster__scrim {
   position: absolute;
   inset: 0;
@@ -258,9 +285,9 @@
 
 .sip-poster__mark {
   position: absolute;
-  right: 0.45rem;
-  bottom: 0.45rem;
-  width: var(--size-radar-compact-mobile);
+  right: 0.4rem;
+  bottom: 0.4rem;
+  width: 3.625rem;
   /* A soft well, so the polygon stays legible over any artwork under it. */
   background: radial-gradient(
     closest-side,
@@ -271,12 +298,12 @@
 
 @media (min-width: 40rem) {
   .sip-poster__mark {
-    width: var(--size-radar-compact);
+    width: var(--size-radar-compact-mobile);
   }
 }
 
 .sip-poster__plate {
-  margin-top: var(--space-3);
+  margin-top: 0.4rem;
   min-width: 0;
 }
 
@@ -285,7 +312,7 @@
   font-family: var(--font-display);
   font-stretch: 100%;
   font-weight: var(--font-weight-semibold);
-  font-size: var(--text-body-large);
+  font-size: var(--text-label);
   line-height: var(--leading-heading);
   color: var(--color-text-primary);
   overflow-wrap: anywhere;
@@ -303,8 +330,8 @@
 }
 
 .sip-poster__meta {
-  margin: 0.3rem 0 0;
-  font-size: var(--text-small);
+  margin: 0.15rem 0 0;
+  font-size: var(--text-minimum);
   line-height: var(--leading-body);
   color: var(--color-text-quiet);
   overflow-wrap: anywhere;
@@ -323,10 +350,9 @@
   min-height: var(--size-control-minimum);
   padding: 0 var(--space-3);
   font-family: var(--font-ui);
-  font-weight: var(--font-weight-semibold);
-  font-size: var(--text-minimum);
+  font-weight: var(--font-weight-medium);
+  font-size: var(--text-small);
   line-height: 1.35;
-  text-transform: uppercase;
   color: var(--color-text-primary);
   background: transparent;
   border: var(--border-thin) solid var(--color-border-control);
@@ -572,4 +598,160 @@
   .sip-poster__chevron {
     transition: none;
   }
+}
+
+/* -- What you are looking at ---------------------------------------------- */
+
+/* The explanation after the games: one real profile's instrument, its eight
+   exact values as a list beside it (ADR 0030: readable labels OR an aligned
+   exact-value list — the SVG labels of the earlier explainer could not hold
+   the 12px floor at 320px), and the three points the product rests on. On
+   the canvas, ruled off from the rail above; not a card. */
+.sip-explainer {
+  background: var(--color-surface-canvas);
+  color: var(--color-text-primary);
+  border-bottom: var(--border-thin) solid var(--color-border-subtle);
+  /* Content-first, as the opening: the columns switch on by container width
+     in the reader's text size, so 200% text gets one reading column. */
+  container-type: inline-size;
+}
+
+.sip-explainer__inner {
+  width: 100%;
+  max-width: var(--size-content-max);
+  margin: 0 auto;
+  padding: var(--space-8) var(--size-gutter-mobile) var(--space-9);
+}
+
+@media (min-width: 40rem) {
+  .sip-explainer__inner {
+    padding: var(--space-9) var(--size-gutter-desktop) var(--space-10);
+  }
+}
+
+.sip-explainer__heading {
+  margin: 0;
+  font-size: var(--text-heading-small);
+}
+
+@media (min-width: 40rem) {
+  .sip-explainer__heading {
+    font-size: var(--text-heading-medium);
+  }
+}
+
+.sip-explainer__grid {
+  display: grid;
+  gap: var(--space-7);
+  margin-top: var(--space-6);
+}
+
+@container (min-width: 60em) {
+  .sip-explainer__grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+    gap: var(--space-9) var(--space-11);
+  }
+}
+
+/* The instrument and its exact values, side by side where there is room. */
+.sip-explainer__instrument {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: center;
+}
+
+@container (min-width: 36em) {
+  .sip-explainer__instrument {
+    grid-template-columns: minmax(0, 14rem) minmax(0, 1fr);
+  }
+}
+
+.sip-explainer__radar {
+  width: 100%;
+  max-width: 14rem;
+}
+
+.sip-explainer__rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: var(--border-thin) solid var(--color-border-default);
+}
+
+.sip-explainer__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-4);
+  padding: 0.35rem 0;
+  border-bottom: var(--border-thin) solid var(--color-border-subtle);
+  font-size: var(--text-small);
+  line-height: var(--leading-body);
+  color: var(--color-text-muted);
+}
+
+.sip-explainer__value {
+  flex: 0 0 auto;
+  color: var(--color-text-primary);
+}
+
+.sip-explainer__name-of {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-quiet);
+}
+
+.sip-explainer__points {
+  display: grid;
+  gap: var(--space-6);
+}
+
+@container (min-width: 36em) and (max-width: 59.9999em) {
+  .sip-explainer__points {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.sip-explainer__point {
+  padding-top: var(--space-4);
+  border-top: var(--border-thin) solid var(--color-border-default);
+}
+
+.sip-explainer__point h3 {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  color: var(--color-text-primary);
+}
+
+.sip-explainer__point h3 .sip-num {
+  color: var(--color-brand-coral);
+}
+
+.sip-explainer__point p {
+  margin: var(--space-2) 0 0;
+  max-width: 42rem;
+  font-size: var(--text-body);
+  color: var(--color-text-muted);
+  text-wrap: pretty;
+}
+
+.sip-explainer__point p strong {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+}
+
+.sip-explainer__point a {
+  color: var(--color-text-secondary);
+  text-decoration: underline;
+  text-decoration-color: var(--color-border-strong);
+  text-underline-offset: 0.3rem;
+  transition:
+    color var(--duration-fast) linear,
+    text-decoration-color var(--duration-fast) linear;
+}
+
+.sip-explainer__point a:hover {
+  color: var(--color-text-primary);
+  text-decoration-color: var(--color-brand-coral);
 }

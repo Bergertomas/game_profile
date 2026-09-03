@@ -3,8 +3,9 @@ import { CuratedCompare } from "@/components/home/CuratedCompare";
 import { EditorialShelves } from "@/components/home/EditorialShelf";
 import { HomeOpening } from "@/components/home/HomeOpening";
 import { ProfileRail } from "@/components/home/ProfileRail";
+import "@/components/home/home-sections.css";
 import { ProfileRadar } from "@/components/profile/radar";
-import { full } from "@/components/profile/radar-layout";
+import { PROFILE } from "@/components/profile/radar-layout";
 import { CURATED_COMPARISONS } from "@/content/curated-compare";
 import { comparePath } from "@/lib/compare/url";
 import { HOME_SHELVES } from "@/content/home-shelves";
@@ -127,6 +128,12 @@ function railNote(count: number): string {
  * with its real numbers, because an abstract diagram of a scoring system is a
  * consultancy slide and this is a site about games.
  *
+ * The instrument is the label-free profile geometry with the eight exact
+ * values as a list beside it, which is the "aligned exact-value list" ADR 0030
+ * asks for where chart labels cannot be made genuinely readable: SVG text
+ * scales with its viewBox and could not hold the 12px floor at 320px. Every
+ * value is real text at a real size, and the radar is decoration over it.
+ *
  * The three points it makes are the three the product actually rests on: fixed
  * axes, shape not size, and no overall score.
  */
@@ -137,48 +144,60 @@ function ProfileExplainer({ example }: { example: ProfileView }) {
   return (
     <section
       aria-labelledby="read-a-profile"
-      className="bg-graphite text-bone"
+      className="sip-explainer"
       style={
         {
           "--sip-accent-lift": accent.lift,
-          "--sip-radar-ground": "var(--color-graphite)",
+          "--sip-radar-ground": "var(--color-surface-canvas)",
         } as CSSProperties
       }
     >
-      <div className="mx-auto w-full max-w-[82rem] px-4 py-12 sm:px-10 sm:py-16">
-        <h2 id="read-a-profile" className="sip-display sip-display--section text-[1.75rem]">
+      <div className="sip-explainer__inner">
+        <h2
+          id="read-a-profile"
+          className="sip-display sip-display--section sip-explainer__heading"
+        >
           What you are looking at
         </h2>
 
-        <div className="mt-8 grid gap-x-12 gap-y-10 lg:grid-cols-[26rem_minmax(0,1fr)]">
+        <div className="sip-explainer__grid">
           <div>
-            <ProfileRadar
-              profile={example}
-              active={null}
-              layout={full({
-                width: 500,
-                height: 400,
-                center: { x: 250, y: 198 },
-                radius: 118,
-                labelRadius: 140,
-                nameSize: 14,
-                valueSize: 20,
-              })}
-              skin={EXPLAINER_SKIN}
-            />
-            <p className="sip-label mt-2 text-center text-bone-quiet">
+            <div className="sip-explainer__instrument">
+              <div className="sip-explainer__radar">
+                <ProfileRadar
+                  profile={example}
+                  active={null}
+                  layout={PROFILE}
+                  skin={EXPLAINER_SKIN}
+                />
+              </div>
+              <ol
+                className="sip-explainer__rows"
+                aria-label={`${example.game.canonicalTitle}, eight dimensions, each 0 to 10`}
+              >
+                {example.dimensions.map((view) => (
+                  <li key={view.dimension.key} className="sip-explainer__row">
+                    <span>{view.dimension.name}</span>
+                    <span className="sip-num sip-explainer__value">
+                      {view.display}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+            <p className="sip-label sip-explainer__name-of">
               {example.game.canonicalTitle}
             </p>
             <span className="sr-only">{example.shapeDescription}</span>
           </div>
 
-          <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-1 lg:gap-8">
+          <div className="sip-explainer__points">
             <Point n="1" title="The same eight axes, in the same order">
               Clockwise from the top:{" "}
               {dimensions.map((dimension, index) => (
                 <span key={dimension.key}>
                   {index > 0 && ", "}
-                  <span className="text-bone">{dimension.name}</span>
+                  <strong>{dimension.name}</strong>
                 </span>
               ))}
               . Never reordered, never weighted, never hidden — which is what
@@ -196,13 +215,7 @@ function ProfileExplainer({ example }: { example: ProfileView }) {
               dimension&rsquo;s 0–10 comes from five subcriteria worth 0–2 each,
               and where the evidence will not support a number, the profile says
               so instead of guessing one.{" "}
-              <Link
-                href="/methodology"
-                className="underline decoration-rule-bone-strong underline-offset-[5px] transition-colors duration-150 hover:text-bone hover:decoration-signal"
-              >
-                How we score
-              </Link>
-              .
+              <Link href="/methodology">How we score</Link>.
             </Point>
           </div>
         </div>
@@ -211,20 +224,21 @@ function ProfileExplainer({ example }: { example: ProfileView }) {
   );
 }
 
+/** The instrument's skin on the canvas: the shared dark grammar, contract tokens. */
 const EXPLAINER_SKIN = {
-  grid: "rgba(237,235,231,0.20)",
-  gridOuter: "rgba(237,235,231,0.46)",
+  grid: "var(--color-border-default)",
+  gridOuter: "var(--color-border-strong)",
   fill: "var(--sip-accent-lift)",
   fillOpacity: 0.35,
   stroke: "var(--sip-accent-lift)",
   vertex: "var(--sip-accent-lift)",
-  vertexEdge: "var(--color-graphite)",
-  reach: "var(--color-bone-soft)",
-  label: "var(--color-bone-quiet)",
-  value: "var(--color-bone)",
-  activeLabel: "var(--color-bone)",
+  vertexEdge: "var(--color-surface-canvas)",
+  reach: "var(--color-text-muted)",
+  label: "var(--color-text-quiet)",
+  value: "var(--color-text-primary)",
+  activeLabel: "var(--color-text-primary)",
   activeValue: "var(--sip-accent-lift)",
-  activeMark: "var(--color-bone)",
+  activeMark: "var(--color-text-primary)",
 } as const;
 
 function Point({
@@ -237,14 +251,12 @@ function Point({
   children: React.ReactNode;
 }) {
   return (
-    <div className="border-t border-rule-bone pt-4">
-      <h3 className="sip-label flex items-baseline gap-2.5 text-bone">
-        <span className="sip-num text-signal">{n}</span>
+    <div className="sip-explainer__point">
+      <h3 className="sip-label">
+        <span className="sip-num">{n}</span>
         {title}
       </h3>
-      <p className="sip-prose mt-2 max-w-[42rem] text-[0.9375rem] text-bone-soft">
-        {children}
-      </p>
+      <p className="sip-prose">{children}</p>
     </div>
   );
 }

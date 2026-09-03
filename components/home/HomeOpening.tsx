@@ -1,5 +1,7 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
+import { ArtworkImage } from "@/components/home/ArtworkImage";
+import { ShapeFragment } from "@/components/home/ShapeFragment";
 import { ProfileRadar } from "@/components/profile/radar";
 import { MARK } from "@/components/profile/radar-layout";
 import { SearchField } from "@/components/search/SearchField";
@@ -7,44 +9,53 @@ import { PRIMARY_SEARCH_ATTRIBUTE } from "@/lib/search/primary-field";
 import { accentFor } from "@/lib/profile/accent";
 import { coverArtworkFor, creditLineFor } from "@/lib/profile/artwork";
 import type { ProfileView } from "@/lib/profile/build";
+import { EVIDENCE_STATUS_LABEL } from "@/lib/profile/vocabulary";
 import { profilePath } from "@/lib/site";
 import "./home-opening.css";
 
 /**
- * THE OPENING. Decision first, artwork in support.
+ * THE OPENING — the accepted A1/A2 Rev 5.1 composition (ADR 0030), measured
+ * from the Fable **Should I Play - Canonical Screens** artifact.
  *
- * ── What the composition is arguing ────────────────────────────────────────
+ * ── What the accepted composition is ───────────────────────────────────────
  *
- * "Should you play it?" is the product's question, so it is the page's first
- * line — not a description of a methodology, and not a feature list. Under it
- * sits the one journey that is built, as an open field rather than a link,
- * because form is what ranks the three paths: a field is not a link, and a link
- * is not a question. Search is dominant here by being the only thing on the
- * page you can type into.
+ * Two parts, in this order at every width:
  *
- * The artwork is the second argument and never the first. Three real profiles,
- * each carrying its own eight-axis fingerprint, establish in one glance that
- * this is a product about videogames AND that it measures them — which is the
- * whole proposition, made visible rather than claimed. The full-height featured
- * hero was explored and refused; this is the compact composition that replaced
- * it, and it sits BESIDE the decision interface on a wide screen and BELOW it
- * on a narrow one so the field is reachable at 390×667 without scrolling past
- * a picture.
+ *  1. THE HERO. The proposition — "Should you play it?" with its lead — beside
+ *     (desktop) or above (phone) a three-game artwork mosaic: one game at
+ *     scale in the left column, two stacked beside it, every tile carrying its
+ *     own integrated Game Profile fingerprint. 560×420 on the specimen, 360
+ *     tall here so Search gains prominence (ADR 0030 owner refinement);
+ *     390-wide × 250 on the phone.
+ *  2. THE CONSOLE. A full-width panel under the hero carrying the journey
+ *     switcher — Search / Compare / What should I play? as pills, Search
+ *     selected — and, as the selected journey's panel, the Search field with
+ *     its cyan Search action. Search is dominant by being the one thing on the
+ *     page you can type into and the journey the console is already open on.
+ *
+ * At 390×667 the header, the whole hero and the Search field fit the first
+ * viewport without a scroll (handoff §3.4, matrix H-01); artwork depth gives
+ * way before text or Search ever does.
+ *
+ * ── Specimen facts that are not publication truth ──────────────────────────
+ *
+ * The artifact's commitment bands ("Substantial · 25–40 h"), its roster, its
+ * dates and its artwork are illustrative (ADR 0030). Each tile shows only what
+ * the published record carries: the title, the one-line experience where the
+ * tile has room for it, and the evidence status. No band is fabricated.
  *
  * ── What is deliberately not here ──────────────────────────────────────────
  *
  * No ranking, no winner, no aggregate, no popularity, no trending, and no
  * controls for journeys that do not exist. Compare exists (Slice 4) and is a
- * real link to `/compare`; "What should I play?" is named as text, because a
- * button that goes nowhere is worse than an honest label.
+ * real link to `/compare`; "What should I play?" is named as quiet text and
+ * the console's footnote says why, because a pill that goes nowhere is worse
+ * than an honest label.
  */
 
 export interface HomeOpeningProps {
   readonly profiles: readonly ProfileView[];
 }
-
-/** The exact journey labels, in their accepted rank order. */
-const JOURNEYS = ["Search", "Compare", "What should I play?"] as const;
 
 export function HomeOpening({ profiles }: HomeOpeningProps) {
   // Three, and only from what the catalogue actually publishes. Primary scopes
@@ -61,7 +72,7 @@ export function HomeOpening({ profiles }: HomeOpeningProps) {
 
   return (
     <section className="sip-open" aria-labelledby="opening">
-      <div className="sip-open__grid">
+      <div className="sip-open__hero">
         <div className="sip-open__lede">
           <p className="sip-note sip-open__eyebrow">Make the shape visible</p>
 
@@ -69,73 +80,87 @@ export function HomeOpening({ profiles }: HomeOpeningProps) {
             Should you play it?
           </h1>
 
-          <p className="sip-prose sip-open__lead">
+          <p className="sip-open__lead">
             See the shape of the experience across eight dimensions — then
             decide whether it fits the way you play.
           </p>
-          <p className="sip-prose sip-open__sub">
+          <p className="sip-open__sub">
             The pull, the tax and the trade-offs. No overall score.
           </p>
+        </div>
+
+        <Mosaic featured={featured} />
+      </div>
+
+      <div className="sip-open__console-wrap">
+        <div className="sip-open__console">
+          <Journeys />
 
           {/* The attribute is what `/` looks for anywhere on the site: with a
               field on the page, the key focuses it instead of opening the
-              header dialog over the top of it. */}
+              header dialog over the top of it. The index comes from the public
+              layout's provider, so one copy is serialised per document. */}
           <div className="sip-open__search" {...{ [PRIMARY_SEARCH_ATTRIBUTE]: "" }}>
-            {/* The index comes from the public layout's provider, so one copy
-                is serialised per document rather than one per field. */}
             <SearchField variant="inline" />
           </div>
 
-          <Journeys />
+          <p className="sip-open__foot">
+            {profiles.length === 1
+              ? "One published Game Profile"
+              : `${profiles.length} published Game Profiles`}{" "}
+            · a miss answers honestly. Compare opens on its own page;{" "}
+            <em>What should I play?</em> is not built yet, so it is named, not
+            offered.
+          </p>
         </div>
 
-        <Mosaic featured={featured} notice={notice ? creditLineFor(notice) : null} />
+        {/* Preview builds only: the rights notice for review-clearance art in
+            the mosaic (ADR 0012). After the console, so an accountability line
+            never displaces the composition it annotates. */}
+        {notice && <p className="sip-open__rights">{creditLineFor(notice)}</p>}
       </div>
     </section>
   );
 }
 
+/** The exact journey labels, in their accepted rank order (handoff §5.2). */
+const JOURNEYS = ["Search", "Compare", "What should I play?"] as const;
+
 /**
- * The three paths, named exactly, ranked by form.
+ * The journey switcher: three pills, named exactly, ranked by form.
  *
- * Search is marked as where you are and is the field above. Compare is a real
- * link, because `/compare` is a real page (Slice 4) — and it stays a link
- * rather than a tab, because it opens its own journey rather than switching
- * this region (handoff §5.2). "What should I play?" is text and says so:
- * there is nothing behind it yet, and a control that responds to a click by
- * doing nothing teaches a visitor that the product is a mock-up.
+ * Search is the filled pill — where you are — and the field below is its
+ * panel. Compare is an outlined pill and a real link, because `/compare` is a
+ * real page (Slice 4); it stays a link rather than a tab because it opens its
+ * own journey rather than switching this region (handoff §5.2 makes the
+ * tablist conditional on exactly that). "What should I play?" is quiet text in
+ * the same rhythm with no boundary, because there is nothing behind it yet and
+ * a control that responds to a click by doing nothing teaches a visitor that
+ * the product is a mock-up.
  */
 function Journeys() {
   return (
-    <div className="sip-open__journeys">
-      <ul className="sip-open__paths">
-        {JOURNEYS.map((label) => (
-          <li
-            key={label}
-            className={`sip-label sip-open__path${
-              label === "Search" ? " is-current" : ""
-            }`}
-          >
-            {label === "Compare" ? (
-              <Link className="sip-open__path-link" href="/compare">
-                Compare
-              </Link>
-            ) : (
-              label
-            )}
-            {label === "Search" && (
-              <span className="sr-only"> — the journey shown here</span>
-            )}
-          </li>
-        ))}
-      </ul>
-      <p className="sip-open__paths-note">
-        Search is the one in front of you. Compare puts two Game Profiles side
-        by side on its own page. <em>What should I play?</em> is the third
-        journey and is not built yet, so it is named here rather than offered
-        as a control.
-      </p>
-    </div>
+    <ul className="sip-open__paths">
+      {JOURNEYS.map((label) => (
+        <li
+          key={label}
+          className={`sip-open__path${label === "Search" ? " is-current" : ""}${
+            label === "What should I play?" ? " is-unbuilt" : ""
+          }`}
+        >
+          {label === "Compare" ? (
+            <Link className="sip-open__pill sip-open__pill--link" href="/compare">
+              Compare
+            </Link>
+          ) : (
+            <span className="sip-open__pill">{label}</span>
+          )}
+          {label === "Search" && (
+            <span className="sr-only"> — the journey shown here</span>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -148,18 +173,13 @@ function Journeys() {
  * shape or colour alone.
  *
  * Artwork appears only where clearance data permits it (ADR 0011), and today
- * that is nowhere on production: the typographic sleeve is the shipped state,
- * not a fallback waiting to be replaced. A mixed row of covers and sleeves is
- * the normal, designed condition of this catalogue, and neither state outranks
- * the other.
+ * that is nowhere on production: the typographic territory — the game's accent
+ * as a wash and its own outline drawn faint and large — is the shipped state,
+ * not a fallback waiting to be replaced. A mixed row of covers and territories
+ * is the normal, designed condition of this catalogue, and neither state
+ * outranks the other.
  */
-function Mosaic({
-  featured,
-  notice,
-}: {
-  featured: readonly ProfileView[];
-  notice: string | null;
-}) {
+function Mosaic({ featured }: { featured: readonly ProfileView[] }) {
   if (featured.length === 0) return null;
 
   return (
@@ -171,14 +191,12 @@ function Mosaic({
       </ul>
 
       <p className="sip-open__caption">
-        {featured.length === 1
-          ? "One published Game Profile"
-          : `${featured.length} independent Game Profiles`}{" "}
-        — eight dimensions on a fixed 0–10 scale. Each shape is one game, and a
-        bigger shape is not a better game.
+        {/* A2's caption, at every width: short enough to hold two lines at
+            390 in any Chromium build, which is what keeps the console's
+            field inside a 667px first viewport. */}
+        Eight-dimension Game Profiles · fixed 0–10 — a bigger shape is not
+        better.
       </p>
-
-      {notice && <p className="sip-open__rights">{notice}</p>}
     </div>
   );
 }
@@ -196,50 +214,60 @@ function Tile({ profile, lead }: { profile: ProfileView; lead: boolean }) {
       style={
         {
           "--sip-accent-lift": accent.lift,
-          "--sip-radar-ground": "var(--color-stage)",
+          "--sip-radar-ground": "var(--color-surface-stage)",
         } as CSSProperties
       }
     >
       <div className="sip-open__art">
-        {/* The sleeve is always under the artwork rather than an alternative to
-            it, so `cleared`, `loading`, `failed` and `absent` all resolve to the
-            same authored composition instead of to an empty black rectangle
-            (handoff §4.2). */}
+        {/* The territory is always under the artwork rather than an alternative
+            to it, so `cleared`, `loading`, `failed` and `absent` all resolve to
+            the same authored composition instead of to an empty black
+            rectangle (handoff §4.2). */}
         <span className="sip-open__sleeve" aria-hidden="true" />
+        <ShapeFragment profile={profile} className="sip-open__fragment" />
         {cover && (
-          /* A plain <img>, for the reason GameCard gives: optimising art hosted
-             by somebody else would need a remotePatterns entry that would ship
-             to production and outlive its reason (ADR 0011). */
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
+          /* Leaves the document if it cannot load, so the territory beneath is
+             the picture and no broken-image glyph is painted (handoff §4.2). */
+          <ArtworkImage
             src={cover.url}
-            alt={cover.alt}
             width={cover.width}
             height={cover.height}
-            style={{ objectPosition: cover.objectPosition }}
+            objectPosition={cover.objectPosition}
           />
         )}
         <span className="sip-open__scrim" aria-hidden="true" />
       </div>
 
+      {/* The plate: text on the left, the integrated fingerprint on the right,
+          both on the tile's bottom edge, as the accepted tiles are composed. */}
       <div className="sip-open__plate">
-        <h2 className="sip-open__title">
-          <Link href={profilePath(game.slug, profile.scope)}>
-            {game.canonicalTitle}
-            <span className="sr-only"> — read the Game Profile</span>
-          </Link>
-        </h2>
-        <p className="sip-open__line">{evaluation.oneLineExperience}</p>
-        <p className="sip-note sip-open__cue">Game Profile · 8 dimensions · 0–10</p>
-      </div>
+        <div className="sip-open__words">
+          <h2 className="sip-open__title">
+            <Link href={profilePath(game.slug, profile.scope)}>
+              {game.canonicalTitle}
+              <span className="sr-only"> — read the Game Profile</span>
+            </Link>
+          </h2>
+          {/* The one-line experience only where the tile has room to set it
+              without crowding the fingerprint; the smaller tiles are the game,
+              its status and its shape. The sentence is one click away. */}
+          {lead && <p className="sip-open__line">{evaluation.oneLineExperience}</p>}
+          <p className="sip-open__status">
+            <span className="sip-open__evidence">
+              {EVIDENCE_STATUS_LABEL[evaluation.evidenceStatus]}
+            </span>
+            {!profile.scope.isPrimary && <> · {profile.scope.label}</>}
+          </p>
+        </div>
 
-      <div className="sip-open__fingerprint">
-        <ProfileRadar
-          profile={profile}
-          active={null}
-          layout={MARK}
-          skin={FINGERPRINT_SKIN}
-        />
+        <div className="sip-open__fingerprint">
+          <ProfileRadar
+            profile={profile}
+            active={null}
+            layout={MARK}
+            skin={FINGERPRINT_SKIN}
+          />
+        </div>
       </div>
 
       {/* The words are the instrument. Same sentence the card and the profile
@@ -257,17 +285,17 @@ function Tile({ profile, lead }: { profile: ProfileView; lead: boolean }) {
  * own identity and never its quality.
  */
 const FINGERPRINT_SKIN = {
-  grid: "rgba(237,235,231,0.24)",
-  gridOuter: "rgba(237,235,231,0.48)",
+  grid: "var(--color-border-default)",
+  gridOuter: "var(--color-border-strong)",
   fill: "var(--sip-accent-lift)",
-  fillOpacity: 0.32,
+  fillOpacity: 0.28,
   stroke: "var(--sip-accent-lift)",
   vertex: "var(--sip-accent-lift)",
-  vertexEdge: "var(--color-cinema)",
-  reach: "var(--color-bone-soft)",
-  label: "var(--color-bone-quiet)",
-  value: "var(--color-bone)",
-  activeLabel: "var(--color-bone)",
+  vertexEdge: "var(--color-surface-stage)",
+  reach: "var(--color-text-muted)",
+  label: "var(--color-text-quiet)",
+  value: "var(--color-text-primary)",
+  activeLabel: "var(--color-text-primary)",
   activeValue: "var(--sip-accent-lift)",
-  activeMark: "var(--color-bone)",
+  activeMark: "var(--color-text-primary)",
 } as const;

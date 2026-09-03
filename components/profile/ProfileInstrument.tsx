@@ -134,6 +134,12 @@ export function ProfileInstrument({
         </div>
         {/* The text equivalent of the figure: distribution, never a rating. */}
         <p className="sr-only">{shapeDescription}</p>
+        {/* The one sentence the accepted instrument says under its chart. */}
+        <p className="gp-instrument__note">
+          A bigger shape is not a better game — the shape shows what kind of
+          game it is. Fixed 0–10; low is description, not condemnation. No
+          overall number: not shown, not computed.
+        </p>
       </div>
 
       <ol className="gp-rows" aria-label="The eight dimensions, exact values">

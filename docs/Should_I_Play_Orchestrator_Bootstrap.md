@@ -50,37 +50,70 @@ Do **not** blindly read every historical document at the start of every task. Hi
 - `docs/Game_Profile_Scoring_Rubric_v1.0.md` — scoring semantics.
 - `docs/Game_Profile_Editorial_Evidence_and_Data_Sourcing_SOP_v0.2.md` — evidence operations and pre-release workflow, except where explicitly superseded.
 - `docs/Game_Profile_Scoring_Protocol_v1.0_DRAFT.md` + package schema + accepted amendments — candidate evidence-to-number contract while Phase 3A is active; **not governing** until its gates pass and Tomas gives final approval.
+- `docs/design/Should_I_Play_Canonical_Design_Source.md` — where the accepted Claude Design artifact lives and how to import it; mandatory before any visual implementation or conformance work on an accepted public surface (Issue #47). It is a locator, not a design manual.
 
-## Active checkpoint — Phase 3A scoring-protocol calibration
+## Execution surfaces and process authority
 
-As of 2026-09-02:
+- `docs/Should_I_Play_Working_Agreement.md` is the **current cross-chat operating agreement**: task framing, Claude-first execution and effort routing, routine Git/PR authority, review thresholds, verification depth, integration, and the owner-reserved actions Tomas must authorize. Chat recollection of an older approval ceremony does not override it.
+- The repository-native Claude runner (official Claude Code GitHub Action) is **operational**: merged in PR #54 and successfully smoke-tested in PR #56. `docs/operations/Claude_Code_GitHub_Runner.md` owns its triggers, effort lanes, and safety boundaries; read it before a runner task rather than restating it here.
+- GPT-5.6 Sol High remains program owner/orchestrator and the designated Phase 3A editorial scorer. The runner may implement, test, commit, push, and create/update its task PR; it does not self-merge, declare checklist acceptance, mutate production, publish editorial/scoring content, or broaden its assignment.
+
+## Active checkpoint — Phase 3A, integration gate before Item 6
+
+As of 2026-09-03, against `main` at `1f10ec7928e07fdbc71bfdf77dffc6489f9df1dd`:
 
 - Item 1 — baseline/source audit: **complete**.
 - Item 2 — cohort reconciliation: **complete**.
 - Item 3 — preregistration: **complete**; owner-approved and merged at `00f082022dcbf7f065453513d6f2681c01d63493`.
-- Item 4 — Phase 3A engineering readiness: **complete**; orchestrator Gate 1–9 PASS, PR #46 merged at `79f0159b31009173ede153cfc77729d6d2e5ec91`.
-- Item 5 — IGDB staging readiness: **active** and a hard blocker before D1. Issue #48 is the active engineering record; the Item 5 PR carries the forensic audit, ADR 0037 and the readiness record.
-- **D1 development scoring remains blocked** until Item 5 passes the ChatGPT/Tomas readiness audit.
-- No Phase 3A calibration scoring has begun.
-- Candidate Scoring Protocol v1.0 remains non-governing.
+- Item 4 — Phase 3A engineering readiness: **complete**; final orchestrator ruling 9/9 PASS, recorded on PR #46 (conversation comment `5515828479`), merged at `79f0159b31009173ede153cfc77729d6d2e5ec91`. Issue #44 was the coverage-state blocker, later closed; it does not carry the ruling. That ruling also closed the Amendment 1–4 exact-byte review — see the preregistration note in the read set below.
+- Item 5 — IGDB staging readiness: **complete**; final readiness ruling **PASS / COMPLETE** in PR #52 review `5106252929` against exact implementation head `a292e9b19dda9a371c5c8701d579db30f3439996`. Issue #48 is closed as completed.
+- Item 6 — development run games D1–D6: **pending**, blocked by the integration gate below.
+- Items 7–12: unchanged.
+- **No Phase 3A calibration scoring has begun; D1 has not started.**
+- Candidate Scoring Protocol v1.0 remains non-governing until its later calibration, freeze, and adoption gates pass.
 - No production/bulk catalog score mutation is authorized.
 
-Read these active records before any Phase 3A work:
+### Post-acceptance integration gate — blocks Item 6 / D1
+
+The Item 5 ruling accepted the staging architecture. It did **not** authorize the authoritative migration or the merge. In order:
+
+1. **Tomas's explicit authorization** for the production database action —
+   **given** for migration `0011_igdb_staging` on PR #52; the remaining steps
+   are execution, not a further owner decision;
+2. read-only preflight;
+3. apply the authoritative migration `0011_igdb_staging`;
+4. verify integration and the Workers build (red on PR #52 by design until `0011` is applied);
+5. update/rebase PR #52 against current `main` as needed;
+6. merge through the ordinary reviewed path.
+
+D1 does not begin until that gate is complete. No agent invents or widens that authorization, and the generic runner does not apply the migration or merge PR #52 on its own initiative; the readiness ruling in PR #52 and the Working Agreement's owner-reserved list both govern this. The authorization covers `0011_igdb_staging` only — it is not a standing production-mutation licence, and it is unrelated to ADR 0024 §6's future scoring-package migration 4, which still needs its own owner decision.
+
+Read these records before any Phase 3A work.
+
+On `main`:
 
 - `docs/decisions/0035-released-game-maturity-is-evidence-and-stability-based.md`
 - `docs/decisions/0036-phase3a-measured-scoring-execution-surface.md`
 - `docs/Game_Profile_Phase_3A_Cohort_Lock_2026-09-02.md`
-- `docs/Game_Profile_Phase_3A_Preregistration_v1.0_DRAFT.md`
+- `docs/Game_Profile_Phase_3A_Preregistration_v1.0_DRAFT.md` — a frozen controlled-input record with two known stale-by-design passages; this checkpoint and the rulings it cites are current.
+  - §14's master-checklist state is an Item-3-era snapshot.
+  - §15.5's closing sentence — "Amendments 1 through 4 are pending exact-byte review" — records the position before that review closed. Gate 6 of the later final Item-4 ruling on PR #46 (conversation comment `5515828479`) is **PASS — controlled freeze / provenance**, approving the exact controlled bytes at lock digest `4d78ed79c02654972a96e02f0211282e0b4386ed9e93c16cf2de255375d7c2ce` — the same digest §15.5 records. The exact-byte review is therefore **closed, and is not a D1 blocker**. The frozen preregistration text stands as written; this note carries the active status.
 - `docs/Game_Profile_Phase_3A_Item_3_Approval_and_Item_4_Handoff_2026-09-02.md`
-- `docs/audits/Game_Profile_Phase_3A_Item_4_Engineering_Readiness_Audit_2026-09-02.md`
-- `docs/work-orders/Phase_3A_Item_4_Calibration_Harness_Engineering_Work_Order_2026-09-02.md`
+- `docs/calibration/Phase_3A_Item_4_Harness_Architecture_and_Equivalence.md`
 - `docs/scoring/Phase_3A_Execution_System_Instructions_v1.0.md`
 - `docs/scoring/Phase_3A_Research_Prompt_v1.0.md`
 - `docs/scoring/Phase_3A_Scoring_Prompt_v1.0.md`
-- `docs/calibration/Phase_3A_Item_4_Harness_Architecture_and_Equivalence.md`
-- `docs/decisions/0037-igdb-staging-identity-and-provenance.md`
+
+Not yet on `main` — the Item 5 records live on PR #52 at head `a292e9b19dda9a371c5c8701d579db30f3439996` and land when that PR merges through the gate above:
+
 - `docs/audits/Game_Profile_Phase_3A_Item_5_IGDB_Staging_Forensic_Audit_2026-09-02.md`
-- `docs/calibration/Phase_3A_Item_5_IGDB_Staging_Readiness_Record.md`
+- `docs/calibration/Phase_3A_Item_5_IGDB_Staging_Readiness_Record.md` — module map, API-vs-dump strategy, live proofs, rollout and remaining gates
+- `docs/decisions/0037-igdb-staging-identity-and-provenance.md` — still **Proposed** on the branch; it is accepted by that merge, not by this bootstrap
+
+Historical Item-4 records — read on demand, not as active status:
+`docs/audits/Game_Profile_Phase_3A_Item_4_Engineering_Readiness_Audit_2026-09-02.md` and
+`docs/work-orders/Phase_3A_Item_4_Calibration_Harness_Engineering_Work_Order_2026-09-02.md`
+describe the assignment before it closed. Where those files and the harness architecture record still read "Item 4 incomplete" or "Gate 1 PARTIAL", they predate the final 9/9 PASS ruling on PR #46 (conversation comment `5515828479`); that ruling governs. Treat the wording as drift to reconcile at the next checkpoint, not as current status.
 
 ### Locked cohort
 
@@ -96,19 +129,17 @@ The cohort-lock file, not this summary, owns identities/high-level scopes.
 - **Codex / Claude / Claude Code:** engineering support: validators, harnesses, schemas, fixtures, timing/ledger, blinding/isolation, IGDB staging/provenance, tests, branches and PRs. They do not change scoring semantics or substitute their judgment for the designated GPT scorer.
 - **Tomas:** final editorial/product authority; approves cohort/scope/DLC choices, material methodology changes, preregistration, candidate freeze, final protocol adoption and production authorization.
 
-### Item 4 boundary (complete)
+### Item 6 boundary
 
-Item 4 proved the preregistered execution contract: OpenAI `gpt-5.6-sol` High-reasoning access and returned-model identity, stateless tool-free scoring calls, byte-identical paired semantic inputs/configuration, strict structured-output/semantic validation, SHA-256 verification of approved controlled bytes, ledger/timing/retry capture, fail-closed behavior, and safe credential/spend handling. The harness exists; it has not been used to score.
+Item 6 is the measured development run D1–D6 under the preregistered contract and the Item-4 harness. It starts only after the integration gate above completes, and it runs under the existing role boundary: GPT-5.6 Sol High scores; engineering agents do not score, do not change scoring semantics, and do not expose holdout identities or evidence to a development run. The four holdout titles stay untouched.
 
-### Item 5 boundary
-
-Item 5 must prove the bounded IGDB staging/provenance layer before D1: provider identity kept apart from internal canonical identity, `version_parent` and `parent_game` kept apart, field-level provenance, an API + Data Partner dump strategy, a credential-safe manual probe, a non-production staging proof, a change-review contract that cannot move a score, and artwork that stays a candidate until the ADR 0011 path clears it. It is not a catalog import, a scoring run, a production mutation or a runtime dependency.
-
-If Item 5 fails, D1 does not begin and the program returns to the relevant engineering or owner-decision step.
+If a material protocol, mapping, or anchor defect surfaces during D1–D6, record it and follow the preregistration's rerun/versioning rule rather than changing a rule mid-pair.
 
 ## Active known deferred issue
 
-The current Compare implementation is deployed/implemented but Tomas has **not** accepted its visual/UX parity with the accepted design; owner assessment is that it is barely functional and materially short of the accepted direction. This is deferred to master-checklist Item 12 and must not derail Phase 3A unless it becomes a concrete blocker.
+The current Compare implementation (Slice 4) is **implemented** in the current codebase — not deployed. No deliberate production deployment of it is recorded, and production still exposes the earlier three-profile experience; Master Plan v0.9's *Public-product state* owns that fact. Branch previews and green CI are not deployment evidence.
+
+Tomas has **not** accepted its visual/UX parity with the accepted design; owner assessment is that it is barely functional and materially short of the accepted direction. This is deferred to master-checklist Item 12 and must not derail Phase 3A unless it becomes a concrete blocker.
 
 Item 12 must also incorporate the owner-approved
 [`Freshness and accountability presentation decisions`](design/Should_I_Play_VGC_Freshness_and_Accountability_Decisions_2026-09-02.md):

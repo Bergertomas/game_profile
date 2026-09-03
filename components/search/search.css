@@ -108,6 +108,43 @@
   color: var(--color-text-primary);
 }
 
+/* The inline placement's Search action: the evidence cyan as a filled control
+   with inverse text, as the accepted opening sets it. 44px tall. */
+.sip-search__submit {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-control-minimum);
+  padding: 0 0.85rem;
+  font-family: var(--font-ui);
+  font-weight: var(--font-weight-bold);
+  font-size: var(--text-small);
+  color: var(--color-text-inverse);
+  background: var(--color-brand-evidence-cyan);
+  border: 0;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: filter var(--duration-fast) linear;
+}
+
+.sip-search__submit:hover {
+  filter: brightness(1.12);
+}
+
+.sip-search__submit:focus-visible {
+  outline: var(--border-focus) solid var(--color-state-focus);
+  outline-offset: 3px;
+  border-radius: 0.5rem;
+}
+
+@media (min-width: 40rem) {
+  .sip-search__submit {
+    padding: 0 1.3rem;
+    font-size: var(--text-label);
+    border-radius: 0.5625rem;
+  }
+}
+
 .sip-search__hint {
   margin: 0.5rem 0 0;
   color: var(--color-text-quiet);

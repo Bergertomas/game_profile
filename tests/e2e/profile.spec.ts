@@ -133,14 +133,19 @@ for (const slug of SLUGS) {
       }
       await expect(trust.getByText("v1.0", { exact: true })).toBeVisible();
 
-      // And the same status and confidence stand before the answer, in words.
-      const status = page.locator(".gp-status");
-      await expect(status.getByText("Scope", { exact: true })).toBeVisible();
-      await expect(status.locator(".gp-status__state")).toHaveText(
+      // And the same status and confidence stand over the title, in words,
+      // with the exact scope under it — before the answer.
+      const identity = page.locator(".gp-identity");
+      await expect(identity.locator(".gp-identity__status")).toHaveText(
         /^(Verified|Provisional|Pre-release)$/,
       );
-      await expect(status).toContainText(/(Low|Medium|High) confidence/);
-      await expect(status).toContainText("Evidence cut-off");
+      await expect(identity.locator(".gp-identity__kicker")).toContainText(
+        /(Low|Medium|High) confidence/,
+      );
+      await expect(identity.locator(".gp-identity__kicker")).toContainText(
+        "Evidence cut-off",
+      );
+      await expect(identity.locator(".gp-scope")).toBeVisible();
       // The unresolved label never ships (ADR 0032).
       expect(await page.locator(".gp").innerText()).not.toMatch(/\bEvaluated\b/);
     });
@@ -292,10 +297,13 @@ test("keyboard focus reaches every disclosure and lights its axis", async ({
 
 test("home page contrasts three distinct silhouettes", async ({ page }) => {
   await page.goto("/");
-  // One instrument mark per poster. Counted through the poster's own article,
+  // One instrument mark per poster. Counted through the poster's own mark,
   // not through every <svg> on the page, so neither the explainer radar below
-  // the rail nor the opening's fingerprints is mistaken for a fourth game.
-  await expect(page.locator("article svg")).toHaveCount(SLUGS.length);
+  // the rail, the opening's fingerprints nor the poster's own large outline
+  // fragment is mistaken for a fourth game.
+  await expect(page.locator("article .sip-poster__mark svg")).toHaveCount(
+    SLUGS.length,
+  );
 
   // Scoped to the rail. Every game is reachable from two places on this page —
   // the opening mosaic and its poster — and both are correct; what this asserts
