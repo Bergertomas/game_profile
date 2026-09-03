@@ -21,6 +21,8 @@ The normal loop is:
 
 Claude does not self-authorize checklist advancement, production activation, publication, or merge acceptance.
 
+For an issue-triggered implementation that changes repository files, Claude must complete the handoff itself: push the scoped branch and open the pull request (for example with the repo-scoped `gh pr create`) rather than leaving Tomas a manual “create PR” link. This is a transport responsibility, not merge authority. On an existing PR, Claude updates that PR's branch instead of opening a competing PR.
+
 ## Effort lanes
 
 The orchestrator chooses the lane per assignment.
@@ -82,7 +84,7 @@ Before relying on the runner for Item 6:
 
 - create a harmless disposable issue with no production or scoring effect;
 - invoke `@claude` with a tiny documentation-only change;
-- verify Claude reads `AGENTS.md`/bootstrap, creates or updates the correct branch/PR, runs at the expected effort, and cannot self-merge;
+- verify Claude reads `AGENTS.md`/bootstrap, creates the correct branch and pull request itself, runs at the expected effort, and cannot self-merge;
 - repeat only if necessary with `/claude-extra` or `/claude-max` to verify effort routing; do not waste Max usage solely for ceremony;
 - independently review the resulting diff and workflow logs, then close/delete the disposable artifact as appropriate.
 
