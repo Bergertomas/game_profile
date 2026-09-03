@@ -65,7 +65,7 @@ As of 2026-09-03, against `main` at `1f10ec7928e07fdbc71bfdf77dffc6489f9df1dd`:
 - Item 1 — baseline/source audit: **complete**.
 - Item 2 — cohort reconciliation: **complete**.
 - Item 3 — preregistration: **complete**; owner-approved and merged at `00f082022dcbf7f065453513d6f2681c01d63493`.
-- Item 4 — Phase 3A engineering readiness: **complete**; final orchestrator ruling 9/9 PASS, recorded on issue #44 and merged in PR #46 at `79f0159b31009173ede153cfc77729d6d2e5ec91`.
+- Item 4 — Phase 3A engineering readiness: **complete**; final orchestrator ruling 9/9 PASS, recorded on PR #46 (conversation comment `5515828479`), merged at `79f0159b31009173ede153cfc77729d6d2e5ec91`. Issue #44 was the coverage-state blocker, later closed; it does not carry the ruling.
 - Item 5 — IGDB staging readiness: **complete**; final readiness ruling **PASS / COMPLETE** in PR #52 review `5106252929` against exact implementation head `a292e9b19dda9a371c5c8701d579db30f3439996`. Issue #48 is closed as completed.
 - Item 6 — development run games D1–D6: **pending**, blocked by the integration gate below.
 - Items 7–12: unchanged.
@@ -109,7 +109,7 @@ Not yet on `main` — the Item 5 records live on PR #52 at head `a292e9b19dda9a3
 Historical Item-4 records — read on demand, not as active status:
 `docs/audits/Game_Profile_Phase_3A_Item_4_Engineering_Readiness_Audit_2026-09-02.md` and
 `docs/work-orders/Phase_3A_Item_4_Calibration_Harness_Engineering_Work_Order_2026-09-02.md`
-describe the assignment before it closed. Where those files and the harness architecture record still read "Item 4 incomplete" or "Gate 1 PARTIAL", they predate the final 9/9 PASS ruling on issue #44; that ruling governs. Treat the wording as drift to reconcile at the next checkpoint, not as current status.
+describe the assignment before it closed. Where those files and the harness architecture record still read "Item 4 incomplete" or "Gate 1 PARTIAL", they predate the final 9/9 PASS ruling on PR #46 (conversation comment `5515828479`); that ruling governs. Treat the wording as drift to reconcile at the next checkpoint, not as current status.
 
 ### Locked cohort
 
