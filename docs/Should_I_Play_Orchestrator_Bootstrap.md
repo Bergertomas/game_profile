@@ -77,14 +77,16 @@ As of 2026-09-03, against `main` at `1f10ec7928e07fdbc71bfdf77dffc6489f9df1dd`:
 
 The Item 5 ruling accepted the staging architecture. It did **not** authorize the authoritative migration or the merge. In order:
 
-1. **Tomas's explicit authorization** for the production database action;
+1. **Tomas's explicit authorization** for the production database action —
+   **given** for migration `0011_igdb_staging` on PR #52; the remaining steps
+   are execution, not a further owner decision;
 2. read-only preflight;
 3. apply the authoritative migration `0011_igdb_staging`;
 4. verify integration and the Workers build (red on PR #52 by design until `0011` is applied);
 5. update/rebase PR #52 against current `main` as needed;
 6. merge through the ordinary reviewed path.
 
-D1 does not begin until that gate is complete. No agent performs steps 1–3 on its own authority; the readiness ruling in PR #52 and the Working Agreement's owner-reserved list both govern this.
+D1 does not begin until that gate is complete. No agent invents or widens that authorization, and the generic runner does not apply the migration or merge PR #52 on its own initiative; the readiness ruling in PR #52 and the Working Agreement's owner-reserved list both govern this. The authorization covers `0011_igdb_staging` only — it is not a standing production-mutation licence, and it is unrelated to ADR 0024 §6's future scoring-package migration 4, which still needs its own owner decision.
 
 Read these records before any Phase 3A work.
 
