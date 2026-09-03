@@ -769,9 +769,10 @@ accepted art-led design does not collapse the operating gate:
 1. **Legal review — OPEN:** obtain a proportionate, jurisdiction-aware review
    of the intended written editorial-fair-use policy and placements.
 2. **ADR — DONE:** ADR 0011 records editorial fair use as a bounded basis.
-3. **Enum migration — PARTIAL:** forward migration
-   `0010_artwork_fair_use` exists; apply it to the authoritative database before
-   deploying code or data that relies on the value.
+3. **Enum migration — DONE:** forward migration `0010_artwork_fair_use` is
+   applied to the authoritative database, verified by the authoritative
+   read-only preflight of 3 September 2026. Applying the migration does not
+   close any other step below.
 4. **Types and validation — DONE:** application/schema validation and guarded
    production-clearance semantics recognize the explicit basis.
 5. **Admin/import path — DONE IN FOUNDATION:** the one-editor input path can
@@ -2209,9 +2210,11 @@ scoring-package migration 4 from `0011_igdb_staging`; §5.4 and §13's Compare
 wording so implementation is not read as owner-accepted conformance; §7.4/§17.2's
 IGDB status to the accepted Item-5 state with no signed agreement claimed; and
 the newer owner business objective in §2.6/§11.3/§17.1. The §7.3 artwork
-enum-migration state was deliberately left unchanged: its authoritative-database
-status is to be verified during the authorized integration/preflight, not
-inferred.
+enum-migration state was subsequently verified and reconciled rather than left
+unchanged: the authoritative read-only preflight of 3 September 2026 confirmed
+`0010_artwork_fair_use` is applied to the authoritative database, so §7.3 step 3
+records it as done. That verification closes only the migration step; the
+remaining open artwork steps and every owner-reserved gate stand.
 
 ---
 
