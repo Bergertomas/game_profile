@@ -292,10 +292,13 @@ test("keyboard focus reaches every disclosure and lights its axis", async ({
 
 test("home page contrasts three distinct silhouettes", async ({ page }) => {
   await page.goto("/");
-  // One instrument mark per poster. Counted through the poster's own article,
+  // One instrument mark per poster. Counted through the poster's own mark,
   // not through every <svg> on the page, so neither the explainer radar below
-  // the rail nor the opening's fingerprints is mistaken for a fourth game.
-  await expect(page.locator("article svg")).toHaveCount(SLUGS.length);
+  // the rail, the opening's fingerprints nor the poster's own large outline
+  // fragment is mistaken for a fourth game.
+  await expect(page.locator("article .sip-poster__mark svg")).toHaveCount(
+    SLUGS.length,
+  );
 
   // Scoped to the rail. Every game is reachable from two places on this page —
   // the opening mosaic and its poster — and both are correct; what this asserts

@@ -33,6 +33,7 @@ const GLOBALS = "app/globals.css";
 
 /** The stylesheets the public homepage, Search and profile slices own. */
 const SHEETS = [
+  "components/site-chrome.css",
   "components/search/search.css",
   "components/home/home-opening.css",
   "components/home/home-sections.css",

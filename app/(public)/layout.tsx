@@ -52,7 +52,7 @@ export default async function PublicLayout({
       <JsonLd data={siteGraph()} />
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-graphite focus:px-3 focus:py-2 focus:text-sm focus:text-bone focus:outline-signal"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-[var(--color-surface-chrome)] focus:px-3 focus:py-2 focus:text-sm focus:text-[var(--color-text-primary)]"
       >
         Skip to content
       </a>

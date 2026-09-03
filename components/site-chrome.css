@@ -1,0 +1,264 @@
+/* ==========================================================================
+   THE PUBLIC CHROME
+   One compact row on every public page: wordmark, ranked navigation, the
+   Search opener, and — only where the links no longer fit — a disclosure that
+   holds the secondary links (handoff §5.1).
+
+   Every colour is a role from the canonical contract in app/globals.css: the
+   chrome surface, the primary/muted text steps and the border ramp. The
+   legacy graphite/bone names this component used to paint with are not
+   referenced here, so the header and footer read as the same ground family as
+   the opening beneath them rather than as a lighter band above it.
+
+   Scoped to `.sip-chrome` and `.sip-foot`, so nothing here can reach a page.
+   ========================================================================== */
+
+.sip-chrome {
+  background: var(--color-surface-chrome);
+  color: var(--color-text-primary);
+  border-bottom: var(--border-thin) solid var(--color-border-default);
+}
+
+/* `flex-wrap` is the 200%-zoom contract, not layout taste: at 390 CSS px with
+   the root font doubled the wordmark and the two controls cannot share a line,
+   and a row that refuses to wrap scrolls the whole document sideways. At every
+   ordinary size nothing wraps and this is the one compact row §5.1 asks for —
+   about 54px on a phone and about 63px on a desktop. */
+.sip-chrome__row {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  width: 100%;
+  max-width: var(--size-content-max);
+  margin: 0 auto;
+  padding: 0.3125rem var(--size-gutter-mobile);
+}
+
+@media (min-width: 40rem) {
+  .sip-chrome__row {
+    padding: 0.5625rem var(--size-gutter-desktop);
+  }
+}
+
+.sip-chrome__brand {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: var(--space-3);
+  /* A 44px target, like every other control in the row. */
+  min-height: var(--size-control-minimum);
+  align-items: center;
+  color: inherit;
+  text-decoration: none;
+}
+
+/* The wordmark as every accepted screen sets it (A1–A6, C1–C4): Archivo bold
+   at normal width, sentence case, the question mark in coral. The condensed
+   uppercase logotype of the earlier D3 system is not the accepted treatment,
+   so it is overridden here rather than carried into the chrome (drift log
+   F-12). The `?` keeps its colour and its nod. */
+.sip-chrome__wordmark,
+.sip-foot__wordmark {
+  font-stretch: 100%;
+  font-weight: var(--font-weight-bold);
+  text-transform: none;
+  line-height: 1.2;
+}
+
+.sip-chrome__wordmark {
+  font-size: 1.0625rem;
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 40rem) {
+  .sip-chrome__wordmark {
+    font-size: 1.1875rem;
+  }
+}
+
+.sip-chrome__tagline {
+  display: none;
+  color: var(--color-text-quiet);
+}
+
+@media (min-width: 64rem) {
+  .sip-chrome__tagline {
+    display: inline;
+  }
+}
+
+.sip-chrome__controls {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+/* -- The ranked navigation ------------------------------------------------ */
+
+.sip-chrome__nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-4);
+}
+
+.sip-chrome__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-control-minimum);
+  color: var(--color-text-muted);
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-decoration-thickness: 0.125rem;
+  text-underline-offset: 0.4rem;
+  transition:
+    color var(--duration-fast) linear,
+    text-decoration-color var(--duration-fast) linear;
+}
+
+.sip-chrome__link:hover {
+  color: var(--color-text-primary);
+  text-decoration-color: var(--color-brand-coral);
+}
+
+/* Where you are: a rule as well as a colour, so the current page is
+   identifiable without perceiving the tint (handoff §5.1). */
+.sip-chrome__link[aria-current="page"] {
+  color: var(--color-text-primary);
+  text-decoration-color: var(--color-brand-coral);
+}
+
+/* -- The mobile disclosure -------------------------------------------------
+   Below the content breakpoint the wordmark and the Search opener stay in the
+   row and the secondary links move behind one control (handoff §5.1). Above
+   it the control is not rendered visually and the nav is always open; the
+   `data-open` attribute is only consulted on a phone, so there is no
+   `[hidden]` to override on a desktop. */
+.sip-chrome__menu {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-control-minimum);
+  padding: 0 var(--space-3);
+  background: transparent;
+  border: var(--border-thin) solid var(--color-border-control);
+  border-radius: var(--radius-control);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) linear,
+    border-color var(--duration-fast) linear;
+}
+
+.sip-chrome__menu:hover,
+.sip-chrome__menu[aria-expanded="true"] {
+  color: var(--color-text-primary);
+  border-color: var(--color-border-strong);
+}
+
+@media (max-width: 39.9999rem) {
+  .sip-chrome__nav {
+    /* The panel hangs under the whole row, on the chrome ground and ruled off
+       from it: a list of 44px links, over the page rather than pushing it. */
+    position: absolute;
+    z-index: 20;
+    left: 0;
+    right: 0;
+    top: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding: var(--space-2) var(--size-gutter-mobile) var(--space-3);
+    background: var(--color-surface-chrome);
+    border-top: var(--border-thin) solid var(--color-border-subtle);
+    border-bottom: var(--border-thin) solid var(--color-border-default);
+  }
+
+  .sip-chrome__nav[data-open="false"] {
+    display: none;
+  }
+}
+
+/* At the 320px minimum the wordmark, the Search opener and Menu share one row
+   only if the opener's decorative key cap steps aside; it is `aria-hidden`
+   notation over a control that works without it. */
+@media (max-width: 23.9999rem) {
+  .sip-chrome .sip-search-trigger__cap {
+    display: none;
+  }
+
+  .sip-chrome__row,
+  .sip-chrome__controls {
+    column-gap: var(--space-2);
+  }
+}
+
+@media (min-width: 40rem) {
+  .sip-chrome__menu {
+    display: none;
+  }
+}
+
+/* -- The footer ----------------------------------------------------------- */
+
+.sip-foot {
+  margin-top: auto;
+  background: var(--color-surface-chrome);
+  color: var(--color-text-primary);
+  border-top: var(--border-thin) solid var(--color-border-default);
+}
+
+.sip-foot__inner {
+  width: 100%;
+  max-width: var(--size-content-max);
+  margin: 0 auto;
+  padding: var(--space-8) var(--size-gutter-mobile) var(--space-9);
+}
+
+@media (min-width: 40rem) {
+  .sip-foot__inner {
+    padding-inline: var(--size-gutter-desktop);
+  }
+}
+
+.sip-foot__wordmark {
+  margin: 0;
+  font-size: 1.0625rem;
+}
+
+.sip-foot__wordmark span {
+  color: var(--color-brand-coral);
+}
+
+.sip-foot__about {
+  margin: var(--space-3) 0 0;
+  max-width: 38rem;
+  font-size: var(--text-body);
+  color: var(--color-text-muted);
+  text-wrap: pretty;
+}
+
+.sip-foot__rubric {
+  margin: var(--space-6) 0 0;
+  color: var(--color-text-quiet);
+}
+
+.sip-foot__rubric a {
+  color: var(--color-text-muted);
+  text-decoration: underline;
+  text-decoration-color: var(--color-border-strong);
+  text-underline-offset: 0.35rem;
+  transition:
+    color var(--duration-fast) linear,
+    text-decoration-color var(--duration-fast) linear;
+}
+
+.sip-foot__rubric a:hover {
+  color: var(--color-text-primary);
+  text-decoration-color: var(--color-brand-coral);
+}
