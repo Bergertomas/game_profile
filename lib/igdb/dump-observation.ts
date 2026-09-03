@@ -29,7 +29,7 @@
  * `parseDumpCsv` remains the authority on whether the file is acceptable at
  * all; this module only characterises what the accepted bytes contain.
  */
-import { splitCsvLine } from "./dump";
+import { parseCsvRecords } from "./dump";
 
 /** How an array cell writes its elements. `none` means "not observed". */
 export type DumpArrayEncoding = "braces" | "brackets" | "none";
@@ -168,15 +168,18 @@ export function observeDumpEncodings(
     error: null,
   };
 
-  const lines = text.split(/\r?\n/).filter((line) => line.length > 0);
-  if (lines.length === 0) return { ...empty, error: "The dump file carried no lines." };
-
-  let header: string[];
+  // Records, not physical lines: a quoted value may carry a newline, and the
+  // declared cell must still be read from the right column of the right
+  // record. Malformed quoting fails closed here exactly as it does in
+  // `parseDumpCsv`.
+  let records: string[][];
   try {
-    header = splitCsvLine(lines[0]!);
+    records = parseCsvRecords(text);
   } catch (error) {
-    return { ...empty, error: `Unreadable CSV header: ${error instanceof Error ? error.message : String(error)}` };
+    return { ...empty, error: `Unreadable CSV: ${error instanceof Error ? error.message : String(error)}` };
   }
+  if (records.length === 0) return { ...empty, error: "The dump file carried no lines." };
+  const header = records[0]!;
 
   // Only columns that are BOTH declared with the type and present in the file
   // can be observed. Indices are resolved once, from the header.
@@ -207,9 +210,9 @@ export function observeDumpEncodings(
   let rowsScanned = 0;
 
   const budget = options.maxRows ?? Number.POSITIVE_INFINITY;
-  const dataLines = lines.slice(1);
+  const dataRows = records.slice(1);
 
-  for (let i = 0; i < dataLines.length; i += 1) {
+  for (let i = 0; i < dataRows.length; i += 1) {
     if (rowsScanned >= budget) {
       return {
         ...base,
@@ -228,17 +231,7 @@ export function observeDumpEncodings(
         timestamp_cells_unreadable: timeUnreadable,
       };
     }
-    let cells: string[];
-    try {
-      cells = splitCsvLine(dataLines[i]!);
-    } catch (error) {
-      return {
-        ...base,
-        rows_scanned: rowsScanned,
-        scan_reached_end: false,
-        error: `Unreadable CSV row ${i + 1}: ${error instanceof Error ? error.message : String(error)}`,
-      };
-    }
+    const cells = dataRows[i]!;
     rowsScanned += 1;
 
     for (const [column, index] of arrayIndices) {
@@ -282,7 +275,7 @@ export function observeDumpEncodings(
       return {
         ...base,
         rows_scanned: rowsScanned,
-        scan_reached_end: i === dataLines.length - 1,
+        scan_reached_end: i === dataRows.length - 1,
         array_encoding_observed: arrayEncoding,
         array_observed_column: arrayColumn,
         array_observed_row: arrayRow,

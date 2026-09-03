@@ -117,41 +117,104 @@ export function parseDumpCell(raw: string, type: string, column: string): DumpCe
   }
 }
 
-/** Split one CSV line, honouring double-quoted fields with doubled quotes. */
-export function splitCsvLine(line: string): string[] {
-  const out: string[] = [];
+/**
+ * Split a CSV text into RECORDS, not physical lines.
+ *
+ * A real `platforms` dump proved this is not a nicety: a quoted `summary`
+ * value crosses a physical newline, and a line-oriented reader tears the
+ * record in half and then reports "Unterminated quoted field". A CSV record
+ * ends at a newline only when that newline is OUTSIDE quotes.
+ *
+ * Handles the constructs real dumps use — quoted fields spanning newlines,
+ * doubled quotes (`""` → `"`), embedded commas, and CRLF, LF or lone-CR
+ * record separators — and stays fail-closed: a value whose quote is never
+ * closed throws rather than being silently truncated. Blank lines between
+ * records are skipped; a quoted empty field (`""`) is a real value and is
+ * kept.
+ */
+export function parseCsvRecords(text: string): string[][] {
+  const records: string[][] = [];
+  let fields: string[] = [];
   let field = "";
-  let quoted = false;
-  for (let i = 0; i < line.length; i += 1) {
-    const ch = line[i]!;
-    if (quoted) {
+  let inQuotes = false;
+  // Whether anything at all belongs to the record being built. A blank line
+  // contributes nothing; a quoted empty value does.
+  let touched = false;
+
+  const endRecord = () => {
+    fields.push(field);
+    if (touched) records.push(fields);
+    fields = [];
+    field = "";
+    touched = false;
+  };
+
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i]!;
+    if (inQuotes) {
       if (ch === '"') {
-        if (line[i + 1] === '"') {
+        if (text[i + 1] === '"') {
           field += '"';
           i += 1;
-        } else quoted = false;
-      } else field += ch;
-    } else if (ch === '"') quoted = true;
-    else if (ch === ",") {
-      out.push(field);
+        } else inQuotes = false;
+      } else {
+        // Newlines inside quotes are part of the value, not a record break.
+        field += ch;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      inQuotes = true;
+      touched = true;
+      continue;
+    }
+    if (ch === ",") {
+      fields.push(field);
       field = "";
-    } else field += ch;
+      touched = true;
+      continue;
+    }
+    if (ch === "\r") {
+      if (text[i + 1] === "\n") i += 1;
+      endRecord();
+      continue;
+    }
+    if (ch === "\n") {
+      endRecord();
+      continue;
+    }
+    field += ch;
+    touched = true;
   }
-  if (quoted) throw new Error("Unterminated quoted field in CSV line.");
-  out.push(field);
-  return out;
+
+  if (inQuotes) {
+    throw new Error("Unterminated quoted field in CSV: the file ends inside a quoted value.");
+  }
+  if (touched) endRecord();
+  return records;
+}
+
+/**
+ * Split ONE CSV record. Kept for callers that hold a single record already;
+ * it shares the record-aware reader, so a value carrying a newline is an
+ * error here rather than a silent truncation.
+ */
+export function splitCsvLine(line: string): string[] {
+  const records = parseCsvRecords(line);
+  if (records.length === 0) return [""];
+  if (records.length > 1) throw new Error("Expected one CSV record; the text holds a record separator outside quotes.");
+  return records[0]!;
 }
 
 /** Parse a whole CSV text by the dump's declared schema into typed rows. */
 export function parseDumpCsv(text: string, schema: Readonly<Record<string, string>>): DumpRow[] {
-  const lines = text.split(/\r?\n/).filter((line) => line.length > 0);
-  if (lines.length === 0) return [];
-  const header = splitCsvLine(lines[0]!);
+  const records = parseCsvRecords(text);
+  if (records.length === 0) return [];
+  const header = records[0]!;
   for (const column of header) {
     if (!(column in schema)) throw new Error(`CSV column ${JSON.stringify(column)} is not in the dump schema.`);
   }
-  return lines.slice(1).map((line, index) => {
-    const cells = splitCsvLine(line);
+  return records.slice(1).map((cells, index) => {
     if (cells.length !== header.length) {
       throw new Error(`CSV row ${index + 1} has ${cells.length} cells; the header has ${header.length}.`);
     }

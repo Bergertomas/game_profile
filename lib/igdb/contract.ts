@@ -139,6 +139,54 @@ export const IGDB_LEGACY_GAME_TYPE_VALUES: Readonly<Record<IgdbGameTypeName, num
   update: 14,
 };
 
+/**
+ * Table-backed reference contracts where `0` is a LEGITIMATE provider id.
+ *
+ * The enum→table migration preserves the historical enum numbering as the new
+ * tables' ids, and three of those enums are documented as starting at zero
+ * (read from https://api-docs.igdb.com/ on 2026-09-03, "Game Enums" and
+ * "Release Date Enums"):
+ *
+ *   game_type    main_game  = 0   — the commonest value of all
+ *   game_status  released   = 0
+ *   date_format  YYYYMMMMDD = 0   — a full, exact release date
+ *
+ * A live field-contract probe on a non-cohort record returned exactly these:
+ * `game_type.id = 0` and six `release_dates[].date_format.id = 0`. The parser
+ * rejecting them was our contract being too strict, not malformed IGDB data.
+ *
+ * This set is deliberately small and explicit. It is NOT a licence to accept
+ * zero for ordinary entity ids — see `IGDB_POSITIVE_ONLY_REFERENCES`.
+ */
+export const IGDB_ZERO_VALUED_ENUM_REFERENCES: Readonly<Record<string, string>> = {
+  game_type: "main_game",
+  game_status: "released",
+  date_format: "YYYYMMMMDD",
+};
+
+/**
+ * The reference contracts that stay strictly positive, with the documented
+ * minimum that makes zero meaningless for each.
+ *
+ * Two are enum-backed but numbered from 1 (`region`: `europe = 1`;
+ * external-game `category`: `steam = 1`). The rest are either tables IGDB
+ * introduced without a legacy enum (`image_types`, `platform_types`,
+ * `game_release_formats`, `release_date_statuses`) or ordinary entities
+ * (`platforms`, `companies`) — and every record id, including a game's own,
+ * is an ordinary entity id. A zero in any of these is malformed data and must
+ * still fail closed.
+ */
+export const IGDB_POSITIVE_ONLY_REFERENCES: readonly string[] = [
+  "release_region",
+  "external_game_source",
+  "game_release_format",
+  "image_type",
+  "platform",
+  "company",
+  "release_date_status",
+  "record id",
+];
+
 export const IGDB_GAME_STATUS_NAMES = [
   "released",
   "alpha",

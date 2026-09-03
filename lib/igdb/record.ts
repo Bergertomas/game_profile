@@ -118,17 +118,37 @@ export interface IgdbGameRecord {
 
 /* ── API JSON parsing ───────────────────────────────────────────────────── */
 
+/**
+ * Ordinary entity and record ids. IGDB numbers real rows from 1, so zero is
+ * malformed and must fail closed (`IGDB_POSITIVE_ONLY_REFERENCES`).
+ */
 const id = z.number().int().positive();
+
+/**
+ * Ids of the enum→table reference contracts that legitimately carry zero
+ * (`IGDB_ZERO_VALUED_ENUM_REFERENCES`: `game_type`, `game_status`,
+ * `date_format`). Nonnegative, never negative — a negative id is malformed
+ * whatever the contract.
+ */
+const enumRefId = z.number().int().nonnegative();
+
 const unix = z.number().int().nonnegative();
 const optionalText = z.string().nullable().optional();
 const optionalBool = z.boolean().nullable().optional();
 const optionalUnix = unix.nullable().optional();
 const optionalChecksum = z.string().nullable().optional();
 
-/** A reference may arrive expanded (object) or bare (id). */
-function namedRef(nameField: string) {
+/**
+ * A reference may arrive expanded (object) or bare (id).
+ *
+ * `idSchema` is the contract for THIS reference: entity references stay
+ * strictly positive, and only the three documented zero-valued enum→table
+ * references pass `enumRefId`. The distinction is per-field on purpose — a
+ * single permissive id rule would let a malformed zero through everywhere.
+ */
+function namedRef(nameField: string, idSchema: z.ZodType<number> = id) {
   return z
-    .union([id, z.object({ id }).passthrough()])
+    .union([idSchema, z.object({ id: idSchema }).passthrough()])
     .nullable()
     .optional()
     .transform((value): IgdbNamedRef | null => {
@@ -137,6 +157,11 @@ function namedRef(nameField: string) {
       const name = (value as Record<string, unknown>)[nameField];
       return { id: value.id, name: typeof name === "string" ? name : null };
     });
+}
+
+/** The zero-valued enum→table references: `game_type`, `game_status`, `date_format`. */
+function enumNamedRef(nameField: string) {
+  return namedRef(nameField, enumRefId);
 }
 
 const bareRef = z
@@ -177,7 +202,7 @@ const releaseDateSchema = z
     date: unix.nullable().optional(),
     human: optionalText,
     platform: namedRef("name"),
-    date_format: namedRef("format"),
+    date_format: enumNamedRef("format"),
     release_region: namedRef("region"),
     status: namedRef("name"),
   })
@@ -235,8 +260,8 @@ const apiGameSchema = z
     summary: optionalText,
     first_release_date: unix.nullable().optional(),
     version_title: optionalText,
-    game_type: namedRef("type"),
-    game_status: namedRef("status"),
+    game_type: enumNamedRef("type"),
+    game_status: enumNamedRef("status"),
     parent_game: bareRef,
     version_parent: bareRef,
     dlcs: refList,

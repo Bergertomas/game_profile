@@ -47,7 +47,7 @@
 import { createIgdbClient, readIgdbCredentials, type IgdbClient } from "@/lib/igdb/client";
 import { isProtectedTitle } from "@/lib/igdb/cohort-guard";
 import { IGDB_API_BASE, IGDB_DUMP_PROOF_ENDPOINT, IGDB_ENV, TWITCH_TOKEN_URL, gamesByIdQuery } from "@/lib/igdb/contract";
-import { parseDumpCsv } from "@/lib/igdb/dump";
+import { parseCsvRecords, parseDumpCsv } from "@/lib/igdb/dump";
 import { classifyDumpSchema, observeDumpEncodings, type DumpEncodingObservation } from "@/lib/igdb/dump-observation";
 import { normalizeGames } from "@/lib/igdb/normalize";
 import { evaluateDumpProofGate, evaluateFieldContractGate, type ProofGateResult } from "@/lib/igdb/proof-gate";
@@ -406,12 +406,14 @@ async function dumpSampleProbe(client: IgdbClient, endpoint: string, maxBytes: n
   // the descriptor declares, across as many rows as it takes to see a real
   // non-empty array value and a real timestamp value.
   const observation = observeDumpEncodings(text, descriptor.schema);
-  const header = text.split(/\r?\n/, 1)[0] ?? "";
+  // The header is the first CSV RECORD, not the first physical line: a dump
+  // may quote a value across a newline.
+  const header = parseCsvRecords(text)[0] ?? [];
   return {
     report: {
       ...downloaded,
       rows_parsed: rows.length,
-      csv_columns: header.split(",").map((c) => c.trim()).filter(Boolean),
+      csv_columns: header.map((c) => c.trim()).filter(Boolean),
       rows_scanned: observation.rows_scanned,
       scan_reached_end: observation.scan_reached_end,
       array_encoding_observed: observation.array_columns_declared.length ? observation.array_encoding_observed : null,

@@ -180,9 +180,12 @@ describe("observeDumpEncodings", () => {
 
   it("reports a structural error rather than an encoding for an empty or broken file", () => {
     expect(observeDumpEncodings("", PLATFORMS_SCHEMA).error).toMatch(/no lines/i);
+    // Record-aware reading means an unclosed quote is only knowable once the
+    // text runs out — it still fails closed and claims no encoding.
     const broken = observeDumpEncodings([HEADER, '1,"unterminated,a,0,{1},{1},1,1,a'].join("\n"), PLATFORMS_SCHEMA);
-    expect(broken.error).toMatch(/Unreadable CSV row/);
+    expect(broken.error).toMatch(/Unreadable CSV: Unterminated quoted field/);
     expect(broken.array_encoding_observed).toBe("none");
+    expect(broken.timestamp_encoding_observed).toBe("none");
   });
 
   it("agrees with the production parser about what the cells mean", () => {
