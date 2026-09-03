@@ -3,6 +3,7 @@ import {
   date,
   foreignKey,
   index,
+  bigint,
   bigserial,
   integer,
   jsonb,
@@ -1030,4 +1031,453 @@ export const deploymentEvents = pgTable(
     index("deployment_events_recent_idx").on(table.occurredAt, table.seq),
     index("deployment_events_request_idx").on(table.requestId, table.occurredAt),
   ],
+);
+
+/* ───────────────────────────── IGDB staging ────────────────────────────────
+ *
+ * Phase 3A Item 5 (issue #48; ADR 0037). Everything below is PROVIDER STAGING:
+ * a faithful, provenance-carrying copy of what IGDB said, kept apart from the
+ * editorial model above it. Nothing here is scoring evidence, editorial
+ * judgement, publication authority, profile-inclusion authority or artwork
+ * clearance (Master Plan v0.9 §7.4; ADR 0026; ADR 0011).
+ *
+ * Three identities are deliberately kept distinct and never collapsed:
+ *
+ *   internal canonical game / profile scope   `games.id`, `profile_scopes.id`
+ *   IGDB entity                               `igdb_games.igdb_id` (+ checksum)
+ *   the RELATION between them                 `igdb_identity_candidates`, which a
+ *                                             human accepts into `game_external_ids`
+ *
+ * A staged IGDB record is not a Should I Play? game. It becomes the provider
+ * identity of one only when an editor accepts a candidate; the staging job
+ * cannot do that, and no table here writes to `games`, `profile_scopes`,
+ * `evaluations` or `game_artwork`.
+ *
+ * IGDB models "same game, different edition" and "different content of the
+ * same game" with two different fields, and so does this schema:
+ *
+ *   version_parent  "If a version, this is the main game" — Gold Edition,
+ *                   Deluxe Edition, a platform-specific edition. Same work.
+ *   parent_game     "If a DLC, expansion or part of a bundle, this is the main
+ *                   game or bundle" — additional content, or bundle membership.
+ *
+ * The relation table records which field asserted each edge, so the two can
+ * never be read as the same thing after the fact. Ports, remakes, remasters,
+ * expanded games and forks are asserted from the base game's side
+ * (`ports`, `remakes`, …) and are recorded with that source field too.
+ *
+ * Every row carries: which ingestion run fetched it, when, from which path
+ * (API or Data Partner dump), the provider checksum and updated_at, and the raw
+ * record it was normalized from. Provenance is the point of the layer.
+ */
+
+/** How a staged row reached us. `fixture` is the non-production proof path. */
+export const igdbSourceKindEnum = pgEnum("igdb_source_kind", [
+  "api",
+  "dump",
+  "fixture",
+]);
+
+/**
+ * One relation edge, read "subject <kind> object". Each value names the IGDB
+ * field that asserts it; `parent_game_unclassified` records a `parent_game`
+ * whose child type does not say what kind of content it is, so a reader sees
+ * an open question rather than a guessed answer.
+ */
+export const igdbRelationKindEnum = pgEnum("igdb_relation_kind", [
+  "version_of", // version_parent
+  "dlc_of", // parent_game + game_type dlc_addon; or base.dlcs
+  "expansion_of", // parent_game + expansion; or base.expansions
+  "standalone_expansion_of", // parent_game + standalone_expansion; or base.standalone_expansions
+  "mod_of",
+  "episode_of",
+  "season_of",
+  "pack_of",
+  "update_of",
+  "bundle_contains", // base.bundles (subject is the bundle)
+  "port_of", // base.ports
+  "remake_of", // base.remakes
+  "remaster_of", // base.remasters
+  "expanded_game_of", // base.expanded_games
+  "fork_of", // base.forks
+  "parent_game_unclassified",
+]);
+
+/**
+ * What a staged record IS, derived from `version_parent` and the table-backed
+ * `game_type`. Derived for querying; the raw fields stay beside it.
+ */
+export const igdbIdentityClassEnum = pgEnum("igdb_identity_class", [
+  "base_game",
+  "version_edition",
+  "dlc",
+  "expansion",
+  "standalone_expansion",
+  "bundle",
+  "port",
+  "remake",
+  "remaster",
+  "other_content", // mod, episode, season, pack, update, expanded_game, fork
+  "unclassified", // game_type unresolved
+]);
+
+export const igdbImageKindEnum = pgEnum("igdb_image_kind", ["cover", "artwork"]);
+
+/**
+ * What an IGDB record is proposed to be, relative to an internal game. Only
+ * `canonical_game` can ever reach `game_external_ids`; the others record a
+ * reviewed relationship for scope/DLC decisions that Tomas owns.
+ */
+export const igdbIdentityRoleEnum = pgEnum("igdb_identity_role", [
+  "canonical_game",
+  "edition_of_game",
+  "dlc_of_game",
+  "expansion_of_game",
+  "standalone_expansion_of_game",
+  "remake_or_remaster_of_game",
+  "port_of_game",
+  "bundle_of_game",
+  "unrelated",
+]);
+
+export const igdbReviewStateEnum = pgEnum("igdb_review_state", [
+  "proposed",
+  "accepted",
+  "rejected",
+]);
+
+export const igdbChangeClassEnum = pgEnum("igdb_change_class", [
+  "provider_text_drift",
+  "identity_or_relationship",
+  "platform_or_release",
+  "artwork_candidate",
+  "material_scope",
+]);
+
+export const igdbChangeReviewStateEnum = pgEnum("igdb_change_review_state", [
+  "open",
+  "acknowledged",
+  "dismissed",
+]);
+
+/** One ingestion: the fetch-time provenance every staged row points at. */
+export const igdbIngestionRuns = pgTable("igdb_ingestion_runs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  sourceKind: igdbSourceKindEnum("source_kind").notNull(),
+  /** `api:v4`, `dump:<file_name>@<schema_version>`, or the fixture's name. */
+  sourceRef: text("source_ref").notNull(),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+  finishedAt: timestamp("finished_at", { withTimezone: true }),
+  recordCount: integer("record_count").notNull().default(0),
+  note: text("note"),
+});
+
+export const igdbGames = pgTable(
+  "igdb_games",
+  {
+    igdbId: bigint("igdb_id", { mode: "number" }).primaryKey(),
+    /** IGDB's own hash of the object; null only when the provider omitted it. */
+    checksum: uuid("checksum"),
+    igdbUpdatedAt: timestamp("igdb_updated_at", { withTimezone: true }),
+    igdbCreatedAt: timestamp("igdb_created_at", { withTimezone: true }),
+    name: text("name").notNull(),
+    /** Mutable provider text. Never an identity (Plan §7.2). */
+    slug: text("slug"),
+    url: text("url"),
+    summary: text("summary"),
+    versionTitle: text("version_title"),
+    gameTypeId: integer("game_type_id"),
+    gameTypeName: text("game_type_name"),
+    gameStatusId: integer("game_status_id"),
+    gameStatusName: text("game_status_name"),
+    parentGameIgdbId: bigint("parent_game_igdb_id", { mode: "number" }),
+    versionParentIgdbId: bigint("version_parent_igdb_id", { mode: "number" }),
+    identityClass: igdbIdentityClassEnum("identity_class").notNull(),
+    firstReleaseDate: date("first_release_date"),
+    /** IGDB platform ids from the game's `platforms` array; the release rows carry the detail. */
+    platformIgdbIds: bigint("platform_igdb_ids", { mode: "number" }).array().notNull().default([]),
+    /** The provider record exactly as received, before normalization. */
+    raw: jsonb("raw").notNull(),
+    sourceKind: igdbSourceKindEnum("source_kind").notNull(),
+    sourceRef: text("source_ref").notNull(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => igdbIngestionRuns.id),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
+    firstSeenAt: timestamp("first_seen_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    lastChangedAt: timestamp("last_changed_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("igdb_games_parent_idx").on(table.parentGameIgdbId),
+    index("igdb_games_version_parent_idx").on(table.versionParentIgdbId),
+  ],
+);
+
+export const igdbGameRelations = pgTable(
+  "igdb_game_relations",
+  {
+    subjectIgdbId: bigint("subject_igdb_id", { mode: "number" }).notNull(),
+    /** Not a foreign key: IGDB may point at a record we have not staged. */
+    objectIgdbId: bigint("object_igdb_id", { mode: "number" }).notNull(),
+    kind: igdbRelationKindEnum("kind").notNull(),
+    /** The IGDB field that asserted this edge: parent_game, version_parent, dlcs, … */
+    sourceField: text("source_field").notNull(),
+    /** The staged record whose payload carried the assertion. */
+    assertedByIgdbId: bigint("asserted_by_igdb_id", { mode: "number" })
+      .notNull()
+      .references(() => igdbGames.igdbId, { onDelete: "cascade" }),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => igdbIngestionRuns.id),
+  },
+  (table) => [
+    primaryKey({
+      columns: [table.subjectIgdbId, table.objectIgdbId, table.kind, table.sourceField],
+    }),
+    index("igdb_game_relations_object_idx").on(table.objectIgdbId),
+  ],
+);
+
+export const igdbPlatforms = pgTable("igdb_platforms", {
+  igdbId: bigint("igdb_id", { mode: "number" }).primaryKey(),
+  checksum: uuid("checksum"),
+  igdbUpdatedAt: timestamp("igdb_updated_at", { withTimezone: true }),
+  name: text("name").notNull(),
+  slug: text("slug"),
+  abbreviation: text("abbreviation"),
+  platformTypeId: integer("platform_type_id"),
+  platformTypeName: text("platform_type_name"),
+  raw: jsonb("raw").notNull(),
+  runId: uuid("run_id")
+    .notNull()
+    .references(() => igdbIngestionRuns.id),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
+});
+
+/** One platform/region release manifestation of one IGDB game. */
+export const igdbReleaseDates = pgTable(
+  "igdb_release_dates",
+  {
+    igdbId: bigint("igdb_id", { mode: "number" }).primaryKey(),
+    igdbGameId: bigint("igdb_game_id", { mode: "number" })
+      .notNull()
+      .references(() => igdbGames.igdbId, { onDelete: "cascade" }),
+    checksum: uuid("checksum"),
+    igdbUpdatedAt: timestamp("igdb_updated_at", { withTimezone: true }),
+    platformIgdbId: bigint("platform_igdb_id", { mode: "number" }),
+    platformName: text("platform_name"),
+    releaseDate: date("release_date"),
+    dateFormatId: integer("date_format_id"),
+    dateFormatName: text("date_format_name"),
+    releaseRegionId: integer("release_region_id"),
+    releaseRegionName: text("release_region_name"),
+    statusId: integer("status_id"),
+    statusName: text("status_name"),
+    human: text("human"),
+    raw: jsonb("raw").notNull(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => igdbIngestionRuns.id),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [index("igdb_release_dates_game_idx").on(table.igdbGameId)],
+);
+
+/**
+ * Artwork CANDIDATES. There is deliberately no clearance, basis or credit
+ * column: this table cannot express permission to render. The only way an IGDB
+ * image reaches the public site is a human-created `game_artwork` row with
+ * `source = 'igdb'` and `external_id = image_id`, carrying the clearance and
+ * basis that editor decided (ADR 0011). IGDB exposing an image proves nothing.
+ */
+export const igdbImages = pgTable(
+  "igdb_images",
+  {
+    imageKind: igdbImageKindEnum("image_kind").notNull(),
+    /** Covers and artworks are separate IGDB id spaces, hence the composite key. */
+    igdbId: bigint("igdb_id", { mode: "number" }).notNull(),
+    igdbGameId: bigint("igdb_game_id", { mode: "number" })
+      .notNull()
+      .references(() => igdbGames.igdbId, { onDelete: "cascade" }),
+    checksum: uuid("checksum"),
+    /** The hash used to build `https://images.igdb.com/igdb/image/upload/t_{size}/{image_id}.jpg`. */
+    imageId: text("image_id").notNull(),
+    width: integer("width"),
+    height: integer("height"),
+    imageTypeId: integer("image_type_id"),
+    imageTypeName: text("image_type_name"),
+    alphaChannel: boolean("alpha_channel"),
+    animated: boolean("animated"),
+    /** The provider-returned (thumbnail) URL, verbatim. */
+    providerUrl: text("provider_url"),
+    gameLocalizationIgdbId: bigint("game_localization_igdb_id", { mode: "number" }),
+    raw: jsonb("raw").notNull(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => igdbIngestionRuns.id),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.imageKind, table.igdbId] }),
+    index("igdb_images_game_idx").on(table.igdbGameId),
+  ],
+);
+
+export const igdbInvolvedCompanies = pgTable(
+  "igdb_involved_companies",
+  {
+    igdbId: bigint("igdb_id", { mode: "number" }).primaryKey(),
+    igdbGameId: bigint("igdb_game_id", { mode: "number" })
+      .notNull()
+      .references(() => igdbGames.igdbId, { onDelete: "cascade" }),
+    checksum: uuid("checksum"),
+    igdbUpdatedAt: timestamp("igdb_updated_at", { withTimezone: true }),
+    companyIgdbId: bigint("company_igdb_id", { mode: "number" }),
+    companyName: text("company_name"),
+    developer: boolean("developer").notNull().default(false),
+    publisher: boolean("publisher").notNull().default(false),
+    porting: boolean("porting").notNull().default(false),
+    supporting: boolean("supporting").notNull().default(false),
+    raw: jsonb("raw").notNull(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => igdbIngestionRuns.id),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [index("igdb_involved_companies_game_idx").on(table.igdbGameId)],
+);
+
+/** Provider alternative names. Search input at most; never identity. */
+export const igdbAlternativeNames = pgTable(
+  "igdb_alternative_names",
+  {
+    igdbId: bigint("igdb_id", { mode: "number" }).primaryKey(),
+    igdbGameId: bigint("igdb_game_id", { mode: "number" })
+      .notNull()
+      .references(() => igdbGames.igdbId, { onDelete: "cascade" }),
+    checksum: uuid("checksum"),
+    name: text("name").notNull(),
+    comment: text("comment"),
+    raw: jsonb("raw").notNull(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => igdbIngestionRuns.id),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [index("igdb_alternative_names_game_idx").on(table.igdbGameId)],
+);
+
+/** IGDB's record of the game's id on other services (Steam, GOG, …). */
+export const igdbExternalGames = pgTable(
+  "igdb_external_games",
+  {
+    igdbId: bigint("igdb_id", { mode: "number" }).primaryKey(),
+    igdbGameId: bigint("igdb_game_id", { mode: "number" })
+      .notNull()
+      .references(() => igdbGames.igdbId, { onDelete: "cascade" }),
+    checksum: uuid("checksum"),
+    igdbUpdatedAt: timestamp("igdb_updated_at", { withTimezone: true }),
+    sourceId: integer("source_id"),
+    sourceName: text("source_name"),
+    uid: text("uid"),
+    name: text("name"),
+    platformIgdbId: bigint("platform_igdb_id", { mode: "number" }),
+    url: text("url"),
+    releaseFormatId: integer("release_format_id"),
+    releaseFormatName: text("release_format_name"),
+    raw: jsonb("raw").notNull(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => igdbIngestionRuns.id),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [index("igdb_external_games_game_idx").on(table.igdbGameId)],
+);
+
+/**
+ * The review queue between provider identity and internal identity.
+ *
+ * Tooling may PROPOSE that IGDB record X is the canonical record of internal
+ * game Y, or an edition/DLC/expansion of it. Only a decision by a named person
+ * moves a row out of `proposed`, and only an accepted `canonical_game` row is
+ * written through to `game_external_ids`. A rejected row stays as the record
+ * that the question was asked and answered.
+ */
+export const igdbIdentityCandidates = pgTable(
+  "igdb_identity_candidates",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    igdbGameId: bigint("igdb_game_id", { mode: "number" })
+      .notNull()
+      .references(() => igdbGames.igdbId, { onDelete: "cascade" }),
+    gameId: uuid("game_id").references(() => games.id, { onDelete: "cascade" }),
+    scopeId: uuid("scope_id").references(() => profileScopes.id, {
+      onDelete: "cascade",
+    }),
+    role: igdbIdentityRoleEnum("role").notNull(),
+    state: igdbReviewStateEnum("state").notNull().default("proposed"),
+    rationale: text("rationale").notNull(),
+    proposedBy: text("proposed_by").notNull(),
+    proposedAt: timestamp("proposed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    decidedBy: text("decided_by"),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    decisionNote: text("decision_note"),
+  },
+  (table) => [
+    /**
+     * A candidate that names a scope names the scope's own game. Two
+     * independent keys would let a candidate pair game A with a scope of game
+     * B; the composite key against `profile_scopes (id, game_id)` — the same
+     * ownership target `evaluations` uses — cannot. A NULL `game_id` beside a
+     * non-NULL `scope_id` would slip past a MATCH SIMPLE foreign key, so the
+     * migration adds the check that closes that gap.
+     */
+    foreignKey({
+      name: "igdb_identity_candidates_scope_belongs_to_game",
+      columns: [table.scopeId, table.gameId],
+      foreignColumns: [profileScopes.id, profileScopes.gameId],
+    }).onDelete("cascade"),
+    index("igdb_identity_candidates_game_idx").on(table.gameId),
+    index("igdb_identity_candidates_igdb_idx").on(table.igdbGameId),
+  ],
+);
+
+/**
+ * Append-only change log. A provider change is a REVIEW SIGNAL and nothing
+ * else: no row here touches an evaluation, a score, a publication state or an
+ * artwork clearance. `requires_editorial_review` is the prompt; a human decides
+ * what, if anything, follows.
+ */
+export const igdbChangeEvents = pgTable(
+  "igdb_change_events",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    igdbGameId: bigint("igdb_game_id", { mode: "number" })
+      .notNull()
+      .references(() => igdbGames.igdbId, { onDelete: "cascade" }),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => igdbIngestionRuns.id),
+    detectedAt: timestamp("detected_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    previousChecksum: uuid("previous_checksum"),
+    nextChecksum: uuid("next_checksum"),
+    previousIgdbUpdatedAt: timestamp("previous_igdb_updated_at", {
+      withTimezone: true,
+    }),
+    nextIgdbUpdatedAt: timestamp("next_igdb_updated_at", { withTimezone: true }),
+    /** Every class the change falls into; the most material decides review. */
+    classes: igdbChangeClassEnum("classes").array().notNull(),
+    changedFields: jsonb("changed_fields").notNull(),
+    requiresEditorialReview: boolean("requires_editorial_review").notNull(),
+    reviewState: igdbChangeReviewStateEnum("review_state").notNull().default("open"),
+    reviewedBy: text("reviewed_by"),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  },
+  (table) => [index("igdb_change_events_game_idx").on(table.igdbGameId)],
 );

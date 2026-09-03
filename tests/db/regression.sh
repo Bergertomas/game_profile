@@ -272,7 +272,8 @@ for later_migration in \
   lib/db/migrations/0007_primary_scope.sql \
   lib/db/migrations/0008_authored_ordering.sql \
   lib/db/migrations/0009_deployment_tracking.sql \
-  lib/db/migrations/0010_artwork_fair_use.sql
+  lib/db/migrations/0010_artwork_fair_use.sql \
+  lib/db/migrations/0011_igdb_staging.sql
 do
   if upgrade_out="$(psql "$UPGRADE_DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -1 \
       -f "$later_migration" 2>&1)"; then
@@ -1745,6 +1746,142 @@ reject 'pre-release status must declare evidence maturity' \
   "UPDATE evaluations SET evidence_status='pre_release',confidence='low'
    WHERE id=$SCRATCH;" \
   'pre_release_declares_maturity'
+
+echo
+echo '== 10. IGDB staging is provider staging, not editorial truth (0011) =='
+expect 'all ten IGDB staging tables exist' \
+  "SELECT count(*) FROM pg_tables WHERE schemaname='public' AND tablename IN (
+     'igdb_ingestion_runs','igdb_games','igdb_game_relations','igdb_platforms',
+     'igdb_release_dates','igdb_images','igdb_involved_companies',
+     'igdb_alternative_names','igdb_external_games','igdb_identity_candidates',
+     'igdb_change_events');" '11'
+# The staging layer has no way to say an image may render. Clearance lives on
+# game_artwork alone, where a person writes it (ADR 0011).
+expect 'no staging table carries a clearance, basis or credit column' \
+  "SELECT count(*) FROM information_schema.columns
+   WHERE table_schema='public' AND table_name LIKE 'igdb\\_%'
+     AND column_name IN ('clearance','basis','credit','score','status','published_at');" '0'
+expect 'migration 0011 leaves the editorial tables exactly as they were' \
+  "SELECT count(*) FROM information_schema.columns
+   WHERE table_schema='public' AND table_name IN ('games','evaluations','game_artwork','profile_scopes','subcriterion_scores')
+     AND column_name LIKE 'igdb%';" '0'
+
+accept 'a staging run and two staged records, one an edition of the other' \
+  "INSERT INTO igdb_ingestion_runs (id,source_kind,source_ref)
+   VALUES ('11111111-1111-4111-8111-111111111111','fixture','fixture:regression');
+   INSERT INTO igdb_games (igdb_id,checksum,name,game_type_name,identity_class,raw,source_kind,source_ref,run_id,fetched_at)
+   VALUES (9000001,'00000000-0000-4000-8000-000000000001','Fixture Base Game','main_game','base_game','{}','fixture','fixture:regression','11111111-1111-4111-8111-111111111111',now());
+   INSERT INTO igdb_games (igdb_id,checksum,name,version_title,version_parent_igdb_id,game_type_name,identity_class,raw,source_kind,source_ref,run_id,fetched_at)
+   VALUES (9000002,'00000000-0000-4000-8000-000000000002','Fixture Base Game: Gold Edition','Gold Edition',9000001,'main_game','version_edition','{}','fixture','fixture:regression','11111111-1111-4111-8111-111111111111',now());"
+reject 'a record cannot be its own parent_game' \
+  "INSERT INTO igdb_games (igdb_id,name,parent_game_igdb_id,identity_class,raw,source_kind,source_ref,run_id,fetched_at)
+   VALUES (9000003,'Self','9000003','dlc','{}','fixture','fixture:regression','11111111-1111-4111-8111-111111111111',now());" \
+  'igdb_games_not_own_parent'
+reject 'a record cannot be its own version_parent' \
+  "INSERT INTO igdb_games (igdb_id,name,version_parent_igdb_id,identity_class,raw,source_kind,source_ref,run_id,fetched_at)
+   VALUES (9000003,'Self',9000003,'version_edition','{}','fixture','fixture:regression','11111111-1111-4111-8111-111111111111',now());" \
+  'igdb_games_not_own_version_parent'
+reject 'version_edition without a version_parent is refused' \
+  "INSERT INTO igdb_games (igdb_id,name,identity_class,raw,source_kind,source_ref,run_id,fetched_at)
+   VALUES (9000003,'Edition without parent','version_edition','{}','fixture','fixture:regression','11111111-1111-4111-8111-111111111111',now());" \
+  'igdb_games_version_edition_iff_version_parent'
+reject 'a version_parent record cannot be classed as anything but an edition' \
+  "INSERT INTO igdb_games (igdb_id,name,version_parent_igdb_id,identity_class,raw,source_kind,source_ref,run_id,fetched_at)
+   VALUES (9000003,'Edition mislabelled as DLC',9000001,'dlc','{}','fixture','fixture:regression','11111111-1111-4111-8111-111111111111',now());" \
+  'igdb_games_version_edition_iff_version_parent'
+accept 'version_of is asserted by version_parent' \
+  "INSERT INTO igdb_game_relations (subject_igdb_id,object_igdb_id,kind,source_field,asserted_by_igdb_id,run_id)
+   VALUES (9000002,9000001,'version_of','version_parent',9000002,'11111111-1111-4111-8111-111111111111');"
+reject 'parent_game cannot assert version_of — the two relations are not interchangeable' \
+  "INSERT INTO igdb_game_relations (subject_igdb_id,object_igdb_id,kind,source_field,asserted_by_igdb_id,run_id)
+   VALUES (9000002,9000001,'version_of','parent_game',9000002,'11111111-1111-4111-8111-111111111111');" \
+  'igdb_game_relations_version_field_matches_kind'
+reject 'version_parent cannot assert dlc_of' \
+  "INSERT INTO igdb_game_relations (subject_igdb_id,object_igdb_id,kind,source_field,asserted_by_igdb_id,run_id)
+   VALUES (9000002,9000001,'dlc_of','version_parent',9000002,'11111111-1111-4111-8111-111111111111');" \
+  'igdb_game_relations_version_field_matches_kind'
+reject 'a relation cannot be reflexive' \
+  "INSERT INTO igdb_game_relations (subject_igdb_id,object_igdb_id,kind,source_field,asserted_by_igdb_id,run_id)
+   VALUES (9000001,9000001,'dlc_of','dlcs',9000001,'11111111-1111-4111-8111-111111111111');" \
+  'igdb_game_relations_not_reflexive'
+
+ARTWORK_ROWS_BEFORE="$(psql "$DATABASE_URL" -X -t -A -c "SELECT count(*) FROM game_artwork;")"
+accept 'an artwork candidate is staged with its provider identity only' \
+  "INSERT INTO igdb_images (image_kind,igdb_id,igdb_game_id,image_id,width,height,raw,run_id,fetched_at)
+   VALUES ('cover',9700001,9000001,'fixturecoverbase0001',600,800,'{}','11111111-1111-4111-8111-111111111111',now());"
+reject 'an image id that could not build a provider URL is refused' \
+  "INSERT INTO igdb_images (image_kind,igdb_id,igdb_game_id,image_id,raw,run_id,fetched_at)
+   VALUES ('artwork',9800001,9000001,'../not-an-image-id','{}','11111111-1111-4111-8111-111111111111',now());" \
+  'igdb_images_image_id_shape'
+expect 'staging an artwork candidate creates no game_artwork row' \
+  "SELECT count(*) FROM game_artwork;" "$ARTWORK_ROWS_BEFORE"
+
+reject 'a candidate cannot be accepted by nobody' \
+  "INSERT INTO igdb_identity_candidates (igdb_game_id,game_id,role,state,rationale,proposed_by)
+   VALUES (9000001,(SELECT id FROM games WHERE slug='returnal'),'canonical_game','accepted','test','tooling');" \
+  'igdb_identity_candidates_decision_consistent'
+reject 'a canonical_game candidate must name an internal game' \
+  "INSERT INTO igdb_identity_candidates (igdb_game_id,game_id,role,rationale,proposed_by)
+   VALUES (9000001,NULL,'canonical_game','test','tooling');" \
+  'igdb_identity_candidates_role_names_game'
+reject 'a candidate cannot pair one game with another game''s scope' \
+  "INSERT INTO igdb_identity_candidates (igdb_game_id,game_id,scope_id,role,rationale,proposed_by)
+   VALUES (9000002,(SELECT id FROM games WHERE slug='returnal'),
+           (SELECT id FROM profile_scopes WHERE game_id=(SELECT id FROM games WHERE slug='redfall') LIMIT 1),
+           'edition_of_game','crossed','tooling');" \
+  'igdb_identity_candidates_scope_belongs_to_game'
+reject 'a candidate cannot name a scope without naming its game' \
+  "INSERT INTO igdb_identity_candidates (igdb_game_id,game_id,scope_id,role,rationale,proposed_by)
+   VALUES (9000002,NULL,
+           (SELECT id FROM profile_scopes WHERE game_id=(SELECT id FROM games WHERE slug='redfall') LIMIT 1),
+           'unrelated','orphan scope','tooling');" \
+  'igdb_identity_candidates_scope_needs_game'
+accept 'a candidate may name a game and one of that game''s own scopes' \
+  "INSERT INTO igdb_identity_candidates (igdb_game_id,game_id,scope_id,role,rationale,proposed_by)
+   VALUES (9000002,(SELECT id FROM games WHERE slug='returnal'),
+           (SELECT id FROM profile_scopes WHERE game_id=(SELECT id FROM games WHERE slug='returnal') LIMIT 1),
+           'edition_of_game','own scope','tooling');"
+accept 'a proposal names nobody as its decider' \
+  "INSERT INTO igdb_identity_candidates (id,igdb_game_id,game_id,role,rationale,proposed_by)
+   VALUES ('22222222-2222-4222-8222-222222222222',9000001,(SELECT id FROM games WHERE slug='returnal'),'canonical_game','regression proposal','tooling');"
+accept 'a named person accepts it' \
+  "UPDATE igdb_identity_candidates SET state='accepted',decided_by='Tomas',decided_at=now()
+   WHERE id='22222222-2222-4222-8222-222222222222';"
+reject 'the same IGDB record cannot be the canonical record of a second game' \
+  "INSERT INTO igdb_identity_candidates (igdb_game_id,game_id,role,state,rationale,proposed_by,decided_by,decided_at)
+   VALUES (9000001,(SELECT id FROM games WHERE slug='redfall'),'canonical_game','accepted','conflict','tooling','Tomas',now());" \
+  'igdb_identity_candidates_one_accepted_canonical_per_igdb'
+expect 'accepting a candidate wrote nothing to game_external_ids by itself' \
+  "SELECT count(*) FROM game_external_ids WHERE provider='igdb';" '0'
+accept 'the provider id is recorded on the game as before' \
+  "INSERT INTO game_external_ids (game_id,provider,external_id)
+   VALUES ((SELECT id FROM games WHERE slug='returnal'),'igdb','9000001');"
+reject 'two internal games cannot share one provider identity' \
+  "INSERT INTO game_external_ids (game_id,provider,external_id)
+   VALUES ((SELECT id FROM games WHERE slug='redfall'),'igdb','9000001');" \
+  'game_external_ids_provider_external_unique'
+
+accept 'a provider change is appended as a review signal' \
+  "INSERT INTO igdb_change_events (id,igdb_game_id,run_id,classes,changed_fields,requires_editorial_review)
+   VALUES (901,9000001,'11111111-1111-4111-8111-111111111111',ARRAY['material_scope']::igdb_change_class[],'[\"parentGameIgdbId\"]',true);"
+reject 'a change event cannot be rewritten' \
+  "UPDATE igdb_change_events SET requires_editorial_review=false WHERE id=901;" \
+  'append-only'
+reject 'a change event cannot be deleted' \
+  "DELETE FROM igdb_change_events WHERE id=901;" \
+  'append-only'
+reject 'a change event cannot be dismissed by nobody' \
+  "UPDATE igdb_change_events SET review_state='dismissed' WHERE id=901;" \
+  'igdb_change_events_review_consistent'
+accept 'a named person may acknowledge it' \
+  "UPDATE igdb_change_events SET review_state='acknowledged',reviewed_by='Tomas',reviewed_at=now() WHERE id=901;"
+expect 'reviewing a change event moves no score and publishes nothing' \
+  "SELECT concat_ws('/',
+     (SELECT count(*) FROM evaluations WHERE status='published'),
+     (SELECT count(*) FROM subcriterion_scores WHERE evaluation_id IN (SELECT id FROM evaluations WHERE status='published')));" \
+  "$(psql "$DATABASE_URL" -X -t -A -c "SELECT concat_ws('/',
+     (SELECT count(*) FROM evaluations WHERE status='published'),
+     (SELECT count(*) FROM subcriterion_scores WHERE evaluation_id IN (SELECT id FROM evaluations WHERE status='published')));")"
 
 echo
 echo '-------------------------------------------'

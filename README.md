@@ -588,7 +588,9 @@ is no second step to remember. `0000_schema.sql` creates the tables,
 view, and `0002_contract_hardening.sql` registers rubric identity and freezes
 final history. `0003`–`0008` add profile scopes, platform overrides, general
 score provenance, the artwork rights record, explicit primary scopes and
-authored ordering for tags and evidence. Drizzle applies every pending migration
+authored ordering for tags and evidence; `0009` deployment tracking; `0010`
+the editorial-fair-use basis; `0011` the IGDB staging tables (see
+[IGDB staging](#igdb-staging)). Drizzle applies every pending migration
 transactionally, so the schema is never left half-built.
 
 `0003`, `0005`, `0006` and `0008` write beneath rows the `0002` immutability
@@ -619,6 +621,54 @@ also requires the exact name repeated in `CONFIRM_DATABASE_RESET`.
 A test asserts the committed file is byte-identical to the generator. Re-running
 it is a no-op for identical snapshots; a conflicting natural key fails loudly,
 and a declared new version can supersede its existing predecessor atomically.
+
+## IGDB staging
+
+Phase 3A Item 5 ([ADR 0037](docs/decisions/0037-igdb-staging-identity-and-provenance.md),
+issue #48) adds a **provider staging layer** under `lib/igdb/`: a faithful,
+provenance-carrying copy of what IGDB says, kept apart from editorial truth.
+Nothing in it is scoring evidence, a publication, a profile scope or an
+artwork clearance, and nothing public or build-time imports it.
+
+Three identities stay separate: the internal canonical game/scope, the IGDB
+entity (`igdb_games`, by IGDB id with checksum and `updated_at`), and the
+reviewed relation between them (`igdb_identity_candidates`, accepted by a
+named person into `game_external_ids`). IGDB's `version_parent` (an edition
+of the same work) and `parent_game` (additional content, or a bundle) are
+staged as different relations that name the field that asserted them, and
+the database refuses to swap them. Provider changes append classified,
+append-only review signals (`igdb_change_events`); a `material_scope`
+change prompts editorial review and nothing else happens automatically.
+Artwork is staged as candidates (`igdb_images`) with no clearance column at
+all; the [ADR 0011](docs/decisions/0011-production-artwork.md) path is the
+only way an image reaches the site.
+
+```bash
+npm run igdb:report                 # normalize the synthetic fixture; no network, no database
+npm run igdb:probe                  # dry run: what the live probe would do
+npm run igdb:probe -- --live        # opt-in, credential-safe readiness probe; never in CI
+npm run igdb:probe -- --live --field-contract <id>   # exact field list on one non-cohort record; structural facts only
+npm run igdb:probe -- --live --dump-sample platforms  # one small real dump through the production CSV path
+DATABASE_URL=postgres://…/some_db CONFIRM_IGDB_STAGING=some_db \
+  npm run igdb:stage-proof          # stage the fixture into a non-production database, rolled back unless --commit
+DATABASE_URL=postgres://…/some_db npm run igdb:preflight   # read-only: is 0011 safe to apply here?
+```
+
+The probe reads `IGDB_CLIENT_ID` and `IGDB_CLIENT_SECRET` (or a pre-issued
+`IGDB_ACCESS_TOKEN`) by name, sends them only in the Twitch form body and the
+IGDB headers, and prints safe booleans, statuses, timings and counts through
+redaction. The two contract proofs **fail closed**: `--field-contract` exits
+non-zero unless the provider accepted the exact field list and
+`unexpanded_fields` is empty, and `--dump-sample` exits non-zero unless the
+production CSV parser accepted the file and a **non-empty** array value and a
+timestamp value were actually observed in its rows. `platforms` is the default
+because its dump schema carries both array columns (`versions`, `websites`) and
+`TIMESTAMP` columns; `game_types` has timestamps but no array field, so it
+cannot prove that half of the contract. There is no bulk import command; staging real records is Item 6 work, one
+development game at a time, on the layer described in
+[the readiness record](docs/calibration/Phase_3A_Item_5_IGDB_Staging_Readiness_Record.md).
+Applying `0011` to the authoritative database is a separately authorized
+rollout step preceded by `igdb:preflight`, not part of Item 5.
 
 ## Deployment
 
