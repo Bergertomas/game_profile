@@ -1,6 +1,6 @@
 # ADR 0037 — IGDB staging: provider identity, provenance and the editorial boundary
 
-- **Status:** Accepted engineering decision for Phase 3A Item 5; **does not approve IGDB as a dependency, does not clear artwork, does not authorize D1**
+- **Status:** **Proposed** — candidate Item 5 engineering decision, pending the ChatGPT/Tomas readiness acceptance of the exact final record. It becomes Accepted only when Tomas/the orchestrator approves it. It does not approve IGDB as a dependency, does not clear artwork, and does not authorize D1.
 - **Date:** 2026-09-02
 - **Owner / final authority:** Tomas (product, editorial, legal posture); ChatGPT/GPT-5.6 Sol High performs the Item 5 readiness audit
 - **Related:** Master Plan v0.9 §7.4, §10.1–10.2; Public Product Resolutions 2026-08-25 §7; ADR 0011 (artwork), ADR 0014/0016 (profile scopes), ADR 0026 (provider-first metadata ownership); issue #48
@@ -22,6 +22,8 @@ Item 5 asks for the bounded staging/provenance layer that Phase 3A development s
 | the relation between them | `igdb_identity_candidates` → accepted into `game_external_ids` | a named person |
 
 A staged IGDB record is not a Should I Play? game. Tooling may *propose* that IGDB record X is the canonical record of game Y, or an edition, DLC, expansion, standalone expansion, remake/remaster, port or bundle of it. Only a decision carrying a decider's name moves a candidate out of `proposed`, and only an accepted `canonical_game` candidate is written through to `game_external_ids` — the table that has always held provider ids. One IGDB record can be the canonical record of at most one internal game, and one internal game can hold at most one canonical IGDB record; both are database constraints.
+
+A candidate that names a profile scope names that scope's own game: a composite foreign key against `profile_scopes (id, game_id)` — the same ownership target `evaluations` uses — plus a check that a scope is never named without its game, so a candidate cannot pair game A with a scope of game B. The application refuses the same pairing with a sentence before the database does.
 
 Internal identity is never derived from a provider name or slug. Those are staged as mutable provider text and classified as text drift when they move.
 
@@ -71,7 +73,8 @@ Nothing under `app/`, `components/`, `content/`, the public data boundary, the p
 - Development/calibration staging can hold the IGDB facts for an explicitly listed set of ids, with full provenance, before D1 — once credentials are supplied and the owner mapping decisions in the readiness record are made. It cannot score, publish or clear anything.
 - Editions, DLC, expansions, standalone expansions, ports, remakes, remasters and bundles arrive as distinct staged records with distinct relations; deciding which of them a profile scope covers remains Tomas's explicit decision (Item 3 preregistration, cohort lock), now recorded as an identity candidate rather than a chat recollection.
 - `game_external_ids` gains one integrity index (one provider identity per internal game). Nothing else above the boundary changes.
-- IGDB remains a *preferred candidate* under ADR 0026. This ADR builds the adapter and the boundary; the written commercial/image terms, the Data Partner entitlement and the ~30-game representative test remain open owner items.
+- IGDB remains a *preferred candidate* under ADR 0026. This ADR builds the adapter and the boundary. Per the owner's durable status on issue #48 (comment of 2026-09-03): IGDB has explicitly authorized proceeding with the development API/data integration while the formal partnership agreement is prepared, and Data Partner dump access has been enabled for the project; a completed/signed agreement has not been durably established, and IGDB's service access does not sublicense third-party image rights. Development integration and dump access are therefore not open Item 5 questions; signed partnership/public-commercial status and public image-use basis remain later gates.
+- Applying migration `0011` to the authoritative database is a **post-acceptance rollout prerequisite**, separately authorized by Tomas after this record and its code are accepted, preceded by the read-only `npm run igdb:preflight`. It is not part of Item 5 (issue #48: no production/bulk mutation during Item 5).
 
 ## Rejected alternatives
 

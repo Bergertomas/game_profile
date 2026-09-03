@@ -224,6 +224,7 @@ ALTER TABLE "igdb_games" ADD CONSTRAINT "igdb_games_run_id_igdb_ingestion_runs_i
 ALTER TABLE "igdb_identity_candidates" ADD CONSTRAINT "igdb_identity_candidates_igdb_game_id_igdb_games_igdb_id_fk" FOREIGN KEY ("igdb_game_id") REFERENCES "public"."igdb_games"("igdb_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "igdb_identity_candidates" ADD CONSTRAINT "igdb_identity_candidates_game_id_games_id_fk" FOREIGN KEY ("game_id") REFERENCES "public"."games"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "igdb_identity_candidates" ADD CONSTRAINT "igdb_identity_candidates_scope_id_profile_scopes_id_fk" FOREIGN KEY ("scope_id") REFERENCES "public"."profile_scopes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "igdb_identity_candidates" ADD CONSTRAINT "igdb_identity_candidates_scope_belongs_to_game" FOREIGN KEY ("scope_id","game_id") REFERENCES "public"."profile_scopes"("id","game_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "igdb_images" ADD CONSTRAINT "igdb_images_igdb_game_id_igdb_games_igdb_id_fk" FOREIGN KEY ("igdb_game_id") REFERENCES "public"."igdb_games"("igdb_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "igdb_images" ADD CONSTRAINT "igdb_images_run_id_igdb_ingestion_runs_id_fk" FOREIGN KEY ("run_id") REFERENCES "public"."igdb_ingestion_runs"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "igdb_involved_companies" ADD CONSTRAINT "igdb_involved_companies_igdb_game_id_igdb_games_igdb_id_fk" FOREIGN KEY ("igdb_game_id") REFERENCES "public"."igdb_games"("igdb_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -317,6 +318,15 @@ ALTER TABLE igdb_identity_candidates
 ALTER TABLE igdb_identity_candidates
   ADD CONSTRAINT igdb_identity_candidates_role_names_game
   CHECK (role = 'unrelated' OR game_id IS NOT NULL);
+--> statement-breakpoint
+-- A scope belongs to a game. The composite foreign key
+-- igdb_identity_candidates_scope_belongs_to_game (generated above, against
+-- profile_scopes (id, game_id)) proves the pair; this check closes the gap a
+-- MATCH SIMPLE foreign key leaves open, where a NULL game_id beside a non-NULL
+-- scope_id would not be checked at all.
+ALTER TABLE igdb_identity_candidates
+  ADD CONSTRAINT igdb_identity_candidates_scope_needs_game
+  CHECK (scope_id IS NULL OR game_id IS NOT NULL);
 --> statement-breakpoint
 -- A decision is somebody's, at some time; a proposal is nobody's decision yet.
 ALTER TABLE igdb_identity_candidates

@@ -2,6 +2,7 @@
 
 - **Date:** 2026-09-02
 - **Status:** engineering record for the Item 5 implementation; **does not close Item 5 and does not authorize D1**. ChatGPT/GPT-5.6 Sol High performs the readiness audit; Tomas owns every decision listed in §9.
+- **Revision 2 (2026-09-03):** incorporates the orchestrator's first-round audit corrections — scope-ownership key on identity candidates, ADR 0037 marked Proposed, the authoritative migration reclassified as a post-acceptance rollout step with a read-only preflight, the owner's legal/access status recorded, the live contract proofs made mechanically runnable, and cohort mapping moved to Item 6.
 - **Task contract:** GitHub issue #48
 - **Forensic audit:** `docs/audits/Game_Profile_Phase_3A_Item_5_IGDB_Staging_Forensic_Audit_2026-09-02.md`
 - **Decision record:** `docs/decisions/0037-igdb-staging-identity-and-provenance.md`
@@ -32,22 +33,26 @@ No calibration or holdout game was researched, scored, fetched or mapped. No IGD
 |---|---|---|---|
 | `npm run igdb:report` | Normalize the fixture, print identity classes, relations, flags and change classes | none | none |
 | `npm run igdb:probe` | Dry run: what the live probe would do; whether credentials are present (names only) | none | none |
-| `npm run igdb:probe -- --live` | The manual credential-safe readiness probe | **opt-in only; refuses CI** | none |
+| `npm run igdb:probe -- --live` | The manual credential-safe readiness probe (§6 A) | **opt-in only; refuses CI** | none |
+| `npm run igdb:probe -- --live --field-contract <id>` | The exact `IGDB_GAME_FIELDS` request for one non-cohort record through the production parser; structural facts only (§6 B) | **opt-in only; refuses CI** | none |
+| `npm run igdb:probe -- --live --dump-sample [endpoint]` | Describe one dump, download it once under a size cap, parse it through the production dump path; the presigned URL is never printed (§6 C) | **opt-in only; refuses CI** | none |
 | `npm run igdb:stage-proof` | Stage the fixture three times into a named non-production database; rolled back unless `--commit` | none | requires `CONFIRM_IGDB_STAGING=<db>` |
+| `npm run igdb:preflight` | Read-only rollout preflight for `0011`: duplicates that would break the new unique index, whether 0011 is recorded, whether `igdb_*` tables exist | none | SELECT only |
 
-There is no bulk import, sync or refresh command. Staging real records is a later, owner-authorized step (§9).
+There is no bulk import, sync or refresh command. Staging real records is Item 6 work, one development game at a time (§9).
 
 ## 3. Identity model and decisions
 
 See ADR 0037 §§1–2 for the model. Decisions taken in this slice, each reversible and each recorded so it is not re-derived:
 
-1. **`game_external_ids` remains the accepted canonical mapping.** Item 5 adds the reviewed route into it (`igdb_identity_candidates`) and the unique index `(provider, external_id)`. The index is an integrity rule, not a product change: two internal games holding one provider identity is a conflict for a person to resolve.
+1. **`game_external_ids` remains the accepted canonical mapping.** Item 5 adds the reviewed route into it (`igdb_identity_candidates`) and the unique index `(provider, external_id)`. The index is an integrity rule, not a product change: two internal games holding one provider identity is a conflict for a person to resolve. `npm run igdb:preflight` reports any such duplicates before the index is ever applied.
+1a. **A candidate that names a scope names that scope's own game.** `igdb_identity_candidates (scope_id, game_id)` is a composite foreign key against `profile_scopes (id, game_id)` — the ownership target ADR 0014 created for exactly this — and `igdb_identity_candidates_scope_needs_game` refuses a scope without a game (the gap a MATCH SIMPLE foreign key leaves open). `proposeIdentityCandidate` refuses the same crossed pairing with a sentence before insertion. Covered by unit, database and regression tests, including the populated-database upgrade path.
 2. **Identity class is derived and stored beside its inputs**, with a database check that `version_edition` ⇔ `version_parent IS NOT NULL`, so the derived and raw views cannot disagree.
 3. **`parent_game` on a record whose type is not additional content is `parent_game_unclassified`**, flagged for review. The fixture's "remake with a parent_game" case shows the shape. The layer does not guess.
 4. **Relations are stored per asserting side.** A DLC edge appears once from the child's `parent_game` and once from the base's `dlcs`; the primary key includes the source field. A one-sided assertion between two staged records is an `info` flag, never an error.
 5. **Platform release rows are staged on the record that carries them.** The edition's PS4 release is a release row on the edition, not on the base game; nothing merges them.
 6. **Provider text (`name`, `slug`, `summary`, `url`, `version_title`) is staged and classified as drift when it moves.** A test proves renaming every fixture record changes no identity class and no relation.
-7. **Calibration-title mapping is not performed.** Which IGDB record is Alan Wake 2, whether "Tears of the Kingdom — Switch 2 Edition" is a `version_parent` edition or a distinct record, whether "Hellblade II Enhanced" is an update, an edition or a re-release, and how Saros's PS5/PS5 Pro handling maps — these are exactly the identity candidates a person accepts, and they need credentials and Tomas (§9).
+7. **Calibration-title mapping is not performed, and is not an Item 5 condition.** Which IGDB record is each development title, and how an edition, an enhanced release or a platform-family scope maps onto `version_parent` / `parent_game` records, are identity candidates proposed and decided in Item 6 run preparation, one development game at a time, on this staging layer. Holdout titles are never staged into a development context; the live contract proof refuses any record whose name matches a cohort or holdout title (`lib/igdb/cohort-guard.ts`).
 
 ## 4. Provenance model
 
@@ -78,15 +83,19 @@ One normalizer, two parsers (ADR 0037 §4). Which path is authoritative for what
 
 Webhooks exist on the IGDB side but would require a public endpoint, i.e. a runtime dependency; they are not used. Popularity, ratings and PopScore are neither requested nor staged.
 
-**Unverified without entitlement:** the CSV cell encoding of `LONG[]` and `TIMESTAMP` columns in real dumps. The adapter reads by declared schema type, accepts `{1,2}` and `[1,2]` arrays and unix or ISO timestamps, and refuses anything else rather than guessing. Confirming against one real dump is the first step after `dump_entitlement_ok` reads true.
+**Unverified in this environment, mechanically provable elsewhere:** the CSV cell encoding of `LONG[]` and `TIMESTAMP` columns in real dumps, and live acceptance of the exact expanded field list `IGDB_GAME_FIELDS` (nested expanders such as `release_dates.platform.name`). The adapter reads by declared schema type, accepts `{1,2}` and `[1,2]` arrays and unix or ISO timestamps, and refuses anything else rather than guessing; the parser tolerates bare references and reports unexpanded children, so a rejected expander degrades to a visible warning, not silent empty staging. `npm run igdb:probe -- --live --dump-sample game_types` and `--field-contract <non-cohort id>` (§6) report exactly these facts from a credentialed environment without editing source. Dump access is enabled for the project (audit §2a), so the dump sample is expected to run.
 
-**Unverified live:** acceptance of the exact expanded field list `IGDB_GAME_FIELDS` (nested expanders such as `release_dates.platform.name`). The parser tolerates bare references and reports unexpanded children, so a rejected expander degrades to a visible warning, not silent empty staging.
+## 6. Credential-safe live proofs
 
-## 6. Credential-safe live probe
+`scripts/igdb/probe.ts`, three opt-in proofs, all refusing CI, all printing through `redactIgdb`, none staging anything:
 
-`scripts/igdb/probe.ts`. Reports `credentials_present`, `auth_ok`, `igdb_request_ok`, `dump_entitlement_ok`, plus HTTP statuses, elapsed times, `game_types` count, token expiry seconds, and whether a pre-issued token was used. Credentials are read by name in `readIgdbCredentials`, sent in the Twitch form body and the IGDB headers by the client, and never printed; every printed string passes through `redactIgdb`.
+**A. Readiness probe** (`--live`): `credentials_present`, `auth_ok`, `igdb_request_ok`, `dump_entitlement_ok`, plus HTTP statuses, elapsed times, `game_types` count, token expiry seconds, and whether a pre-issued token was used. Credentials are read by name in `readIgdbCredentials`, sent in the Twitch form body and the IGDB headers by the client, and never printed.
 
-Run in this environment on 2026-09-02:
+**B. Field-contract probe** (`--live --field-contract <igdb_id>`): posts the exact `IGDB_GAME_FIELDS` query for one id, parses the response with the production parser and normalizer, and reports structural facts only — request status, records returned, parser acceptance, which requested children (if any) came back unexpanded, whether checksum/updated_at/type names resolved, identity class, relation counts by kind, release/artwork/company/alias/external counts, and staging flag codes. No name, summary or editorial content is printed. The record's name and alternative names are checked against the cohort and holdout titles and the probe aborts on a match, so the proof is made against a non-cohort record by construction.
+
+**C. Dump-sample probe** (`--live --dump-sample [endpoint]`, default `game_types`; `--dump-max-bytes` raises the 25 MB cap): calls `/v4/dumps/{endpoint}`, downloads the file once, parses it through `parseDumpCsv` with the descriptor's declared schema, and reports schema version, size, column names and types, rows parsed, and the array and timestamp encodings observed. The presigned S3 URL exists only in memory; redaction also masks any signed URL that reaches an error string.
+
+Run in this environment on 2026-09-02 (A only; B and C need credentials):
 
 ```
 IGDB readiness probe
@@ -100,7 +109,7 @@ IGDB readiness probe
   (statuses, timings, counts) null
 ```
 
-Exit code 1, no network call. **The credentials reported to exist are not present in this execution environment.** `auth_ok`, `igdb_request_ok` and `dump_entitlement_ok` therefore remain unproven here; running the probe where the credentials live is the first Item 5 follow-up (§10).
+Exit code 1, no network call. **The credentials are not present in this execution environment.** `auth_ok`, `igdb_request_ok` and `dump_entitlement_ok` therefore remain unproven here. The credentialed runner supplies A, B and C by running the three commands above and pasting the safe output into the Item 5 audit (§10); no source edit is needed.
 
 ## 7. Non-production staging proof
 
@@ -131,24 +140,39 @@ Zero `igdb_*` rows remained after the rehearsal.
 
 Change classes and the review rule are in ADR 0037 §5; the append-only trigger is `trg_igdb_change_events_append_only`. Artwork candidates are in ADR 0037 §6: `igdb_images` has no clearance, basis or credit column; regression section 10 and the boundary test prove it, and the staging proof shows `game_artwork` at 0 → 0. The static attribution requirement is recorded as `IGDB_ATTRIBUTION`.
 
-## 9. Unresolved owner / legal questions (STOP items — not decided here)
+## 9. Owner / legal status and later gates
 
-1. **Commercial partnership / Data Partner status.** The docs make commercial use a partnership with user-facing static attribution, and dumps exclusive to Data Partners. Issue #48 says authorization "has been reported"; no durable evidence of a signed agreement is in the repository. Until Tomas records the agreement (or its absence), `dump_entitlement_ok` from the probe is the only fact, and the API path is the operating assumption.
-2. **Image terms.** ADR 0026 and Plan §7.3 hold IGDB pending "image clarification". Staging an `image_id` is not a use; any public use needs the basis Tomas approves under ADR 0011 (`provider-terms` would require the terms to say so; `editorial-fair-use` remains operationally gated). Nothing here changes that.
-3. **Calibration identity mapping.** Which IGDB record is each cohort title, and how the Switch 2 Edition, the Enhanced release and the PS5 / PS5 Pro scope map onto `version_parent` / `parent_game` records, are identity-candidate decisions Tomas accepts. Holdout titles must not be staged into any development context (cohort lock, holdout protection).
-4. **DLC inclusion for calibration scope** remains Item 3 / owner territory; the staging layer will surface DLC and expansion edges as candidates and `material_scope` prompts, never decide them.
-5. **Where attribution renders** on the public product is a later product decision.
+Settled by the owner's clarification on issue #48 (2026-09-03; recorded in audit §2a): development API/data integration is explicitly authorized while the formal agreement is prepared, and Data Partner dump access is enabled for the project. Neither is an open Item 5 question.
 
-## 10. Remaining Item 5 blockers before D1
+Tracked as later gates, not Item 5 blockers:
 
-| # | Blocker | Owner | Evidence needed |
+1. **Signed partnership / public-commercial status.** No completed/signed agreement has been durably established; it is not claimed. It governs public-commercial use and the static attribution obligation, not development staging.
+2. **Public image-use basis.** IGDB's service access does not sublicense third-party image rights. Staging an `image_id` is not a use; any public use needs the basis Tomas approves under ADR 0011 (`provider-terms` would require the terms to say so; `editorial-fair-use` remains operationally gated). Nothing here changes that.
+3. **Item 6 identity mapping.** Which IGDB record is each development title, and how an edition, enhanced release or platform-family scope maps onto `version_parent` / `parent_game` records, are identity candidates proposed and decided one development game at a time in Item 6 on this layer. Holdout titles are never staged into a development context. For any applicable DLC/expansion, Tomas's explicit include/exclude decision remains required before scoring.
+4. **Where attribution renders** on the public product is a later product decision.
+
+## 10. Remaining Item 5 readiness items
+
+Item 5 is judged on code, the non-production proof, and the live provider-contract proofs. Nothing below mutates authoritative data.
+
+| # | Item | Owner | Evidence |
 |---|---|---|---|
-| 1 | Live probe with real credentials: `auth_ok`, `igdb_request_ok`, `dump_entitlement_ok` | Tomas / whoever holds the credentials | probe output pasted into the Item 5 audit (safe fields only) |
-| 2 | Live acceptance of `IGDB_GAME_FIELDS` on a point lookup of a non-cohort id | engineering, after 1 | no `unexpanded` fields reported |
-| 3 | Real dump CSV encoding confirmed (arrays, timestamps) if entitlement exists | engineering, after 1 | one endpoint parsed by declared schema without refusal |
-| 4 | Commercial / image terms status recorded durably | Tomas | a dated record in `docs/` |
-| 5 | Cohort identity candidates proposed and decided for the six development titles; holdout excluded | engineering proposes, Tomas decides | accepted `igdb_identity_candidates` rows in the non-production staging database |
-| 6 | ChatGPT/Tomas readiness audit of this PR | orchestrator | PASS ruling |
+| 1 | Safe readiness probe with real credentials (§6 A): `credentials_present`, `auth_ok`, `igdb_request_ok`, `dump_entitlement_ok` | credentialed runner | probe output (safe fields only) pasted into the Item 5 audit |
+| 2 | Field-contract probe on a non-cohort id (§6 B): provider accepts `IGDB_GAME_FIELDS`, parser accepts the response, `unexpanded_fields` empty | credentialed runner | probe output |
+| 3 | Dump-sample probe on `game_types` (§6 C): real schema version, array and timestamp encodings observed, rows parsed without refusal | credentialed runner | probe output |
+| 4 | ChatGPT/Tomas readiness ruling on this PR | orchestrator | PASS ruling |
+
+## 10a. Post-acceptance rollout (not Item 5; separately authorized)
+
+The Cloudflare Workers build of this branch is red because the build reads the authoritative database, which does not carry `0011`. That is an expected integration condition on a branch that adds a migration (README, "Migrations go out before the code that needs them"), not evidence against the staging architecture, and it is **not** to be fixed during the audit: issue #48 forbids production/bulk mutation during Item 5.
+
+After acceptance, and on Tomas's separate explicit authorization (Working Agreement §4):
+
+1. `DATABASE_URL=<authoritative> npm run igdb:preflight` — read-only; reports duplicates that would break `game_external_ids_provider_external_unique`, whether 0011 is already recorded, and whether `igdb_*` tables already exist. Resolve any duplicate first.
+2. `DATABASE_URL=<authoritative> npm run db:migrate` — applies `0011` (additive: eleven new tables, one unique index; no editorial table altered).
+3. The next Workers build of the branch goes green; merge follows the ordinary path.
+
+D1 does not start until this integration step is complete.
 
 ## 11. Verification (2026-09-02, this environment)
 

@@ -446,8 +446,28 @@ export interface IdentityCandidateInput {
   readonly proposedBy: string;
 }
 
-/** Record a proposal. Nothing about the internal game changes. */
+/**
+ * Record a proposal. Nothing about the internal game changes.
+ *
+ * A candidate that names a scope must name that scope's own game, and the
+ * check is made here as well as by the database's composite key, so a
+ * contradictory proposal fails with a sentence rather than a constraint name.
+ */
 export async function proposeIdentityCandidate(tx: AdminTransaction, input: IdentityCandidateInput): Promise<string> {
+  if (input.scopeId) {
+    if (!input.gameId) {
+      throw new Error("A candidate that names a profile scope must name the scope's game.");
+    }
+    const [scope] = await tx
+      .select({ gameId: t.profileScopes.gameId })
+      .from(t.profileScopes)
+      .where(eq(t.profileScopes.id, input.scopeId))
+      .limit(1);
+    if (!scope) throw new Error("No such profile scope.");
+    if (scope.gameId !== input.gameId) {
+      throw new Error("The named profile scope belongs to a different game than the candidate names.");
+    }
+  }
   const [row] = await tx
     .insert(t.igdbIdentityCandidates)
     .values({

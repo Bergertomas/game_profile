@@ -58,10 +58,12 @@ describe("the staging writer cannot publish, score or clear", () => {
   const writer = source("lib/igdb/staging-write.ts");
 
   it("never names an editorial table", () => {
-    for (const table of ["evaluations", "subcriterionScores", "subcriterionPlatformOverrides", "gameArtwork", "profileScopes", "deploymentRequests", "evaluationRevisions"]) {
+    for (const table of ["evaluations", "subcriterionScores", "subcriterionPlatformOverrides", "gameArtwork", "deploymentRequests", "evaluationRevisions"]) {
       expect(writer, table).not.toMatch(new RegExp(`\\bt\\.${table}\\b`));
     }
-    expect(writer).not.toMatch(/insert\(t\.games\)|update\(t\.games\)|delete\(t\.games\)/);
+    // Games and scopes may be READ (a candidate must name a scope of its own
+    // game) but never written.
+    expect(writer).not.toMatch(/(insert|update|delete)\(t\.(games|profileScopes)\)/);
     expect(writer).not.toMatch(/status:\s*["']published["']/);
   });
 
@@ -89,12 +91,20 @@ describe("artwork remains a candidate", () => {
 describe("the live probe is manual and credential-safe", () => {
   const probe = source("scripts/igdb/probe.ts");
 
-  it("requires --live, refuses CI and requests no game record", () => {
+  it("requires --live, refuses CI and touches a game record only under the explicit field-contract flag", () => {
     expect(probe).toContain('argv.includes("--live")');
     expect(probe).toMatch(/env\.CI \|\| env\.GITHUB_ACTIONS/);
     expect(probe).toContain("Refusing to run: a CI environment was detected");
     expect(probe).toContain('client.count("game_types")');
-    expect(probe).not.toMatch(/query\(\s*["']games["']/);
+    expect(probe).toContain('"--field-contract"');
+    expect(probe).toContain("isProtectedTitle(record.name)");
+    expect(probe).not.toMatch(/stageNormalized|beginIngestionRun/);
+  });
+
+  it("never prints a presigned dump URL or a record's provider text", () => {
+    expect(probe).not.toMatch(/console\.log\([^)]*s3_url/);
+    expect(probe).not.toMatch(/name:\s*record\.name|record\.summary/);
+    expect(probe).toContain("fetch(descriptor.s3_url)");
   });
 
   it("prints only through redaction and never a header, secret or token", () => {
@@ -111,6 +121,17 @@ describe("the live probe is manual and credential-safe", () => {
     }
     for (const command of Object.values(pkg.scripts)) expect(command).not.toMatch(/igdb:(import|sync|refresh|bulk)/);
     expect(source(".github/workflows/ci.yml")).not.toMatch(/igdb:probe|igdb:stage-proof|IGDB_CLIENT/);
+  });
+});
+
+describe("the 0011 preflight is read-only", () => {
+  const preflight = source("scripts/igdb/preflight-0011.ts");
+
+  it("issues no write statement and sets the session read-only", () => {
+    expect(preflight).toContain("default_transaction_read_only = on");
+    expect(preflight).not.toMatch(/\b(INSERT|UPDATE|DELETE|ALTER|CREATE|DROP|TRUNCATE)\b/);
+    expect(preflight).not.toMatch(/migrate\(/);
+    expect(preflight).toContain("game_external_ids_provider_external_unique");
   });
 });
 

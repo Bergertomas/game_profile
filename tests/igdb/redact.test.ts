@@ -25,6 +25,14 @@ describe("redactIgdb", () => {
     expect(redactIgdb('{"access_token":"abc","expires_in":5}', NO_ENV)).toBe(`{"access_token":"${REDACTED}","expires_in":5}`);
   });
 
+  it("never lets a presigned dump download URL through", () => {
+    const url = "https://bucket.s3.amazonaws.com/1_games.csv?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Signature=abc123";
+    expect(redactIgdb(`download ${url} now`, NO_ENV)).toBe(`download ${REDACTED} now`);
+    expect(redactIgdb('{"s3_url":"https://example.invalid/signed?Signature=x","endpoint":"games"}', NO_ENV)).toBe(
+      `{"s3_url":"${REDACTED}","endpoint":"games"}`,
+    );
+  });
+
   it("redacts recursively and yields a safe error pair", () => {
     const deep = redactIgdbDeep({ a: ["Bearer abcdefghij123456"], b: { c: "fixturesecretvalue0001" } }, env);
     expect(JSON.stringify(deep)).not.toMatch(/abcdefghij123456|fixturesecretvalue0001/);

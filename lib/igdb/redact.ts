@@ -28,6 +28,9 @@ const PATTERNS: readonly RegExp[] = [
   /\bClient-ID\s*:\s*[A-Za-z0-9._~+/-]{6,}/gi,
   /([?&](?:client_id|client_secret|access_token|secret|token)=)[^&\s"']+/gi,
   /("(?:access_token|client_secret|client_id)"\s*:\s*")[^"]+/gi,
+  // Presigned dump download URLs carry a signature and must never be printed.
+  /https?:\/\/[^\s"']*(?:X-Amz-|Signature=)[^\s"']*/gi,
+  /("s3_url"\s*:\s*")[^"]+/gi,
 ];
 
 export function redactIgdb(value: string, env: NodeJS.ProcessEnv = process.env): string {

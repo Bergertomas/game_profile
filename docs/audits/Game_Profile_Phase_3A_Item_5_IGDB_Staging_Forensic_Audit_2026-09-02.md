@@ -44,7 +44,7 @@ Read directly from the current documentation, not from memory. Each fact below d
 | Rate limits | 4 requests/second (429 on excess); up to 8 open requests at any moment. | Client-side rate gate: 4 starts per rolling second, 8 in flight; one 429 back-off. |
 | Query limits | default 10, max 500 per request; `offset` paging; `/count`; multi-query; expanders (`field.subfield`). | Batches of ≤500 ids; `updated_at` sweeps ordered and offset-paged. |
 | Storage / caching | FAQ: "Yes. In fact, we prefer if you store and serve the data to your end users." Data may be kept on partnership termination. | Local staging is the intended pattern. |
-| Commercial use / attribution | Free for non-commercial and commercial; commercial use is a partnership via partner@igdb.com; "we ask for user facing attribution to IGDB.com … visible to your users and located in a static location (e.g. not in a change log)". | Attribution requirement recorded with the integration; **a signed partnership is not asserted** — it is an open owner item. |
+| Commercial use / attribution | Free for non-commercial and commercial; commercial use is a partnership via partner@igdb.com; "we ask for user facing attribution to IGDB.com … visible to your users and located in a static location (e.g. not in a change log)". | Attribution requirement recorded with the integration; **a signed partnership is not asserted** — see §2a for the owner's durable access status. |
 | Data Partner dumps | Exclusive to Data Partners; every endpoint as daily CSV (within 24 h); `GET /v4/dumps` → `[{endpoint, file_name, updated_at}]`; `GET /v4/dumps/{endpoint}` → presigned S3 URL valid 5 minutes, `size_bytes`, `updated_at`, `schema_version`, `schema` (column → `LONG`, `STRING`, `LONG[]`, `DOUBLE`, `TIMESTAMP`, `UUID`, …); schema version changes with the schema. CSV cell encoding of arrays/timestamps is **not documented**. | Dump adapter parses by declared schema, accepts `{…}` and `[…]` arrays, refuses what it cannot read; real-dump verification needs the entitlement. |
 | `games` fields | `game_type` (ref → Game Type), `game_status` (ref → Game Status); `category` and `status` **DEPRECATED**; `parent_game` "If a DLC, expansion or part of a bundle, this is the main game or bundle"; `version_parent` "If a version, this is the main game"; `version_title` "Title of this version (i.e Gold edition)"; arrays `dlcs`, `expansions`, `standalone_expansions`, `expanded_games`, `bundles`, `ports`, `remakes`, `remasters`, `forks`; `platforms`, `release_dates`, `involved_companies`, `alternative_names`, `external_games`, `cover`, `artworks`; `checksum` (uuid, "Hash of the object"); `updated_at`, `created_at`. | The identity model in ADR 0037 §2. |
 | Game types | Enum table lists `main_game 0, dlc_addon 1, expansion 2, bundle 3, standalone_expansion 4, mod 5, episode 6, season 7, remake 8, remaster 9, expanded_game 10, port 11, fork 12, pack 13, update 14`; `/game_types` carries `type` (string), `checksum`, timestamps. | Resolve by name via expander/lookup; keep the id beside it; unknown names → `unclassified`. |
@@ -59,11 +59,22 @@ Read directly from the current documentation, not from memory. Each fact below d
 | Popularity / ratings | PopScore and `rating`/`aggregated_rating` exist. | Not requested, not staged: they cannot feed scores (ADR 0026). |
 | Licence | Code examples under the Twitch Developer Services Agreement. | No IGDB example code is copied. |
 
+## 2a. Legal / access status (owner clarification, issue #48 comment of 2026-09-03)
+
+Recorded from the owner's safe summary on issue #48; no correspondence text, address, credential or Client ID is reproduced here.
+
+| Fact | Status | Consequence for Item 5 |
+|---|---|---|
+| Development API/data integration | **Explicitly authorized by IGDB** while the formal partnership agreement is being prepared | Not an open Item 5 policy question |
+| Data Partner dump feature | **Enabled for the project's Client ID** | Not an open Item 5 policy question; `dump_entitlement_ok` from the live probe is the mechanical confirmation |
+| Completed/signed partnership agreement | **Not durably established** as of 2026-09-03; not to be claimed | A later legal / public-commercial status gate, tracked, not an Item 5 blocker |
+| Third-party image rights | IGDB's data services include image assets but the partnership does **not** sublicense or transfer third-party media rights | Public image use remains separately gated by ADR 0011 and the project's lawful-basis path; staging an `image_id` is not a use |
+
 ## 3. What Item 5 therefore adds (see ADR 0037 and the readiness record)
 
 - migration `0011_igdb_staging` — eleven `igdb_*` tables and their contract, plus one unique index on `game_external_ids (provider, external_id)`;
 - `lib/igdb/` — contract constants, redaction, record parser, dump adapter, normalizer, change classifier, transport, staging writer, and the synthetic proof fixture;
-- `scripts/igdb/` — `igdb:probe` (manual, live, credential-safe), `igdb:report` (fixture proof, offline), `igdb:stage-proof` (non-production database rehearsal);
+- `scripts/igdb/` — `igdb:probe` (manual, live, credential-safe; with `--field-contract <id>` and `--dump-sample [endpoint]` proofs), `igdb:report` (fixture proof, offline), `igdb:stage-proof` (non-production database rehearsal), `igdb:preflight` (read-only rollout preflight for 0011);
 - tests under `tests/igdb/`, `tests/db-read/igdb-staging.test.ts`, and regression section 10 in `tests/db/regression.sh`.
 
 Nothing above the boundary — `games`, `profile_scopes`, `evaluations`, `game_artwork`, the public read path, the admin write path — changes behaviour.

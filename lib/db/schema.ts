@@ -1428,6 +1428,19 @@ export const igdbIdentityCandidates = pgTable(
     decisionNote: text("decision_note"),
   },
   (table) => [
+    /**
+     * A candidate that names a scope names the scope's own game. Two
+     * independent keys would let a candidate pair game A with a scope of game
+     * B; the composite key against `profile_scopes (id, game_id)` — the same
+     * ownership target `evaluations` uses — cannot. A NULL `game_id` beside a
+     * non-NULL `scope_id` would slip past a MATCH SIMPLE foreign key, so the
+     * migration adds the check that closes that gap.
+     */
+    foreignKey({
+      name: "igdb_identity_candidates_scope_belongs_to_game",
+      columns: [table.scopeId, table.gameId],
+      foreignColumns: [profileScopes.id, profileScopes.gameId],
+    }).onDelete("cascade"),
     index("igdb_identity_candidates_game_idx").on(table.gameId),
     index("igdb_identity_candidates_igdb_idx").on(table.igdbGameId),
   ],

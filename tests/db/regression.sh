@@ -1824,6 +1824,23 @@ reject 'a canonical_game candidate must name an internal game' \
   "INSERT INTO igdb_identity_candidates (igdb_game_id,game_id,role,rationale,proposed_by)
    VALUES (9000001,NULL,'canonical_game','test','tooling');" \
   'igdb_identity_candidates_role_names_game'
+reject 'a candidate cannot pair one game with another game''s scope' \
+  "INSERT INTO igdb_identity_candidates (igdb_game_id,game_id,scope_id,role,rationale,proposed_by)
+   VALUES (9000002,(SELECT id FROM games WHERE slug='returnal'),
+           (SELECT id FROM profile_scopes WHERE game_id=(SELECT id FROM games WHERE slug='redfall') LIMIT 1),
+           'edition_of_game','crossed','tooling');" \
+  'igdb_identity_candidates_scope_belongs_to_game'
+reject 'a candidate cannot name a scope without naming its game' \
+  "INSERT INTO igdb_identity_candidates (igdb_game_id,game_id,scope_id,role,rationale,proposed_by)
+   VALUES (9000002,NULL,
+           (SELECT id FROM profile_scopes WHERE game_id=(SELECT id FROM games WHERE slug='redfall') LIMIT 1),
+           'unrelated','orphan scope','tooling');" \
+  'igdb_identity_candidates_scope_needs_game'
+accept 'a candidate may name a game and one of that game''s own scopes' \
+  "INSERT INTO igdb_identity_candidates (igdb_game_id,game_id,scope_id,role,rationale,proposed_by)
+   VALUES (9000002,(SELECT id FROM games WHERE slug='returnal'),
+           (SELECT id FROM profile_scopes WHERE game_id=(SELECT id FROM games WHERE slug='returnal') LIMIT 1),
+           'edition_of_game','own scope','tooling');"
 accept 'a proposal names nobody as its decider' \
   "INSERT INTO igdb_identity_candidates (id,igdb_game_id,game_id,role,rationale,proposed_by)
    VALUES ('22222222-2222-4222-8222-222222222222',9000001,(SELECT id FROM games WHERE slug='returnal'),'canonical_game','regression proposal','tooling');"

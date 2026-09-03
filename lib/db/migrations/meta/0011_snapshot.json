@@ -1,5 +1,5 @@
 {
-  "id": "b5d33b2f-d545-4dd1-921f-e1e28a982945",
+  "id": "5fc13670-aabe-4e60-a584-94c85094b1bf",
   "prevId": "b3dbed50-69b1-45bd-aef3-0c1b490f8d64",
   "version": "7",
   "dialect": "postgresql",
@@ -2813,6 +2813,21 @@
           ],
           "columnsTo": [
             "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "igdb_identity_candidates_scope_belongs_to_game": {
+          "name": "igdb_identity_candidates_scope_belongs_to_game",
+          "tableFrom": "igdb_identity_candidates",
+          "tableTo": "profile_scopes",
+          "columnsFrom": [
+            "scope_id",
+            "game_id"
+          ],
+          "columnsTo": [
+            "id",
+            "game_id"
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"

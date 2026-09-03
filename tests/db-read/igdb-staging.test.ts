@@ -274,6 +274,60 @@ describe("identity review", () => {
     });
   });
 
+  it("a candidate naming a scope must name the scope's own game — in code and in the database", async () => {
+    const crossedInCode = await inRolledBackTransaction(async (tx) => {
+      await stage(tx);
+      const returnal = await gameId(tx, "returnal");
+      const redfall = await gameId(tx, "redfall");
+      const [redfallScope] = await tx.select({ id: t.profileScopes.id }).from(t.profileScopes).where(eq(t.profileScopes.gameId, redfall)).limit(1);
+      let message = "";
+      try {
+        await proposeIdentityCandidate(tx, { igdbGameId: GOLD_EDITION_ID, gameId: returnal, scopeId: redfallScope!.id, role: "edition_of_game", rationale: "crossed", proposedBy: "tooling" });
+      } catch (error) {
+        message = error instanceof Error ? error.message : String(error);
+      }
+      return message;
+    });
+    expect(crossedInCode).toContain("belongs to a different game");
+
+    const crossedInDatabase = await rejectionOf(() =>
+      inRolledBackTransaction(async (tx) => {
+        await stage(tx);
+        const returnal = await gameId(tx, "returnal");
+        const redfall = await gameId(tx, "redfall");
+        const [redfallScope] = await tx.select({ id: t.profileScopes.id }).from(t.profileScopes).where(eq(t.profileScopes.gameId, redfall)).limit(1);
+        await tx.insert(t.igdbIdentityCandidates).values({ igdbGameId: GOLD_EDITION_ID, gameId: returnal, scopeId: redfallScope!.id, role: "edition_of_game", rationale: "crossed", proposedBy: "tooling" });
+      }),
+    );
+    expect(crossedInDatabase).toContain("igdb_identity_candidates_scope_belongs_to_game");
+
+    const scopeWithoutGame = await rejectionOf(() =>
+      inRolledBackTransaction(async (tx) => {
+        await stage(tx);
+        const redfall = await gameId(tx, "redfall");
+        const [redfallScope] = await tx.select({ id: t.profileScopes.id }).from(t.profileScopes).where(eq(t.profileScopes.gameId, redfall)).limit(1);
+        await tx.insert(t.igdbIdentityCandidates).values({ igdbGameId: GOLD_EDITION_ID, gameId: null, scopeId: redfallScope!.id, role: "unrelated", rationale: "orphan scope", proposedBy: "tooling" });
+      }),
+    );
+    expect(scopeWithoutGame).toContain("igdb_identity_candidates_scope_needs_game");
+
+    const valid = await inRolledBackTransaction(async (tx) => {
+      await stage(tx);
+      const returnal = await gameId(tx, "returnal");
+      const [scope] = await tx.select({ id: t.profileScopes.id }).from(t.profileScopes).where(eq(t.profileScopes.gameId, returnal)).limit(1);
+      const id = await proposeIdentityCandidate(tx, { igdbGameId: GOLD_EDITION_ID, gameId: returnal, scopeId: scope!.id, role: "edition_of_game", rationale: "own scope", proposedBy: "tooling" });
+      const [row] = await tx.select().from(t.igdbIdentityCandidates).where(eq(t.igdbIdentityCandidates.id, id));
+      return row;
+    });
+    expect(valid?.state).toBe("proposed");
+    await expect(
+      inRolledBackTransaction(async (tx) => {
+        await stage(tx);
+        await proposeIdentityCandidate(tx, { igdbGameId: GOLD_EDITION_ID, gameId: null, scopeId: "00000000-0000-4000-8000-000000000000", role: "unrelated", rationale: "x", proposedBy: "tooling" });
+      }),
+    ).rejects.toThrow(/must name the scope's game/);
+  });
+
   it("one IGDB record cannot become the canonical record of two internal games", async () => {
     const message = await rejectionOf(() =>
       inRolledBackTransaction(async (tx) => {

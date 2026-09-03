@@ -34,7 +34,8 @@
     "calib:report": "tsx scripts/calibration/proof-report.ts",
     "igdb:probe": "tsx scripts/igdb/probe.ts",
     "igdb:report": "tsx scripts/igdb/proof-report.ts",
-    "igdb:stage-proof": "tsx scripts/igdb/stage-proof.ts"
+    "igdb:stage-proof": "tsx scripts/igdb/stage-proof.ts",
+    "igdb:preflight": "tsx scripts/igdb/preflight-0011.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",

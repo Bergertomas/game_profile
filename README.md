@@ -645,16 +645,21 @@ only way an image reaches the site.
 npm run igdb:report                 # normalize the synthetic fixture; no network, no database
 npm run igdb:probe                  # dry run: what the live probe would do
 npm run igdb:probe -- --live        # opt-in, credential-safe readiness probe; never in CI
+npm run igdb:probe -- --live --field-contract <id>   # exact field list on one non-cohort record; structural facts only
+npm run igdb:probe -- --live --dump-sample game_types # one small real dump through the production CSV path
 DATABASE_URL=postgres://…/some_db CONFIRM_IGDB_STAGING=some_db \
   npm run igdb:stage-proof          # stage the fixture into a non-production database, rolled back unless --commit
+DATABASE_URL=postgres://…/some_db npm run igdb:preflight   # read-only: is 0011 safe to apply here?
 ```
 
 The probe reads `IGDB_CLIENT_ID` and `IGDB_CLIENT_SECRET` (or a pre-issued
 `IGDB_ACCESS_TOKEN`) by name, sends them only in the Twitch form body and the
 IGDB headers, and prints safe booleans, statuses, timings and counts through
-redaction. There is no bulk import command; staging real records is a later,
-owner-authorized step recorded in
+redaction. There is no bulk import command; staging real records is Item 6 work, one
+development game at a time, on the layer described in
 [the readiness record](docs/calibration/Phase_3A_Item_5_IGDB_Staging_Readiness_Record.md).
+Applying `0011` to the authoritative database is a separately authorized
+rollout step preceded by `igdb:preflight`, not part of Item 5.
 
 ## Deployment
 
