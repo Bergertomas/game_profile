@@ -58,7 +58,9 @@ As of 2026-09-02:
 - Item 1 — baseline/source audit: **complete**.
 - Item 2 — cohort reconciliation: **complete**.
 - Item 3 — preregistration: **complete**; owner-approved and merged at `00f082022dcbf7f065453513d6f2681c01d63493`.
-- Item 4 — Phase 3A engineering readiness: **active / next** and a hard blocker before D1.
+- Item 4 — Phase 3A engineering readiness: **complete**; orchestrator Gate 1–9 PASS, PR #46 merged at `79f0159b31009173ede153cfc77729d6d2e5ec91`.
+- Item 5 — IGDB staging readiness: **active** and a hard blocker before D1. Issue #48 is the active engineering record; the Item 5 PR carries the forensic audit, ADR 0037 and the readiness record.
+- **D1 development scoring remains blocked** until Item 5 passes the ChatGPT/Tomas readiness audit.
 - No Phase 3A calibration scoring has begun.
 - Candidate Scoring Protocol v1.0 remains non-governing.
 - No production/bulk catalog score mutation is authorized.
@@ -75,6 +77,10 @@ Read these active records before any Phase 3A work:
 - `docs/scoring/Phase_3A_Execution_System_Instructions_v1.0.md`
 - `docs/scoring/Phase_3A_Research_Prompt_v1.0.md`
 - `docs/scoring/Phase_3A_Scoring_Prompt_v1.0.md`
+- `docs/calibration/Phase_3A_Item_4_Harness_Architecture_and_Equivalence.md`
+- `docs/decisions/0037-igdb-staging-identity-and-provenance.md`
+- `docs/audits/Game_Profile_Phase_3A_Item_5_IGDB_Staging_Forensic_Audit_2026-09-02.md`
+- `docs/calibration/Phase_3A_Item_5_IGDB_Staging_Readiness_Record.md`
 
 ### Locked cohort
 
@@ -90,11 +96,15 @@ The cohort-lock file, not this summary, owns identities/high-level scopes.
 - **Codex / Claude / Claude Code:** engineering support: validators, harnesses, schemas, fixtures, timing/ledger, blinding/isolation, IGDB staging/provenance, tests, branches and PRs. They do not change scoring semantics or substitute their judgment for the designated GPT scorer.
 - **Tomas:** final editorial/product authority; approves cohort/scope/DLC choices, material methodology changes, preregistration, candidate freeze, final protocol adoption and production authorization.
 
-### Item 4 boundary
+### Item 4 boundary (complete)
 
-Item 4 must prove the preregistered execution contract before D1 can begin. At minimum this includes OpenAI `gpt-5.6-sol` High-reasoning access and returned-model identity, stateless tool-free scoring calls, byte-identical paired semantic inputs/configuration, strict structured-output/semantic validation, SHA-256 verification of approved controlled bytes, ledger/timing/retry capture, fail-closed behavior, and safe credential/spend handling.
+Item 4 proved the preregistered execution contract: OpenAI `gpt-5.6-sol` High-reasoning access and returned-model identity, stateless tool-free scoring calls, byte-identical paired semantic inputs/configuration, strict structured-output/semantic validation, SHA-256 verification of approved controlled bytes, ledger/timing/retry capture, fail-closed behavior, and safe credential/spend handling. The harness exists; it has not been used to score.
 
-If Item 4 fails, D1 does not begin and the program returns to the relevant methodology/engineering step.
+### Item 5 boundary
+
+Item 5 must prove the bounded IGDB staging/provenance layer before D1: provider identity kept apart from internal canonical identity, `version_parent` and `parent_game` kept apart, field-level provenance, an API + Data Partner dump strategy, a credential-safe manual probe, a non-production staging proof, a change-review contract that cannot move a score, and artwork that stays a candidate until the ADR 0011 path clears it. It is not a catalog import, a scoring run, a production mutation or a runtime dependency.
+
+If Item 5 fails, D1 does not begin and the program returns to the relevant engineering or owner-decision step.
 
 ## Active known deferred issue
 

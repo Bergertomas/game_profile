@@ -31,7 +31,10 @@
     "calib:pair": "tsx scripts/calibration/verify-pair.ts",
     "calib:harness": "vitest run tests/calibration",
     "calib:probe": "tsx scripts/calibration/live-probe.ts",
-    "calib:report": "tsx scripts/calibration/proof-report.ts"
+    "calib:report": "tsx scripts/calibration/proof-report.ts",
+    "igdb:probe": "tsx scripts/igdb/probe.ts",
+    "igdb:report": "tsx scripts/igdb/proof-report.ts",
+    "igdb:stage-proof": "tsx scripts/igdb/stage-proof.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",
