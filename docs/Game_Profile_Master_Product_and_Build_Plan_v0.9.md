@@ -4,8 +4,8 @@
 **Evaluation and methodology:** Game Profile
 **Canonical domain:** https://shouldiplay.gg
 **Product owner and final decision maker:** Tomas
-**Product and project orchestration:** ChatGPT
-**Engineering:** Codex and Claude
+**Product and project orchestration:** ChatGPT / GPT-5.6 Sol High — program owner/orchestrator, and the designated Phase 3A editorial scorer
+**Engineering:** Claude / Opus by default, including through the repository-native Claude Code GitHub Action; Codex as selective specialist; Fable for specialist visual/design work. Roles, effort routing and routine Git/PR authority are governed by `docs/Should_I_Play_Working_Agreement.md` (§16.1)
 **Public product design:** Tomas, ChatGPT, and the reconciled Fable design work
 **Status:** Current product and roadmap constitution — amended through accepted Gate A, Gate B and full Compare direction, the completed shared handoff, Engineering Slices 1, 2 and 3 merged on `main`, and the Slice 4 full Compare system implemented in the current codebase under the 2 September 2026 ADR 0033 amendment; none of the four is yet deliberately deployed to production; Scoring Protocol calibration remains active, with Phase 3A master-checklist Items 1–5 complete and Item 6 pending behind the authorized post-Item-5 integration gate
 **Current checkpoint:** Phase 2's editorial/publishing architecture is substantially complete and in support mode. Gate A A1/A2 Rev 5.1, Gate B A3–A6 and full Compare C1–C4/C-rail are accepted. ADR 0013 is superseded; ADR 0031 governs the static Search index; ADRs 0033/0034 govern Compare. The cross-surface design-system and interaction handoff is complete. Engineering Slice 1 — the canonical shared tokens/font foundation, the editorially governed static Search and its four truthful states, accessible inline/header Search, and the bounded accepted homepage opening — is merged on `main`. Engineering Slice 2 completes the accepted homepage system on top of it: the “Start somewhere interesting” poster rail, the authored-shelf grammar with objective/evergreen/living kinds, publication windows, expiry and evergreen fallback, and the bounded “Choosing between…” presentation contract whose route into full Compare is explicitly deferred. Its qualitative editorial configurations ship empty pending owner-approved membership under P0.3, and it is merged on `main`. Engineering Slice 3 implements the accepted A3–A6 profile system — decision before instrument, complete art-led/artless parity, the three-level radar with permanent exact rows, Range/Unknown/Provisional/confidence states, and the restored platform-warning, platform-note and override projection — with practical time and store destinations rendered only from approved records, which do not yet exist; it is merged on `main`. Engineering Slice 4 implements the accepted C1–C4 full Compare system in the current codebase: the order-preserving `/compare?games=<left>,<right>` state with the launcher indexable and every pair `noindex, follow`; the art-led, mixed and complete artless identity stage around the paired radar; the deterministic interval-aware relationship field; the canonical Shared/left-only/right-only tag map; eight paired exact rows; Replace and Copy-link controls. Its first release compares published primary profiles only (ADR 0033 amendment, 2 September 2026); sibling-scope Compare is a later decision. The first application-originated Cloudflare Builds dispatch and one complete new-profile Publish → dispatch → Live cycle remain unexercised and will be proved by the first real catalog publication, not by further standalone admin hardening. Phase 3A is reconciled to the 3 September 2026 checkpoint: master-checklist Items 1–5 — baseline/source audit, cohort reconciliation, preregistration, engineering readiness and IGDB staging readiness — are **complete**; Item 6, the measured development run D1–D6, is **pending** and blocked only by the authorized post-Item-5 integration gate; no Phase 3A calibration scoring has begun and D1 has not started. `docs/Should_I_Play_Orchestrator_Bootstrap.md` owns the running checkpoint, the gate's exact steps and the active Phase 3A read set; this Plan states the phase contract rather than duplicating that log.
@@ -49,6 +49,7 @@ edge case exists.
 | **Should_I_Play_Brand_and_SEO_Foundation_v0.2.md** | Brand/domain rationale, organic-acquisition strategy, and launch/runbook layer; current routing/hosting contracts are governed by this Plan and accepted ADRs |
 | **Game_Profile_Art_Direction_and_Anti_AI_Design_Brief_v0.1.md**, D3 record, superseded ADR 0013, **Should_I_Play_Fable_Reconciliation_Brief_2026-08-26.md**, **Should_I_Play_Fable_Visual_Completeness_Audit_2026-08-26.md**, and **Should_I_Play_Fable_Canonical_Screen_Mission_2026-08-26.md** | Historical visual principles, anti-patterns and reconciliation evidence. ADR 0013 no longer governs the public visual system |
 | Fable **Should I Play - Canonical Screens.dc.html**, A1–A6/C1–C4 and rails, plus ADRs 0030, 0032, 0033 and 0034 | Accepted homepage/profile/full Compare visual and interaction direction. The artifact complements this Plan; it does not replace product, methodology, evidence, data, artwork, or implementation contracts |
+| **docs/design/Should_I_Play_Canonical_Design_Source.md** | Durable locator for that accepted artifact and the mandatory preflight for any task implementing or auditing an accepted public surface for visual fidelity: import the exact named project/file and emit a design-source receipt, or stop rather than reconstruct the composition from prose, screenshots or memory. Navigation aid only; it amends no governing decision |
 | **Should_I_Play_Shared_Design_System_and_Interaction_Handoff_v1.0_2026-08-31.md**, its token JSON and accessibility/conformance matrix | Current cross-surface implementation specification beneath the accepted visual ADRs: semantic tokens, components, states, responsive behavior, truth fallbacks, focus/keyboard behavior and conformance acceptance |
 | **Should_I_Play_Score_and_Radar_Audit_2026-08-28.md**, **Should_I_Play_Gate_B_Profile_Brief_2026-08-28.md**, and **Should_I_Play_Gate_B_Fable_Result_Review_2026-08-29.md** | Read-only calibration/visualization findings, the bounded A3–A6 implementation contract and its acceptance evidence. The audit diagnoses existing values; it does not authorize score changes |
 | ADR 0031 | Governing MVP Search architecture: editorially included static build-time index, no request-time public database/service |
@@ -600,10 +601,15 @@ Slice 4 implements this contract in the current codebase, but Tomas has **not**
 accepted its visual/UX parity with the accepted C1–C4 direction; the owner
 assessment is that it is materially short of it. That parity/conformance debt is
 deferred to master-checklist Item 12, which also carries the owner-approved
-freshness/accountability presentation refinements. Item 12 must not interrupt
-Phase 3A unless it becomes a concrete blocker, and no agent may treat the
-existence of Slice 4 — or of any conformance test suite over it — as owner
-acceptance of the delivered experience.
+freshness/accountability presentation refinements
+([issue #42](https://github.com/Bergertomas/game_profile/issues/42) and the
+[VGC freshness/accountability decisions](design/Should_I_Play_VGC_Freshness_and_Accountability_Decisions_2026-09-02.md)).
+Those refinements are bounded presentation work inside the accepted composition:
+they do **not** reopen the accepted A1–A6/C1–C4 art direction, the shared design
+system or the Compare concept, and they justify no new migration. Item 12 must
+not interrupt Phase 3A unless it becomes a concrete blocker, and no agent may
+treat the existence of Slice 4 — or of any conformance test suite over it — as
+owner acceptance of the delivered experience.
 
 Individual profiles include an editor-selected “Compare with” entry point. It
 must not be described as popular or commonly compared without usage evidence.
@@ -813,11 +819,25 @@ public image-use basis. IGDB's service access does not sublicense third-party
 image rights, so provider imagery stays separately gated by §7.1–§7.3 and
 ADR 0011. RAWG is a contingency.
 
+What Item 5 established is bounded: the staging/identity/provenance architecture,
+the API-versus-dump strategy and the live contracts are proven and accepted, and
+the authoritative migration `0011_igdb_staging` has Tomas's explicit
+authorization. At this checkpoint that migration is authorized but **not yet
+applied**, so the staging layer is accepted architecture rather than live
+authoritative state; the bootstrap's post-acceptance integration gate owns the
+remaining steps. Item 5 readiness is also **not** the launch-scale routine
+metadata adapter/import: one approved routine provider adapter or a documented
+manual fallback able to sustain the release catalog remains a Phase 5
+deliverable and an open §13 P1 item.
+
 Public pages never depend on a live provider request. Staged provider data never
 becomes editorial, scoring or publication authority automatically: it lands in
 the provider-owned staging layer with provenance, and only a named person's
-accepted candidate reaches internal identity. Provider ratings, popularity,
-classifications or artwork availability cannot alter Game Profile evaluations.
+accepted candidate reaches internal identity. A provider change may raise a
+metadata or editorial **review signal** for a named person to act on; it never
+mutates a score, an evaluation or a publication by itself. Provider ratings,
+popularity, classifications or artwork availability cannot alter Game Profile
+evaluations or result ordering.
 
 Total commitment and session suitability are separate. Runtime is scoped,
 sourced provider-backed context and cannot feed scores. HowLongToBeat remains a
@@ -1403,26 +1423,53 @@ That is an accepted calibration condition, not an unrecorded deferral.
 the development run and any holdout exposure, and it governs; the summary here
 does not amend it. In order: development-only calibration analysis; Tomas's
 required-facet decision under ADR 0024 §4 — approve the Rubric v1.1 lower-of-two
-amendment or direct reversion; the mandatory launch-window and pre-release
-estimation rehearsals; resolution of any material defect the development run or
-rehearsals expose, rerunning affected development cases under the new candidate;
-then candidate freeze of protocol, rubric decision, prompts, schema, exact
-model/configuration and harness revision, with its immutable commit and SHA-256
-digests recorded. **Only after that freeze may H1 research begin.** Until then
-the four holdouts stay untouched: no protocol scoring, expected-score analysis,
-rehearsal, evidence packet or use as development feedback.
+amendment or direct reversion; the two mandatory rehearsals below; resolution of
+any material defect the development run or rehearsals expose, rerunning affected
+development cases under the new candidate; then candidate freeze of protocol,
+rubric decision, prompts, schema, exact model/configuration and harness revision,
+with its immutable commit and SHA-256 digests recorded. **Only after that freeze
+may H1 research begin.** Until then the four holdouts stay untouched: no protocol
+scoring, expected-score analysis, rehearsal, evidence packet or use as
+development feedback, and their identities and evidence are kept out of every
+development context.
+
+The two rehearsals are **non-statistical**. They sit outside the 6+4 program:
+they do not enter the candidate Protocol Appendix B's 160 paired holdout
+decisions, they replace no holdout, and they change no cohort scope. They exist
+because the mature ten-game corpus does not by itself exercise the
+release-window use case:
+
+1. a **launch-window rehearsal** on a just-released title with moving launch
+   evidence — The Blood of Dawnwalker is the preferred candidate if timing and
+   evidence remain suitable at execution time — testing provisional post-release
+   scoring, confidence, patch volatility and reassessment triggers;
+2. an **evidence-bounded pre-release estimation rehearsal** on the most
+   decision-relevant upcoming game with sufficient `SHOWCASED`, `HANDS-ON` or
+   `REVIEW-CODE` evidence at execution time, producing exact estimates, ranges or
+   Unknown under the Evidence SOP's pre-release model and never speculating from
+   studio reputation, trailers, hype or genre.
+
+The cohort lock and preregistration §13 own the rehearsals; this summary does not
+amend them. A material protocol defect exposed by either rehearsal is resolved
+before candidate freeze, and any later material protocol or prompt change still
+follows the candidate Protocol Appendix B's holdout-reset rules.
 
 **Deliverables:**
 
 - candidate Protocol v1.0, package schema, ADR 0024 and behavioral validation;
 - six pre-registered development games;
+- development-only calibration analysis over those cases;
 - anchor/protocol corrections found by those cases;
+- the two non-statistical rehearsals — launch-window and evidence-bounded
+  pre-release estimation — and the defect resolution/reruns they trigger;
 - frozen protocol, prompts, schema, model snapshot and decoding configuration;
 - four untouched holdout games;
 - pre-adjudication agreement, confidence, endpoint, traceability and derivation
   report;
 - time/effort measurement per research and scoring pass;
-- Tomas's approval or explicit return to development.
+- the acceptance report and Tomas's approval or explicit return to development;
+- publication preparation for the approved outcome — no publication itself, which
+  stays owner-reserved.
 
 **Exit criteria:** every holdout gate in the candidate protocol passes, no
 integrity failure remains, and Tomas approves both the protocol and the
@@ -2215,6 +2262,34 @@ unchanged: the authoritative read-only preflight of 3 September 2026 confirmed
 `0010_artwork_fair_use` is applied to the authoritative database, so §7.3 step 3
 records it as done. That verification closes only the migration step; the
 remaining open artwork steps and every owner-reserved gate stand.
+
+### Second forward-alignment pass — 3 September 2026
+
+Issue #61 requested the §0.3 phase-boundary reconciliation against `main` at
+`67aa3546`; the pass above (issue #59, PR #60) landed first and satisfied most of
+it. This second audit ran against `main` at `1521101` and reconciled only the
+remainder. **Again no product, design, scoring, methodology, cohort, launch-
+threshold or protocol decision was reopened, and no owner decision was created.**
+
+It reconciled: the masthead's orchestration/engineering lines to the Working
+Agreement role defaults; §0.2's canonical set, which named the accepted Fable
+artifact but not the `Should_I_Play_Canonical_Design_Source.md` locator that
+`AGENTS.md` and the bootstrap make mandatory visual-fidelity preflight; §5.4's
+Item-12 boundary, so the issue #42 freshness/accountability refinements are
+visibly bounded presentation work that does not reopen the art direction; §7.4,
+which now records that `0011_igdb_staging` is authorized but **not yet applied**,
+that a provider change raises a review signal rather than mutating anything, and
+that Item-5 readiness is not the launch-scale adapter/import still owed by Phase
+5; and §12's forward sequence and deliverables, which now carry the rehearsals'
+non-statistical character and the development analysis, acceptance report and
+publication-preparation deliverables.
+
+Verified intact and deliberately unchanged: the four §12 owner gates, the 12–15
+private validation milestone and approximately-100 release floor, no automatic
+publication, no aggregate score, and the exclusion of provider
+ratings/popularity from scoring and ordering. The preregistration's §14
+master-checklist snapshot and §15 controlled-input freeze were not touched;
+they are Item-3-era records their own document owns.
 
 ---
 
