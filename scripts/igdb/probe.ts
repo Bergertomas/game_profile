@@ -22,12 +22,20 @@
  *                                unexpanded, counts, identity class, flags. The
  *                                record's name is checked against the cohort and
  *                                holdout titles and the probe aborts on a match.
- *   --dump-sample [endpoint]     describe one dump (default `game_types`),
- *                                download it once with a size cap, parse it
- *                                through the production dump/CSV path, and
- *                                report schema version, columns, types, rows
- *                                and the array/timestamp encodings observed.
- *                                The presigned download URL is never printed.
+ *   --dump-sample [endpoint]     describe one dump (default
+ *                                `IGDB_DUMP_PROOF_ENDPOINT`), download it once
+ *                                with a size cap, parse it through the
+ *                                production dump/CSV path, and report schema
+ *                                version, columns, types, rows and the
+ *                                array/timestamp encodings observed. The
+ *                                presigned download URL is never printed.
+ *
+ * BOTH extra proofs FAIL CLOSED. They are proofs, not ingestion: an ambiguous
+ * result exits non-zero with its reasons rather than printing a warning beside
+ * a success. `lib/igdb/proof-gate.ts` holds those conditions — notably that
+ * `unexpanded_fields` must be EMPTY for the field contract, and that the dump
+ * sample must OBSERVE a non-empty array value and a timestamp value in real
+ * data (a declared schema type is not evidence of its encoding).
  *
  * It never prints, stores or serialises the Client ID, Client Secret, access
  * token, an Authorization header, a credential-bearing URL or a presigned
@@ -38,11 +46,13 @@
  */
 import { createIgdbClient, readIgdbCredentials, type IgdbClient } from "@/lib/igdb/client";
 import { isProtectedTitle } from "@/lib/igdb/cohort-guard";
-import { IGDB_API_BASE, IGDB_ENV, TWITCH_TOKEN_URL, gamesByIdQuery } from "@/lib/igdb/contract";
+import { IGDB_API_BASE, IGDB_DUMP_PROOF_ENDPOINT, IGDB_ENV, TWITCH_TOKEN_URL, gamesByIdQuery } from "@/lib/igdb/contract";
 import { parseDumpCsv } from "@/lib/igdb/dump";
+import { classifyDumpSchema, observeDumpEncodings, type DumpEncodingObservation } from "@/lib/igdb/dump-observation";
 import { normalizeGames } from "@/lib/igdb/normalize";
+import { evaluateDumpProofGate, evaluateFieldContractGate, type ProofGateResult } from "@/lib/igdb/proof-gate";
+import { redactIgdb, redactIgdbWithSecrets } from "@/lib/igdb/redact";
 import { parseApiGames } from "@/lib/igdb/record";
-import { redactIgdb } from "@/lib/igdb/redact";
 
 interface ProbeReport {
   readonly credentials_present: boolean;
@@ -97,13 +107,24 @@ interface DumpSampleReport {
   readonly updated_at: number | null;
   readonly schema_columns: number | null;
   readonly schema_types: readonly string[];
+  readonly array_columns_declared: readonly string[];
+  readonly timestamp_columns_declared: readonly string[];
   readonly download_ok: boolean | null;
   readonly download_http_status: number | null;
   readonly bytes_read: number | null;
   readonly rows_parsed: number | null;
   readonly csv_columns: readonly string[];
+  readonly rows_scanned: number | null;
+  readonly scan_reached_end: boolean | null;
   readonly array_encoding_observed: "braces" | "brackets" | "none" | null;
+  readonly array_observed_column: string | null;
+  readonly array_observed_row: number | null;
+  readonly array_cells_with_element: number | null;
+  readonly array_cells_empty: number | null;
+  readonly array_cells_unreadable: number | null;
   readonly timestamp_encoding_observed: "unix" | "iso" | "none" | null;
+  readonly timestamp_observed_column: string | null;
+  readonly timestamp_observed_row: number | null;
   readonly error: string | null;
 }
 
@@ -132,6 +153,22 @@ function printReport(title: string, report: object, asJson: boolean): void {
     console.log(`  ${key.padEnd(28)} ${shown}`);
   }
   console.log();
+}
+
+/**
+ * Print a proof gate's verdict and return whether it passed. A failed gate
+ * always states its reasons: a proof command that exits non-zero must say what
+ * was not proven.
+ */
+function reportGate(label: string, gate: ProofGateResult): boolean {
+  if (gate.passed) {
+    console.log(`PASS  ${label}\n`);
+    return true;
+  }
+  console.error(`FAIL  ${label}`);
+  for (const reason of gate.reasons) console.error(`  - ${redactIgdb(reason)}`);
+  console.error();
+  return false;
 }
 
 function flag(argv: readonly string[], name: string): string | null {
@@ -267,7 +304,12 @@ async function fieldContractProbe(client: IgdbClient, igdbId: number): Promise<F
   };
 }
 
-async function dumpSampleProbe(client: IgdbClient, endpoint: string, maxBytes: number): Promise<DumpSampleReport> {
+interface DumpSampleOutcome {
+  readonly report: DumpSampleReport;
+  readonly observation: DumpEncodingObservation | null;
+}
+
+async function dumpSampleProbe(client: IgdbClient, endpoint: string, maxBytes: number): Promise<DumpSampleOutcome> {
   const empty: DumpSampleReport = {
     endpoint,
     describe_ok: false,
@@ -278,18 +320,32 @@ async function dumpSampleProbe(client: IgdbClient, endpoint: string, maxBytes: n
     updated_at: null,
     schema_columns: null,
     schema_types: [],
+    array_columns_declared: [],
+    timestamp_columns_declared: [],
     download_ok: null,
     download_http_status: null,
     bytes_read: null,
     rows_parsed: null,
     csv_columns: [],
+    rows_scanned: null,
+    scan_reached_end: null,
     array_encoding_observed: null,
+    array_observed_column: null,
+    array_observed_row: null,
+    array_cells_with_element: null,
+    array_cells_empty: null,
+    array_cells_unreadable: null,
     timestamp_encoding_observed: null,
+    timestamp_observed_column: null,
+    timestamp_observed_row: null,
     error: null,
   };
   const described = await client.describeDump(endpoint);
-  if (!described.ok || !described.data) return { ...empty, http_status: described.status, error: described.error };
+  if (!described.ok || !described.data) {
+    return { report: { ...empty, http_status: described.status, error: described.error }, observation: null };
+  }
   const descriptor = described.data;
+  const shape = classifyDumpSchema(descriptor.schema);
   const base: DumpSampleReport = {
     ...empty,
     describe_ok: true,
@@ -300,51 +356,78 @@ async function dumpSampleProbe(client: IgdbClient, endpoint: string, maxBytes: n
     updated_at: descriptor.updated_at,
     schema_columns: Object.keys(descriptor.schema).length,
     schema_types: [...new Set(Object.values(descriptor.schema).map((t) => t.toUpperCase()))].sort(),
+    array_columns_declared: shape.arrayColumns,
+    timestamp_columns_declared: shape.timestampColumns,
   };
+  // The presigned URL lives only in this scope, is never printed, and is
+  // treated as a secret by every error string this function can produce.
+  const url = descriptor.s3_url;
+  const scrub = (message: string) => redactIgdbWithSecrets(message, [url]);
+
   if (descriptor.size_bytes > maxBytes) {
-    return { ...base, download_ok: false, error: `Dump is ${descriptor.size_bytes} bytes; the cap is ${maxBytes}. Raise it with --dump-max-bytes.` };
+    return {
+      report: { ...base, download_ok: false, error: `Dump is ${descriptor.size_bytes} bytes; the cap is ${maxBytes}. Raise it with --dump-max-bytes.` },
+      observation: null,
+    };
   }
-  // The presigned URL lives only in this scope and is never printed.
   let response: Response;
   try {
-    response = await fetch(descriptor.s3_url);
+    response = await fetch(url);
   } catch (error) {
-    return { ...base, download_ok: false, error: `download failed: ${error instanceof Error ? error.message : String(error)}` };
-  }
-  if (!response.ok) return { ...base, download_ok: false, download_http_status: response.status, error: `download answered HTTP ${response.status}` };
-  const text = await response.text();
-  try {
-    const rows = parseDumpCsv(text, descriptor.schema);
-    const header = text.split(/\r?\n/, 1)[0] ?? "";
-    const arrayColumns = Object.entries(descriptor.schema).filter(([, t]) => t.toUpperCase().endsWith("[]")).map(([c]) => c);
-    const timeColumns = Object.entries(descriptor.schema).filter(([, t]) => t.toUpperCase() === "TIMESTAMP").map(([c]) => c);
-    const secondLine = text.split(/\r?\n/).find((line, i) => i > 0 && line.length > 0) ?? "";
-    let arrayEncoding: DumpSampleReport["array_encoding_observed"] = arrayColumns.length ? "none" : null;
-    if (arrayColumns.length && /\{[^}]*\}/.test(secondLine)) arrayEncoding = "braces";
-    else if (arrayColumns.length && /\[[^\]]*\]/.test(secondLine)) arrayEncoding = "brackets";
-    let timeEncoding: DumpSampleReport["timestamp_encoding_observed"] = timeColumns.length ? "none" : null;
-    if (timeColumns.length && /\d{4}-\d{2}-\d{2}/.test(secondLine)) timeEncoding = "iso";
-    else if (timeColumns.length && /(^|,)\d{9,}(,|$)/.test(secondLine)) timeEncoding = "unix";
     return {
-      ...base,
-      download_ok: true,
-      download_http_status: response.status,
-      bytes_read: Buffer.byteLength(text),
+      report: { ...base, download_ok: false, error: scrub(`download failed: ${error instanceof Error ? error.message : String(error)}`) },
+      observation: null,
+    };
+  }
+  if (!response.ok) {
+    return {
+      report: { ...base, download_ok: false, download_http_status: response.status, error: `download answered HTTP ${response.status}` },
+      observation: null,
+    };
+  }
+  const text = await response.text();
+  const downloaded: DumpSampleReport = {
+    ...base,
+    download_ok: true,
+    download_http_status: response.status,
+    bytes_read: Buffer.byteLength(text),
+  };
+  let rows;
+  try {
+    // The production CSV parser decides whether the file is acceptable at all.
+    rows = parseDumpCsv(text, descriptor.schema);
+  } catch (error) {
+    return {
+      report: { ...downloaded, rows_parsed: null, error: scrub(`dump parser refused the file: ${error instanceof Error ? error.message : String(error)}`) },
+      observation: null,
+    };
+  }
+  // Only now characterise the accepted bytes: scan raw cells of the columns
+  // the descriptor declares, across as many rows as it takes to see a real
+  // non-empty array value and a real timestamp value.
+  const observation = observeDumpEncodings(text, descriptor.schema);
+  const header = text.split(/\r?\n/, 1)[0] ?? "";
+  return {
+    report: {
+      ...downloaded,
       rows_parsed: rows.length,
       csv_columns: header.split(",").map((c) => c.trim()).filter(Boolean),
-      array_encoding_observed: arrayEncoding,
-      timestamp_encoding_observed: timeEncoding,
-    };
-  } catch (error) {
-    return {
-      ...base,
-      download_ok: true,
-      download_http_status: response.status,
-      bytes_read: Buffer.byteLength(text),
-      rows_parsed: null,
-      error: `dump parser refused the file: ${error instanceof Error ? error.message : String(error)}`,
-    };
-  }
+      rows_scanned: observation.rows_scanned,
+      scan_reached_end: observation.scan_reached_end,
+      array_encoding_observed: observation.array_columns_declared.length ? observation.array_encoding_observed : null,
+      array_observed_column: observation.array_observed_column,
+      array_observed_row: observation.array_observed_row,
+      array_cells_with_element: observation.array_cells_with_element,
+      array_cells_empty: observation.array_cells_empty,
+      array_cells_unreadable: observation.array_cells_unreadable,
+      timestamp_encoding_observed: observation.timestamp_columns_declared.length ? observation.timestamp_encoding_observed : null,
+      timestamp_observed_column: observation.timestamp_observed_column,
+      timestamp_observed_row: observation.timestamp_observed_row,
+      error: observation.error === null ? null : scrub(observation.error),
+    },
+    // The gate sees the same scrubbed text the report printed.
+    observation: observation.error === null ? observation : { ...observation, error: scrub(observation.error) },
+  };
 }
 
 async function main(): Promise<void> {
@@ -367,7 +450,9 @@ async function main(): Promise<void> {
         `  2. POST ${IGDB_API_BASE}/game_types/count\n` +
         `  3. GET  ${IGDB_API_BASE}/dumps\n` +
         "  4. with --field-contract <id>: POST /games for that one non-cohort id with the full field list\n" +
-        "  5. with --dump-sample [endpoint]: GET /dumps/<endpoint>, then one capped download of the CSV\n\n" +
+        `  5. with --dump-sample [endpoint]: GET /dumps/<endpoint> (default ${IGDB_DUMP_PROOF_ENDPOINT}), then one capped download of the CSV\n\n` +
+        "Proofs 4 and 5 fail closed: a non-empty unexpanded_fields, or an array/timestamp\n" +
+        "encoding that is declared but never observed in the data, exits non-zero.\n\n" +
         `Credentials present now: ${readout.present ? "yes" : "no"}` +
         (readout.missing.length ? ` (missing: ${readout.missing.join(", ")})` : "") +
         "\nNothing is staged or written anywhere.\n",
@@ -422,20 +507,29 @@ async function main(): Promise<void> {
     } else {
       const contract = await fieldContractProbe(client, id);
       printReport("IGDB field-contract probe", contract, asJson);
-      if (!contract.request_ok || contract.parser_ok !== true || contract.error) failed = true;
+      if (!reportGate("field-contract proof (B)", evaluateFieldContractGate(contract))) failed = true;
     }
   }
 
   if (dumpSample !== null && report.auth_ok) {
-    const endpoint = dumpSample || "game_types";
+    const endpoint = dumpSample || IGDB_DUMP_PROOF_ENDPOINT;
     const cap = dumpMax ? Number(dumpMax) : DEFAULT_DUMP_MAX_BYTES;
     if (!/^[a-z_]+$/.test(endpoint) || !Number.isInteger(cap) || cap <= 0) {
       console.error("--dump-sample takes an endpoint name; --dump-max-bytes a positive integer.");
       failed = true;
     } else {
-      const sample = await dumpSampleProbe(client, endpoint, cap);
+      const { report: sample, observation } = await dumpSampleProbe(client, endpoint, cap);
       printReport("IGDB dump-sample probe", sample, asJson);
-      if (!sample.describe_ok || sample.download_ok !== true || sample.rows_parsed === null) failed = true;
+      const gate = evaluateDumpProofGate({
+        endpoint,
+        describe_ok: sample.describe_ok,
+        schema_version: sample.schema_version,
+        download_ok: sample.download_ok,
+        rows_parsed: sample.rows_parsed,
+        error: sample.error,
+        observation,
+      });
+      if (!reportGate("dump contract proof (C)", gate)) failed = true;
     }
   }
 

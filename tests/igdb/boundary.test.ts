@@ -104,7 +104,25 @@ describe("the live probe is manual and credential-safe", () => {
   it("never prints a presigned dump URL or a record's provider text", () => {
     expect(probe).not.toMatch(/console\.log\([^)]*s3_url/);
     expect(probe).not.toMatch(/name:\s*record\.name|record\.summary/);
-    expect(probe).toContain("fetch(descriptor.s3_url)");
+    // The presigned URL is read once into a local, used only by `fetch`, and
+    // treated as a secret by every error string the dump proof can emit.
+    expect(probe).toContain("const url = descriptor.s3_url;");
+    expect(probe).toContain("fetch(url)");
+    expect(probe).toContain("redactIgdbWithSecrets(message, [url])");
+    expect(probe).not.toMatch(/error:[^\n]*descriptor\.s3_url/);
+  });
+
+  it("fails the two live proofs closed rather than reporting a warning", () => {
+    // Item 5 acceptance: a proof command must exit non-zero when the field
+    // contract is only partly expanded, or when a declared array/timestamp
+    // encoding was never observed in real data.
+    expect(probe).toContain("evaluateFieldContractGate(contract)");
+    expect(probe).toContain("evaluateDumpProofGate(");
+    expect(probe).toContain("if (failed) process.exitCode = 1;");
+    // The old, defective condition treated a non-empty unexpanded_fields as a
+    // pass; it must not come back.
+    expect(probe).not.toMatch(/if \(!contract\.request_ok \|\| contract\.parser_ok !== true \|\| contract\.error\) failed = true;/);
+    expect(probe).not.toContain('dumpSample || "game_types"');
   });
 
   it("prints only through redaction and never a header, secret or token", () => {

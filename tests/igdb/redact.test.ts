@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { REDACTED, redactIgdb, redactIgdbDeep, safeIgdbError } from "@/lib/igdb/redact";
+import { REDACTED, redactIgdb, redactIgdbDeep, redactIgdbWithSecrets, safeIgdbError } from "@/lib/igdb/redact";
 
 const NO_ENV = {} as unknown as NodeJS.ProcessEnv;
 const env = {
@@ -31,6 +31,36 @@ describe("redactIgdb", () => {
     expect(redactIgdb('{"s3_url":"https://example.invalid/signed?Signature=x","endpoint":"games"}', NO_ENV)).toBe(
       `{"s3_url":"${REDACTED}","endpoint":"games"}`,
     );
+  });
+
+  it("never lets the dump proof's own presigned URL through, signed or not", () => {
+    // The dump-sample proof holds the exact URL, so it masks it as a literal
+    // rather than trusting it to still look signed by the time it reaches a
+    // string. A URL truncated at the query string still exposes bucket and
+    // key, so the query-free prefix is masked too.
+    const signed = "https://igdb-dumps.s3.eu-west-1.amazonaws.com/1756900000_platforms.csv?X-Amz-Signature=deadbeef";
+    const unsigned = "https://igdb-dumps.s3.eu-west-1.amazonaws.com/1756900000_platforms.csv";
+    for (const text of [
+      `download failed: connect ECONNREFUSED ${signed}`,
+      `download failed: getaddrinfo ENOTFOUND ${unsigned}`,
+      `dump parser refused the file from ${unsigned}: Column versions: cannot read array cell.`,
+    ]) {
+      const out = redactIgdbWithSecrets(text, [signed], NO_ENV);
+      expect(out).not.toContain("igdb-dumps.s3.eu-west-1.amazonaws.com");
+      expect(out).not.toContain("1756900000_platforms.csv");
+      expect(out).not.toContain("deadbeef");
+      expect(out).toContain(REDACTED);
+    }
+  });
+
+  it("still applies the standard credential patterns alongside a caller's literal", () => {
+    const out = redactIgdbWithSecrets("Bearer abcdefghij123456 and https://x.invalid/f.csv?Signature=zz", ["https://x.invalid/f.csv?Signature=zz"], NO_ENV);
+    expect(out).not.toContain("abcdefghij123456");
+    expect(out).not.toContain("Signature=zz");
+  });
+
+  it("ignores empty or too-short caller secrets rather than masking everything", () => {
+    expect(redactIgdbWithSecrets("a plain sentence", [null, undefined, "", "abc"], NO_ENV)).toBe("a plain sentence");
   });
 
   it("redacts recursively and yields a safe error pair", () => {

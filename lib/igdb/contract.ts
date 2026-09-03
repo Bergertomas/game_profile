@@ -38,6 +38,28 @@ export const IGDB_TOKEN = { lifetimeDays: 60, maxActiveTokens: 25 } as const;
 export const IGDB_REMOVED_IMAGE_GRACE_DAYS = 30;
 
 /**
+ * The endpoint the Item 5 dump proof samples.
+ *
+ * "All endpoints are available as CSV Data Dumps!", and the descriptor's
+ * `schema` map declares each column's type, so the endpoint used to prove the
+ * CSV encodings has to be one whose schema actually contains BOTH an array
+ * type and a `TIMESTAMP`. Read from https://api-docs.igdb.com/ on 2026-09-03:
+ *
+ *   `game_types` — checksum (uuid), created_at (datetime), type (String),
+ *                  updated_at (datetime). Timestamps, but NO array field, so
+ *                  it cannot prove an array encoding at all.
+ *   `platforms`  — versions ("Array of Platform Version IDs") and websites
+ *                  ("Array of Platform Website IDs"), plus created_at and
+ *                  updated_at (datetime). Both halves of the contract, and a
+ *                  small reference table.
+ *
+ * The probe still refuses to call any sampled endpoint a pass unless the live
+ * descriptor really declares both types and the data really shows both
+ * encodings, so this constant is a default, not an assumption.
+ */
+export const IGDB_DUMP_PROOF_ENDPOINT = "platforms";
+
+/**
  * Environment variable NAMES. Their values are secrets and are read in exactly
  * one place (`readIgdbCredentials`), never printed, never persisted.
  */

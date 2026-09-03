@@ -18,9 +18,11 @@ No calibration or holdout game was researched, scored, fetched or mapped. No IGD
 |---|---|---|
 | `lib/db/schema.ts` (IGDB section), `lib/db/migrations/0011_igdb_staging.sql` | Eleven `igdb_*` tables, their checks, the append-only trigger, one unique index on `game_external_ids` | ADR 0037 §§1–3, 5–6 |
 | `lib/igdb/contract.ts` | The documented IGDB facts as constants: URLs, limits, env var names, game-type names, field list, query builders, image URL, attribution text | audit §2 |
-| `lib/igdb/redact.ts` | Redaction of credential values and credential-shaped echoes | issue #48 §5 |
+| `lib/igdb/redact.ts` | Redaction of credential values and credential-shaped echoes; literal masking of a caller-held secret such as the presigned dump URL | issue #48 §5 |
 | `lib/igdb/record.ts` | The one intermediate `IgdbGameRecord`; API JSON parser with expanded/bare reference handling; unexpanded-field reporting | ADR 0037 §4 |
 | `lib/igdb/dump.ts` | Data Partner listing/descriptor schemas; CSV parsed by declared schema type; per-endpoint tables assembled into records | ADR 0037 §4 |
+| `lib/igdb/dump-observation.ts` | Non-vacuous observation of the real CSV array/timestamp encodings: declared-column raw cells, scanned across rows until a **non-empty** value is seen | §6 C |
+| `lib/igdb/proof-gate.ts` | The fail-closed pass conditions for live proofs B and C, as pure functions | §6 B–C, §10 |
 | `lib/igdb/normalize.ts` | Deterministic normalization; identity class; relation derivation by asserting field; staging flags | ADR 0037 §2 |
 | `lib/igdb/change.ts` | Change classification into five classes; `requires_editorial_review` | ADR 0037 §5 |
 | `lib/igdb/client.ts` | Credentials by name; Twitch token in a form body; rate gate 4/s and 8 open; one 429 back-off; safe results | audit §2 |
@@ -35,7 +37,7 @@ No calibration or holdout game was researched, scored, fetched or mapped. No IGD
 | `npm run igdb:probe` | Dry run: what the live probe would do; whether credentials are present (names only) | none | none |
 | `npm run igdb:probe -- --live` | The manual credential-safe readiness probe (§6 A) | **opt-in only; refuses CI** | none |
 | `npm run igdb:probe -- --live --field-contract <id>` | The exact `IGDB_GAME_FIELDS` request for one non-cohort record through the production parser; structural facts only (§6 B) | **opt-in only; refuses CI** | none |
-| `npm run igdb:probe -- --live --dump-sample [endpoint]` | Describe one dump, download it once under a size cap, parse it through the production dump path; the presigned URL is never printed (§6 C) | **opt-in only; refuses CI** | none |
+| `npm run igdb:probe -- --live --dump-sample [endpoint]` | Describe one dump (default `platforms`), download it once under a size cap, parse it through the production dump path, observe the real array/timestamp encodings; fails closed; the presigned URL is never printed (§6 C) | **opt-in only; refuses CI** | none |
 | `npm run igdb:stage-proof` | Stage the fixture three times into a named non-production database; rolled back unless `--commit` | none | requires `CONFIRM_IGDB_STAGING=<db>` |
 | `npm run igdb:preflight` | Read-only rollout preflight for `0011`: duplicates that would break the new unique index, whether 0011 is recorded, whether `igdb_*` tables exist | none | SELECT only |
 
@@ -83,7 +85,7 @@ One normalizer, two parsers (ADR 0037 §4). Which path is authoritative for what
 
 Webhooks exist on the IGDB side but would require a public endpoint, i.e. a runtime dependency; they are not used. Popularity, ratings and PopScore are neither requested nor staged.
 
-**Unverified in this environment, mechanically provable elsewhere:** the CSV cell encoding of `LONG[]` and `TIMESTAMP` columns in real dumps, and live acceptance of the exact expanded field list `IGDB_GAME_FIELDS` (nested expanders such as `release_dates.platform.name`). The adapter reads by declared schema type, accepts `{1,2}` and `[1,2]` arrays and unix or ISO timestamps, and refuses anything else rather than guessing; the parser tolerates bare references and reports unexpanded children, so a rejected expander degrades to a visible warning, not silent empty staging. `npm run igdb:probe -- --live --dump-sample game_types` and `--field-contract <non-cohort id>` (§6) report exactly these facts from a credentialed environment without editing source. Dump access is enabled for the project (audit §2a), so the dump sample is expected to run.
+**Unverified in this environment, mechanically provable elsewhere:** the CSV cell encoding of `LONG[]` and `TIMESTAMP` columns in real dumps, and live acceptance of the exact expanded field list `IGDB_GAME_FIELDS` (nested expanders such as `release_dates.platform.name`). The adapter reads by declared schema type, accepts `{1,2}` and `[1,2]` arrays and unix or ISO timestamps, and refuses anything else rather than guessing; the parser tolerates bare references and reports unexpanded children, so a rejected expander degrades to a visible warning, not silent empty staging. `npm run igdb:probe -- --live --dump-sample platforms` and `--field-contract <non-cohort id>` (§6) report exactly these facts from a credentialed environment without editing source, and **fail closed** rather than reporting a warning beside a success. Dump access is enabled for the project (audit §2a), so the dump sample is expected to run.
 
 ## 6. Credential-safe live proofs
 
@@ -93,7 +95,22 @@ Webhooks exist on the IGDB side but would require a public endpoint, i.e. a runt
 
 **B. Field-contract probe** (`--live --field-contract <igdb_id>`): posts the exact `IGDB_GAME_FIELDS` query for one id, parses the response with the production parser and normalizer, and reports structural facts only — request status, records returned, parser acceptance, which requested children (if any) came back unexpanded, whether checksum/updated_at/type names resolved, identity class, relation counts by kind, release/artwork/company/alias/external counts, and staging flag codes. No name, summary or editorial content is printed. The record's name and alternative names are checked against the cohort and holdout titles and the probe aborts on a match, so the proof is made against a non-cohort record by construction.
 
-**C. Dump-sample probe** (`--live --dump-sample [endpoint]`, default `game_types`; `--dump-max-bytes` raises the 25 MB cap): calls `/v4/dumps/{endpoint}`, downloads the file once, parses it through `parseDumpCsv` with the descriptor's declared schema, and reports schema version, size, column names and types, rows parsed, and the array and timestamp encodings observed. The presigned S3 URL exists only in memory; redaction also masks any signed URL that reaches an error string.
+**B fails closed.** `evaluateFieldContractGate` (`lib/igdb/proof-gate.ts`) passes only when the provider accepted the query, **exactly one** record came back, the production parser accepted it, and **`unexpanded_fields` is empty**. The parser deliberately tolerates a bare reference so that a rejected expander degrades to visible staging rather than silence — right for ingestion, wrong for a proof — so the command exits non-zero and names the unexpanded children when any requested expansion is unresolved. An ambiguous partial expansion must not look green.
+
+**C. Dump-sample probe** (`--live --dump-sample [endpoint]`, default `IGDB_DUMP_PROOF_ENDPOINT` = `platforms`; `--dump-max-bytes` raises the 25 MB cap): calls `/v4/dumps/{endpoint}`, downloads the file once, parses it through `parseDumpCsv` with the descriptor's declared schema, and reports schema version, size, column names and types, rows parsed, and the array and timestamp encodings observed. The presigned S3 URL exists only in memory, is never printed, and is masked as a literal (with its query-free prefix) in every error string this proof can emit, so it cannot leak even if it stops looking signed.
+
+**The endpoint is `platforms`, not `game_types`.** Read from <https://api-docs.igdb.com/> on 2026-09-03:
+
+| Endpoint | Documented fields | Can prove an array? | Can prove a timestamp? |
+|---|---|---|---|
+| `game_types` | `checksum` (uuid), `created_at` (datetime), `type` (String), `updated_at` (datetime) | **No — no array field exists** | yes |
+| `platforms` | `versions` ("Array of Platform Version IDs"), `websites` ("Array of Platform Website IDs"), `created_at`/`updated_at` (datetime), plus `name`/`slug`/`generation`/`platform_type`/`checksum` | **yes** | yes |
+
+"All endpoints are available as CSV Data Dumps!", and `GET /v4/dumps/{endpoint}` returns `schema_version` plus a `schema` map of column → type whose documented vocabulary includes `LONG`, `STRING`, `LONG[]`, `DOUBLE`, `TIMESTAMP` and `UUID`. A dump proof therefore has to sample an endpoint whose schema really contains both an array type and a `TIMESTAMP`. `platforms` does and is a small reference table; the previous `game_types` instruction asked for an array encoding the endpoint cannot supply, so that proof was vacuous and is corrected here.
+
+**C fails closed, and its observation is non-vacuous.** `parseDumpCsv` remains the sole authority on whether the file is acceptable. Only after it accepts does `observeDumpEncodings` (`lib/igdb/dump-observation.ts`) characterise the bytes, and it does so by reading the **raw cell of each column the descriptor declares** with that type — never by pattern-matching a whole CSV line, which would read a timestamp out of an unrelated `STRING` column. It scans data rows in file order until it has seen a **non-empty** array value and a timestamp value, or the (size-capped) file runs out, and reports `rows_scanned`, the column and row where each encoding was observed, and how many array cells were empty or unreadable. An empty array cell (`{}`, `[]`, blank, `NULL`) is not an observation: it carries no element, so it cannot show how an element is written.
+
+`evaluateDumpProofGate` passes only when the descriptor was accepted, a real schema version was observed, the parser accepted the file, rows were parsed, **and both `array_encoding_observed ∈ {braces, brackets}` and `timestamp_encoding_observed ∈ {unix, iso}`**. `none` is never a pass. Two failures are named explicitly: an endpoint whose schema declares no array (or no `TIMESTAMP`) type cannot prove that half of the contract at all, and a declared type whose value was never observed is **inconclusive, not proved** — the declaration is not the evidence. In either case the command exits non-zero and states what endpoint or evidence is needed.
 
 Run in this environment on 2026-09-02 (A only; B and C need credentials):
 
@@ -158,8 +175,8 @@ Item 5 is judged on code, the non-production proof, and the live provider-contra
 | # | Item | Owner | Evidence |
 |---|---|---|---|
 | 1 | Safe readiness probe with real credentials (§6 A): `credentials_present`, `auth_ok`, `igdb_request_ok`, `dump_entitlement_ok` | credentialed runner | probe output (safe fields only) pasted into the Item 5 audit |
-| 2 | Field-contract probe on a non-cohort id (§6 B): provider accepts `IGDB_GAME_FIELDS`, parser accepts the response, `unexpanded_fields` empty | credentialed runner | probe output |
-| 3 | Dump-sample probe on `game_types` (§6 C): real schema version, array and timestamp encodings observed, rows parsed without refusal | credentialed runner | probe output |
+| 2 | Field-contract probe on a non-cohort id (§6 B): provider accepts `IGDB_GAME_FIELDS`, exactly the one record returns, parser accepts the response, `unexpanded_fields` **empty** (the command exits non-zero otherwise) | credentialed runner | probe output |
+| 3 | Dump-sample probe on `platforms` (§6 C): real schema version, production CSV parser accepts the file, rows parsed, a **non-empty** array encoding observed and a timestamp encoding observed (`none` is not a pass) | credentialed runner | probe output |
 | 4 | ChatGPT/Tomas readiness ruling on this PR | orchestrator | PASS ruling |
 
 ## 10a. Post-acceptance rollout (not Item 5; separately authorized)

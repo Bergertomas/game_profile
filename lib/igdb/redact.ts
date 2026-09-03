@@ -47,6 +47,36 @@ export function redactIgdb(value: string, env: NodeJS.ProcessEnv = process.env):
   return out;
 }
 
+/**
+ * Redact the standard credential patterns AND a set of literals the caller
+ * knows to be sensitive in its own scope.
+ *
+ * The presigned dump download URL is the case this exists for. The pattern
+ * above masks any URL carrying `X-Amz-…` or `Signature=`, which is what a
+ * presigned S3 URL looks like — but a proof command holds the exact URL, so it
+ * should not depend on the URL still looking signed by the time it reaches a
+ * string. Passing the literal (and its query-free prefix, which would expose
+ * the bucket and key even with the signature stripped) masks it whatever shape
+ * it arrives in.
+ */
+export function redactIgdbWithSecrets(
+  value: string,
+  secrets: readonly (string | null | undefined)[],
+  env: NodeJS.ProcessEnv = process.env,
+): string {
+  let out = value;
+  for (const secret of secrets) {
+    if (!secret || secret.length < 6) continue;
+    out = out.split(secret).join(REDACTED);
+    // A URL truncated at the query string leaks bucket and key without a
+    // signature, so the origin+path prefix is masked as well.
+    const queryAt = secret.indexOf("?");
+    const prefix = queryAt > 0 ? secret.slice(0, queryAt) : null;
+    if (prefix && prefix.length >= 6) out = out.split(prefix).join(REDACTED);
+  }
+  return redactIgdb(out, env);
+}
+
 export function redactIgdbDeep<T>(value: T, env: NodeJS.ProcessEnv = process.env): T {
   if (typeof value === "string") return redactIgdb(value, env) as unknown as T;
   if (Array.isArray(value)) return value.map((item) => redactIgdbDeep(item, env)) as unknown as T;

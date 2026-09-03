@@ -646,7 +646,7 @@ npm run igdb:report                 # normalize the synthetic fixture; no networ
 npm run igdb:probe                  # dry run: what the live probe would do
 npm run igdb:probe -- --live        # opt-in, credential-safe readiness probe; never in CI
 npm run igdb:probe -- --live --field-contract <id>   # exact field list on one non-cohort record; structural facts only
-npm run igdb:probe -- --live --dump-sample game_types # one small real dump through the production CSV path
+npm run igdb:probe -- --live --dump-sample platforms  # one small real dump through the production CSV path
 DATABASE_URL=postgres://…/some_db CONFIRM_IGDB_STAGING=some_db \
   npm run igdb:stage-proof          # stage the fixture into a non-production database, rolled back unless --commit
 DATABASE_URL=postgres://…/some_db npm run igdb:preflight   # read-only: is 0011 safe to apply here?
@@ -655,7 +655,14 @@ DATABASE_URL=postgres://…/some_db npm run igdb:preflight   # read-only: is 001
 The probe reads `IGDB_CLIENT_ID` and `IGDB_CLIENT_SECRET` (or a pre-issued
 `IGDB_ACCESS_TOKEN`) by name, sends them only in the Twitch form body and the
 IGDB headers, and prints safe booleans, statuses, timings and counts through
-redaction. There is no bulk import command; staging real records is Item 6 work, one
+redaction. The two contract proofs **fail closed**: `--field-contract` exits
+non-zero unless the provider accepted the exact field list and
+`unexpanded_fields` is empty, and `--dump-sample` exits non-zero unless the
+production CSV parser accepted the file and a **non-empty** array value and a
+timestamp value were actually observed in its rows. `platforms` is the default
+because its dump schema carries both array columns (`versions`, `websites`) and
+`TIMESTAMP` columns; `game_types` has timestamps but no array field, so it
+cannot prove that half of the contract. There is no bulk import command; staging real records is Item 6 work, one
 development game at a time, on the layer described in
 [the readiness record](docs/calibration/Phase_3A_Item_5_IGDB_Staging_Readiness_Record.md).
 Applying `0011` to the authoritative database is a separately authorized
