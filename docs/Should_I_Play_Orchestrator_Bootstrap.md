@@ -65,7 +65,7 @@ As of 2026-09-03, against `main` at `1f10ec7928e07fdbc71bfdf77dffc6489f9df1dd`:
 - Item 1 — baseline/source audit: **complete**.
 - Item 2 — cohort reconciliation: **complete**.
 - Item 3 — preregistration: **complete**; owner-approved and merged at `00f082022dcbf7f065453513d6f2681c01d63493`.
-- Item 4 — Phase 3A engineering readiness: **complete**; final orchestrator ruling 9/9 PASS, recorded on PR #46 (conversation comment `5515828479`), merged at `79f0159b31009173ede153cfc77729d6d2e5ec91`. Issue #44 was the coverage-state blocker, later closed; it does not carry the ruling.
+- Item 4 — Phase 3A engineering readiness: **complete**; final orchestrator ruling 9/9 PASS, recorded on PR #46 (conversation comment `5515828479`), merged at `79f0159b31009173ede153cfc77729d6d2e5ec91`. Issue #44 was the coverage-state blocker, later closed; it does not carry the ruling. That ruling also closed the Amendment 1–4 exact-byte review — see the preregistration note in the read set below.
 - Item 5 — IGDB staging readiness: **complete**; final readiness ruling **PASS / COMPLETE** in PR #52 review `5106252929` against exact implementation head `a292e9b19dda9a371c5c8701d579db30f3439996`. Issue #48 is closed as completed.
 - Item 6 — development run games D1–D6: **pending**, blocked by the integration gate below.
 - Items 7–12: unchanged.
@@ -95,7 +95,9 @@ On `main`:
 - `docs/decisions/0035-released-game-maturity-is-evidence-and-stability-based.md`
 - `docs/decisions/0036-phase3a-measured-scoring-execution-surface.md`
 - `docs/Game_Profile_Phase_3A_Cohort_Lock_2026-09-02.md`
-- `docs/Game_Profile_Phase_3A_Preregistration_v1.0_DRAFT.md` — note that its §14 master-checklist state is a frozen Item-3-era snapshot; this checkpoint and the rulings it cites are current.
+- `docs/Game_Profile_Phase_3A_Preregistration_v1.0_DRAFT.md` — a frozen controlled-input record with two known stale-by-design passages; this checkpoint and the rulings it cites are current.
+  - §14's master-checklist state is an Item-3-era snapshot.
+  - §15.5's closing sentence — "Amendments 1 through 4 are pending exact-byte review" — records the position before that review closed. Gate 6 of the later final Item-4 ruling on PR #46 (conversation comment `5515828479`) is **PASS — controlled freeze / provenance**, approving the exact controlled bytes at lock digest `4d78ed79c02654972a96e02f0211282e0b4386ed9e93c16cf2de255375d7c2ce` — the same digest §15.5 records. The exact-byte review is therefore **closed, and is not a D1 blocker**. The frozen preregistration text stands as written; this note carries the active status.
 - `docs/Game_Profile_Phase_3A_Item_3_Approval_and_Item_4_Handoff_2026-09-02.md`
 - `docs/calibration/Phase_3A_Item_4_Harness_Architecture_and_Equivalence.md`
 - `docs/scoring/Phase_3A_Execution_System_Instructions_v1.0.md`
@@ -135,7 +137,9 @@ If a material protocol, mapping, or anchor defect surfaces during D1–D6, recor
 
 ## Active known deferred issue
 
-The current Compare implementation is deployed/implemented but Tomas has **not** accepted its visual/UX parity with the accepted design; owner assessment is that it is barely functional and materially short of the accepted direction. This is deferred to master-checklist Item 12 and must not derail Phase 3A unless it becomes a concrete blocker.
+The current Compare implementation (Slice 4) is **implemented** in the current codebase — not deployed. No deliberate production deployment of it is recorded, and production still exposes the earlier three-profile experience; Master Plan v0.9's *Public-product state* owns that fact. Branch previews and green CI are not deployment evidence.
+
+Tomas has **not** accepted its visual/UX parity with the accepted design; owner assessment is that it is barely functional and materially short of the accepted direction. This is deferred to master-checklist Item 12 and must not derail Phase 3A unless it becomes a concrete blocker.
 
 Item 12 must also incorporate the owner-approved
 [`Freshness and accountability presentation decisions`](design/Should_I_Play_VGC_Freshness_and_Accountability_Decisions_2026-09-02.md):
