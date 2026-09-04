@@ -610,8 +610,42 @@ describe("the Work UI bootstrap prompt", () => {
   const fullProcedure = fencedTextAfter("### 5.2 Repository-owned orchestration procedure");
 
   it("fits substantially below the full procedure", () => {
-    expect(shortPrompt.length).toBeLessThan(1600);
+    // Raised from 1600 in issue #106: §5.1 is now a transcription of the live
+    // Work task's owner-approved text (issue #106 comment 5544254068), which
+    // carries the model-pinning and Phase-3A scoring-boundary sentences. The
+    // ratio assertion below is the real guard; the absolute bound only keeps
+    // the UI copy from creeping back toward §5.2.
+    expect(shortPrompt.length).toBeLessThan(2000);
     expect(shortPrompt.length).toBeLessThan(fullProcedure.length * 0.25);
+  });
+
+  it("states its own character count accurately", () => {
+    // §5.1 tells Tomas what to paste and how long it should be. A stale count
+    // is how the previous drift went unnoticed, so the prose is checked against
+    // the block it describes rather than trusted.
+    const stated = /Paste this verbatim — ([\d,]+) characters/.exec(guide);
+    expect(stated).not.toBeNull();
+    const claimed = Number(((stated as RegExpExecArray)[1] as string).replace(/,/g, ""));
+    expect(claimed).toBe(shortPrompt.trimEnd().length);
+  });
+
+  it("claims no model identity the platform cannot guarantee", () => {
+    // Issue #106: the Work UI does not guarantee an event-triggered task runs
+    // on GPT-5.6 Sol High, so the prompt must not assert that it does. It
+    // states the role, and states that pinning is not a safety precondition.
+    expect(shortPrompt).not.toMatch(/You are GPT-[\d.]/);
+    expect(shortPrompt).toContain("program owner/orchestrator");
+    expect(shortPrompt).toContain("model pinning is not an orchestration safety precondition");
+  });
+
+  it("keeps the Phase-3A scoring role behind a verified runtime", () => {
+    // Accepting an unpinned runtime is an operating-surface decision, not a
+    // scoring-methodology amendment: an unverifiable runtime still may not
+    // take the editorial scoring role.
+    expect(shortPrompt).toContain("editorial scoring action");
+    expect(shortPrompt).toContain("verified model/runtime");
+    expect(shortPrompt).toContain("authorized scoring surface");
+    expect(fullProcedure).toContain("designated Phase-3A editorial scorer");
   });
 
   it("establishes the safety boundary before any mutation", () => {
