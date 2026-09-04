@@ -11,38 +11,48 @@
  *                      outputs with no network call, which is how the receipts'
  *                      determinism is checked against a previous run.
  *
+ * `--attempt <n>` names which attempt of this pair is being recorded and defaults
+ * to 1. Each attempt has its own immutable run directory, so a repeated measured
+ * call cannot land on a previous attempt's artifacts.
+ *
  * It never chooses a score, an anchor, a rationale or a confidence label, never
  * repairs model output, never adjudicates and never writes to a database.
  * Artifacts land in the git-ignored `calibration-runs/` tree (Item 4 work order
  * §3.8), and a failed attempt is kept there as evidence.
  */
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import {
   D1_SCORING_MAX_OUTPUT_TOKENS,
   buildD1PairReceipt,
+  buildD1ScoringCapture,
   buildD1ScoringPair,
   completeD1ScoringPass,
+  d1ScoringPairArtifacts,
+  d1ScoringPassArtifacts,
   runD1ScoringPass,
   type D1PassResult,
   type D1ResearchHandoff,
+  type D1ScoringCapture,
   type D1ScoringPair,
   type D1ScoringRunFacts,
 } from "@/lib/calibration/d1-scoring";
+import {
+  ArtifactIntegrityError,
+  assertRunDirectoryUnwritten,
+  attemptRunDir,
+  firstFreeAttempt,
+  parseAttempt,
+  readVerifiedArtifact,
+  writeVerifiedArtifacts,
+  type ArtifactSpec,
+} from "@/lib/calibration/artifact-store";
 import { readApiKey } from "@/lib/calibration/openai-client";
 import { PREREGISTERED_MODEL, type RunRole } from "@/lib/calibration/request-builder";
-import type { ModelScoringPass } from "@/lib/calibration/scoring-pass-contract";
 import { appendLedgerEntry, DEFAULT_LEDGER_DIR } from "@/lib/calibration/ledger";
-import { redact, redactDeep, safeError } from "@/lib/calibration/redact";
+import { redact, safeError } from "@/lib/calibration/redact";
 
 const ARTIFACT_ROOT = path.join(DEFAULT_LEDGER_DIR, "d1-scoring");
-
-interface CaptureFile {
-  readonly role: RunRole;
-  readonly facts: D1ScoringRunFacts;
-  readonly output: ModelScoringPass;
-  readonly request_semantic_digest: string;
-}
 
 function isCiEnvironment(env: NodeJS.ProcessEnv): boolean {
   return Boolean(env.CI || env.GITHUB_ACTIONS || env.BUILDKITE || env.CF_PAGES);
@@ -54,10 +64,6 @@ function flagValue(argv: readonly string[], name: string): string | null {
   return argv[index + 1] ?? null;
 }
 
-function readJson<T>(file: string): T {
-  return JSON.parse(readFileSync(file, "utf8")) as T;
-}
-
 /**
  * Load the three slice-B artifacts as one handoff.
  *
@@ -65,6 +71,10 @@ function readJson<T>(file: string): T {
  * that was frozen — `corpus.json` holds the digest that commits to it and
  * `receipt.json` holds the controlled-input lock it was frozen under — so asking
  * for the directory rather than the file is what makes the drift gates possible.
+ *
+ * Each file is read through the verifying reader, so a slice-B artifact edited
+ * or corrupted after it was written is refused here rather than being carried
+ * into a billable scoring call.
  */
 function readHandoff(dir: string): D1ResearchHandoff {
   const files = ["semantic-input.json", "corpus.json", "receipt.json"];
@@ -77,13 +87,13 @@ function readHandoff(dir: string): D1ResearchHandoff {
     }
   }
   return {
-    semanticInput: readJson(path.join(dir, "semantic-input.json")),
-    corpus: readJson(path.join(dir, "corpus.json")),
-    receipt: readJson(path.join(dir, "receipt.json")),
+    semanticInput: readVerifiedArtifact(path.join(dir, "semantic-input.json")),
+    corpus: readVerifiedArtifact(path.join(dir, "corpus.json")),
+    receipt: readVerifiedArtifact(path.join(dir, "receipt.json")),
   };
 }
 
-function printPlan(pair: D1ScoringPair, source: string): void {
+function printPlan(pair: D1ScoringPair, source: string, attempt: number, attemptDir: string): void {
   const request = pair.primary;
   console.log("Phase 3A D1 paired scoring — plan\n");
   console.log(`  run key                 ${pair.runKey} (Alan Wake 2, base main campaign)`);
@@ -106,6 +116,8 @@ function printPlan(pair: D1ScoringPair, source: string): void {
   console.log(`  normalized packet       ${request.digests.normalized_packet_digest}`);
   console.log(`  semantic request        ${pair.semanticRequestDigest}`);
   console.log(`  pair id                 ${pair.pairId}`);
+  console.log(`  attempt                 ${attempt}`);
+  console.log(`  run directory           ${attemptDir}`);
 
   console.log("\n  pair proof (ADR 0036 §5)");
   console.log(`    instructions          ${pair.primary.instructions === pair.audit.instructions ? "identical" : "DIFFER"}`);
@@ -132,9 +144,25 @@ function printPlan(pair: D1ScoringPair, source: string): void {
   console.log("    run role              assigned only after model output (§4.2)");
 }
 
-function writeArtifact(dir: string, name: string, value: unknown): void {
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(path.join(dir, `${name}.json`), `${JSON.stringify(redactDeep(value), null, 2)}\n`, "utf8");
+/**
+ * Persist verbatim, then prove the bytes on disk.
+ *
+ * Nothing is redacted here. A digest commits to exact bytes, so editing a
+ * measured artifact after its digest exists would make the receipt describe a
+ * file that no longer exists; credential redaction stays on the console, error
+ * and ledger surfaces, which are where a key can actually appear.
+ */
+function persist(dir: string, specs: readonly ArtifactSpec[], label: string): void {
+  const records = writeVerifiedArtifacts(dir, specs);
+  console.log(`\n  persisted ${label} — verbatim, re-verified from the bytes on disk`);
+  for (const record of records) {
+    console.log(
+      `    ${`${record.name}.json`.padEnd(20)} ${String(record.byte_length).padStart(9)} bytes  sha256 ${record.file_sha256}`,
+    );
+    if (record.verified.length > 0) {
+      console.log(`    ${" ".repeat(20)} re-derived: ${record.verified.join(", ")}`);
+    }
+  }
 }
 
 function ledgerBase(pair: D1ScoringPair, role: RunRole, facts: D1ScoringRunFacts) {
@@ -175,24 +203,17 @@ function ledgerBase(pair: D1ScoringPair, role: RunRole, facts: D1ScoringRunFacts
  * Write one pass's artifacts. Shared by `--live` and `--replay` so a replay
  * reproduces the same files from the same capture — which is what makes the
  * receipt-digest comparison a determinism check rather than a spot check.
+ *
+ * A replay writes byte-identical files, which the immutable writer permits. A
+ * replay that derived anything different would be refused instead of quietly
+ * replacing the measured artifact it disagrees with.
  */
 function writePassArtifacts(
-  pair: D1ScoringPair,
+  attemptDir: string,
   result: D1PassResult,
-  facts: D1ScoringRunFacts,
-  output: ModelScoringPass,
+  capture: D1ScoringCapture,
 ): void {
-  const dir = path.join(ARTIFACT_ROOT, pair.pairId, result.role);
-  writeArtifact(dir, "capture", {
-    role: result.role,
-    facts,
-    output,
-    request_semantic_digest: pair.semanticRequestDigest,
-  } satisfies CaptureFile);
-  writeArtifact(dir, "manifest", result.manifest);
-  writeArtifact(dir, "pass", result.pass);
-  writeArtifact(dir, "validation", result.validation);
-  writeArtifact(dir, "receipt", result.receipt);
+  persist(path.join(attemptDir, result.role), d1ScoringPassArtifacts({ result, capture }), `${result.role} pass`);
 }
 
 function summarisePass(result: D1PassResult, facts: D1ScoringRunFacts): void {
@@ -211,8 +232,14 @@ function summarisePass(result: D1PassResult, facts: D1ScoringRunFacts): void {
 }
 
 /** Record one completed measured pass: artifacts, ledger row and console summary. */
-function recordPass(pair: D1ScoringPair, result: D1PassResult, facts: D1ScoringRunFacts, output: ModelScoringPass): void {
-  writePassArtifacts(pair, result, facts, output);
+function recordPass(
+  attemptDir: string,
+  pair: D1ScoringPair,
+  result: D1PassResult,
+  facts: D1ScoringRunFacts,
+  capture: D1ScoringCapture,
+): void {
+  writePassArtifacts(attemptDir, result, capture);
 
   appendLedgerEntry({
     ...ledgerBase(pair, result.role, facts),
@@ -228,30 +255,63 @@ function recordPass(pair: D1ScoringPair, result: D1PassResult, facts: D1ScoringR
 }
 
 /** Record an attempt that produced no usable output. Failed attempts are evidence. */
-function recordFailure(pair: D1ScoringPair, role: RunRole, facts: D1ScoringRunFacts, errorClass: string | null, errorMessage: string | null): void {
-  const dir = path.join(ARTIFACT_ROOT, pair.pairId, role);
-  writeArtifact(dir, "failed-attempt", {
-    role,
-    facts,
-    error_class: errorClass,
-    error_message: errorMessage,
-    request_semantic_digest: pair.semanticRequestDigest,
-  });
+function recordFailure(
+  attemptDir: string,
+  pair: D1ScoringPair,
+  role: RunRole,
+  facts: D1ScoringRunFacts,
+  errorClass: string | null,
+  errorMessage: string | null,
+): void {
+  // This artifact carries a provider error string rather than model output, so
+  // it is one of the credential-bearing surfaces redaction still owns. It binds
+  // no digest, so redacting it invalidates nothing.
+  const safeClass = errorClass === null ? null : redact(errorClass);
+  const safeMessage = errorMessage === null ? null : redact(errorMessage);
+  try {
+    persist(
+      path.join(attemptDir, role),
+      [
+        {
+          name: "failed-attempt",
+          value: {
+            role,
+            facts,
+            error_class: safeClass,
+            error_message: safeMessage,
+            request_semantic_digest: pair.semanticRequestDigest,
+          },
+        },
+      ],
+      `${role} failed attempt`,
+    );
+  } catch (error) {
+    console.error(
+      `\n  the ${role} failed attempt could not be retained: ${redact(error instanceof Error ? error.message : String(error))}`,
+    );
+  }
   appendLedgerEntry({
     ...ledgerBase(pair, role, facts),
     run_id: `${pair.pairId}-${role}-a${facts.attempt}-failed`,
     structured_output_digest: null,
     validation_failures: [],
     outcome: "failed_api",
-    error_class: errorClass,
-    error_message: errorMessage,
+    error_class: safeClass,
+    error_message: safeMessage,
   });
-  console.error(`\n  ${role} pass failed: ${redact(errorMessage ?? "unknown error")}`);
+  console.error(`\n  ${role} pass failed: ${safeMessage ?? "unknown error"}`);
 }
 
-function reportPair(pair: D1ScoringPair, primary: D1PassResult | null, audit: D1PassResult | null, primaryFailure: string | null, auditFailure: string | null): boolean {
+function reportPair(
+  attemptDir: string,
+  pair: D1ScoringPair,
+  primary: D1PassResult | null,
+  audit: D1PassResult | null,
+  primaryFailure: string | null,
+  auditFailure: string | null,
+): boolean {
   const receipt = buildD1PairReceipt({ pair, primary, audit, primaryFailure, auditFailure });
-  writeArtifact(path.join(ARTIFACT_ROOT, pair.pairId), "pair-receipt", receipt);
+  persist(attemptDir, d1ScoringPairArtifacts(receipt), "pair receipt");
 
   console.log("\nPair result\n");
   console.log(`  pair id                 ${receipt.pair_id}`);
@@ -264,7 +324,7 @@ function reportPair(pair: D1ScoringPair, primary: D1PassResult | null, audit: D1
     console.log(`    … ${receipt.blocking_reasons.length - 20} more; see pair-receipt.json`);
   }
   console.log(`  receipt digest          ${receipt.receipt_digest}`);
-  console.log(`  artifacts               ${path.join(ARTIFACT_ROOT, pair.pairId)}`);
+  console.log(`  artifacts               ${attemptDir}`);
   console.log(
     "\nEditorial scoring judgment — anchors, rationales, confidence, adjudication — belongs to\n" +
       "the GPT-5.6 Sol High orchestrator and begins from these raw outputs. This command\n" +
@@ -293,9 +353,19 @@ async function main(): Promise<void> {
     return;
   }
 
-  // Every gate runs before any mode branches: controlled bytes, research-lock
-  // continuity, handoff digest binding, scope lock, scoring-view isolation, then
-  // the pair proof. A refusal here means no request exists to send.
+  let attempt: number;
+  try {
+    attempt = parseAttempt(flagValue(argv, "--attempt"));
+  } catch (error) {
+    console.error(redact(error instanceof Error ? error.message : String(error)));
+    process.exitCode = 1;
+    return;
+  }
+
+  // Every gate runs before any mode branches: artifact read-back verification,
+  // controlled bytes, research-lock continuity, handoff digest binding, scope
+  // lock, scoring-view isolation, then the pair proof. A refusal here means no
+  // request exists to send.
   let pair: D1ScoringPair;
   let handoff: D1ResearchHandoff;
   try {
@@ -309,18 +379,37 @@ async function main(): Promise<void> {
     return;
   }
 
-  printPlan(pair, runDir);
+  const attemptDir = attemptRunDir(ARTIFACT_ROOT, pair.pairId, attempt);
+
+  printPlan(pair, runDir, attempt, attemptDir);
 
   if (replay) {
     const results: Partial<Record<RunRole, D1PassResult>> = {};
     for (const role of ["primary", "audit"] as const) {
-      const file = path.join(ARTIFACT_ROOT, pair.pairId, role, "capture.json");
+      const file = path.join(attemptDir, role, "capture.json");
       if (!existsSync(file)) {
         console.error(`\nNo capture to replay for the ${role} pass at ${file}.`);
         process.exitCode = 1;
         return;
       }
-      const capture = readJson<CaptureFile>(file);
+      let capture: D1ScoringCapture;
+      try {
+        // Read-back verification: a capture whose recorded `output_digest` no
+        // longer describes its own bytes is refused rather than replayed into a
+        // receipt that would then commit to the damage.
+        capture = readVerifiedArtifact<D1ScoringCapture>(file);
+        if (typeof capture.output_digest !== "string") {
+          throw new ArtifactIntegrityError(
+            `${file}: the capture records no output_digest, so its persisted model output cannot be verified.`,
+          );
+        }
+      } catch (error) {
+        console.error(
+          `\nRefusing to replay the ${role} pass: ${redact(error instanceof Error ? error.message : String(error))}`,
+        );
+        process.exitCode = 1;
+        return;
+      }
       if (capture.request_semantic_digest !== pair.semanticRequestDigest) {
         console.error(
           `\nRefusing to replay the ${role} pass: the capture was produced from a different semantic request.\n` +
@@ -338,21 +427,45 @@ async function main(): Promise<void> {
         output: capture.output,
         facts: capture.facts,
       });
-      const priorReceipt = path.join(ARTIFACT_ROOT, pair.pairId, role, "receipt.json");
+      const priorReceipt = path.join(attemptDir, role, "receipt.json");
       if (existsSync(priorReceipt)) {
-        const prior = readJson<{ receipt_digest: string }>(priorReceipt);
-        const identical = prior.receipt_digest === result.receipt.receipt_digest;
-        console.log(`\n  ${role} replay vs prior receipt  ${identical ? "IDENTICAL" : "DIFFERS"}`);
-        if (!identical) process.exitCode = 1;
+        try {
+          const prior = readVerifiedArtifact<{ receipt_digest: string }>(priorReceipt);
+          const identical = prior.receipt_digest === result.receipt.receipt_digest;
+          console.log(`\n  ${role} replay vs prior receipt  ${identical ? "IDENTICAL" : "DIFFERS"}`);
+          if (!identical) process.exitCode = 1;
+        } catch (error) {
+          console.error(
+            `\nThe prior ${role} receipt failed read-back verification:\n${redact(error instanceof Error ? error.message : String(error))}`,
+          );
+          process.exitCode = 1;
+          return;
+        }
       }
       results[role] = result;
       // Artifacts are rewritten, but no ledger row is appended: a replay
-      // re-derives an existing attempt and is not a new one.
-      writePassArtifacts(pair, result, capture.facts, capture.output);
+      // re-derives an existing attempt and is not a new one. The writer permits
+      // the byte-identical rewrite and refuses anything else.
+      try {
+        writePassArtifacts(attemptDir, result, capture);
+      } catch (error) {
+        console.error(
+          `\nThe ${role} replay was not persisted:\n${redact(error instanceof Error ? error.message : String(error))}`,
+        );
+        process.exitCode = 1;
+        return;
+      }
       summarisePass(result, capture.facts);
     }
-    const counted = reportPair(pair, results.primary ?? null, results.audit ?? null, null, null);
-    if (!counted) process.exitCode = 1;
+    try {
+      const counted = reportPair(attemptDir, pair, results.primary ?? null, results.audit ?? null, null, null);
+      if (!counted) process.exitCode = 1;
+    } catch (error) {
+      console.error(
+        `\nThe replayed pair receipt was not persisted:\n${redact(error instanceof Error ? error.message : String(error))}`,
+      );
+      process.exitCode = 1;
+    }
     return;
   }
 
@@ -376,6 +489,23 @@ async function main(): Promise<void> {
     return;
   }
 
+  // Preregistration §9.1 preserves primary and audit outputs immutably and §9.3
+  // preserves old runs. This refusal is a preflight rather than only a
+  // write-time check: refusing after the calls would keep the prior artifacts
+  // but throw away the evidence just paid for.
+  try {
+    assertRunDirectoryUnwritten(attemptDir, {
+      what: `Attempt ${attempt} of this D1 scoring pair`,
+      remedy:
+        "Record these calls as a new attempt: re-run with --attempt " +
+        `${firstFreeAttempt(ARTIFACT_ROOT, pair.pairId)}.`,
+    });
+  } catch (error) {
+    console.error(`\n${redact(error instanceof Error ? error.message : String(error))}`);
+    process.exitCode = 1;
+    return;
+  }
+
   let apiKey: string;
   try {
     apiKey = readApiKey();
@@ -394,34 +524,36 @@ async function main(): Promise<void> {
   for (const role of ["primary", "audit"] as const) {
     console.log(`\nSending the ${role} scoring request…`);
     const request = role === "primary" ? pair.primary : pair.audit;
-    const result = await runD1ScoringPass({ request, apiKey });
+    const result = await runD1ScoringPass({ request, apiKey, attempt });
 
     if (!result.ok || result.output === null) {
-      recordFailure(pair, role, result.facts, result.error_class, result.error_message);
+      recordFailure(attemptDir, pair, role, result.facts, result.error_class, result.error_message);
       failures[role] = result.error_message ?? result.error_class ?? "unknown error";
       continue;
     }
 
+    const capture = buildD1ScoringCapture({ pair, role, output: result.output, facts: result.facts });
+
+    let completed: D1PassResult;
     try {
-      const completed = completeD1ScoringPass({
+      completed = completeD1ScoringPass({
         pair,
         handoff,
         role,
         output: result.output,
         facts: result.facts,
       });
-      recordPass(pair, completed, result.facts, result.output);
-      results[role] = completed;
     } catch (error) {
       // The raw capture is still written: a refused attempt is evidence, and a
       // second live call to recover it would be spend the protocol does not need.
       const safe = safeError(error);
-      writeArtifact(path.join(ARTIFACT_ROOT, pair.pairId, role), "capture", {
-        role,
-        facts: result.facts,
-        output: result.output,
-        request_semantic_digest: pair.semanticRequestDigest,
-      } satisfies CaptureFile);
+      try {
+        persist(path.join(attemptDir, role), [{ name: "capture", value: capture }], `${role} capture`);
+      } catch (writeError) {
+        console.error(
+          `\n  the ${role} capture could not be retained: ${redact(writeError instanceof Error ? writeError.message : String(writeError))}`,
+        );
+      }
       appendLedgerEntry({
         ...ledgerBase(pair, role, result.facts),
         run_id: `${pair.pairId}-${role}-a${result.facts.attempt}-unassembled`,
@@ -433,17 +565,37 @@ async function main(): Promise<void> {
       });
       console.error(`\n  the ${role} output could not be assembled: ${safe.message}`);
       failures[role] = safe.message;
+      continue;
+    }
+
+    try {
+      recordPass(attemptDir, pair, completed, result.facts, capture);
+      results[role] = completed;
+    } catch (error) {
+      // Persistence refused. The pass is not recorded as measured evidence,
+      // because the harness cannot show the bytes it would be citing.
+      const message = redact(error instanceof Error ? error.message : String(error));
+      console.error(`\n  the ${role} pass was not persisted:\n${message}`);
+      failures[role] = message;
     }
   }
 
-  const counted = reportPair(
-    pair,
-    results.primary ?? null,
-    results.audit ?? null,
-    failures.primary ?? null,
-    failures.audit ?? null,
-  );
-  if (!counted) process.exitCode = 1;
+  try {
+    const counted = reportPair(
+      attemptDir,
+      pair,
+      results.primary ?? null,
+      results.audit ?? null,
+      failures.primary ?? null,
+      failures.audit ?? null,
+    );
+    if (!counted) process.exitCode = 1;
+  } catch (error) {
+    console.error(
+      `\nThe pair receipt was not persisted:\n${redact(error instanceof Error ? error.message : String(error))}`,
+    );
+    process.exitCode = 1;
+  }
 }
 
 void main();

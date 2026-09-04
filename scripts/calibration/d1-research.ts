@@ -11,26 +11,44 @@
  *                        call, which is how the freeze's determinism is checked
  *                        against a previous receipt.
  *
+ * `--attempt <n>` names which attempt of this request is being recorded and
+ * defaults to 1. Each attempt has its own immutable run directory, so a repeated
+ * measured call cannot land on a previous attempt's artifacts.
+ *
  * It never scores, never writes to a database, never accepts an IGDB identity
  * and never touches a holdout. Artifacts land in the git-ignored
  * `calibration-runs/` tree (Item 4 work order §3.8).
  */
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import {
   D1_RESEARCH_MAX_OUTPUT_TOKENS,
+  buildD1ResearchCapture,
   buildD1ResearchRequest,
+  d1ResearchArtifacts,
+  d1ResearchCaptureOnlyArtifacts,
+  d1ResearchRunStem,
   freezeD1Research,
   runD1ResearchPass,
+  type D1ResearchCapture,
   type D1ResearchRequest,
-  type D1ResearchRunFacts,
 } from "@/lib/calibration/d1-research";
+import {
+  ArtifactImmutabilityError,
+  ArtifactIntegrityError,
+  assertRunDirectoryUnwritten,
+  attemptRunDir,
+  firstFreeAttempt,
+  parseAttempt,
+  readVerifiedArtifact,
+  writeVerifiedArtifacts,
+  type ArtifactSpec,
+} from "@/lib/calibration/artifact-store";
 import { readApiKey } from "@/lib/calibration/openai-client";
 import { D1_RUN_INPUT, type D1MaturityRevalidation } from "@/lib/calibration/run-input";
 import { PREREGISTERED_MODEL } from "@/lib/calibration/request-builder";
-import type { ModelResearchPass } from "@/lib/calibration/research-pass";
 import { appendLedgerEntry, DEFAULT_LEDGER_DIR } from "@/lib/calibration/ledger";
-import { redact, redactDeep, safeError } from "@/lib/calibration/redact";
+import { redact, safeError } from "@/lib/calibration/redact";
 
 const ARTIFACT_ROOT = path.join(DEFAULT_LEDGER_DIR, "d1-research");
 
@@ -39,13 +57,6 @@ const MATURITY_FRESHNESS_HOURS = 24;
 
 interface MaturityFile extends D1MaturityRevalidation {
   readonly reviewedAt: string;
-}
-
-interface CaptureFile {
-  readonly facts: D1ResearchRunFacts;
-  readonly output: ModelResearchPass;
-  readonly frozen_at: string;
-  readonly request_semantic_digest: string;
 }
 
 function isCiEnvironment(env: NodeJS.ProcessEnv): boolean {
@@ -96,7 +107,7 @@ function assertMaturityIsFresh(maturity: MaturityFile, now: Date): void {
   }
 }
 
-function printPlan(request: D1ResearchRequest, maturitySource: string): void {
+function printPlan(request: D1ResearchRequest, maturitySource: string, attempt: number, runDir: string): void {
   console.log("Phase 3A D1 research collection — plan\n");
   console.log(`  run key                 ${request.runKey} (Alan Wake 2, base main campaign)`);
   console.log(`  known exclusions        ${D1_RUN_INPUT.scope.known_exclusions.join(", ")}`);
@@ -117,6 +128,8 @@ function printPlan(request: D1ResearchRequest, maturitySource: string): void {
   }
   console.log(`  transport schema        ${request.researchPassSchemaDigest}`);
   console.log(`  semantic request        ${request.digests.semantic_request_digest}`);
+  console.log(`  attempt                 ${attempt}`);
+  console.log(`  run directory           ${runDir}`);
   console.log(`  holdout isolation       wrapper payload clean`);
   if (request.isolation.controlled_byte_mentions.length === 0) {
     console.log("  controlled-byte scan    no holdout mention in the locked Item 3 bytes");
@@ -131,18 +144,24 @@ function printPlan(request: D1ResearchRequest, maturitySource: string): void {
   console.log("  scoring                 none; the research pass never scores");
 }
 
-function writeArtifacts(
-  runId: string,
-  artifacts: Readonly<Record<string, unknown>>,
-): string {
-  const dir = path.join(ARTIFACT_ROOT, runId);
-  mkdirSync(dir, { recursive: true });
-  for (const [name, value] of Object.entries(artifacts)) {
-    writeFileSync(
-      path.join(dir, `${name}.json`),
-      `${JSON.stringify(redactDeep(value), null, 2)}\n`,
-      "utf8",
+/**
+ * Persist verbatim, then prove the bytes on disk.
+ *
+ * Nothing is redacted here. A digest commits to exact bytes, so editing an
+ * artifact after its digest exists would make the receipt describe a file that
+ * no longer exists; credential redaction stays on the console, error and ledger
+ * surfaces, which are where a key can actually appear.
+ */
+function persist(dir: string, specs: readonly ArtifactSpec[]): string {
+  const records = writeVerifiedArtifacts(dir, specs);
+  console.log("\nPersisted artifacts — verbatim, re-verified from the bytes on disk\n");
+  for (const record of records) {
+    console.log(
+      `  ${`${record.name}.json`.padEnd(22)} ${String(record.byte_length).padStart(9)} bytes  sha256 ${record.file_sha256}`,
     );
+    if (record.verified.length > 0) {
+      console.log(`  ${" ".repeat(22)} re-derived: ${record.verified.join(", ")}`);
+    }
   }
   return dir;
 }
@@ -172,7 +191,9 @@ async function main(): Promise<void> {
   const now = new Date();
   let maturity: MaturityFile;
   let maturitySource: string;
+  let attempt: number;
   try {
+    attempt = parseAttempt(flagValue(argv, "--attempt"));
     const read = readMaturity(maturityFile);
     maturity = read.maturity;
     maturitySource = read.source;
@@ -204,10 +225,34 @@ async function main(): Promise<void> {
     return;
   }
 
-  printPlan(request, maturitySource);
+  const digest24 = request.digests.semantic_request_digest.slice(0, 24);
+  const runStem = d1ResearchRunStem(request.digests.semantic_request_digest);
+  const unfrozenStem = `d1-research-unfrozen-${digest24}`;
+  const runDir = attemptRunDir(ARTIFACT_ROOT, runStem, attempt);
+  const unfrozenDir = attemptRunDir(ARTIFACT_ROOT, unfrozenStem, attempt);
+
+  printPlan(request, maturitySource, attempt, runDir);
 
   if (freezeFrom) {
-    const capture = JSON.parse(readFileSync(freezeFrom, "utf8")) as CaptureFile;
+    let capture: D1ResearchCapture;
+    try {
+      // Read-back verification, not a bare parse: a capture whose recorded
+      // `output_digest` no longer describes its own bytes is refused here rather
+      // than being frozen into a corpus that would then commit to the damage.
+      capture = readVerifiedArtifact<D1ResearchCapture>(freezeFrom);
+      if (typeof capture.output_digest !== "string") {
+        throw new ArtifactIntegrityError(
+          `${freezeFrom}: the capture records no output_digest, so its persisted model output cannot be verified. Re-produce it with this command rather than hand-assembling one.`,
+        );
+      }
+    } catch (error) {
+      console.error(
+        `\nRefusing to freeze: ${redact(error instanceof Error ? error.message : String(error))}`,
+      );
+      process.exitCode = 1;
+      return;
+    }
+
     if (capture.request_semantic_digest !== request.digests.semantic_request_digest) {
       console.error(
         "\nRefusing to freeze: the capture was produced from a different semantic request.\n" +
@@ -220,27 +265,48 @@ async function main(): Promise<void> {
       process.exitCode = 1;
       return;
     }
+    if (capture.facts.attempt !== attempt) {
+      console.error(
+        `\nRefusing to freeze: the capture records attempt ${capture.facts.attempt} but --attempt is ${attempt}.\n` +
+          "An attempt's artifacts belong to that attempt's run directory; re-run with\n" +
+          `  --attempt ${capture.facts.attempt}`,
+      );
+      process.exitCode = 1;
+      return;
+    }
+
     const frozen = freezeD1Research({
       request,
       output: capture.output,
       facts: capture.facts,
       frozenAt: capture.frozen_at,
     });
-    const dir = path.join(ARTIFACT_ROOT, frozen.runId);
-    const priorReceipt = path.join(dir, "receipt.json");
-    if (existsSync(priorReceipt)) {
-      const prior = JSON.parse(readFileSync(priorReceipt, "utf8")) as { receipt_digest: string };
-      const identical = prior.receipt_digest === frozen.receipt.receipt_digest;
+    const priorReceipt = path.join(runDir, "receipt.json");
+    let identical = true;
+    try {
+      const prior = readVerifiedArtifact<{ receipt_digest: string }>(priorReceipt);
+      identical = prior.receipt_digest === frozen.receipt.receipt_digest;
       console.log(`\n  replay vs prior receipt ${identical ? "IDENTICAL" : "DIFFERS"}`);
       if (!identical) process.exitCode = 1;
+    } catch (error) {
+      if (error instanceof ArtifactIntegrityError && !error.message.includes("no such artifact")) {
+        console.error(`\nThe prior receipt failed read-back verification:\n${redact(error.message)}`);
+        process.exitCode = 1;
+        return;
+      }
     }
-    writeArtifacts(frozen.runId, {
-      corpus: frozen.corpus,
-      "semantic-input": frozen.semanticInput,
-      receipt: frozen.receipt,
-    });
+
+    try {
+      persist(runDir, d1ResearchArtifacts({ frozen, capture }));
+    } catch (error) {
+      console.error(
+        `\nThe re-freeze was not persisted:\n${redact(error instanceof Error ? error.message : String(error))}`,
+      );
+      process.exitCode = 1;
+      return;
+    }
     reportFreeze(
-      dir,
+      runDir,
       frozen.receipt.receipt_digest,
       frozen.corpus.normalized_packet_digest,
       frozen.evaluationScope.evidence_cutoff,
@@ -269,6 +335,26 @@ async function main(): Promise<void> {
     return;
   }
 
+  // Preregistration §9.3 preserves old runs. This refusal is a preflight rather
+  // than only a write-time check: refusing after the call would keep the prior
+  // artifacts but throw away the evidence just paid for.
+  try {
+    const next = Math.max(
+      firstFreeAttempt(ARTIFACT_ROOT, runStem),
+      firstFreeAttempt(ARTIFACT_ROOT, unfrozenStem),
+    );
+    const remedy = `Record this call as a new attempt: re-run with --attempt ${next}.`;
+    assertRunDirectoryUnwritten(runDir, { what: `Attempt ${attempt} of this D1 research request`, remedy });
+    assertRunDirectoryUnwritten(unfrozenDir, {
+      what: `Attempt ${attempt} of this D1 research request (refused at the freeze)`,
+      remedy,
+    });
+  } catch (error) {
+    console.error(`\n${redact(error instanceof Error ? error.message : String(error))}`);
+    process.exitCode = 1;
+    return;
+  }
+
   let apiKey: string;
   try {
     apiKey = readApiKey();
@@ -279,7 +365,7 @@ async function main(): Promise<void> {
   }
 
   console.log("\nSending the research request…");
-  const result = await runD1ResearchPass({ request, apiKey });
+  const result = await runD1ResearchPass({ request, apiKey, attempt });
 
   const ledgerBase = {
     entry_version: "1.0" as const,
@@ -315,7 +401,7 @@ async function main(): Promise<void> {
     console.error(`\nResearch call failed: ${redact(result.error_message ?? "unknown error")}`);
     appendLedgerEntry({
       ...ledgerBase,
-      run_id: `d1-research-failed-${request.digests.semantic_request_digest.slice(0, 24)}-a${result.facts.attempt}`,
+      run_id: `d1-research-failed-${digest24}-a${result.facts.attempt}`,
       normalized_packet_digest: null,
       structured_output_digest: null,
       validation_failures: [],
@@ -328,6 +414,13 @@ async function main(): Promise<void> {
   }
 
   const frozenAt = new Date().toISOString();
+  const capture = buildD1ResearchCapture({
+    request,
+    output: result.output,
+    facts: result.facts,
+    frozenAt,
+  });
+
   try {
     const frozen = freezeD1Research({
       request,
@@ -335,17 +428,7 @@ async function main(): Promise<void> {
       facts: result.facts,
       frozenAt,
     });
-    const dir = writeArtifacts(frozen.runId, {
-      capture: {
-        facts: result.facts,
-        output: result.output,
-        frozen_at: frozenAt,
-        request_semantic_digest: request.digests.semantic_request_digest,
-      } satisfies CaptureFile,
-      corpus: frozen.corpus,
-      "semantic-input": frozen.semanticInput,
-      receipt: frozen.receipt,
-    });
+    const dir = persist(runDir, d1ResearchArtifacts({ frozen, capture }));
     appendLedgerEntry({
       ...ledgerBase,
       run_id: frozen.runId,
@@ -364,21 +447,29 @@ async function main(): Promise<void> {
       frozenAt,
     );
   } catch (error) {
+    if (error instanceof ArtifactImmutabilityError || error instanceof ArtifactIntegrityError) {
+      // The freeze itself succeeded; persistence refused. Do not fall through to
+      // the unfrozen path, which would record a validation failure that did not
+      // happen.
+      console.error(`\nThe frozen research run was not persisted:\n${redact(error.message)}`);
+      process.exitCode = 1;
+      return;
+    }
     const safe = safeError(error);
     console.error(`\nThe research output was refused at the freeze:\n${safe.message}`);
     // The raw capture is still written: a refused attempt is evidence, and a
     // second live call to recover it would be spend the protocol does not need.
-    const dir = writeArtifacts(`d1-research-unfrozen-${request.digests.semantic_request_digest.slice(0, 24)}`, {
-      capture: {
-        facts: result.facts,
-        output: result.output,
-        frozen_at: frozenAt,
-        request_semantic_digest: request.digests.semantic_request_digest,
-      } satisfies CaptureFile,
-    });
+    try {
+      const dir = persist(unfrozenDir, d1ResearchCaptureOnlyArtifacts(capture));
+      console.error(`  capture retained in    ${dir}`);
+    } catch (writeError) {
+      console.error(
+        `  the capture could not be retained: ${redact(writeError instanceof Error ? writeError.message : String(writeError))}`,
+      );
+    }
     appendLedgerEntry({
       ...ledgerBase,
-      run_id: `d1-research-unfrozen-${request.digests.semantic_request_digest.slice(0, 24)}-a${result.facts.attempt}`,
+      run_id: `${unfrozenStem}-a${result.facts.attempt}`,
       normalized_packet_digest: null,
       structured_output_digest: null,
       validation_failures: [safe.message],
@@ -386,7 +477,6 @@ async function main(): Promise<void> {
       error_class: safe.error_class,
       error_message: safe.message,
     });
-    console.error(`  capture retained in    ${dir}`);
     process.exitCode = 1;
   }
 }
