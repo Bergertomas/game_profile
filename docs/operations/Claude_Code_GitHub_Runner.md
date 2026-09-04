@@ -38,8 +38,10 @@ The repository runner deliberately gives higher-effort work more breathing room:
 | Trigger | Effort | Default turn ceiling | Intended posture |
 |---|---|---:|---|
 | `@claude` | `high` | 50 | ordinary bounded implementation with enough room for mandatory preflight and handoff |
-| `/claude-extra` | `xhigh` | 75 | complex/cross-cutting work that benefits from materially deeper exploration and verification |
-| `/claude-max` | `max` | 100 | unusually demanding groundwork, architecture, planning, oversight, or high-consequence synthesis |
+| `/claude-extra` | `xhigh` | 100 | complex/cross-cutting work that benefits from materially deeper exploration and verification |
+| `/claude-max` | `max` | 150 | unusually demanding groundwork, architecture, planning, oversight, or high-consequence synthesis |
+
+These are the live values in `.github/workflows/claude.yml`. The xhigh and Max ceilings were raised from 75/100 in PR #78 after two consecutive naturally coherent xhigh assignments reached 78 and 76 turns against the previous 75-turn envelope — one completing just past the ceiling, one losing its local work at it. High stays at its owner-approved 50. That adjustment applied this section's own rule: correct the envelope rather than atomize coherent work.
 
 These ceilings are defaults, not work quotas. Claude should stop as soon as the accepted assignment is complete. The orchestrator should periodically inspect run behavior and historical ceiling usage; if a lane routinely finishes with large unused headroom, leave it alone unless the extra envelope causes a concrete problem. If a lane routinely hits the ceiling on otherwise well-sized coherent assignments, adjust the runner policy rather than mechanically slicing work smaller and smaller.
 
@@ -133,7 +135,7 @@ Repository `CLAUDE.md` imports `AGENTS.md`, so every material runner task inheri
 
 The workflow listens only to newly created issue/PR conversation comments and inline PR review comments containing one of the three effort triggers. A run is serialized per issue/PR so two Claude executions do not race on the same work item.
 
-The runner uses Opus 5 with effort-sensitive turn headroom: High 50, xhigh 75, Max 100. The GitHub Actions job timeout is 240 minutes. These are safety envelopes; Claude should stop once the bounded assignment and required handoff are complete. The runner may read GitHub Actions results. Full raw Claude output is not enabled by the workflow.
+The runner uses Opus 5 with effort-sensitive turn headroom: High 50, xhigh 100, Max 150. The GitHub Actions job timeout is 240 minutes. These are safety envelopes; Claude should stop once the bounded assignment and required handoff are complete. The runner may read GitHub Actions results. Full raw Claude output is not enabled by the workflow.
 
 The runner does not allow bot-triggered invocations by default. Program-owner comments created through the connected GitHub account are expected to arrive as the repository owner; verify this in the harmless dry run before relying on automated orchestrator-to-Claude handoff.
 
