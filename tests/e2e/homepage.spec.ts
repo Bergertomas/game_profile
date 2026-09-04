@@ -36,6 +36,48 @@ const scrollLeft = (page: Page) =>
 const maxScroll = (page: Page) =>
   track(page).evaluate((element) => element.scrollWidth - element.clientWidth);
 
+/**
+ * Resolves once the track has stopped moving, and answers where it stopped.
+ *
+ * A step scrolls smoothly and the track snaps by proximity afterwards, so for
+ * a few hundred milliseconds after a press the rail is somewhere between two
+ * answers — and the step controls, which are disabled from a live measurement
+ * of `scrollLeft`, are still changing with it. Reading a control's state in
+ * that window and acting on the reading afterwards is a check of something
+ * that has already stopped being true: the CI failure this replaced saw
+ * `isEnabled()` return true mid-flight, then hung the whole test on a
+ * `click()` that could never become actionable because the scroll had
+ * meanwhile reached the end and disabled the button.
+ *
+ * A fixed wait cannot fix that — it only moves the window. So every question
+ * this file asks about the controls is asked of a rail that is demonstrably at
+ * rest: the same scroll offset across consecutive animation frames, which is
+ * the only state in which the answer is stable. The deadline is a backstop so
+ * a rail that genuinely never settles fails on the assertion that follows,
+ * with its own message, rather than here.
+ */
+async function settle(page: Page): Promise<number> {
+  await track(page).evaluate(
+    (element) =>
+      new Promise<void>((resolve) => {
+        const deadline = performance.now() + 4000;
+        let last = element.scrollLeft;
+        let still = 0;
+        const frame = () => {
+          if (element.scrollLeft === last) still += 1;
+          else {
+            still = 0;
+            last = element.scrollLeft;
+          }
+          if (still >= 8 || performance.now() > deadline) resolve();
+          else requestAnimationFrame(frame);
+        };
+        requestAnimationFrame(frame);
+      }),
+  );
+  return scrollLeft(page);
+}
+
 test.describe("the accepted composition", () => {
   test("runs proposition, rail, then the explainer — in that order", async ({
     page,
@@ -152,27 +194,36 @@ test.describe("the rail", () => {
     await expect(next(page)).toBeEnabled();
 
     const viewport = await track(page).evaluate((el) => el.clientWidth);
+    const furthest = await maxScroll(page);
     await next(page).click();
     // One press moves the track by its own visible width — or to the end of the
     // rail, whichever comes first. A press that moved a poster's width, or the
     // whole rail, would both be guesses a reader has to re-read the row to
-    // recover from.
-    await expect
-      .poll(() => scrollLeft(page), { timeout: 5000 })
-      .toBeGreaterThan(Math.min(viewport, await maxScroll(page)) * 0.5);
+    // recover from. Measured where the press actually left the rail, not at the
+    // first frame that happens to clear the bar.
+    expect(await settle(page)).toBeGreaterThan(Math.min(viewport, furthest) * 0.5);
     await expect(previous(page)).toBeEnabled();
 
     // Keep pressing until the rail runs out. However few posters the catalogue
     // has, the far control ends up disabled and the near one live.
-    for (let press = 0; press < 6 && (await next(page).isEnabled()); press += 1) {
-      await next(page).click();
-      await page.waitForTimeout(400);
+    //
+    // Every press is decided from a rail at rest, so "is the far control still
+    // live?" and "press it" describe the same moment. The bounded click timeout
+    // is the second half of that: if the control ever does disable under a
+    // press this loop believed was available, the test says so in seconds
+    // instead of waiting out the whole test budget on an unreachable element.
+    for (let press = 0; press < 6; press += 1) {
+      await settle(page);
+      if (!(await next(page).isEnabled())) break;
+      await next(page).click({ timeout: 5000 });
     }
-    await expect(next(page)).toBeDisabled({ timeout: 5000 });
+    await settle(page);
+    await expect(next(page)).toBeDisabled();
     await expect(previous(page)).toBeEnabled();
 
-    await previous(page).click();
-    await expect(next(page)).toBeEnabled({ timeout: 5000 });
+    await previous(page).click({ timeout: 5000 });
+    await settle(page);
+    await expect(next(page)).toBeEnabled();
   });
 
   test("keeps native scrolling, and the controls follow it", async ({
