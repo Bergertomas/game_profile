@@ -17,16 +17,25 @@ For the first **material** Should I Play? task in every new repository-native ag
 1. Verify the current `main` HEAD rather than relying on a remembered commit.
 2. Read this `AGENTS.md`.
 3. Read `docs/Should_I_Play_Orchestrator_Bootstrap.md`.
-4. Follow the bootstrap's current-phase mandatory read set.
-5. Read the task-specific governing document(s), relevant ADRs, and affected implementation/tests before acting.
-6. For any task that implements or audits an accepted Claude/Fable public surface for visual fidelity, also read `docs/design/Should_I_Play_Canonical_Design_Source.md` and import the canonical Claude Design file it names before editing; stop rather than reconstruct the accepted composition from prose, screenshots or memory.
+4. Read `docs/Should_I_Play_Working_Agreement.md`.
+5. Read `docs/operations/Should_I_Play_AI_Role_Allocation_2026-09-05.md`.
+6. Follow the bootstrap's current-phase mandatory read set.
+7. Read the task-specific governing document(s), relevant ADRs, and affected implementation/tests before acting.
+8. For any task that implements or audits an accepted Claude/Fable public surface for visual fidelity, also read `docs/design/Should_I_Play_Canonical_Design_Source.md` and import the canonical Claude Design file it names before editing; stop rather than reconstruct the accepted composition from prose, screenshots or memory.
 
 If current repository authority cannot be read, disclose that limitation and stop before making a material project decision from chat/model memory alone. The bootstrap is a navigation/status aid; repository governing documents remain authoritative.
 
-Then read `docs/Should_I_Play_Working_Agreement.md`. It is the canonical
-cross-chat process for task framing, routine Git authority, review thresholds,
-verification depth, integration, and production approval. It governs how work is
-done; it does not override the product authorities below.
+`docs/Should_I_Play_Working_Agreement.md` is the canonical cross-chat process for
+task framing, routine Git authority, review thresholds, verification depth,
+integration, and production approval. It governs how work is done; it does not
+override the product authorities below.
+
+`docs/operations/Should_I_Play_AI_Role_Allocation_2026-09-05.md` is the current
+owner-approved amendment for model/runtime and agent routing. Where older current-
+state prose says GPT-5.6 Sol High permanently owns orchestration or describes
+Codex only as a selective specialist, the role-allocation record governs. It does
+not supersede a separately frozen model/runtime contract such as Phase 3A ADR
+0036 and the approved preregistration.
 
 Before beginning material product, editorial, design, data-model, or implementation work, read:
 
@@ -54,6 +63,8 @@ Use these authority boundaries:
   discovery, metadata, time, analytics, commerce, release, personalization and
   corrected-artwork decisions; where it explicitly records a later correction,
   it supersedes the 24 August wording.
+- The Working Agreement owns cross-chat delivery/process rules; the AI Role Allocation record owns current model/runtime and agent routing where older process prose conflicts with it.
+- The AI Role Allocation record does not amend a model/configuration frozen by a methodology decision, preregistration, or scoring execution ADR.
 - The Rubric exclusively owns scoring meaning, criteria, derivation, Unknown/range behavior, and evaluation rules.
 - The Evidence SOP exclusively owns evidence collection, sourcing, reconciliation, confidence, and ledger procedure.
 - The candidate Scoring Protocol operationalizes evidence-to-number work but is not governing until its calibration gates pass and Tomas approves it; its explicit proposed supersessions remain provisional meanwhile.
