@@ -6,16 +6,14 @@
 
 **Date verified:** 2026-09-04
 
-> **Pending owner action.** The corrected bridge is staged at
-> `docs/operations/patches/orchestrator-wake.yml` and is not live yet. The
-> repository-native Claude runner's GitHub App token cannot push
-> `.github/workflows/**`, so the file it authored and proved has to be applied
-> by the owner — `docs/operations/patches/README.md` has the one command. Until
-> it is applied, the live bridge still discriminates on `run.name` and still
-> holds the permission set that produced the 403 in §3.2, which means **no
-> Claude completion wakes anything and no wake comment can be posted at all**.
-> This section of the guide describes the corrected bridge, which is what the
-> test suite runs.
+> **The corrections in §3.2 are not live on `main` until this branch merges.**
+> The repository-native Claude runner's GitHub App token cannot push
+> `.github/workflows/**`, so the corrected bridge was authored and proved by the
+> runner and committed to the branch by the owner. Until it merges, the bridge
+> on `main` still discriminates on `run.name` and still holds the permission set
+> that produced the 403 in §3.2 — meaning **no Claude completion wakes anything
+> and no wake comment can be posted at all**. `workflow_run` executes only from
+> the default branch, so §7 cannot run before the merge either.
 
 ## 1. Purpose and control boundary
 

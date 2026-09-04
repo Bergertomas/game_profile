@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 /**
@@ -39,18 +39,7 @@ import { describe, expect, it } from "vitest";
  * source, not a re-implementation of it.
  */
 
-/**
- * The runner's GitHub App token cannot push `.github/workflows/**`, so a
- * corrected bridge lands in `docs/operations/patches/` first and the owner
- * applies it verbatim. Read the staged copy while it exists and the live
- * workflow once it is gone — either way, the file under test is the one that
- * will actually run. `docs/operations/patches/README.md` owns the procedure.
- */
-const STAGED_PATH = "docs/operations/patches/orchestrator-wake.yml";
-const LIVE_PATH = ".github/workflows/orchestrator-wake.yml";
-
-const stagedExists = existsSync(STAGED_PATH);
-const workflowPath = stagedExists ? STAGED_PATH : LIVE_PATH;
+const workflowPath = ".github/workflows/orchestrator-wake.yml";
 const workflowSource = readFileSync(workflowPath, "utf8");
 
 /**
@@ -654,18 +643,5 @@ describe("the Work UI bootstrap prompt", () => {
     // A percentage pasted into a SaaS field is an undated copy that drifts.
     expect(shortPrompt).not.toMatch(/\d+\s*[–-]\s*\d+\s*%/);
     expect(shortPrompt).not.toMatch(/\d+%/);
-  });
-});
-
-describe("staged patch hygiene", () => {
-  it("is deleted once the live workflow carries it", () => {
-    if (!stagedExists) return;
-
-    const live = readFileSync(LIVE_PATH, "utf8");
-    expect(
-      live === workflowSource,
-      `${STAGED_PATH} has been applied to ${LIVE_PATH}. Delete the staged copy ` +
-        "so one file owns the bridge (see docs/operations/patches/README.md).",
-    ).toBe(false);
   });
 });
