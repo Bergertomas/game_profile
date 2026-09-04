@@ -610,8 +610,8 @@ describe("the Work UI bootstrap prompt", () => {
   const fullProcedure = fencedTextAfter("### 5.2 Repository-owned orchestration procedure");
 
   it("fits substantially below the full procedure", () => {
-    expect(shortPrompt.length).toBeLessThan(2600);
-    expect(shortPrompt.length).toBeLessThan(fullProcedure.length * 0.4);
+    expect(shortPrompt.length).toBeLessThan(1600);
+    expect(shortPrompt.length).toBeLessThan(fullProcedure.length * 0.25);
   });
 
   it("establishes the safety boundary before any mutation", () => {
@@ -623,20 +623,23 @@ describe("the Work UI bootstrap prompt", () => {
       "Bergertomas/game_profile",
       "event_id",
       "untrusted",
-      "main` HEAD",
+      "verify current `main`",
       "AGENTS.md",
       "docs/Should_I_Play_Orchestrator_Bootstrap.md",
       "docs/Should_I_Play_Working_Agreement.md",
       "should-i-play-orchestrator-claim:v1",
       "lowest comment ID",
-      "fail closed",
+      "read-only diagnosis",
     ]) {
       expect(shortPrompt).toContain(required);
     }
   });
 
   it("hands off to the repository-owned procedure", () => {
-    expect(shortPrompt).toContain("docs/operations/ChatGPT_Work_GitHub_Wake.md` §5.2");
+    expect(shortPrompt).toContain("§5.2");
+    // The guide is named in the preflight read set, so the hand-off target is
+    // unambiguous without repeating the path a second time.
+    expect(shortPrompt).toContain("docs/operations/ChatGPT_Work_GitHub_Wake.md");
   });
 
   it("carries no mutable operating policy the Working Agreement owns", () => {
