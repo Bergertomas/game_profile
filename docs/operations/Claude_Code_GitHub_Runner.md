@@ -23,6 +23,16 @@ Claude does not self-authorize checklist advancement, production activation, pub
 
 For an issue-triggered implementation that changes repository files, Claude must complete the handoff itself: push the scoped branch and open the pull request (for example with the repo-scoped `gh pr create`) rather than leaving Tomas a manual “create PR” link. This is a transport responsibility, not merge authority. On an existing PR, Claude updates that PR's branch instead of opening a competing PR.
 
+## Assignment sizing and runner-envelope discipline
+
+Size every Claude assignment to **comfortably complete inside the runner's bounded turn budget**, including repository preflight, implementation, proportional verification, commit/push, and PR handoff. A logically coherent checklist item may still be too large for one runner invocation; runner-sized slices are an execution concern and do not change checklist semantics or acceptance authority.
+
+Prefer the smallest dependency-complete slice that leaves a durable, independently reviewable repository state. Split work along real interfaces (for example immutable inputs/identity, research/freeze transport, scoring transport, validation/ledger) rather than asking one run to discover architecture, implement several dependent subsystems, exhaustively verify them, and perform the GitHub handoff at once.
+
+**Ceiling-recovery rule:** if a run reaches or credibly appears to reach the turn ceiling before completing its required handoff, do not repeatedly rerun the same oversized assignment. Inspect what, if anything, was durably produced; then decompose the remaining work into smaller dependency-ordered assignments and resume from the last accepted repository state. One targeted retry is reasonable only when the failure was transient or the remaining work is demonstrably small. Repeated ceiling failures are evidence of bad assignment sizing, not a reason to increase orchestration churn.
+
+Effort level is not a substitute for decomposition: High/xhigh/Max controls reasoning effort, while assignment size must still fit the runner envelope. Do not parallelize slices that consume one another's not-yet-accepted contracts merely to recover elapsed time.
+
 ## Effort lanes
 
 The orchestrator chooses the lane per assignment.
