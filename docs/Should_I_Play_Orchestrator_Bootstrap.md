@@ -58,35 +58,36 @@ Do **not** blindly read every historical document at the start of every task. Hi
 - The repository-native Claude runner (official Claude Code GitHub Action) is **operational**: merged in PR #54 and successfully smoke-tested in PR #56. `docs/operations/Claude_Code_GitHub_Runner.md` owns its triggers, effort lanes, and safety boundaries; read it before a runner task rather than restating it here.
 - GPT-5.6 Sol High remains program owner/orchestrator and the designated Phase 3A editorial scorer. The runner may implement, test, commit, push, and create/update its task PR; it does not self-merge, declare checklist acceptance, mutate production, publish editorial/scoring content, or broaden its assignment.
 
-## Active checkpoint — Phase 3A, integration gate before Item 6
+## Active checkpoint — Phase 3A, Item 6 / D1 in progress
 
-As of 2026-09-03, against `main` at `1f10ec7928e07fdbc71bfdf77dffc6489f9df1dd`:
+As of 2026-09-04, against `main` at `9ae8d4c30684921d42e367996f89e2228513f2d2`:
 
 - Item 1 — baseline/source audit: **complete**.
 - Item 2 — cohort reconciliation: **complete**.
 - Item 3 — preregistration: **complete**; owner-approved and merged at `00f082022dcbf7f065453513d6f2681c01d63493`.
 - Item 4 — Phase 3A engineering readiness: **complete**; final orchestrator ruling 9/9 PASS, recorded on PR #46 (conversation comment `5515828479`), merged at `79f0159b31009173ede153cfc77729d6d2e5ec91`. Issue #44 was the coverage-state blocker, later closed; it does not carry the ruling. That ruling also closed the Amendment 1–4 exact-byte review — see the preregistration note in the read set below.
-- Item 5 — IGDB staging readiness: **complete**; final readiness ruling **PASS / COMPLETE** in PR #52 review `5106252929` against exact implementation head `a292e9b19dda9a371c5c8701d579db30f3439996`. Issue #48 is closed as completed.
-- Item 6 — development run games D1–D6: **pending**, blocked by the integration gate below.
+- Item 5 — IGDB staging readiness: **complete**; final readiness ruling **PASS / COMPLETE** in PR #52 review `5106252929` against exact implementation head `a292e9b19dda9a371c5c8701d579db30f3439996`. Issue #48 is closed as completed. The post-acceptance integration gate is closed — see below.
+- Item 6 — development run games D1–D6: **active**. D1 (Alan Wake 2) is the current development run; preparation slice A is merged and the run's research/scoring executions have **not** been performed.
 - Items 7–12: unchanged.
-- **No Phase 3A calibration scoring has begun; D1 has not started.**
+- **No Phase 3A calibration scoring has begun; no D1 research or scoring execution has run.** Only D1 preparation records exist.
 - Candidate Scoring Protocol v1.0 remains non-governing until its later calibration, freeze, and adoption gates pass.
-- No production/bulk catalog score mutation is authorized.
+- No production/bulk catalog score mutation is authorized. The one completed production action is the bounded `0011_igdb_staging` schema migration recorded below; it authorizes nothing further.
 
-### Post-acceptance integration gate — blocks Item 6 / D1
+### Post-acceptance integration gate — complete
 
-The Item 5 ruling accepted the staging architecture. It did **not** authorize the authoritative migration or the merge. In order:
+The Item 5 ruling accepted the staging architecture; it did not by itself authorize the authoritative migration or the merge. Under Tomas's explicit, bounded authorization on PR #52, the orchestrator ran the read-only preflight and applied migration `0011_igdb_staging` to the authoritative production database, then verified it (one Drizzle journal row at `created_at=1788445599007`, the 11 expected `igdb_*` tables, the identity/provider uniqueness indexes, the append-only trigger). PR #52 was reconciled against `main` at head `d3b49e9eecafb3341fa2eaf9519beb452b314bd3` and merged through the ordinary reviewed path. Item 6 / D1 is therefore unblocked.
 
-1. **Tomas's explicit authorization** for the production database action —
-   **given** for migration `0011_igdb_staging` on PR #52; the remaining steps
-   are execution, not a further owner decision;
-2. read-only preflight;
-3. apply the authoritative migration `0011_igdb_staging`;
-4. verify integration and the Workers build (red on PR #52 by design until `0011` is applied);
-5. update/rebase PR #52 against current `main` as needed;
-6. merge through the ordinary reviewed path.
+That authorization covered `0011_igdb_staging` only. It was never a standing production-mutation licence, it does not extend to any later migration, and it remains unrelated to ADR 0024 §6's future scoring-package migration 4, which still needs its own owner decision. The generic runner still does not apply migrations, mutate production, or merge on its own initiative.
 
-D1 does not begin until that gate is complete. No agent invents or widens that authorization, and the generic runner does not apply the migration or merge PR #52 on its own initiative; the readiness ruling in PR #52 and the Working Agreement's owner-reserved list both govern this. The authorization covers `0011_igdb_staging` only — it is not a standing production-mutation licence, and it is unrelated to ADR 0024 §6's future scoring-package migration 4, which still needs its own owner decision.
+### Active D1 dependency sequence
+
+D1 is being prepared in small dependency-ordered slices under parent issue #63, none of which score:
+
+1. **Slice A — merged (PR #66).** Immutable preregistered D1 scope/run-input (`lib/calibration/run-input.ts` → `D1_RUN_INPUT`, with the `Night Springs` / `The Lake House` exclusions, the mature-eligibility record, the fail-closed maturity gate and `freezeD1EvaluationScope`) and **proposal-only** IGDB identity (`lib/calibration/run-identity.ts` → `D1_IDENTITY_PROPOSAL`). No identity is accepted or promoted, and no research or scoring input exists yet.
+2. **Slice B — next active dependency (issue #68).** The controlled research collection pass and deterministic corpus freeze, consuming slice A's records unchanged. It ends at a frozen, hashed D1 evidence corpus plus run receipt; it does not score.
+3. **Slice C — after B.** The isolated paired primary/audit scoring transport, with GPT-5.6 Sol High as the scorer.
+
+`docs/calibration/Phase_3A_D1_Run_Preparation_Handoff.md` owns the exact records the next slice consumes; do not restate or re-derive them here.
 
 Read these records before any Phase 3A work.
 
@@ -103,12 +104,15 @@ On `main`:
 - `docs/scoring/Phase_3A_Execution_System_Instructions_v1.0.md`
 - `docs/scoring/Phase_3A_Research_Prompt_v1.0.md`
 - `docs/scoring/Phase_3A_Scoring_Prompt_v1.0.md`
+- `docs/audits/Game_Profile_Phase_3A_Item_5_IGDB_Staging_Forensic_Audit_2026-09-02.md` — landed with PR #52
+- `docs/calibration/Phase_3A_Item_5_IGDB_Staging_Readiness_Record.md` — module map, API-vs-dump strategy, live proofs, rollout and remaining gates; landed with PR #52
+- `docs/decisions/0037-igdb-staging-identity-and-provenance.md` — the Item-5 identity/provenance decision record that bounds D1 identity work; landed with PR #52, with the status note below
+- `docs/calibration/Phase_3A_D1_Run_Preparation_Handoff.md` — mandatory before any D1 execution slice; landed with PR #66
 
-Not yet on `main` — the Item 5 records live on PR #52 at head `a292e9b19dda9a371c5c8701d579db30f3439996` and land when that PR merges through the gate above:
+Two status lines elsewhere lag this checkpoint. Treat both as drift to reconcile at the next owner/orchestrator checkpoint, not as current status and not as licence for an agent to restate them:
 
-- `docs/audits/Game_Profile_Phase_3A_Item_5_IGDB_Staging_Forensic_Audit_2026-09-02.md`
-- `docs/calibration/Phase_3A_Item_5_IGDB_Staging_Readiness_Record.md` — module map, API-vs-dump strategy, live proofs, rollout and remaining gates
-- `docs/decisions/0037-igdb-staging-identity-and-provenance.md` — still **Proposed** on the branch; it is accepted by that merge, not by this bootstrap
+- ADR 0037's own header still reads **Proposed**. The Item-5 ruling, the PR #52 merge and issue #63 all treat its boundary as the accepted one that D1 works under; only the owner/orchestrator flips that header.
+- Master Plan v0.9's status/checkpoint lines still describe Item 6 as pending behind the integration gate. The Plan remains the product/roadmap constitution; this bootstrap carries the running phase status it names.
 
 Historical Item-4 records — read on demand, not as active status:
 `docs/audits/Game_Profile_Phase_3A_Item_4_Engineering_Readiness_Audit_2026-09-02.md` and
@@ -131,7 +135,7 @@ The cohort-lock file, not this summary, owns identities/high-level scopes.
 
 ### Item 6 boundary
 
-Item 6 is the measured development run D1–D6 under the preregistered contract and the Item-4 harness. It starts only after the integration gate above completes, and it runs under the existing role boundary: GPT-5.6 Sol High scores; engineering agents do not score, do not change scoring semantics, and do not expose holdout identities or evidence to a development run. The four holdout titles stay untouched.
+Item 6 is the measured development run D1–D6 under the preregistered contract and the Item-4 harness. It is **active**, and it runs under the existing role boundary: GPT-5.6 Sol High scores; engineering agents do not score, do not change scoring semantics, and do not expose holdout identities or evidence to a development run. The four holdout titles stay untouched. Item 6 being active authorizes the preregistered measured run only — it does not reopen scope, cohort, DLC, prompt, schema or scoring semantics, and it does not carry any production-mutation, deployment or publication authority.
 
 If a material protocol, mapping, or anchor defect surfaces during D1–D6, record it and follow the preregistration's rerun/versioning rule rather than changing a rule mid-pair.
 
