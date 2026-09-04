@@ -149,7 +149,7 @@ The runner does not allow bot-triggered invocations by default. Program-owner co
 
 The wake workflow is not an orchestrator. It may identify repository/workflow/run/PR/branch/SHA/conclusion metadata, deduplicate the event, and post the wake comment. It may not read a ready queue to choose work, decide acceptance, merge, invoke Claude, advance the checklist, alter methodology, expose holdouts, mutate production, or publish content.
 
-The existing issue-first runner remains supported for now. Successful issue-first runs can be associated only when exactly one open in-repository task PR has the canonical `claude/issue-<issue>-*` branch prefix. If Claude fails before opening any PR, the bridge fails closed and the hourly watchdog recovers the run. The wake guide records why a later PR-first framing posture is preferable for orchestration-critical work and why that change is not made mandatory until its mechanical creation path is separately tested.
+The existing issue-first runner remains supported for now. Successful issue-first runs can be associated only when exactly one open in-repository task PR has the canonical `claude/issue-<issue>-*` branch prefix **and** is mechanically provable to belong to the triggering invocation — the PR was opened after the trigger comment, or its head commit was made after it. If Claude fails before opening any PR, the bridge fails closed rather than naming an older stale task PR for the same issue, and the hourly watchdog recovers the run. The wake guide records why a later PR-first framing posture is preferable for orchestration-critical work and why that change is not made mandatory until its mechanical creation path is separately tested.
 
 ## One-time owner setup
 
