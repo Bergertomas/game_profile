@@ -33,6 +33,7 @@
     "calib:probe": "tsx scripts/calibration/live-probe.ts",
     "calib:report": "tsx scripts/calibration/proof-report.ts",
     "calib:d1-research": "tsx scripts/calibration/d1-research.ts",
+    "calib:d1-scoring": "tsx scripts/calibration/d1-scoring.ts",
     "igdb:probe": "tsx scripts/igdb/probe.ts",
     "igdb:report": "tsx scripts/igdb/proof-report.ts",
     "igdb:stage-proof": "tsx scripts/igdb/stage-proof.ts",

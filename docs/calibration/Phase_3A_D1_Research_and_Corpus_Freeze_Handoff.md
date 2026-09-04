@@ -128,3 +128,10 @@ are read and hashed, never written.
   in UTF-16 code-unit order of source ID. Protocol §4.7 requires the order to be
   frozen and hashed but does not define it; this is a mechanical determinism rule
   and is stated here so it can be ratified or replaced deliberately.
+
+## What consumes this
+
+Slice C — the isolated paired primary/audit scoring transport — takes the run
+directory this slice writes and carries it to the designated scorer. See
+`Phase_3A_D1_Paired_Scoring_Transport_Handoff.md` for its command, gates,
+artifacts and the point where editorial scoring begins.
