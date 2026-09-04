@@ -32,6 +32,9 @@ npm run calib:d1-research -- --live --maturity <observation.json>
 
 # 3. Deterministic replay of a captured output. No network call.
 npm run calib:d1-research -- --freeze <capture.json> --maturity <observation.json>
+
+# Any mode: name which attempt of this request is being recorded (default 1).
+npm run calib:d1-research -- --live --maturity <observation.json> --attempt 2
 ```
 
 `<observation.json>` is the current-state maturity revalidation made
@@ -70,15 +73,51 @@ mismatch is reported as request drift and the freeze is refused.
 
 ## Artifacts (git-ignored, `calibration-runs/d1-research/<runId>/`)
 
+`<runId>` is `d1-research-<semanticRequestDigest[0..24]>-a<attempt>`, so every
+attempt has its own directory.
+
 | File | Contents |
 | --- | --- |
-| `capture.json` | The raw model output, run facts, `frozen_at` and the semantic request digest. Written even when the freeze refuses the output, so a failed attempt stays evidence. |
+| `capture.json` | The raw model output, run facts, `frozen_at`, the semantic request digest and `output_digest` over the model output. Written even when the freeze refuses the output, so a failed attempt stays evidence; a refused attempt lands in `d1-research-unfrozen-<digest>-a<attempt>/`. |
 | `corpus.json` | The canonical `corpus` object: research run manifest, candidate log, source manifest, coverage frames, both packet digests, canonical source order, `review_grades_masked`, `frozen_at`. |
 | `semantic-input.json` | **The slice-C input.** |
 | `receipt.json` | Controlled-byte hashes, supplied-input hashes, model/configuration/tool access, returned identity, timings, every digest, the maturity record, the isolation boundary, the research completion report, and `receipt_digest` over all of it. |
 
 A ledger row is appended to `calibration-runs/phase3a-runs.jsonl` with
 `role: "research"` for every attempt, including failed ones.
+
+### Persistence is verbatim, verified and immutable
+
+`lib/calibration/artifact-store.ts` owns every artifact write, and three rules
+apply to all of them (issue #88, the #87 defects 1 and 2):
+
+1. **Verbatim.** A digest commits to exact bytes, so nothing edits an artifact
+   after its digest exists. Credential redaction stays on the console, error and
+   ledger surfaces, which are where a key can actually appear. It used to run
+   over the artifacts too, and it does not only match credentials: ordinary prose
+   such as `torch-bearer carrying` satisfies the `Bearer <token>` pattern, so a
+   normalized capture could reach disk altered while the receipt still claimed
+   the unaltered digest.
+2. **Read-back verified.** After each write the bytes are re-read from disk and
+   must reproduce what was written, re-derive the same RFC 8785 canonical digest,
+   satisfy the digests the artifact records about itself (`receipt_digest`,
+   `output_digest`) and satisfy the declared cross-artifact bindings —
+   `semantic-input.json` must still hash to `corpus.normalized_packet_digest` and
+   the capture's output to `corpus.raw_packet_digest`. Any failure throws; there
+   is no repair path and no warning tier. The same verification runs on the way
+   in, so a corrupted artifact is refused where it would be consumed.
+3. **Immutable.** A write that would replace an existing artifact with different
+   bytes is refused (preregistration §9.1, §9.3). A byte-identical rewrite is
+   permitted, which is what keeps the `--freeze` determinism check meaningful. A
+   `--live` run additionally refuses **before** the call if its attempt directory
+   already holds artifacts, so a repeat neither overwrites the earlier attempt
+   nor wastes the new one.
+
+`--attempt <n>` names the attempt and defaults to 1. The operator states it; the
+harness never renumbers one on their behalf, because preregistration §9.1 makes a
+retry a fresh independent call the operator records and ADR 0036 §10 makes any
+model retry a new logged run. When a run directory is already populated the
+refusal names the next free attempt number.
 
 ## What slice C consumes
 

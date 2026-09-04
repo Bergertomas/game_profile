@@ -36,6 +36,9 @@ npm run calib:d1-scoring -- --run calibration-runs/d1-research/<researchRunId> -
 
 # 3. Deterministic re-derivation from captured outputs. No network call.
 npm run calib:d1-scoring -- --run calibration-runs/d1-research/<researchRunId> --replay
+
+# Any mode: name which attempt of this pair is being recorded (default 1).
+npm run calib:d1-scoring -- --run <researchRunDir> --live --attempt 2
 ```
 
 `--run` takes the **slice-B run directory**, not a single file. All three of
@@ -163,11 +166,14 @@ intended outcome: a material protocol, mapping or anchor defect is handed to the
 orchestrator under the registered rerun/versioning rules (preregistration §§7.6,
 9.1, 9.3), and engineering does not resolve it.
 
-## Artifacts (git-ignored, `calibration-runs/d1-scoring/<pairId>/`)
+## Artifacts (git-ignored, `calibration-runs/d1-scoring/<pairId>-a<attempt>/`)
+
+Every attempt has its own run directory, so a repeated measured call cannot land
+on a previous attempt's artifacts.
 
 | File | Contents |
 | --- | --- |
-| `<role>/capture.json` | The raw model output, run facts and the semantic request digest it was produced from. Written even when assembly refuses the output, so a failed attempt stays evidence. |
+| `<role>/capture.json` | The raw model output, run facts, the semantic request digest it was produced from and `output_digest` over the model output. Written even when assembly refuses the output, so a failed attempt stays evidence. |
 | `<role>/manifest.json` | The canonical run manifest — the only place the role exists. |
 | `<role>/pass.json` | The assembled canonical `scoringPass`: the manifest plus exactly what the model returned. |
 | `<role>/validation.json` | Every structural and pass-scoped issue, or none. |
@@ -178,6 +184,37 @@ orchestrator under the registered rerun/versioning rules (preregistration §§7.
 A ledger row is appended to `calibration-runs/phase3a-runs.jsonl` with
 `role: "primary"` or `"audit"` for every attempt, including failed ones. Nothing
 under `calibration-runs/` is committed (Item 4 work order §3.8).
+
+### Persistence is verbatim, verified and immutable
+
+`lib/calibration/artifact-store.ts` owns every artifact write here as it does in
+slice B, under the same three rules (issue #88, the #87 defects 1 and 2):
+digest-bound artifacts are written **verbatim** — credential redaction stays on
+the console, error and ledger surfaces, and no longer runs between a digest and
+its bytes; every write is **read back and verified** against the bytes on disk,
+the artifact's own recorded digests (`receipt_digest`, `output_digest`) and the
+declared bindings (`manifest.structured_output_digest` re-derived from the
+persisted capture and from `pass.json`'s model-owned half,
+`receipt.digests.run_manifest_digest` re-derived from the persisted manifest);
+and a write that would replace an existing artifact with different bytes is
+**refused**, which is preregistration §9.1's "preserve primary and audit outputs
+immutably" made mechanical.
+
+`--replay` writes byte-identical files, which the immutable writer permits, so
+the determinism check still works; a replay that derived anything different is
+refused instead of quietly replacing the artifact it disagrees with. `--live`
+additionally refuses **before** either call if the attempt directory already
+holds artifacts, so a repeat neither overwrites the earlier attempt nor wastes
+the new one, and the refusal names the next free attempt number.
+
+The slice-B handoff is read through the same verifying reader, so a research
+artifact edited or corrupted after slice B wrote it is refused at the preflight
+rather than carried into a billable scoring call.
+
+`--attempt <n>` names the attempt and defaults to 1. The operator states it; the
+harness never renumbers one on their behalf, because preregistration §9.1 makes a
+retry a fresh independent call the operator records and ADR 0036 §10 makes any
+model retry a new logged run.
 
 ## Where editorial scoring begins
 

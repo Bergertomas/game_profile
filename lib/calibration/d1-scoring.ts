@@ -1,4 +1,5 @@
 import { canonicalDigest, canonicalize, sha256Hex } from "./canonical-json";
+import type { ArtifactSpec } from "./artifact-store";
 import {
   ControlledInputDriftError,
   verifyControlledInputs,
@@ -1137,4 +1138,108 @@ export function buildD1PairReceipt(options: {
   };
 
   return { ...body, receipt_digest: canonicalDigest(body as never) };
+}
+
+/**
+ * The raw scoring attempt as it is persisted.
+ *
+ * `output_digest` is the same digest the run manifest records as
+ * `structured_output_digest`, carried on the capture itself so the file is
+ * self-verifying: a capture edited after it was written no longer re-derives its
+ * own digest and is refused when it is read back for a replay.
+ */
+export interface D1ScoringCapture {
+  readonly role: RunRole;
+  readonly facts: D1ScoringRunFacts;
+  readonly output: ModelScoringPass;
+  readonly request_semantic_digest: string;
+  readonly output_digest: string;
+}
+
+export function buildD1ScoringCapture(options: {
+  readonly pair: D1ScoringPair;
+  readonly role: RunRole;
+  readonly output: ModelScoringPass;
+  readonly facts: D1ScoringRunFacts;
+}): D1ScoringCapture {
+  return {
+    role: options.role,
+    facts: options.facts,
+    output: options.output,
+    request_semantic_digest: options.pair.semanticRequestDigest,
+    output_digest: structuredOutputDigest(options.output),
+  };
+}
+
+/**
+ * The artifact set for one completed pass, with the digest bindings the
+ * persisted bytes must re-derive.
+ *
+ * The model's own bytes are bound twice — once on the capture and once on the
+ * assembled pass — because those two files are what the orchestrator reads as
+ * the measured output. If persistence altered either of them, the recorded
+ * `structured_output_digest` stops describing what is on disk, and that is
+ * exactly the condition these bindings make impossible to miss.
+ */
+export function d1ScoringPassArtifacts(options: {
+  readonly result: D1PassResult;
+  readonly capture: D1ScoringCapture;
+}): readonly ArtifactSpec[] {
+  const { result, capture } = options;
+  const structuredOutput = result.manifest.structured_output_digest;
+  const runManifestDigest = result.receipt.digests.run_manifest_digest;
+
+  return [
+    {
+      name: "capture",
+      value: capture,
+      bindings: [
+        {
+          label: "manifest.structured_output_digest",
+          expected: structuredOutput,
+          derive: (readBack) => structuredOutputDigest((readBack as D1ScoringCapture).output),
+        },
+      ],
+    },
+    {
+      name: "manifest",
+      value: result.manifest,
+      bindings: [
+        {
+          label: "receipt.digests.run_manifest_digest",
+          expected: runManifestDigest,
+          derive: (readBack) => canonicalDigest(readBack as never),
+        },
+      ],
+    },
+    {
+      name: "pass",
+      value: result.pass,
+      bindings: [
+        {
+          label: "manifest.structured_output_digest",
+          expected: structuredOutput,
+          derive: (readBack) => {
+            const pass = readBack as ScoringPass;
+            return structuredOutputDigest({
+              claim_ledger: pass.claim_ledger,
+              decisions: pass.decisions,
+            });
+          },
+        },
+        {
+          label: "receipt.digests.run_manifest_digest",
+          expected: runManifestDigest,
+          derive: (readBack) => canonicalDigest((readBack as ScoringPass).run_manifest as never),
+        },
+      ],
+    },
+    { name: "validation", value: result.validation },
+    { name: "receipt", value: result.receipt },
+  ];
+}
+
+/** The pair-level artifact. Its `receipt_digest` is verified on read-back. */
+export function d1ScoringPairArtifacts(receipt: D1PairReceipt): readonly ArtifactSpec[] {
+  return [{ name: "pair-receipt", value: receipt }];
 }

@@ -1,10 +1,8 @@
-import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
   buildD1ResearchRequest,
   freezeD1Research,
   EVIDENCE_SOP_PATH,
-  type D1ResearchRunFacts,
 } from "@/lib/calibration/d1-research";
 import {
   assertResearchExecutionContract,
@@ -38,138 +36,15 @@ import {
   findHoldoutMentions,
 } from "@/lib/calibration/holdout-isolation";
 import { D1_RUN_INPUT, freezeD1EvaluationScope } from "@/lib/calibration/run-input";
-
-/**
- * A synthetic research output. It describes no real game: every locator is a
- * fake domain and no capture asserts anything about Alan Wake 2 or any other
- * product. It exists to exercise the freeze's mechanics, and nothing in it is
- * evidence about a calibration game.
- */
-const CAPTURE_TEXT = (index: number) =>
-  `Placeholder normalized capture number ${index}. It records a concrete observation with no grade, badge or ranking label.`;
-
-function sha256(text: string): string {
-  return createHash("sha256").update(Buffer.from(text, "utf8")).digest("hex");
-}
-
-/** Eight independent active A/B clusters — the §4.1 normal AA/AAA target. */
-function buildResearchOutput(): ModelResearchPass {
-  const sources = Array.from({ length: 8 }, (_unused, index) => {
-    const number = index + 1;
-    return {
-      source_id: `src-${number}`,
-      record_status: "active" as const,
-      title: `Placeholder substantive source ${number}`,
-      author_creator: `Author ${number}`,
-      publisher_channel: `Outlet ${number}`,
-      locator: `https://example.invalid/source-${number}`,
-      durable_identifier: null,
-      publication_date: "2024-03-01",
-      accessed_at: "2026-09-04T00:00:00Z",
-      source_class: index % 2 === 0 ? "critical_review" : "specialist_creator",
-      source_tier: index % 2 === 0 ? ("A" as const) : ("B" as const),
-      independence_cluster_id: `cluster-${number}`,
-      platform_build_scope: "placeholder platform, current patched build",
-      play_completion_scope: "full campaign",
-      sponsorship_access_disclosure: "none disclosed",
-      dependency_note: "original reporting",
-      limitations: [],
-      player_signal_sampling: null,
-      raw_content_digest: null,
-      normalized_content_digest: sha256(CAPTURE_TEXT(number)),
-    };
-  });
-
-  return {
-    collection_standard: "normal_target",
-    collection_reason: "Placeholder released scope with ordinary evidence availability.",
-    query_family_audit: [
-      "title_edition",
-      "full_game",
-      "platform_technical",
-      "late_game_endgame",
-      "specialist",
-      "major_patches",
-      "material_disagreement",
-    ].map((family) => ({
-      query_family: family,
-      disposition: "run" as const,
-      reason: "Placeholder family run to saturation.",
-    })),
-    candidate_source_log: [
-      {
-        candidate_id: "cand-1",
-        query_family: "full_game",
-        query_text: "placeholder full game assessment query",
-        service: "web_search",
-        searched_at: "2026-09-04T00:00:00Z",
-        result_position: 1,
-        locator: "https://example.invalid/source-1",
-        disposition: "accepted" as const,
-        reason: "Placeholder acceptance reason.",
-      },
-      {
-        candidate_id: "cand-2",
-        query_family: "specialist",
-        query_text: "placeholder specialist query",
-        service: "web_search",
-        searched_at: "2026-09-04T00:00:00Z",
-        result_position: 4,
-        locator: "https://example.invalid/rejected",
-        disposition: "rejected" as const,
-        reason: "Placeholder rejection reason under the screening rules.",
-      },
-    ],
-    source_manifest: sources,
-    coverage_frames: ["story_hook", "memory_residue"].map((key) => ({
-      coverage_frame_id: `frame-${key}`,
-      subcriterion_key: key,
-      coverage_units: ["opening", "early", "middle", "late"].map((label, index) => ({
-        unit_id: `${key}-u${index + 1}`,
-        label,
-        unit_class: "temporal_stratum" as const,
-        centrality: index === 3 ? ("central" as const) : ("noncentral" as const),
-        omission_effect:
-          index === 3 ? ("materially_limiting" as const) : ("bounding" as const),
-      })),
-    })),
-    normalized_captures: sources.map((source, index) => ({
-      source_id: source.source_id,
-      normalized_content: CAPTURE_TEXT(index + 1),
-    })),
-    research_completion_report: {
-      material_scope_platform_current_state_limitations: "Placeholder limitation note.",
-      credible_disagreement_represented: "Placeholder disagreement note.",
-      retrospective_evidence_status: "Placeholder dated retrospective coverage note.",
-      blocking_concern: null,
-    },
-  } as ModelResearchPass;
-}
-
-const ELIGIBLE = {
-  evaluationMaturity: "mature" as const,
-  profileStabilityState: "bounded_change" as const,
-  materialProfileShapingChangesInFlight: [] as readonly string[],
-};
-
-const REVIEWED_AT = "2026-09-04T06:00:00Z";
-
-const FACTS: D1ResearchRunFacts = {
-  started_at: "2026-09-04T06:05:00Z",
-  ended_at: "2026-09-04T06:12:00Z",
-  api_elapsed_ms: 420_000,
-  returned_model: "gpt-5.6-sol",
-  response_id: "resp_placeholder",
-  snapshot_identifier: null,
-  token_usage: { input_tokens: 100, output_tokens: 200 },
-  attempt: 1,
-};
-
-const FROZEN_AT = "2026-09-04T06:12:30Z";
-
-function request() {
-  return buildD1ResearchRequest({ maturity: ELIGIBLE, reviewedAt: REVIEWED_AT });
-}
+import {
+  ELIGIBLE,
+  FACTS,
+  FROZEN_AT,
+  REVIEWED_AT,
+  buildResearchOutput,
+  request,
+  sha256,
+} from "./research-fixtures";
 
 describe("Phase 3A D1 research — run binding", () => {
   it("binds to the merged slice-A D1 scope and its exclusions, unaltered", () => {

@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { canonicalDigest, canonicalize, sha256Hex } from "./canonical-json";
+import type { ArtifactSpec } from "./artifact-store";
 import {
   ControlledInputDriftError,
   controlledDigest,
@@ -400,6 +401,22 @@ export interface D1ResearchReceipt {
   readonly receipt_digest: string;
 }
 
+/**
+ * The attempt-independent stem of a D1 research run's identity.
+ *
+ * The run directory is `<stem>-a<attempt>`, so a second measured attempt of the
+ * same request addresses a different directory and cannot land on the first
+ * one's artifacts (preregistration §9.3 preserves old runs).
+ */
+export function d1ResearchRunStem(semanticRequestDigest: string): string {
+  return `d1-research-${semanticRequestDigest.slice(0, 24)}`;
+}
+
+/** The run id for one attempt of one semantic request. */
+export function d1ResearchRunId(semanticRequestDigest: string, attempt: number): string {
+  return `${d1ResearchRunStem(semanticRequestDigest)}-a${attempt}`;
+}
+
 export interface D1FrozenResearch {
   readonly corpus: Corpus;
   readonly evaluationScope: EvaluationScope;
@@ -426,7 +443,7 @@ export function freezeD1Research(options: {
   const evidenceCutoff = frozenAt.slice(0, 10);
   const evaluationScope = freezeD1EvaluationScope(evidenceCutoff);
 
-  const runId = `d1-research-${request.digests.semantic_request_digest.slice(0, 24)}-a${facts.attempt}`;
+  const runId = d1ResearchRunId(request.digests.semantic_request_digest, facts.attempt);
 
   const decodingParameters: RunManifest["decoding_parameters"] = [
     { name: "reasoning_effort", value: request.configuration.reasoning_effort },
@@ -521,4 +538,87 @@ export function freezeD1Research(options: {
     receipt,
     runId,
   };
+}
+
+/**
+ * The raw research attempt as it is persisted.
+ *
+ * `output_digest` is the same RFC 8785 digest the corpus records as
+ * `raw_packet_digest`, carried on the capture itself so the file is
+ * self-verifying: a capture edited after it was written no longer re-derives its
+ * own digest and is refused when it is read back.
+ */
+export interface D1ResearchCapture {
+  readonly facts: D1ResearchRunFacts;
+  readonly output: ModelResearchPass;
+  readonly frozen_at: string;
+  readonly request_semantic_digest: string;
+  readonly output_digest: string;
+}
+
+export function buildD1ResearchCapture(options: {
+  readonly request: D1ResearchRequest;
+  readonly output: ModelResearchPass;
+  readonly facts: D1ResearchRunFacts;
+  readonly frozenAt: string;
+}): D1ResearchCapture {
+  return {
+    facts: options.facts,
+    output: options.output,
+    frozen_at: options.frozenAt,
+    request_semantic_digest: options.request.digests.semantic_request_digest,
+    output_digest: canonicalDigest(options.output as never),
+  };
+}
+
+/**
+ * The artifact set for one D1 research run, with the digest bindings the
+ * persisted bytes must re-derive.
+ *
+ * The bindings are deliberately cross-artifact: `semantic-input.json` is the
+ * file slice C consumes, and what makes it trustworthy is that its own persisted
+ * bytes still hash to the `normalized_packet_digest` the corpus and the receipt
+ * committed to. That is the exact property a post-digest edit would break.
+ */
+export function d1ResearchArtifacts(options: {
+  readonly frozen: D1FrozenResearch;
+  readonly capture?: D1ResearchCapture;
+}): readonly ArtifactSpec[] {
+  const { frozen, capture } = options;
+  const specs: ArtifactSpec[] = [];
+
+  if (capture) {
+    specs.push({
+      name: "capture",
+      value: capture,
+      bindings: [
+        {
+          label: "corpus.raw_packet_digest",
+          expected: frozen.corpus.raw_packet_digest,
+          derive: (readBack) => canonicalDigest((readBack as D1ResearchCapture).output as never),
+        },
+      ],
+    });
+  }
+
+  specs.push({ name: "corpus", value: frozen.corpus });
+  specs.push({
+    name: "semantic-input",
+    value: frozen.semanticInput,
+    bindings: [
+      {
+        label: "corpus.normalized_packet_digest",
+        expected: frozen.corpus.normalized_packet_digest,
+        derive: (readBack) => canonicalDigest(readBack as never),
+      },
+    ],
+  });
+  specs.push({ name: "receipt", value: frozen.receipt });
+
+  return specs;
+}
+
+/** The capture-only artifact set for an attempt the freeze refused. */
+export function d1ResearchCaptureOnlyArtifacts(capture: D1ResearchCapture): readonly ArtifactSpec[] {
+  return [{ name: "capture", value: capture }];
 }
