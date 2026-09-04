@@ -60,16 +60,16 @@ Do **not** blindly read every historical document at the start of every task. Hi
 
 ## Active checkpoint — Phase 3A, Item 6 / D1 in progress
 
-As of 2026-09-04, against `main` at `9ae8d4c30684921d42e367996f89e2228513f2d2`:
+As of 2026-09-04, against `main` at `6ca0244a4f9f2dcca8a03486bc5feade99dc0046`:
 
 - Item 1 — baseline/source audit: **complete**.
 - Item 2 — cohort reconciliation: **complete**.
 - Item 3 — preregistration: **complete**; owner-approved and merged at `00f082022dcbf7f065453513d6f2681c01d63493`.
 - Item 4 — Phase 3A engineering readiness: **complete**; final orchestrator ruling 9/9 PASS, recorded on PR #46 (conversation comment `5515828479`), merged at `79f0159b31009173ede153cfc77729d6d2e5ec91`. Issue #44 was the coverage-state blocker, later closed; it does not carry the ruling. That ruling also closed the Amendment 1–4 exact-byte review — see the preregistration note in the read set below.
 - Item 5 — IGDB staging readiness: **complete**; final readiness ruling **PASS / COMPLETE** in PR #52 review `5106252929` against exact implementation head `a292e9b19dda9a371c5c8701d579db30f3439996`. Issue #48 is closed as completed. The post-acceptance integration gate is closed — see below.
-- Item 6 — development run games D1–D6: **active**. D1 (Alan Wake 2) is the current development run; preparation slice A is merged and the run's research/scoring executions have **not** been performed.
+- Item 6 — development run games D1–D6: **active**. D1 (Alan Wake 2) is the current development run; preparation slices A and B are merged, and the run's research/scoring executions have **not** been performed.
 - Items 7–12: unchanged.
-- **No Phase 3A calibration scoring has begun; no D1 research or scoring execution has run.** Only D1 preparation records exist.
+- **No Phase 3A calibration scoring has begun; no D1 research or scoring execution has run.** Slice B merged the deterministic research-collection and corpus-freeze *transport*; a merged transport is not an executed run. Only D1 preparation records and that transport exist. Verify against live GitHub before asserting otherwise.
 - Candidate Scoring Protocol v1.0 remains non-governing until its later calibration, freeze, and adoption gates pass.
 - No production/bulk catalog score mutation is authorized. The one completed production action is the bounded `0011_igdb_staging` schema migration recorded below; it authorizes nothing further.
 
@@ -84,10 +84,12 @@ That authorization covered `0011_igdb_staging` only. It was never a standing pro
 D1 is being prepared in small dependency-ordered slices under parent issue #63, none of which score:
 
 1. **Slice A — merged (PR #66).** Immutable preregistered D1 scope/run-input (`lib/calibration/run-input.ts` → `D1_RUN_INPUT`, with the `Night Springs` / `The Lake House` exclusions, the mature-eligibility record, the fail-closed maturity gate and `freezeD1EvaluationScope`) and **proposal-only** IGDB identity (`lib/calibration/run-identity.ts` → `D1_IDENTITY_PROPOSAL`). No identity is accepted or promoted, and no research or scoring input exists yet.
-2. **Slice B — next active dependency (issue #68).** The controlled research collection pass and deterministic corpus freeze, consuming slice A's records unchanged. It ends at a frozen, hashed D1 evidence corpus plus run receipt; it does not score.
-3. **Slice C — after B.** The isolated paired primary/audit scoring transport, with GPT-5.6 Sol High as the scorer.
+2. **Slice B — merged (PR #76, issue #68 closed).** The controlled research collection pass and deterministic corpus freeze, consuming slice A's records unchanged: the fail-closed gate order, the web-search-only research contract, the deterministic hashed corpus freeze and the run receipt (`lib/calibration/holdout-isolation.ts`, `research-pass.ts`, `d1-research.ts`, `npm run calib:d1-research`). The transport exists and is tested against synthetic fixtures; **no live D1 research collection has been executed and no corpus has been frozen from real evidence.** It does not score.
+3. **Slice C — the active dependency frontier (issue #77).** The isolated paired primary/audit scoring transport consuming one already-frozen slice-B `semantic-input.json`, with GPT-5.6 Sol High as the designated editorial scorer. Engineering builds and proves the transport with synthetic fixtures; it does not choose scores, anchors, rationales, confidence or adjudication.
 
-`docs/calibration/Phase_3A_D1_Run_Preparation_Handoff.md` owns the exact records the next slice consumes; do not restate or re-derive them here.
+The slice handoffs own the exact records each next slice consumes; do not restate or re-derive them here. `docs/calibration/Phase_3A_D1_Run_Preparation_Handoff.md` owns slice A's records, and `docs/calibration/Phase_3A_D1_Research_and_Corpus_Freeze_Handoff.md` owns the frozen-corpus contract slice C consumes.
+
+Slice B deliberately **reported rather than resolved** the bounded questions it surfaced — controlled Item 3 bytes are owner-approved and immutable to an engineering slice. Those items are stated in the slice-B handoff and remain open orchestrator/owner decisions; this checkpoint does not close them, and no agent should resolve one by editing a controlled input.
 
 Read these records before any Phase 3A work.
 
@@ -108,6 +110,7 @@ On `main`:
 - `docs/calibration/Phase_3A_Item_5_IGDB_Staging_Readiness_Record.md` — module map, API-vs-dump strategy, live proofs, rollout and remaining gates; landed with PR #52
 - `docs/decisions/0037-igdb-staging-identity-and-provenance.md` — the Item-5 identity/provenance decision record that bounds D1 identity work; landed with PR #52, with the status note below
 - `docs/calibration/Phase_3A_D1_Run_Preparation_Handoff.md` — mandatory before any D1 execution slice; landed with PR #66
+- `docs/calibration/Phase_3A_D1_Research_and_Corpus_Freeze_Handoff.md` — the slice-B gates, freeze contract and the artifacts slice C consumes; mandatory before D1 research or scoring transport work; landed with PR #76
 
 Two status lines elsewhere lag this checkpoint. Treat both as drift to reconcile at the next owner/orchestrator checkpoint, not as current status and not as licence for an agent to restate them:
 
