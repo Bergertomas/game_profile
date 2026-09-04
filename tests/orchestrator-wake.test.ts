@@ -266,9 +266,7 @@ describe("wake bridge workflow discrimination", () => {
 
     // The regression itself: `run.name` here is the run name, not the
     // definition name, and the pre-fix bridge no-opped on exactly this input.
-    expect(result.notices).not.toContain(
-      expect.stringContaining("not in the bounded wake set"),
-    );
+    expect(result.notices.join("\n")).not.toContain("not in the bounded wake set");
     expect(result.failures).toEqual([]);
 
     const payload = wakePayload(result);
