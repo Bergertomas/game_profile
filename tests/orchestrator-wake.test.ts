@@ -610,8 +610,30 @@ describe("the Work UI bootstrap prompt", () => {
   const fullProcedure = fencedTextAfter("### 5.2 Repository-owned orchestration procedure");
 
   it("fits substantially below the full procedure", () => {
-    expect(shortPrompt.length).toBeLessThan(1600);
+    // Raised from 1600 in issue #106, which added the model-pinning and
+    // Phase-3A scoring-boundary sentences to the accepted §5.1 text. The
+    // ratio assertion below is the real guard; the absolute bound only keeps
+    // the UI copy from creeping back toward §5.2.
+    expect(shortPrompt.length).toBeLessThan(1700);
     expect(shortPrompt.length).toBeLessThan(fullProcedure.length * 0.25);
+  });
+
+  it("claims no model identity the platform cannot guarantee", () => {
+    // Issue #106: the Work UI does not guarantee an event-triggered task runs
+    // on GPT-5.6 Sol High, so the prompt must not assert that it does. It
+    // states the role, and states that pinning is not the safety boundary.
+    expect(shortPrompt).not.toMatch(/You are GPT-[\d.]/);
+    expect(shortPrompt).toContain("program owner/orchestrator");
+    expect(shortPrompt).toContain("model pinning is not the safety boundary");
+  });
+
+  it("keeps the Phase-3A scoring role behind a verified runtime", () => {
+    // Accepting an unpinned runtime is an operating-surface decision, not a
+    // scoring-methodology amendment: an unverifiable runtime still may not
+    // take the editorial scoring role.
+    expect(shortPrompt).toContain("Phase-3A editorial scoring role");
+    expect(shortPrompt).toContain("verified model/runtime");
+    expect(fullProcedure).toContain("designated Phase-3A editorial scorer");
   });
 
   it("establishes the safety boundary before any mutation", () => {
