@@ -9,7 +9,8 @@
 > **The corrections in §3.2 are not live on `main` until this branch merges.**
 > The repository-native Claude runner's GitHub App token cannot push
 > `.github/workflows/**`, so the corrected bridge was authored and proved by the
-> runner and committed to the branch by the owner. Until it merges, the bridge
+> runner and committed to the branch by a principal holding that permission.
+> Until it merges, the bridge
 > on `main` still discriminates on `run.name` and still holds the permission set
 > that produced the 403 in §3.2 — meaning **no Claude completion wakes anything
 > and no wake comment can be posted at all**. `workflow_run` executes only from
