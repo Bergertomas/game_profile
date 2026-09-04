@@ -87,10 +87,16 @@ The orchestrator chooses the lane per assignment.
 
 The project has substantial Claude Max capacity. Running a single Claude worker out of habit, while genuinely independent ready work sits idle, wastes elapsed time. The orchestrator therefore maintains a **dependency-aware ready queue** rather than a single default lane.
 
+**Claude capacity is perishable project capacity.** When substantial capacity remains in the current five-hour usage window, the orchestrator should proactively spend it on the highest-value dependency-safe ready work rather than defaulting to idle capacity. Optimize for useful, accepted work completed per usage window — not for minimum model usage and not for maximum token burn.
+
 - **Default target: up to 2 concurrent Claude workers** whenever two high-value assignments are ready and genuinely independent.
 - **A 3rd worker only** when there is a clearly independent, bounded task with no dependency, no branch/file collision, and no acceptance-contract race against the other two. If that independence is arguable, it does not qualify.
 - **Keep one worker on the critical path.** Additional workers consume genuinely dependency-free supporting work — they do not fragment the critical path to look busy.
-- **Parallelism buys elapsed time, not throughput of quota.** All workers draw on the same Max pool, so concurrency is worth spending only when the tasks are real and independently valuable. Read *Quota exhaustion versus other run failures* above before widening a fan-out.
+- **Use spare capacity proactively.** Suitable ready work includes already-authorized test/tooling hardening, bounded documentation or checkpoint reconciliation, independent implementation audits, preparation behind already-accepted interfaces, and unrelated accepted public-product work that remains useful even if the critical-path PR changes.
+- **Do not make the hourly checkpoint the throughput clock.** If a worker finishes and its output can be independently reviewed and accepted, launch the next dependency-safe assignment promptly when orchestration is active rather than idling until the next scheduled observation. Hourly runs are watchdog/recovery checkpoints, not a reason to leave ready work waiting.
+- **Treat persistently low window utilization as an orchestration signal.** If a window is well advanced while only a small fraction of available capacity has been consumed and valuable ready work exists, inspect whether concurrency, assignment sizing, effort routing, or avoidable checkpoint waiting is too conservative. Repeatedly ending windows with substantial unused capacity should trigger an operating-policy review.
+- **As a reset approaches, widen useful concurrency before inventing work.** Remaining capacity can justify pulling forward genuinely valuable dependency-free work or using xhigh/Max for work that independently warrants those lanes; proximity to reset is never by itself a reason to inflate effort or start low-value tasks.
+- **Parallelism buys elapsed time and can improve utilization, but all workers draw on the same Max pool.** Spend concurrency only on real independently valuable tasks. Read *Quota exhaustion versus other run failures* above before widening a fan-out.
 - **Prefer High for ordinary parallel work.** Reserve xhigh/Max for assignments that actually warrant them under *Effort lanes*.
 
 Never:
@@ -98,7 +104,8 @@ Never:
 - manufacture low-value work merely to fill available capacity;
 - start a downstream slice against a contract that has not been accepted yet;
 - assign holdout research or any work that would expose calibration holdout identities/evidence;
-- create branch, file, or migration races between concurrent workers.
+- create branch, file, or migration races between concurrent workers;
+- weaken an owner gate, methodology boundary, production boundary, or review threshold merely to consume expiring capacity.
 
 **Before launching any worker,** inspect current state so hourly or scheduled orchestrators do not duplicate work already in flight: active GitHub Actions runs, recent issue/PR comments, open PRs, and the files each in-flight assignment touches. The runner already serializes per issue/PR; that does not prevent two different issues from colliding on the same files.
 
