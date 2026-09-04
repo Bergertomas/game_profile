@@ -139,7 +139,7 @@ The workflow listens only to newly created issue/PR conversation comments and in
 
 The runner uses Opus 5 with effort-sensitive turn headroom: High 50, xhigh 100, Max 150. The GitHub Actions job timeout is 240 minutes. These are safety envelopes; Claude should stop once the bounded assignment and required handoff are complete. The runner may read GitHub Actions results. Full raw Claude output is not enabled by the workflow.
 
-Future Claude runs also carry a machine-addressable `run-name` of `claude-work-item-<issue-or-pr-number>-comment-<comment-id>`. That name is transport metadata only. It lets the separate wake bridge associate a completed/failed runner invocation with its durable work item without reading model output or making project judgments.
+Claude runs carry a machine-addressable `run-name` of `claude-work-item-<issue-or-pr-number>-comment-<comment-id>`. That name is transport metadata only. It lets the separate wake bridge associate a completed/failed runner invocation with its durable work item without reading model output or making project judgments. Because `run-name` also overwrites `workflow_run.name`, anything consuming these runs must identify the workflow by its definition path rather than its name; `docs/operations/ChatGPT_Work_GitHub_Wake.md` §3 owns that contract.
 
 The runner does not allow bot-triggered invocations by default. Program-owner comments created through the connected GitHub account are expected to arrive as the repository owner; verify this in the harmless dry run before relying on automated orchestrator-to-Claude handoff.
 
@@ -149,7 +149,13 @@ The runner does not allow bot-triggered invocations by default. Program-owner co
 
 The wake workflow is not an orchestrator. It may identify repository/workflow/run/PR/branch/SHA/conclusion metadata, deduplicate the event, and post the wake comment. It may not read a ready queue to choose work, decide acceptance, merge, invoke Claude, advance the checklist, alter methodology, expose holdouts, mutate production, or publish content.
 
-The existing issue-first runner remains supported for now. Successful issue-first runs can be associated only when exactly one open in-repository task PR has the canonical `claude/issue-<issue>-*` branch prefix. If Claude fails before opening any PR, the bridge fails closed and the hourly watchdog recovers the run. The wake guide records why a later PR-first framing posture is preferable for orchestration-critical work and why that change is not made mandatory until its mechanical creation path is separately tested.
+The existing issue-first runner remains supported for now. Issue-first runs are associated only when exactly one open in-repository task PR has the canonical `claude/issue-<issue>-*` branch prefix; zero or several candidates fail closed. One in-between case is contained rather than fail-closed — a run that dies before opening its PR while an older prefix-matching PR is still open will name that stale PR. `docs/operations/ChatGPT_Work_GitHub_Wake.md` §8 states that boundary precisely and records why a later PR-first framing posture is preferable for orchestration-critical work and why that change is not made mandatory until its mechanical creation path is separately tested.
+
+**Workflow files cannot be pushed by the runner.** A push containing a `.github/workflows/**` change is rejected outright — `refusing to allow a GitHub App to create or update workflow ... without 'workflows' permission`. This is a transport limitation, not a review step: the runner may still author, verify and prove the exact file.
+
+When a runner task needs to change a workflow, it authors the complete file, states plainly in its handoff that the change is not live and cannot be pushed by the runner, and hands the exact change back to the GPT-5.6 Sol orchestrator — or another principal holding the `workflows` permission — to commit onto the same branch through that principal's own authorized GitHub connection. **Tomas is not the message bus for this**, and the runner's missing transport permission is never a reason to make him one. Do not close out a task by leaving the owner a manual file-copy instruction, and do not leave a second copy of a workflow sitting elsewhere in the tree as a durable convention: any test must read the real `.github/workflows/**` path, so the file under test is always the file that runs.
+
+That is how the corrected wake bridge landed under issue #94: the runner authored and proved the file, and the GPT-5.6 Sol orchestrator applied it as commit `0308f33` on the task branch. Earlier workflow files in PR #83 were committed by @Bergertomas; that was the transport available at the time, not the standing convention.
 
 ## One-time owner setup
 
