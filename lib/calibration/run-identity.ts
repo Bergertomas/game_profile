@@ -22,7 +22,7 @@ export const D1_IDENTITY_PROPOSAL: DevelopmentIdentityProposal = Object.freeze({
   runKey: "D1",
   canonicalSlug: "alan-wake-2",
   canonicalTitle: "Alan Wake 2",
-  scopeKey: "alan-wake-2:base-main-campaign",
+  scopeKey: "alan-wake-2-base-main-campaign",
   provider: "igdb",
   igdbGameId: 185246,
   role: "canonical_game",
