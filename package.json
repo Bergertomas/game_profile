@@ -32,6 +32,7 @@
     "calib:harness": "vitest run tests/calibration",
     "calib:probe": "tsx scripts/calibration/live-probe.ts",
     "calib:report": "tsx scripts/calibration/proof-report.ts",
+    "calib:d1-research": "tsx scripts/calibration/d1-research.ts",
     "igdb:probe": "tsx scripts/igdb/probe.ts",
     "igdb:report": "tsx scripts/igdb/proof-report.ts",
     "igdb:stage-proof": "tsx scripts/igdb/stage-proof.ts",

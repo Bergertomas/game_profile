@@ -278,41 +278,37 @@ export class StructuredOutputsClosureError extends Error {
   }
 }
 
-export interface ScoringPassSchema {
-  readonly name: string;
-  readonly strict: true;
+export interface DerivedTransportSchema {
   readonly schema: Record<string, unknown>;
   /** The `$defs` entries pulled across, for the equivalence record. */
   readonly includedDefs: readonly string[];
 }
 
 /**
- * Build the model-facing scoring-pass schema from the canonical schema.
+ * Derive one closed Structured Outputs root object from a set of canonical
+ * subschemas, transitively pulling in every `$defs` entry they reference.
  *
- * Derived at runtime from the controlled schema bytes rather than hand-written,
- * so it cannot drift from the canonical contract: a canonical field the model
- * owns appears here automatically, and one that is removed disappears here too.
+ * Shared by the scoring-pass and research-pass contracts so there is exactly one
+ * implementation of the canonical→transport transformation. A second copy of
+ * this walk would be a second place for the closure rule and the `oneOf`
+ * distinction to drift, and both are subtle enough that the drift would only
+ * surface as an HTTP 400 or an unsatisfiable schema during a measured run.
  */
-export function buildScoringPassSchema(
-  canonical: Record<string, unknown> = loadPackageSchema(),
-): ScoringPassSchema {
-  const canonicalDefs = canonical.$defs as SchemaNode;
-  const pass = canonicalDefs.scoringPass as SchemaNode;
-  const passProperties = pass.properties as SchemaNode;
-
+export function deriveStructuredOutputsSchema(
+  properties: Record<string, unknown>,
+  canonicalDefs: Record<string, unknown>,
+): DerivedTransportSchema {
   const wanted = new Set<string>();
-  // The model owns the claim ledger and the decisions. It does NOT own the run
-  // manifest: role, timing, digests and seed are wrapper facts recorded beside
-  // the output, and the prompt says the wrapper assigns primary/audit "only as
-  // run metadata after the model output".
+  const derived: SchemaNode = {};
+  for (const [name, node] of Object.entries(properties)) {
+    derived[name] = toStructuredOutputs(node, wanted);
+  }
+
   const root: SchemaNode = {
     type: "object",
     additionalProperties: false,
-    properties: {
-      claim_ledger: toStructuredOutputs(passProperties.claim_ledger, wanted),
-      decisions: toStructuredOutputs(passProperties.decisions, wanted),
-    },
-    required: ["claim_ledger", "decisions"],
+    properties: derived,
+    required: Object.keys(derived),
   };
 
   // Transitively pull in every referenced definition.
@@ -333,12 +329,41 @@ export function buildScoringPassSchema(
   const violations = structuredOutputsClosureViolations(schema);
   if (violations.length > 0) throw new StructuredOutputsClosureError(violations);
 
-  return {
-    name: "phase3a_scoring_pass",
-    strict: true,
-    schema,
-    includedDefs: Object.keys(defs).sort(),
-  };
+  return { schema, includedDefs: Object.keys(defs).sort() };
+}
+
+export interface ScoringPassSchema extends DerivedTransportSchema {
+  readonly name: string;
+  readonly strict: true;
+}
+
+/**
+ * Build the model-facing scoring-pass schema from the canonical schema.
+ *
+ * Derived at runtime from the controlled schema bytes rather than hand-written,
+ * so it cannot drift from the canonical contract: a canonical field the model
+ * owns appears here automatically, and one that is removed disappears here too.
+ */
+export function buildScoringPassSchema(
+  canonical: Record<string, unknown> = loadPackageSchema(),
+): ScoringPassSchema {
+  const canonicalDefs = canonical.$defs as SchemaNode;
+  const pass = canonicalDefs.scoringPass as SchemaNode;
+  const passProperties = pass.properties as SchemaNode;
+
+  // The model owns the claim ledger and the decisions. It does NOT own the run
+  // manifest: role, timing, digests and seed are wrapper facts recorded beside
+  // the output, and the prompt says the wrapper assigns primary/audit "only as
+  // run metadata after the model output".
+  const derived = deriveStructuredOutputsSchema(
+    {
+      claim_ledger: passProperties.claim_ledger,
+      decisions: passProperties.decisions,
+    },
+    canonicalDefs,
+  );
+
+  return { name: "phase3a_scoring_pass", strict: true, ...derived };
 }
 
 /** The digest recorded as `output_schema_digest` for the model-facing contract. */

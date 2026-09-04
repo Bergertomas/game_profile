@@ -160,6 +160,16 @@ export interface CallOptions {
   /** Injectable transport. Tests pass a mock; nothing in CI touches the network. */
   readonly fetchImpl?: typeof fetch;
   readonly timeoutMs?: number;
+  /**
+   * The frozen contract asserted before the request is sent. Defaults to the
+   * scoring contract, which forbids tools outright (ADR 0036 §6). The research
+   * pass supplies its own, because §6's other half — "research is a separate
+   * pass with separately controlled tool access" — is a different contract, not
+   * a relaxation of this one. It is injected rather than switched on a flag so
+   * that a scoring caller cannot reach the research contract by passing a
+   * boolean.
+   */
+  readonly assertContract?: (request: RequestShape) => void;
 }
 
 export interface CallResult {
@@ -197,7 +207,7 @@ export async function callResponses(
   request: RequestShape,
   options: CallOptions,
 ): Promise<CallResult> {
-  assertExecutionContract(request);
+  (options.assertContract ?? assertExecutionContract)(request);
 
   const fetchImpl = options.fetchImpl ?? fetch;
   const baseUrl = options.baseUrl ?? "https://api.openai.com/v1";
