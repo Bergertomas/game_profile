@@ -25,13 +25,27 @@ For an issue-triggered implementation that changes repository files, Claude must
 
 ## Assignment sizing and runner-envelope discipline
 
-Size every Claude assignment to **comfortably complete inside the runner's bounded turn budget**, including repository preflight, implementation, proportional verification, commit/push, and PR handoff. A logically coherent checklist item may still be too large for one runner invocation; runner-sized slices are an execution concern and do not change checklist semantics or acceptance authority.
+Size Claude assignments around the **natural coherent unit of work first**, then check that the assignment has enough runner headroom to complete repository preflight, implementation, proportional verification, commit/push, and PR handoff. The turn ceiling is a safety envelope, not a target and not a reason to fragment a task against its engineering nature.
 
-Prefer the smallest dependency-complete slice that leaves a durable, independently reviewable repository state. Split work along real interfaces (for example immutable inputs/identity, research/freeze transport, scoring transport, validation/ledger) rather than asking one run to discover architecture, implement several dependent subsystems, exhaustively verify them, and perform the GitHub handoff at once.
+Prefer a dependency-complete assignment that can be understood, implemented, tested, and reviewed as one meaningful change. Split work when there is a real architectural, dependency, review, risk, or parallelization boundary — for example immutable inputs/identity, research/freeze transport, scoring transport, validation/ledger — but do **not** beat a naturally coherent assignment into very small slices merely to stay far below the ceiling. Repeated preflight and handoff overhead is itself a real cost.
 
-**Ceiling-recovery rule:** if a run reaches or credibly appears to reach the turn ceiling before completing its required handoff, do not repeatedly rerun the same oversized assignment. Inspect what, if anything, was durably produced; then decompose the remaining work into smaller dependency-ordered assignments and resume from the last accepted repository state. One targeted retry is reasonable only when the failure was transient or the remaining work is demonstrably small. Repeated ceiling failures are evidence of bad assignment sizing, not a reason to increase orchestration churn.
+A large task should first be tested for **natural decomposition**: can independent pieces proceed safely, can one bounded prerequisite land before another, or can genuinely independent work run in parallel without contract/file races? If yes, split there. If not, preserve the coherent assignment and select the effort lane/headroom that matches its complexity.
 
-Effort level is not a substitute for decomposition: High/xhigh/Max controls reasoning effort, while assignment size must still fit the runner envelope. Do not parallelize slices that consume one another's not-yet-accepted contracts merely to recover elapsed time.
+### Dynamic turn-headroom policy
+
+The repository runner deliberately gives higher-effort work more breathing room:
+
+| Trigger | Effort | Default turn ceiling | Intended posture |
+|---|---|---:|---|
+| `@claude` | `high` | 50 | ordinary bounded implementation with enough room for mandatory preflight and handoff |
+| `/claude-extra` | `xhigh` | 75 | complex/cross-cutting work that benefits from materially deeper exploration and verification |
+| `/claude-max` | `max` | 100 | unusually demanding groundwork, architecture, planning, oversight, or high-consequence synthesis |
+
+These ceilings are defaults, not work quotas. Claude should stop as soon as the accepted assignment is complete. The orchestrator should periodically inspect run behavior and historical ceiling usage; if a lane routinely finishes with large unused headroom, leave it alone unless the extra envelope causes a concrete problem. If a lane routinely hits the ceiling on otherwise well-sized coherent assignments, adjust the runner policy rather than mechanically slicing work smaller and smaller.
+
+**Ceiling-recovery rule:** if a run reaches or credibly appears to reach the turn ceiling before completing its required handoff, inspect what, if anything, was durably produced. Then decide whether the cause was (a) a naturally oversized assignment that should be split at a meaningful boundary, (b) an effort/headroom mismatch, or (c) transient churn. Do not repeatedly rerun an unchanged assignment against the same inadequate ceiling. One targeted retry is reasonable when the remaining work is demonstrably small or when the runner envelope has just been corrected. Repeated ceiling failures remain a signal to revisit sizing or lane selection, but they do **not** automatically prove that the assignment must be atomized.
+
+Effort level and assignment size are related but distinct: High/xhigh/Max controls reasoning effort and corresponding headroom; task boundaries should still follow natural engineering structure. Do not parallelize slices that consume one another's not-yet-accepted contracts merely to recover elapsed time.
 
 ## Quota exhaustion versus other run failures
 
@@ -42,7 +56,7 @@ Classify the observed signal before reacting:
 | Observed signal | Classification | Correct response |
 |---|---|---|
 | `5-hour limit reached`, `resets <time>`, `rate limit reached`, or an equivalent subscription-capacity response | Claude Max usage exhaustion | pause the lane and recover per the rules below |
-| the run stops at the runner's `--max-turns` ceiling with work still outstanding | assignment exceeded the runner envelope | apply the ceiling-recovery rule above: inspect durable output, decompose, resume |
+| the run stops at the runner's `--max-turns` ceiling with work still outstanding | runner-envelope exhaustion | inspect durable output, then reassess natural task boundaries and effort/headroom under the sizing policy above |
 | GitHub Actions job timeout or cancellation | CI infrastructure envelope | inspect the workflow run; resize or rerun the job, not the subscription |
 | `401`, token expired/revoked, or auth rejection | authentication failure | follow *Token rotation / recovery* below |
 | red CI, failing tests, failing build | ordinary verification failure | fix on the task branch |
@@ -67,7 +81,7 @@ The orchestrator chooses the lane per assignment.
 | `/claude-extra` | `xhigh` | complex engineering/design, difficult debugging, cross-cutting or architecture-sensitive implementation |
 | `/claude-max` | `max` | unusually demanding initial planning, scoping, architecture, groundwork, or high-consequence synthesis |
 
-`max` is not the default implementation tier. Where useful, a task may use Max for groundwork and a later High/xhigh invocation for bounded execution.
+`max` is not the default implementation tier. Where useful, a task may use Max for groundwork and a later High/xhigh invocation for bounded execution. The larger xhigh/Max turn envelopes are there to preserve coherent work, not to encourage unnecessary deliberation.
 
 ## Capacity-aware Claude scheduling
 
@@ -82,7 +96,7 @@ The project has substantial Claude Max capacity. Running a single Claude worker 
 Never:
 
 - manufacture low-value work merely to fill available capacity;
-- start a downstream slice against a contract that has not been accepted yet (this is the same rule as the sizing section's prohibition on parallelizing slices that consume one another's unaccepted contracts);
+- start a downstream slice against a contract that has not been accepted yet;
 - assign holdout research or any work that would expose calibration holdout identities/evidence;
 - create branch, file, or migration races between concurrent workers.
 
@@ -112,7 +126,7 @@ Repository `CLAUDE.md` imports `AGENTS.md`, so every material runner task inheri
 
 The workflow listens only to newly created issue/PR conversation comments and inline PR review comments containing one of the three effort triggers. A run is serialized per issue/PR so two Claude executions do not race on the same work item.
 
-The runner uses Opus 5 and a bounded turn budget. It may read GitHub Actions results. Full raw Claude output is not enabled by the workflow.
+The runner uses Opus 5 with effort-sensitive turn headroom: High 50, xhigh 75, Max 100. The GitHub Actions job timeout is 240 minutes. These are safety envelopes; Claude should stop once the bounded assignment and required handoff are complete. The runner may read GitHub Actions results. Full raw Claude output is not enabled by the workflow.
 
 The runner does not allow bot-triggered invocations by default. Program-owner comments created through the connected GitHub account are expected to arrive as the repository owner; verify this in the harmless dry run before relying on automated orchestrator-to-Claude handoff.
 
