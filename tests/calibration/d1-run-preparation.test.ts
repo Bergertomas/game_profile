@@ -13,7 +13,11 @@ describe("Phase 3A D1 run preparation", () => {
     expect(D1_RUN_INPUT.scope.scope_key).toBe("alan-wake-2-base-main-campaign");
     expect(D1_RUN_INPUT.scope.evaluation_maturity).toBe("mature");
     expect(D1_RUN_INPUT.scope.release_state).toBe("released");
-    expect(D1_RUN_INPUT.scope.known_exclusions).toEqual(["Night Springs", "The Lake House"]);
+    expect(D1_RUN_INPUT.scope.known_exclusions).toEqual([
+      "The Final Draft / New Game Plus",
+      "Night Springs",
+      "The Lake House",
+    ]);
     expect(Object.isFrozen(D1_RUN_INPUT)).toBe(true);
     expect(Object.isFrozen(D1_RUN_INPUT.scope)).toBe(true);
     expect(Object.isFrozen(D1_RUN_INPUT.scope.known_exclusions)).toBe(true);

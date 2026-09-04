@@ -65,8 +65,8 @@ get as far as having something to send.
    record `review_grades_masked`.
 4. **Scope lock** — the scoring view's `evaluation_scope` is re-derived from
    slice A's immutable `D1_RUN_INPUT` plus the freeze date and must match byte for
-   byte, so a mutated scope key, edition, platform list or Night Springs / The
-   Lake House exclusion cannot reach a scoring call.
+   byte, so a mutated scope key, edition, platform list or The Final Draft / New
+   Game Plus, Night Springs / The Lake House exclusion cannot reach a scoring call.
 5. **Scoring-view isolation** — no research or downstream context key
    (`candidate_source_log`, `collection_reason`, `research_completion_report`,
    `query_family_audit`, another pass, adjudication, owner approval …), no

@@ -295,7 +295,7 @@ export function buildD1ScoringPair(options: D1ScoringPairOptions): D1ScoringPair
   }
   if (expectedScope !== null && canonicalize(handoff.semanticInput.evaluation_scope as never) !== expectedScope) {
     problems.push(
-      "the scoring view's evaluation_scope is not the frozen D1 scope re-derived from D1_RUN_INPUT; scope, edition, platforms or the Night Springs / The Lake House exclusions have drifted",
+      "the scoring view's evaluation_scope is not the frozen D1 scope re-derived from D1_RUN_INPUT; scope, edition, platforms or the Final Draft / New Game Plus, Night Springs / Lake House exclusions have drifted",
     );
   }
 

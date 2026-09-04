@@ -53,7 +53,7 @@ import type { Corpus, EvaluationScope, RunManifest } from "./package-types";
  * which bytes — and nothing about methodology. Everything it enforces is a rule
  * some other authority already states:
  *
- *  - the scope, its `Night Springs` / `The Lake House` exclusions and the
+ *  - the scope, its `The Final Draft` / New Game Plus, `Night Springs` and `The Lake House` exclusions and the
  *    maturity gate come from the merged slice-A `D1_RUN_INPUT` and are consumed
  *    unaltered;
  *  - the controlled bytes come from the Item 3 lock and are verified before a
