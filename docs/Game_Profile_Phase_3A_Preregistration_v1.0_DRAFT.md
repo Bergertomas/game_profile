@@ -56,7 +56,7 @@ No title substitution or scope expansion occurs without Tomas's explicit approva
 
 ### Development — execute sequentially
 
-1. **D1 — Alan Wake 2** — current patched base main campaign; `Night Springs` and `The Lake House` excluded as separate expansion scopes.
+1. **D1 — Alan Wake 2** — current patched standard first-playthrough base main campaign; `The Final Draft` / New Game Plus is excluded as a separate replay scope, and `Night Springs` and `The Lake House` are excluded as separate expansion scopes.
 2. **D2 — Battlefield 6** — core Multiplayer, current state at evidence cutoff, including permanent/current seasonal content that belongs to core Multiplayer; Campaign, Portal, REDSEC and other materially distinct modes excluded.
 3. **D3 — The Legend of Zelda: Tears of the Kingdom — Nintendo Switch 2 Edition** — Switch 2 Edition base adventure/current edition state.
 4. **D4 — Banishers: Ghosts of New Eden** — current patched main game.
@@ -153,7 +153,7 @@ Tomas approved the recommended Phase 3A scope/execution choices on 2026-09-02. T
 
 | Game | Included statistical scope | Excluded / separate scope | State |
 |---|---|---|---|
-| D1 Alan Wake 2 | Current patched base main campaign, including free Anniversary/QoL updates applicable to it | `Night Springs`; `The Lake House` | **OWNER-APPROVED 2026-09-02** |
+| D1 Alan Wake 2 | Current patched standard first-playthrough base main campaign, including free Anniversary/QoL updates applicable to it | `The Final Draft` / New Game Plus; `Night Springs`; `The Lake House` | **OWNER-CLARIFIED 2026-09-04** |
 | D2 Battlefield 6 | Core current Multiplayer and permanent/current seasonal core-MP content at corpus cutoff | Campaign; Portal; REDSEC; other materially distinct modes | **OWNER-APPROVED 2026-09-02** |
 | D3 Zelda: Tears of the Kingdom Switch 2 Edition | Switch 2 Edition base adventure + edition-level technical/features state | No separate story DLC in this scope; optional companion assistance does not redefine base scope | **OWNER-APPROVED 2026-09-02** |
 | D4 Banishers | Current patched main game | Any later materially distinct expansion/content | **OWNER-APPROVED 2026-09-02** |
@@ -169,6 +169,12 @@ Free patches, bug fixes, accessibility additions, platform updates and balance c
 If an excluded expansion changes the base campaign through shared systems/patches, research may establish the resulting base-build state but may not silently score the separate expansion content itself.
 
 Major DLC remains eligible for a distinct nested public subpage later; exclusion here is a calibration-scope decision, not a product claim that the DLC is unimportant.
+
+### 5.1 D1 replay-scope clarification — owner-approved 2026-09-04
+
+After measured D1 research attempt 1 identified that “current patched base main campaign” did not explicitly classify `The Final Draft` / New Game Plus, Tomas resolved the ambiguity by excluding it from D1's statistical scope and authorized a fresh research attempt. D1 evaluates the standard first-playthrough campaign as currently patched. Shared bug fixes, accessibility changes and QoL changes that affect that campaign remain included; alternate scenes, manuscript material and narrative closure exclusive to `The Final Draft` do not support D1 scores.
+
+This is a scope clarification, not an expansion or a methodology change. `The Final Draft` is a materially distinct replay mode that requires campaign completion, so treating it separately follows Protocol §3's mode rule and is consistent with H4's explicit New Game Plus exclusion. The six controlled scoring inputs and their lock-set digest are unchanged. Attempt 1 remains immutable refusal evidence; the authorized fresh call is research attempt 2 and must receive only the clarified scope.
 
 ---
 
