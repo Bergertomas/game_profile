@@ -305,8 +305,9 @@ test even if the check is green.
 ### 7.1 Live evidence and current promotion state
 
 All evidence below was produced against `main` at `32a1b9f` on 2026-09-04, on
-**disposable PR #103**. Record IDs, not impressions; an unproven gate stays
-unproven.
+**disposable PR #103**, which was **closed unmerged** after the smoke test — its
+deliberately failing test never reached `main`, and issue #103 is closed with it.
+Record IDs, not impressions; an unproven gate stays unproven.
 
 | Gate | State | Live evidence |
 |---|---|---|
@@ -355,6 +356,14 @@ The watchdog role, however, is retained by this promotion, so a scheduled
 recovery task must remain armed. Promoting the event path is not authority to
 run without a watchdog: if no scheduled occurrence is pending, re-arm it. Only
 Tomas changes that schedule.
+
+That re-arming is **done**. The standing watchdog is now the hourly ChatGPT task
+`Should I Play — Watchdog`, automation id `6a9a57402f248191857fc31c2cd46baf`,
+on an exact hourly cadence with a recovery-only prompt. It is the recovery path
+described in §3 and §6, not the throughput clock, and it carries no authority
+this document does not already grant the scheduled orchestrator. If a future
+observation shows no occurrence pending on that automation, treat it as the same
+re-arm obligation above rather than as a licence to run without a watchdog.
 
 ### Test A1 — completed CI emits exactly one wake comment
 
