@@ -1,0 +1,181 @@
+name: Orchestrator Wake Bridge
+
+on:
+  workflow_run:
+    workflows:
+      - Claude Code Runner
+      - CI
+    types: [completed]
+
+# This workflow is deliberately mechanical. It may emit one metadata-only PR
+# comment; it may not judge work, merge, launch Claude, or mutate project state.
+permissions:
+  actions: read
+  contents: read
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: orchestrator-wake-${{ github.event.workflow_run.id }}-${{ github.event.workflow_run.run_attempt }}
+  cancel-in-progress: false
+
+jobs:
+  emit-wake:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Resolve one PR and emit one idempotent wake comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const EXPECTED_OWNER = 'Bergertomas';
+            const EXPECTED_REPO = 'game_profile';
+            const WAKE_SCHEMA = 'should-i-play.orchestrator-wake.v1';
+            const WAKE_MARKER = 'should-i-play-orchestrator-wake:v1';
+
+            if (context.repo.owner !== EXPECTED_OWNER || context.repo.repo !== EXPECTED_REPO) {
+              core.setFailed(`Repository identity mismatch: ${context.repo.owner}/${context.repo.repo}`);
+              return;
+            }
+
+            const run = context.payload.workflow_run;
+            if (!run || run.status !== 'completed') {
+              core.setFailed('Expected one completed workflow_run payload.');
+              return;
+            }
+
+            // Unrelated comments still instantiate the Claude workflow, whose job
+            // is then skipped by its trigger-phrase guard. They are not Claude
+            // completions and must not wake the orchestrator.
+            if (run.name === 'Claude Code Runner' && run.conclusion === 'skipped') {
+              core.notice(`Ignoring skipped Claude workflow run ${run.id}.`);
+              return;
+            }
+
+            let prNumber = null;
+            let association = null;
+            let sourceWorkItemNumber = null;
+            let sourceCommentId = null;
+
+            if (run.name === 'CI') {
+              const pullRequests = Array.isArray(run.pull_requests) ? run.pull_requests : [];
+              if (pullRequests.length !== 1) {
+                core.notice(`CI run ${run.id} has ${pullRequests.length} associated PRs; fail closed.`);
+                return;
+              }
+              prNumber = pullRequests[0].number;
+              association = 'workflow_run.pull_requests';
+            } else if (run.name === 'Claude Code Runner') {
+              const match = /^claude-work-item-(\d+)-comment-(\d+)$/.exec(run.display_title || '');
+              if (!match) {
+                core.notice(`Claude run ${run.id} lacks the machine-addressable run-name; fail closed.`);
+                return;
+              }
+
+              sourceWorkItemNumber = Number(match[1]);
+              sourceCommentId = Number(match[2]);
+
+              // A PR comment/review-comment invocation already gives us the
+              // durable event surface directly.
+              try {
+                const { data: sourcePr } = await github.rest.pulls.get({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: sourceWorkItemNumber,
+                });
+                if (sourcePr.base?.repo?.full_name === `${EXPECTED_OWNER}/${EXPECTED_REPO}`) {
+                  prNumber = sourceWorkItemNumber;
+                  association = 'claude_source_pr';
+                }
+              } catch (error) {
+                if (error.status !== 404) throw error;
+              }
+
+              // Legacy issue-first invocations can still succeed by creating a
+              // Claude task PR. Resolve only an unambiguous open PR whose branch
+              // carries the runner's canonical issue-number prefix. If Claude
+              // failed before a PR existed, there is intentionally no fallback
+              // target: the hourly watchdog remains recovery until PR-first is
+              // adopted through the documented owner/orchestrator process.
+              if (prNumber === null) {
+                const prefix = `claude/issue-${sourceWorkItemNumber}-`;
+                const pulls = await github.paginate(github.rest.pulls.list, {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  state: 'open',
+                  base: 'main',
+                  per_page: 100,
+                });
+                const candidates = pulls.filter((pull) =>
+                  pull.head?.repo?.full_name === `${EXPECTED_OWNER}/${EXPECTED_REPO}` &&
+                  typeof pull.head?.ref === 'string' &&
+                  pull.head.ref.startsWith(prefix)
+                );
+
+                if (candidates.length !== 1) {
+                  core.notice(`Claude issue run ${run.id} resolved ${candidates.length} open task PRs; fail closed.`);
+                  return;
+                }
+                prNumber = candidates[0].number;
+                association = 'claude_issue_branch_prefix';
+              }
+            } else {
+              core.notice(`Workflow ${run.name} is not in the bounded wake set.`);
+              return;
+            }
+
+            const { data: targetPr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+            });
+
+            if (targetPr.base?.repo?.full_name !== `${EXPECTED_OWNER}/${EXPECTED_REPO}`) {
+              core.setFailed(`Resolved PR #${prNumber} does not belong to the expected repository.`);
+              return;
+            }
+
+            const eventId = `workflow_run:${run.id}:attempt:${run.run_attempt}`;
+            const marker = `<!-- ${WAKE_MARKER} event_id=${eventId} -->`;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              per_page: 100,
+            });
+
+            if (comments.some((comment) => typeof comment.body === 'string' && comment.body.includes(marker))) {
+              core.notice(`Wake ${eventId} already exists on PR #${prNumber}; no-op.`);
+              return;
+            }
+
+            const payload = {
+              schema: WAKE_SCHEMA,
+              event_id: eventId,
+              event_type: 'workflow_run.completed',
+              repository: `${EXPECTED_OWNER}/${EXPECTED_REPO}`,
+              target_pr: prNumber,
+              association,
+              workflow: {
+                name: run.name,
+                run_id: run.id,
+                run_attempt: run.run_attempt,
+                conclusion: run.conclusion,
+              },
+              source: {
+                work_item_number: sourceWorkItemNumber,
+                comment_id: sourceCommentId,
+                head_branch: run.head_branch,
+                head_sha: run.head_sha,
+              },
+            };
+
+            const body = `${marker}\n\n\`\`\`json\n${JSON.stringify(payload, null, 2)}\n\`\`\``;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body,
+            });
+
+            core.notice(`Emitted ${eventId} on PR #${prNumber}; no project judgment was performed.`);
