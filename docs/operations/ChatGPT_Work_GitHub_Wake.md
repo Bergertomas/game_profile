@@ -1,6 +1,6 @@
 # ChatGPT Work GitHub Orchestrator Wake
 
-**Status:** Candidate operating integration — GitHub side implemented; native Work trigger must pass the smoke test before becoming the primary wake path
+**Status:** Candidate operating integration — GitHub side merged on `main` (PR #83); native Work trigger must pass the §7 smoke test before becoming the primary wake path
 
 **Repository:** `Bergertomas/game_profile`
 
@@ -191,11 +191,14 @@ Successor creation has a second safety check: immediately before launching Claud
 
 ## 7. Smoke-test plan
 
-Do not merge this integration solely because its YAML parses. Prove the whole path after Tomas configures the Work task.
+The GitHub side merged in PR #83 on review of its bounded, non-decision-making
+contract — not on a passed smoke test. Parsing YAML is not proof of the path, so
+the event route stays non-primary until A–F below pass after Tomas configures the
+Work task.
 
 ### Test A — bridge emits bounded metadata
 
-1. On this PR or a disposable non-production PR, trigger a harmless CI run.
+1. On a disposable non-production PR, trigger a harmless CI run.
 2. After `CI` completes, verify `Orchestrator Wake Bridge` completes and posts exactly one `should-i-play-orchestrator-wake:v1` comment.
 3. Verify the JSON matches the actual workflow run/PR/head and contains no judgment/instruction.
 4. Re-run the same bridge workflow attempt/event if practical and confirm the existing marker makes it a no-op rather than a second comment.
