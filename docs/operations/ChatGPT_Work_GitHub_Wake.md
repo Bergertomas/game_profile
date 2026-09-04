@@ -1,6 +1,6 @@
 # ChatGPT Work GitHub Orchestrator Wake
 
-**Status:** Candidate operating integration — GitHub side merged on `main` (PR #83), corrected under issue #94, and merged as PR #98 at `32a1b9f`. The corrected bridge is **live on `main`** and its GitHub transport has been proved end to end on disposable PR #103. Promotion to primary wake path is **pending Tests E and F**; see §7.1 for the exact per-test evidence.
+**Status:** **Primary operating integration** — GitHub side merged on `main` (PR #83), corrected under issue #94, and merged as PR #98 at `32a1b9f`. The corrected bridge is **live on `main`** and has been proved end to end on disposable PR #103. On 2026-09-04, after the final scheduled watchdog observation, the program owner recorded the promotion decision: the event-driven ChatGPT Work path is now the **primary completion signal**, and the hourly/scheduled orchestrator is retained as the **watchdog/recovery path**. That changes operating status only — it weakens no claim, idempotency, fail-closed, owner-gate, scoring/holdout or metadata-only boundary in this document. See §7.1 for the exact per-gate evidence.
 
 **Repository:** `Bergertomas/game_profile`
 
@@ -24,7 +24,7 @@ Desired flow:
 
 `Claude/GitHub work completes -> bounded PR wake comment -> ChatGPT Work wakes -> full repository preflight -> independent audit -> accept/merge or bounded correction -> dependency-aware ready queue -> next safe Claude assignment(s)`
 
-The hourly autonomous checkpoint remains the watchdog/recovery path. It is not the normal throughput clock once this integration has passed its smoke test.
+The hourly autonomous checkpoint is the watchdog/recovery path. It is no longer the normal throughput clock: this integration passed its substantive live gates on 2026-09-04 (§7.1) and the owner promoted the event path to the primary completion signal. The scheduled orchestrator is retained deliberately — an event that is never delivered, a Work task that never wakes, and a run that stops read-only on a failed claim are all recovered by it.
 
 GitHub automation may only identify an event and emit bounded metadata. It must never choose a successor, decide acceptance, merge material work, advance the master checklist, make scoring/methodology decisions, expose holdouts, mutate production, publish editorial content, or bypass an owner gate. GPT-5.6 Sol remains program owner/orchestrator.
 
@@ -173,7 +173,7 @@ No new API key or webhook service is required.
 4. Paste the **short bootstrap prompt in §5.1** — that one, verbatim, and nothing else. It is sized for the Work prompt field; the full §5.2 procedure is deliberately not pasted, because the awakened run reads it from the repository. If the task UI exposes model selection, select **GPT-5.6 Sol High**. A different model must not silently assume the Phase-3A scoring/editorial role.
 5. Review the connected GitHub app's action permissions. The task needs repository reads and, for unattended orchestration, the existing permitted low-risk issue/PR comments plus non-production merge actions. OpenAI documents that connected-app permissions and approval requirements carry into event-triggered tasks; any action that still requires approval will pause rather than bypass it.
 6. Leave the existing hourly watchdog scheduled task enabled.
-7. Run §7's harmless bot-comment smoke test before treating the event path as primary.
+7. Run §7's harmless bot-comment smoke test before treating the event path as primary. This was completed on 2026-09-04 against disposable PR #103; §7.1 records the per-gate evidence. Re-run it if the task, its prompt, the connected app's permissions, or the bridge workflow changes.
 
 The currently connected ChatGPT GitHub plugin is already configured with write-capable actions in the interactive environment; this integration does not add or expose credentials in the repository. Work must still prove that its scheduled/event-triggered execution receives the same authorized action surface.
 
@@ -280,9 +280,14 @@ Successor creation has a second safety check: immediately before launching Claud
 
 The GitHub side merged in PR #83 on review of its bounded, non-decision-making
 contract — not on a passed smoke test, and PR #98 then repaired it. Parsing YAML
-is not proof of the path, so the event route stays non-primary until the
-substantive gates below pass. §7.1 records which of them have live evidence
-today and which do not.
+is not proof of the path, so the event route stayed non-primary until the
+substantive gates below passed. They have now passed, and §7.1 records the exact
+evidence for each — including the two assertions that remain open
+first-natural-occurrence observations rather than passed gates.
+
+This plan is retained after promotion, not archived. It is the re-qualification
+procedure if the Work task, its prompt, the connected app's permissions, or the
+bridge workflow changes.
 
 The plan's first version tested only a CI run, which was the one path the
 `run.name` defect left working, and it accepted green status as success. A green
@@ -309,21 +314,47 @@ unproven.
 | A2 — Claude wake | **proved** | source run `33895201306`; bridge run `33895291171`; wake comment `5543486248`. The custom machine `run-name` was resolved through the workflow definition path, and `runner_source` (`main`) stayed correctly separated from the target PR head. |
 | A2 step 5 — skipped Claude ignored | **proved** | skipped source run `33895230405`; bridge run `33895291554`; exit `Ignoring skipped Claude workflow run 33895230405`; no wake comment posted. |
 | A3 steps 1–2 — GitHub dedupe | **proved** | bridge rerun attempt 2 against source event `workflow_run:33895201306:attempt:1`; exit `Wake ... already exists ...; no-op`; exactly one wake comment remains on the PR. |
-| A3 step 3 — new source attempt gets its own event ID | **not yet proved** | Awaiting the first natural rerun of a **source** workflow. Not satisfied by the A3 rerun above, which reran the bridge. |
+| A3 step 3 — new source attempt gets its own event ID | **open — not proved, not waived** | Awaiting the first natural rerun of a **source** workflow. Not satisfied by the A3 rerun above, which reran the bridge. Non-blocking for promotion; still open after it. |
 | B — bot comment wakes Work, Work preflights | **proved** | after the Work task was updated to the exact §5.1 prompt: source Claude run `33895748974`; bridge run `33895830405`; bot wake comment `5543560667` (`workflow_run:33895748974:attempt:1`). The enabled `Should I Play — Event Wake` task ran after that bot comment and performed repository preflight and read-only reconstruction of PR #103 rather than acting from the comment. |
-| C — claim race | **not yet observed** | No platform-supported duplicate-delivery injector exists for this account. Observe on first natural duplicate delivery or a separately designed safe injection test. Not a blocking promotion gate; see below. |
+| C2/C3 — claim race and claim-write fail-closed | **open — not observed, not waived** | No platform-supported duplicate-delivery injector exists for this account, and C3 is not induced by weakening live permissions. Observe on first natural duplicate delivery / first natural claim-write failure, or through a separately designed safe injection test. Non-blocking for promotion; still open after it. C1 (duplicate wake comments) is a separate shape — see §6 and §7's Test C. |
 | D — GitHub never chooses work | **proved** | the live bridge holds only `PullRequests: write` plus metadata read, actually posts the comment, and performs metadata transport only. No ready-queue query, acceptance rule, merge, Claude trigger, checklist update or production action appears in the run. |
-| E — failure classification | **in flight** | being exercised on PR #103 by commit `e9b52b93b83306e6849acf94e5f8b3063244e1e9`, which adds one deliberately false Vitest assertion. |
-| F — watchdog survives | **not yet observed** | a natural next-hour observation of the hourly checkpoint. Do not fabricate it. |
+| E — failure classification | **proved** | disposable PR #103 head `e9b52b93b83306e6849acf94e5f8b3063244e1e9`; source CI run `33896365213` concluded `failure`; Integration job `101099834641` succeeded and Quality job `101099834848` failed **solely** on the deliberate assertion in `tests/orchestrator-wake-smoke-intentional-failure.test.ts` (the normal wake suite passed 34/34; the ordinary suite was 1 intentional failure / 1,449 passing). Bridge wake comment `5543676368` carried `workflow_run:33896365213:attempt:1`. The Event Wake task ran immediately afterward (`last_run_time` `2026-09-04T16:45:54.006078Z`) and produced **no** claim, corrective `@claude` launch, merge, issue or other project mutation — correct for a read-only no-action classification. |
+| F — watchdog survives | **proved (operational evidence)** | the unchanged `Should I Play Day Run` schedule executed its final hourly occurrence at `2026-09-04T17:03:38.116381Z` (20:03:38 Asia/Jerusalem) and then disabled naturally at its configured `COUNT=12`. Its standing prompt required normal repository preflight/recovery/checkpoint behaviour. GitHub remained on the same `main` head and that run produced no conflicting project mutation or race against the event path. **Scheduler/coexistence evidence only:** the task API does not expose the private run transcript, so the run's internal preflight was not inspected and is not claimed. |
 | G — the comment actually posts | **proved** | same runs as A1/A2/B: each reached `Emitted ... on PR #<n>` and the comment exists on PR #103. No `403` reappeared. |
 
-**Current promotion state: candidate, not primary.** The hourly autonomous
-checkpoint remains the normal throughput clock as well as the watchdog until
-**E and F** have live evidence. Update this subsection when each observation
-lands, and do not promote on the strength of the already-proved transport gates
-alone. A3 step 3 and C remain distinct open assertions to record on first
-natural occurrence; neither blocks promotion, and neither may be closed by
-assertion instead of evidence.
+**Current promotion state: primary.** All substantive live gates — A1, A2
+(including the skipped-run branch), A3's deduplication branch, B, D, E, F and G
+— now have recorded evidence above, and on 2026-09-04, after the final scheduled
+watchdog observation, the program owner promoted the event-driven ChatGPT Work
+path to the **primary completion signal**. The hourly/scheduled orchestrator is
+**retained as the watchdog/recovery path** and is not the throughput clock.
+
+Promotion changed operating status and nothing else. §5.1/§5.2 are unchanged:
+the claim before every project mutation, the canonical-lowest wake and claim
+rules, the fail-closed read-only stop, the mandatory repository preflight, the
+owner gates, holdout and scoring boundaries, and GitHub's metadata-only role all
+stand exactly as written.
+
+Two assertions remain **open first-natural-occurrence observations** and are
+explicitly *not* waived, closed, or converted into passed gates by this
+promotion:
+
+- **A3 step 3** — a genuinely new attempt of a *source* workflow producing its
+  own event ID; awaiting the first natural source rerun.
+- **C2/C3** — the two-claim race on a duplicate delivery of the one canonical
+  wake comment, and the claim-write fail-closed branch; awaiting first natural
+  occurrence or a separately designed safe injection test.
+
+Neither blocked promotion and neither may ever be closed by assertion instead of
+evidence. Record each here when it occurs.
+
+**One operational consequence of F to act on.** The `Should I Play Day Run`
+schedule that produced F's evidence disabled itself naturally at its configured
+`COUNT=12`; that expiry is what makes the observation a clean coexistence proof.
+The watchdog role, however, is retained by this promotion, so a scheduled
+recovery task must remain armed. Promoting the event path is not authority to
+run without a watchdog: if no scheduled occurrence is pending, re-arm it. Only
+Tomas changes that schedule.
 
 ### Test A1 — completed CI emits exactly one wake comment
 
@@ -425,11 +456,40 @@ Inspect the bridge workflow logs and comment. It must only resolve a PR, dedupli
 
 On a disposable branch, cause a harmless CI failure. Confirm the bridge wakes Work and Work independently inspects the failed job before deciding whether the cause is code, environment, cancellation, stale head or another class. It must not post `@claude` merely because conclusion=`failure`.
 
-This is in flight: commit `e9b52b93b83306e6849acf94e5f8b3063244e1e9` on disposable PR #103 adds one deliberately false Vitest assertion. The expected Work behaviour is to inspect the actual failed job, recognise the intentional disposable smoke condition, and take no corrective action. Record the observed outcome in §7.1 rather than assuming it.
+**Passed on 2026-09-04.** Commit `e9b52b93b83306e6849acf94e5f8b3063244e1e9` on
+disposable PR #103 added one deliberately false Vitest assertion in
+`tests/orchestrator-wake-smoke-intentional-failure.test.ts`. Source CI run
+`33896365213` concluded `failure` with Integration job `101099834641` green and
+Quality job `101099834848` failing on that assertion alone. Bridge wake comment
+`5543676368` carried `workflow_run:33896365213:attempt:1`, the Event Wake task
+ran immediately afterward, and **no** claim, `@claude` launch, merge, issue or
+other mutation followed. §7.1 holds the recorded evidence.
+
+Note what the pass consists of. A `failure` conclusion produced no corrective
+action, which is the assertion this test makes: the bridge reports the
+conclusion as itself and the orchestrator classifies it. The bridge was never
+asked to suppress the wake for an intentional failure — that classification is
+GPT's, and putting it in the workflow would be exactly the judgment §1 forbids
+GitHub from holding.
 
 ### Test F — watchdog survives
 
 Leave the hourly autonomous checkpoint unchanged and verify its next scheduled run still performs normal repository preflight/recovery. Event-driven and hourly paths may observe the same state; duplicate-safe orchestration must make that harmless.
+
+**Passed on 2026-09-04, as operational scheduler/coexistence evidence.** The
+unchanged `Should I Play Day Run` schedule executed its final hourly occurrence
+at `2026-09-04T17:03:38.116381Z` (20:03:38 Asia/Jerusalem) under its standing
+prompt requiring normal preflight/recovery/checkpoint behaviour, then disabled
+naturally at its configured `COUNT=12`. It coexisted with the live event path
+without conflict: `main` was unchanged across it and it produced no competing
+mutation or race.
+
+State the limit of that evidence plainly rather than overclaiming it. The task
+API does not expose the private run transcript, so what was observed is that the
+scheduled watchdog still fired on its own clock alongside an active event path
+and did no harm — **not** an inspected transcript of its preflight. Record it as
+that and nothing more. The next scheduled occurrence is an opportunity to
+observe the preflight receipt directly if the transcript becomes readable.
 
 ### Test G — the comment actually posts
 
@@ -444,8 +504,15 @@ permissions regression in the workflow rather than a logic defect.
 
 The integration becomes the primary throughput wake path only after the
 **substantive live gates** pass: A1, A2 (including the skipped-run branch), A3's
-deduplication branch, B, D, E, F and G. A1, A2, A3-dedup, B, D and G are proved
-(§7.1); **E and F are not, so the integration is not primary today.**
+deduplication branch, B, D, E, F and G. All eight now have recorded live
+evidence (§7.1), and the program owner promoted the event path to the primary
+completion signal on 2026-09-04, retaining the hourly/scheduled orchestrator as
+watchdog/recovery. **The integration is primary today.**
+
+Promotion is a status change, not a licence. The rule above stays as the
+re-qualification bar: if the Work task, its prompt, the connected app's
+permissions or the bridge workflow change, these gates are re-run before the
+event path is trusted as primary again.
 
 Two assertions are deliberately outside that mandatory set because neither can
 be induced on demand without either fabricating evidence or creating a worse
@@ -461,6 +528,11 @@ whether or not its race and fail-closed branches have yet been observed live;
 what is deferred is the observation, never the requirement. The absence of a
 platform-supported duplicate-webhook injector must not be converted into a
 reason to run unsafe global-permission experiments.
+
+Promotion did not close them either. Being outside the mandatory gate set is not
+the same as being satisfied, and an integration running as primary is a reason
+to watch for these two shapes more attentively, not less. Both stay open in §7.1
+until a real occurrence supplies evidence.
 
 ## 8. PR-first runner assessment
 
