@@ -117,6 +117,16 @@ Each pass is validated in two layers, and neither repairs anything:
    derivation (through the existing `deriveCoverageState`, not a second
    implementation) and the required-facet rule.
 
+Reference integrity here is criterion-scoped, not merely existential. A claim's
+`observed_unit_ids` must be units of the frozen frame of the criterion that
+claim is mapped to (§5.2), and an `insufficiency_reference_ids` entry naming a
+coverage frame or unit — on a decision or on one of its platform overrides —
+must name the scored criterion's own frame or a unit of it, because "another
+criterion's frame or unit says nothing about this criterion's coverage and does
+not resolve" (§15.1 amendment 4). A reference to a real frozen object belonging
+to a different criterion is reported as exactly that, distinct from a reference
+that names nothing frozen at all.
+
 The §15.1 families that need the pair or the adjudicated package —
 `pair_invariants` over outputs, `adjudication`, `derivation`, the package-level
 half of `coverage_and_time`, and `reassessment` — are **not** evaluated here and

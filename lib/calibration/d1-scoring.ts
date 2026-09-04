@@ -713,10 +713,17 @@ export function validateD1ScoringPass(options: {
 
   const orderedSources = new Set(corpus.canonical_source_order);
   const frames = frameIndex(semanticInput);
+  // The global sets exist only to tell "names nothing frozen" apart from "names
+  // another criterion's frozen object". Neither is ever what makes a reference
+  // resolve: coverage frames and their units are criterion-scoped, and every
+  // acceptance below is decided against the one frame that belongs to the
+  // criterion the reference is made under.
   const frameIds = new Set([...frames.values()].map((frame) => frame.coverage_frame_id));
   const frameUnitIds = new Set(
     [...frames.values()].flatMap((frame) => frame.coverage_units.map((unit) => unit.unit_id)),
   );
+  const unitIdsOf = (frame: CoverageFrame | undefined): Set<string> =>
+    new Set(frame?.coverage_units.map((unit) => unit.unit_id) ?? []);
 
   for (const claim of pass.claim_ledger) {
     if (!orderedSources.has(claim.source_id)) {
@@ -733,14 +740,32 @@ export function validateD1ScoringPass(options: {
         message: `"${claim.subcriterion_key}" is not a rubric subcriterion key`,
       });
     }
+    // §5.2 — a claim's observed units are "observed-unit IDs from the frozen
+    // criterion coverage frame", meaning the frame of the criterion this claim
+    // is mapped to. §6.1 depends on that scoping: a linked, non-rejected claim's
+    // observed unit is observed for the decision, which only means anything if
+    // the unit belongs to that criterion's frame. A unit of some other
+    // criterion's frame therefore does not resolve here either.
+    const claimFrame = frames.get(claim.subcriterion_key);
+    const claimFrameUnitIds = unitIdsOf(claimFrame);
     for (const unitId of claim.observed_unit_ids) {
-      if (!frameUnitIds.has(unitId)) {
+      if (claimFrameUnitIds.has(unitId)) continue;
+      const path = `claim_ledger/${claim.claim_id}.observed_unit_ids`;
+      if (!claimFrame) {
         issues.push({
           family: "reference_integrity",
-          path: `claim_ledger/${claim.claim_id}.observed_unit_ids`,
-          message: `"${unitId}" is not a unit of any frozen coverage frame`,
+          path,
+          message: `"${unitId}" cannot resolve: no frozen coverage frame exists for ${claim.subcriterion_key}, the criterion this claim is mapped to`,
         });
+        continue;
       }
+      issues.push({
+        family: "reference_integrity",
+        path,
+        message: frameUnitIds.has(unitId)
+          ? `"${unitId}" is a unit of another criterion's frozen frame, not of the ${claim.subcriterion_key} frame this claim is mapped to (Protocol §5.2)`
+          : `"${unitId}" is not a unit of any frozen coverage frame`,
+      });
     }
   }
 
@@ -765,22 +790,44 @@ export function validateD1ScoringPass(options: {
         }
       }
     }
-    // §15.1 amendment 4 names four object kinds. The candidate-source record is
-    // the one kind a scoring pass cannot see — §3.2 withholds the candidate log
-    // from the scoring view — so a reference that resolves to none of the three
-    // visible kinds is reported as an unresolved reference for the orchestrator
-    // rather than guessed at here.
+    const frame = frames.get(decision.subcriterion_key);
+    const ownFrameUnitIds = unitIdsOf(frame);
+
+    // §15.1 amendment 4 names four object kinds, and two of them are scoped to
+    // the criterion being marked Unknown: "the scored criterion's own frozen
+    // coverage frame, or a unit of that frame. Another criterion's frame or unit
+    // says nothing about this criterion's coverage and does not resolve."
+    //
+    // The candidate-source record is the one kind a scoring pass cannot see —
+    // §3.2 withholds the candidate log from the scoring view — so a reference
+    // that resolves to none of the visible kinds is reported as an unresolved
+    // reference for the orchestrator rather than guessed at here. A reference
+    // that names a real frozen object belonging to a different criterion is a
+    // different, decidable failure and is reported as such.
+    const checkInsufficiencyReference = (at: string, referenceId: string): void => {
+      if (claimIds.has(referenceId)) return;
+      if (frame && referenceId === frame.coverage_frame_id) return;
+      if (ownFrameUnitIds.has(referenceId)) return;
+      issues.push({
+        family: "reference_integrity",
+        path: `${at}.insufficiency_reference_ids`,
+        message:
+          frameIds.has(referenceId) || frameUnitIds.has(referenceId)
+            ? `"${referenceId}" is another criterion's frozen coverage frame or unit, which says nothing about ${decision.subcriterion_key}'s coverage (§15.1 amendment 4)`
+            : `"${referenceId}" resolves to no claim, coverage frame or frame unit visible in this pass`,
+      });
+    };
     for (const referenceId of decision.insufficiency_reference_ids) {
-      if (!claimIds.has(referenceId) && !frameIds.has(referenceId) && !frameUnitIds.has(referenceId)) {
-        issues.push({
-          family: "reference_integrity",
-          path: `${path}.insufficiency_reference_ids`,
-          message: `"${referenceId}" resolves to no claim, coverage frame or frame unit visible in this pass`,
-        });
+      checkInsufficiencyReference(path, referenceId);
+    }
+    for (const [index, override] of decision.platform_overrides.entries()) {
+      for (const referenceId of override.insufficiency_reference_ids) {
+        // An override is scored under the same criterion, so it is held to the
+        // same criterion-scoped rule.
+        checkInsufficiencyReference(`${path}.platform_overrides[${index}]`, referenceId);
       }
     }
 
-    const frame = frames.get(decision.subcriterion_key);
     checkCoveragePartition(
       "coverage_derivation",
       path,

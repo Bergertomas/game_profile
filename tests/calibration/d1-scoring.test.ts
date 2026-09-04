@@ -17,7 +17,7 @@ import {
 import { PREREGISTERED_MODEL, type SemanticInput } from "@/lib/calibration/request-builder";
 import { freezeD1EvaluationScope } from "@/lib/calibration/run-input";
 import type { ModelScoringPass } from "@/lib/calibration/scoring-pass-contract";
-import type { Corpus } from "@/lib/calibration/package-types";
+import type { Corpus, PlatformOverride, ScoreDecision } from "@/lib/calibration/package-types";
 import { buildValidPackage } from "./fixtures";
 
 /**
@@ -478,6 +478,224 @@ describe("validation reports and fails closed; it never repairs (§9.1, §4.3)",
     const receipt = buildD1PairReceipt({ pair, primary, audit });
     expect(receipt.pair_counts).toBe(true);
     expect(receipt.blocking_reasons).toEqual([]);
+  });
+});
+
+describe("references resolve inside the scored criterion (Protocol §5.2, §15.1 amendment 4)", () => {
+  /**
+   * The same decision restated as Unknown — the only shape in which the schema
+   * permits `insufficiency_reference_ids` at all, since a numeric decision must
+   * carry none. Coverage lists are untouched, so §6.1 derivation is unaffected
+   * and the only thing under test is where the reference resolves.
+   */
+  function unknownDecision(decision: ScoreDecision, referenceIds: readonly string[]): ScoreDecision {
+    return {
+      ...decision,
+      score_value_kind: "unknown",
+      numeric_score: null,
+      anchor_id: null,
+      unknown_reason: "Placeholder insufficiency for a synthetic transport fixture.",
+      missing_coverage_classes: ["source_scarcity"],
+      insufficiency_reference_ids: [...referenceIds],
+      lower_anchor_rejection: null,
+      higher_anchor_rejection: null,
+      endpoint_gate: null,
+      subcriterion_confidence: "Low",
+      zero_reason: null,
+    };
+  }
+
+  function unknownOverride(decision: ScoreDecision, referenceIds: readonly string[]): PlatformOverride {
+    return {
+      platform_key: "placeholder_platform",
+      score_value_kind: "unknown",
+      numeric_score: null,
+      anchor_id: null,
+      unknown_reason: "Placeholder platform insufficiency for a synthetic transport fixture.",
+      missing_coverage_classes: ["platform"],
+      insufficiency_reference_ids: [...referenceIds],
+      zero_reason: null,
+      rationale: "Placeholder platform rationale for a synthetic transport fixture.",
+      claim_ids: decision.claim_ids,
+      confidence_facts: decision.confidence_facts,
+      subcriterion_confidence: "Low",
+      coverage_observed_unit_ids: decision.coverage_observed_unit_ids,
+      coverage_missing_unit_ids: decision.coverage_missing_unit_ids,
+    };
+  }
+
+  /** A pass built from one output, validated against the frozen handoff. */
+  function validateOutput(handoff: D1ResearchHandoff, output: ModelScoringPass) {
+    const pair = buildD1ScoringPair({ handoff });
+    return validateD1ScoringPass({
+      pass: {
+        run_manifest: buildD1ScoringManifest({ pair, request: pair.primary, role: "primary", output, facts: FACTS }),
+        claim_ledger: output.claim_ledger,
+        decisions: output.decisions,
+      },
+      semanticInput: handoff.semanticInput,
+      corpus: handoff.corpus,
+      output,
+      role: "primary",
+    });
+  }
+
+  /** A criterion with no required facets, so the Unknown restatement stays valid. */
+  function facetFreeDecision(output: ModelScoringPass): ScoreDecision {
+    const decision = output.decisions.find((candidate) => candidate.facet_records.length === 0);
+    if (!decision) throw new Error("fixture has no facet-free decision");
+    return decision;
+  }
+
+  /** Another criterion's frozen frame — a real object, and the wrong one. */
+  function foreignFrame(subcriterionKey: string) {
+    const frame = FIXTURE_CORPUS.coverage_frames.find((candidate) => candidate.subcriterion_key !== subcriterionKey);
+    if (!frame) throw new Error("fixture has only one coverage frame");
+    return frame;
+  }
+
+  function replaceDecision(output: ModelScoringPass, replacement: ScoreDecision): ModelScoringPass {
+    return {
+      claim_ledger: output.claim_ledger,
+      decisions: output.decisions.map((decision) =>
+        decision.subcriterion_key === replacement.subcriterion_key ? replacement : decision,
+      ),
+    };
+  }
+
+  const foreignReference = /another criterion's frozen coverage frame or unit/;
+  const foreignUnit = /is a unit of another criterion's frozen frame/;
+
+  it("accepts an insufficiency reference to the scored criterion's own frame", () => {
+    const handoff = buildHandoff();
+    const output = modelOutput("primary");
+    const decision = facetFreeDecision(output);
+    const own = FIXTURE_CORPUS.coverage_frames.find(
+      (frame) => frame.subcriterion_key === decision.subcriterion_key,
+    )!;
+    for (const referenceId of [own.coverage_frame_id, own.coverage_units[0]!.unit_id, decision.claim_ids[0]!]) {
+      const result = validateOutput(handoff, replaceDecision(output, unknownDecision(decision, [referenceId])));
+      expect(result.issues.filter((issue) => issue.family === "reference_integrity")).toEqual([]);
+    }
+  });
+
+  it("rejects an insufficiency reference to another criterion's coverage frame", () => {
+    const handoff = buildHandoff();
+    const output = modelOutput("primary");
+    const decision = facetFreeDecision(output);
+    const foreign = foreignFrame(decision.subcriterion_key);
+    const result = validateOutput(
+      handoff,
+      replaceDecision(output, unknownDecision(decision, [foreign.coverage_frame_id])),
+    );
+    expect(
+      result.issues.some(
+        (issue) =>
+          issue.family === "reference_integrity" &&
+          issue.path === `decisions/${decision.subcriterion_key}.insufficiency_reference_ids` &&
+          foreignReference.test(issue.message),
+      ),
+    ).toBe(true);
+    expect(result.valid).toBe(false);
+  });
+
+  it("rejects an insufficiency reference to a unit of another criterion's frame", () => {
+    const handoff = buildHandoff();
+    const output = modelOutput("primary");
+    const decision = facetFreeDecision(output);
+    const foreign = foreignFrame(decision.subcriterion_key);
+    const result = validateOutput(
+      handoff,
+      replaceDecision(output, unknownDecision(decision, [foreign.coverage_units[0]!.unit_id])),
+    );
+    expect(
+      result.issues.some(
+        (issue) => issue.family === "reference_integrity" && foreignReference.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("holds a platform override's insufficiency references to the same criterion scope", () => {
+    const handoff = buildHandoff();
+    const output = modelOutput("primary");
+    const decision = facetFreeDecision(output);
+    const foreign = foreignFrame(decision.subcriterion_key);
+    const withOverride: ScoreDecision = {
+      ...decision,
+      platform_overrides: [unknownOverride(decision, [foreign.coverage_units[1]!.unit_id])],
+    };
+    const result = validateOutput(handoff, replaceDecision(output, withOverride));
+    expect(
+      result.issues.some(
+        (issue) =>
+          issue.family === "reference_integrity" &&
+          issue.path === `decisions/${decision.subcriterion_key}.platform_overrides[0].insufficiency_reference_ids` &&
+          foreignReference.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("still reports a reference that names no frozen object at all", () => {
+    const handoff = buildHandoff();
+    const output = modelOutput("primary");
+    const decision = facetFreeDecision(output);
+    const result = validateOutput(
+      handoff,
+      replaceDecision(output, unknownDecision(decision, ["frame-that-was-never-frozen"])),
+    );
+    expect(
+      result.issues.some(
+        (issue) =>
+          issue.family === "reference_integrity" &&
+          /resolves to no claim, coverage frame or frame unit/.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects a claim whose observed unit belongs to another criterion's frame (§5.2)", () => {
+    const handoff = buildHandoff();
+    const output = modelOutput("primary");
+    const claim = output.claim_ledger[0]!;
+    const foreign = foreignFrame(claim.subcriterion_key);
+    const mutated: ModelScoringPass = {
+      claim_ledger: output.claim_ledger.map((candidate) =>
+        candidate.claim_id === claim.claim_id
+          ? { ...candidate, observed_unit_ids: [foreign.coverage_units[0]!.unit_id] }
+          : candidate,
+      ),
+      decisions: output.decisions,
+    };
+    const result = validateOutput(handoff, mutated);
+    expect(
+      result.issues.some(
+        (issue) =>
+          issue.family === "reference_integrity" &&
+          issue.path === `claim_ledger/${claim.claim_id}.observed_unit_ids` &&
+          foreignUnit.test(issue.message),
+      ),
+    ).toBe(true);
+    expect(result.valid).toBe(false);
+  });
+
+  it("still reports a claim unit that is in no frozen frame", () => {
+    const handoff = buildHandoff();
+    const output = modelOutput("primary");
+    const claim = output.claim_ledger[0]!;
+    const mutated: ModelScoringPass = {
+      claim_ledger: output.claim_ledger.map((candidate) =>
+        candidate.claim_id === claim.claim_id
+          ? { ...candidate, observed_unit_ids: ["unit-that-was-never-frozen"] }
+          : candidate,
+      ),
+      decisions: output.decisions,
+    };
+    const result = validateOutput(handoff, mutated);
+    expect(
+      result.issues.some(
+        (issue) =>
+          issue.family === "reference_integrity" && /is not a unit of any frozen coverage frame/.test(issue.message),
+      ),
+    ).toBe(true);
   });
 });
 
