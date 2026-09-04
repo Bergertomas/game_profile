@@ -91,6 +91,8 @@ The project has substantial Claude Max capacity. Running a single Claude worker 
 
 **Claude capacity is perishable project capacity.** When substantial capacity remains in the current five-hour usage window, the orchestrator should proactively spend it on the highest-value dependency-safe ready work rather than defaulting to idle capacity. Optimize for useful, accepted work completed per usage window — not for minimum model usage and not for maximum token burn.
 
+When sufficient genuinely useful dependency-safe work exists, **aspire to roughly 70–90% useful utilization of the five-hour Claude window**. This is not a quota/SLO and does not override engineering judgment. A mature window around 20% while useful ready work existed is a strong underutilization signal; diagnose waiting, overly conservative concurrency, poor task framing, effort mismatch, or inadequate headroom rather than manufacturing token consumption.
+
 - **Default target: up to 2 concurrent Claude workers** whenever two high-value assignments are ready and genuinely independent.
 - **A 3rd worker only** when there is a clearly independent, bounded task with no dependency, no branch/file collision, and no acceptance-contract race against the other two. If that independence is arguable, it does not qualify.
 - **Keep one worker on the critical path.** Additional workers consume genuinely dependency-free supporting work — they do not fragment the critical path to look busy.
@@ -109,7 +111,7 @@ Never:
 - create branch, file, or migration races between concurrent workers;
 - weaken an owner gate, methodology boundary, production boundary, or review threshold merely to consume expiring capacity.
 
-**Before launching any worker,** inspect current state so hourly or scheduled orchestrators do not duplicate work already in flight: active GitHub Actions runs, recent issue/PR comments, open PRs, and the files each in-flight assignment touches. The runner already serializes per issue/PR; that does not prevent two different issues from colliding on the same files.
+**Before launching any worker,** inspect current state so hourly or event-driven orchestrators do not duplicate work already in flight: active GitHub Actions runs, recent issue/PR comments, open PRs, and the files each in-flight assignment touches. The runner already serializes per issue/PR; that does not prevent two different issues from colliding on the same files.
 
 ## Orchestration context boundary
 
@@ -137,7 +139,17 @@ The workflow listens only to newly created issue/PR conversation comments and in
 
 The runner uses Opus 5 with effort-sensitive turn headroom: High 50, xhigh 100, Max 150. The GitHub Actions job timeout is 240 minutes. These are safety envelopes; Claude should stop once the bounded assignment and required handoff are complete. The runner may read GitHub Actions results. Full raw Claude output is not enabled by the workflow.
 
+Future Claude runs also carry a machine-addressable `run-name` of `claude-work-item-<issue-or-pr-number>-comment-<comment-id>`. That name is transport metadata only. It lets the separate wake bridge associate a completed/failed runner invocation with its durable work item without reading model output or making project judgments.
+
 The runner does not allow bot-triggered invocations by default. Program-owner comments created through the connected GitHub account are expected to arrive as the repository owner; verify this in the harmless dry run before relying on automated orchestrator-to-Claude handoff.
+
+## Event-driven orchestrator wake
+
+`docs/operations/ChatGPT_Work_GitHub_Wake.md` governs the event-driven completion path. After its end-to-end smoke test passes, a completed Claude or PR-CI run should wake the GPT-5.6 Sol orchestrator through a bounded machine-readable PR comment instead of waiting for the next hourly checkpoint. The hourly job remains the watchdog/recovery layer.
+
+The wake workflow is not an orchestrator. It may identify repository/workflow/run/PR/branch/SHA/conclusion metadata, deduplicate the event, and post the wake comment. It may not read a ready queue to choose work, decide acceptance, merge, invoke Claude, advance the checklist, alter methodology, expose holdouts, mutate production, or publish content.
+
+The existing issue-first runner remains supported for now. Successful issue-first runs can be associated only when exactly one open in-repository task PR has the canonical `claude/issue-<issue>-*` branch prefix. If Claude fails before opening any PR, the bridge fails closed and the hourly watchdog recovers the run. The wake guide records why a later PR-first framing posture is preferable for orchestration-critical work and why that change is not made mandatory until its mechanical creation path is separately tested.
 
 ## One-time owner setup
 
@@ -167,6 +179,8 @@ Before relying on the runner for Item 6:
 - verify Claude reads `AGENTS.md`/bootstrap, creates the correct branch and pull request itself, runs at the expected effort, and cannot self-merge;
 - repeat only if necessary with `/claude-extra` or `/claude-max` to verify effort routing; do not waste Max usage solely for ceremony;
 - independently review the resulting diff and workflow logs, then close/delete the disposable artifact as appropriate.
+
+The separate event-wake smoke test is owned by `docs/operations/ChatGPT_Work_GitHub_Wake.md`; runner acceptance does not imply bot-authored Work wake support.
 
 ## Review threshold
 
