@@ -1,21 +1,20 @@
 # ChatGPT Work GitHub Orchestrator Wake
 
-**Status:** Candidate operating integration — GitHub side merged on `main` (PR #83) and corrected under issue #94; native Work trigger must pass the §7 smoke test before becoming the primary wake path
+**Status:** **Primary operating integration** — GitHub side merged on `main` (PR #83), corrected under issue #94, and merged as PR #98 at `32a1b9f`. The corrected bridge is **live on `main`** and has been proved end to end on disposable PR #103. On 2026-09-04, after the final scheduled watchdog observation, the program owner recorded the promotion decision: the event-driven ChatGPT Work path is now the **primary completion signal**, and the hourly/scheduled orchestrator is retained as the **watchdog/recovery path**. That changes operating status only — it weakens no claim, idempotency, fail-closed, owner-gate, scoring/holdout or metadata-only boundary in this document. See §7.1 for the exact per-gate evidence.
 
 **Repository:** `Bergertomas/game_profile`
 
 **Date verified:** 2026-09-04
 
-> **The corrections in §3.2 are not live on `main` until this branch merges.**
-> The repository-native Claude runner's GitHub App token cannot push
-> `.github/workflows/**`, so the corrected bridge was authored and proved by the
-> runner and then applied to this branch by the GPT-5.6 Sol orchestrator through
-> its own authorized GitHub connection, in commit `0308f33`. Tomas was not the
-> transport. Until it merges, the bridge
-> on `main` still discriminates on `run.name` and still holds the permission set
-> that produced the 403 in §3.2 — meaning **no Claude completion wakes anything
-> and no wake comment can be posted at all**. `workflow_run` executes only from
-> the default branch, so §7 cannot run before the merge either.
+> **How the corrected bridge landed.** The repository-native Claude runner's
+> GitHub App token cannot push `.github/workflows/**`, so the corrected bridge
+> was authored and proved by the runner and then applied to the issue #94 task
+> branch by the GPT-5.6 Sol orchestrator through its own authorized GitHub
+> connection, in commit `0308f33`. Tomas was not the transport. That branch
+> merged as PR #98, so the `run.name` discrimination defect and the permission
+> set that produced the 403 in §3.2 are both gone from `main`. `workflow_run`
+> executes only from the default branch, which is why §7 could not run before
+> that merge and can run now.
 
 ## 1. Purpose and control boundary
 
@@ -25,7 +24,7 @@ Desired flow:
 
 `Claude/GitHub work completes -> bounded PR wake comment -> ChatGPT Work wakes -> full repository preflight -> independent audit -> accept/merge or bounded correction -> dependency-aware ready queue -> next safe Claude assignment(s)`
 
-The hourly autonomous checkpoint remains the watchdog/recovery path. It is not the normal throughput clock once this integration has passed its smoke test.
+The hourly autonomous checkpoint is the watchdog/recovery path. It is no longer the normal throughput clock: this integration passed its substantive live gates on 2026-09-04 (§7.1) and the owner promoted the event path to the primary completion signal. The scheduled orchestrator is retained deliberately — an event that is never delivered, a Work task that never wakes, and a run that stops read-only on a failed claim are all recovered by it.
 
 GitHub automation may only identify an event and emit bounded metadata. It must never choose a successor, decide acceptance, merge material work, advance the master checklist, make scoring/methodology decisions, expose holdouts, mutate production, publish editorial content, or bypass an owner gate. GPT-5.6 Sol remains program owner/orchestrator.
 
@@ -45,12 +44,16 @@ Official sources:
 - OpenAI Help — ChatGPT Work and Codex: <https://help.openai.com/en/articles/20001275>
 - OpenAI Help — Apps in ChatGPT: <https://help.openai.com/en/articles/11487775>
 
-Two details are **not** documented by OpenAI as guarantees and therefore remain smoke-test gates:
+Two details are **not** documented by OpenAI as guarantees and therefore became smoke-test gates:
 
 1. whether a PR comment authored by `github-actions[bot]` through the repository `GITHUB_TOKEN` wakes the configured Work task; and
 2. webhook delivery/retry/idempotency semantics for duplicate delivery of one PR-comment event.
 
-Do not infer either guarantee from the generic statement that PR comments are supported. The implementation below makes duplicate GitHub events/comments harmless and the Work prompt adds a claim protocol for duplicate Work invocations, but the end-to-end bot-comment trigger still requires one live harmless proof.
+Do not infer either guarantee from the generic statement that PR comments are supported.
+
+Gate 1 is now **observed once, live**: bot wake comment `5543560667` on disposable PR #103 woke the enabled `Should I Play — Event Wake` task, which then performed repository preflight rather than acting from the comment (§7.1, Test B). One observation is evidence that the transport works for this account and configuration, not a documented platform guarantee; treat a future silent failure as a capability regression to re-test, not as an impossibility.
+
+Gate 2 remains **unobserved**. OpenAI does not publish duplicate-delivery semantics and this account has no supported way to inject a duplicate webhook delivery. The implementation below makes duplicate GitHub events/comments harmless and the Work prompt adds a claim protocol for duplicate Work invocations; §7.1 records why the claim race is observed on first natural occurrence rather than forced.
 
 GitHub's own documentation confirms that Actions supports `workflow_run` with the `completed` activity type and that a workflow can use a custom expression-backed `run-name`. The bridge uses both mechanisms:
 
@@ -158,7 +161,7 @@ Both are metadata. Neither is evidence of what the PR head contains; the orchest
 
 The comment never says `merge`, `accept`, `fix`, `start`, or otherwise instructs the orchestrator what to conclude. It does not filter or classify conclusions either: a `cancelled` or superseded run is reported as itself, because classification is orchestration judgment and belongs to GPT, not to GitHub. That is a deliberate acceptance of some comment volume on active PRs rather than putting project judgment in the workflow to reduce it.
 
-The schema stays `v1`. Its shape is corrected in place rather than versioned because the integration has never passed its §7 smoke test, so no consumer has ever read a `v1` payload in anger, and the trigger marker Tomas configures — `should-i-play-orchestrator-wake:v1` — is unchanged.
+The schema stays `v1`. Its shape was corrected in place rather than versioned because at the time of the correction no consumer had ever read a `v1` payload in anger, and the trigger marker Tomas configures — `should-i-play-orchestrator-wake:v1` — is unchanged. That window is now closed: the first real consumer read of a `v1` payload was wake comment `5543560667` on 2026-09-04, after the corrected shape was already on `main`. A further shape change is therefore a normal compatibility question from here on, not a free in-place correction.
 
 ## 4. Work-task setup Tomas must perform
 
@@ -170,7 +173,7 @@ No new API key or webhook service is required.
 4. Paste the **short bootstrap prompt in §5.1** — that one, verbatim, and nothing else. It is sized for the Work prompt field; the full §5.2 procedure is deliberately not pasted, because the awakened run reads it from the repository. If the task UI exposes model selection, select **GPT-5.6 Sol High**. A different model must not silently assume the Phase-3A scoring/editorial role.
 5. Review the connected GitHub app's action permissions. The task needs repository reads and, for unattended orchestration, the existing permitted low-risk issue/PR comments plus non-production merge actions. OpenAI documents that connected-app permissions and approval requirements carry into event-triggered tasks; any action that still requires approval will pause rather than bypass it.
 6. Leave the existing hourly watchdog scheduled task enabled.
-7. Run §7's harmless bot-comment smoke test before treating the event path as primary.
+7. Run §7's harmless bot-comment smoke test before treating the event path as primary. This was completed on 2026-09-04 against disposable PR #103; §7.1 records the per-gate evidence. Re-run it if the task, its prompt, the connected app's permissions, or the bridge workflow changes.
 
 The currently connected ChatGPT GitHub plugin is already configured with write-capable actions in the interactive environment; this integration does not add or expose credentials in the repository. Work must still prove that its scheduled/event-triggered execution receives the same authorized action surface.
 
@@ -262,6 +265,13 @@ There are two layers:
 1. **GitHub bridge idempotency:** one event ID per workflow run attempt; before posting, the bridge scans the PR for that exact marker. Re-delivery produces no second wake comment.
 2. **Work-run claim idempotency:** before any project mutation, each awakened GPT posts a claim for the event ID, re-reads all claims, and only the lowest claim-comment ID may continue. Two Work invocations caused by a duplicate webhook can both race to claim, but only one wins after the re-read.
 
+Those two layers guard different failures, and §5.2's steps 2 and 3 are not interchangeable. Keep the two duplicate shapes distinct:
+
+- **Two wake comments carrying one event_id.** The canonical wake comment is the lowest comment ID. A run woken by the non-canonical comment stops at §5.2 step 2 — *before* claiming — so this shape can never produce two claims and cannot demonstrate a claim race.
+- **Two deliveries/invocations of the one canonical wake comment.** Both runs pass step 2 legitimately, so both may reach step 3 and race to claim; the lowest claim-comment ID wins and the other stops.
+
+A claim is also not owed on every wake. §5.1/§5.2 require it only *before* a project mutation — merge, correction, new issue, or Claude launch. A wake correctly classified stale, duplicate, superseded, irrelevant, or otherwise no-action stops read-only, with no claim comment, and that is the intended behaviour rather than a skipped step.
+
 Different real events intentionally have different IDs. A Claude completion may wake GPT while CI is still running; GPT must not infer acceptance and should normally leave the PR pending. The later CI completion is a new wake that can complete the review. A later event against an already superseded head is classified stale and ignored.
 
 Successor creation has a second safety check: immediately before launching Claude, the orchestrator searches current issues/PRs/runs for the same dependency slice or an in-flight correction. Existing work is reused rather than duplicated.
@@ -269,9 +279,15 @@ Successor creation has a second safety check: immediately before launching Claud
 ## 7. Smoke-test plan
 
 The GitHub side merged in PR #83 on review of its bounded, non-decision-making
-contract — not on a passed smoke test. Parsing YAML is not proof of the path, so
-the event route stays non-primary until A–G below pass after Tomas configures the
-Work task.
+contract — not on a passed smoke test, and PR #98 then repaired it. Parsing YAML
+is not proof of the path, so the event route stayed non-primary until the
+substantive gates below passed. They have now passed, and §7.1 records the exact
+evidence for each — including the two assertions that remain open
+first-natural-occurrence observations rather than passed gates.
+
+This plan is retained after promotion, not archived. It is the re-qualification
+procedure if the Work task, its prompt, the connected app's permissions, or the
+bridge workflow changes.
 
 The plan's first version tested only a CI run, which was the one path the
 `run.name` defect left working, and it accepted green status as success. A green
@@ -285,6 +301,60 @@ exists` (deduplicated); a `fail closed` notice naming why; `Ignoring skipped
 Claude workflow run`; `Workflow definition <path> is not in the bounded wake set`;
 or a failure. Anything other than the exit a test expects is a failure of that
 test even if the check is green.
+
+### 7.1 Live evidence and current promotion state
+
+All evidence below was produced against `main` at `32a1b9f` on 2026-09-04, on
+**disposable PR #103**. Record IDs, not impressions; an unproven gate stays
+unproven.
+
+| Gate | State | Live evidence |
+|---|---|---|
+| A1 — CI wake | **proved** | source CI run `33895125322`; bridge run `33895585498`; wake comment `5543528064`; exit `Emitted workflow_run:33895125322:attempt:1 on PR #103; no project judgment was performed.` |
+| A2 — Claude wake | **proved** | source run `33895201306`; bridge run `33895291171`; wake comment `5543486248`. The custom machine `run-name` was resolved through the workflow definition path, and `runner_source` (`main`) stayed correctly separated from the target PR head. |
+| A2 step 5 — skipped Claude ignored | **proved** | skipped source run `33895230405`; bridge run `33895291554`; exit `Ignoring skipped Claude workflow run 33895230405`; no wake comment posted. |
+| A3 steps 1–2 — GitHub dedupe | **proved** | bridge rerun attempt 2 against source event `workflow_run:33895201306:attempt:1`; exit `Wake ... already exists ...; no-op`; exactly one wake comment remains on the PR. |
+| A3 step 3 — new source attempt gets its own event ID | **open — not proved, not waived** | Awaiting the first natural rerun of a **source** workflow. Not satisfied by the A3 rerun above, which reran the bridge. Non-blocking for promotion; still open after it. |
+| B — bot comment wakes Work, Work preflights | **proved** | after the Work task was updated to the exact §5.1 prompt: source Claude run `33895748974`; bridge run `33895830405`; bot wake comment `5543560667` (`workflow_run:33895748974:attempt:1`). The enabled `Should I Play — Event Wake` task ran after that bot comment and performed repository preflight and read-only reconstruction of PR #103 rather than acting from the comment. |
+| C2/C3 — claim race and claim-write fail-closed | **open — not observed, not waived** | No platform-supported duplicate-delivery injector exists for this account, and C3 is not induced by weakening live permissions. Observe on first natural duplicate delivery / first natural claim-write failure, or through a separately designed safe injection test. Non-blocking for promotion; still open after it. C1 (duplicate wake comments) is a separate shape — see §6 and §7's Test C. |
+| D — GitHub never chooses work | **proved** | the live bridge holds only `PullRequests: write` plus metadata read, actually posts the comment, and performs metadata transport only. No ready-queue query, acceptance rule, merge, Claude trigger, checklist update or production action appears in the run. |
+| E — failure classification | **proved** | disposable PR #103 head `e9b52b93b83306e6849acf94e5f8b3063244e1e9`; source CI run `33896365213` concluded `failure`; Integration job `101099834641` succeeded and Quality job `101099834848` failed **solely** on the deliberate assertion in `tests/orchestrator-wake-smoke-intentional-failure.test.ts` (the normal wake suite passed 34/34; the ordinary suite was 1 intentional failure / 1,449 passing). Bridge wake comment `5543676368` carried `workflow_run:33896365213:attempt:1`. The Event Wake task ran immediately afterward (`last_run_time` `2026-09-04T16:45:54.006078Z`) and produced **no** claim, corrective `@claude` launch, merge, issue or other project mutation — correct for a read-only no-action classification. |
+| F — watchdog survives | **proved (operational evidence)** | the unchanged `Should I Play Day Run` schedule executed its final hourly occurrence at `2026-09-04T17:03:38.116381Z` (20:03:38 Asia/Jerusalem) and then disabled naturally at its configured `COUNT=12`. Its standing prompt required normal repository preflight/recovery/checkpoint behaviour. GitHub remained on the same `main` head and that run produced no conflicting project mutation or race against the event path. **Scheduler/coexistence evidence only:** the task API does not expose the private run transcript, so the run's internal preflight was not inspected and is not claimed. |
+| G — the comment actually posts | **proved** | same runs as A1/A2/B: each reached `Emitted ... on PR #<n>` and the comment exists on PR #103. No `403` reappeared. |
+
+**Current promotion state: primary.** All substantive live gates — A1, A2
+(including the skipped-run branch), A3's deduplication branch, B, D, E, F and G
+— now have recorded evidence above, and on 2026-09-04, after the final scheduled
+watchdog observation, the program owner promoted the event-driven ChatGPT Work
+path to the **primary completion signal**. The hourly/scheduled orchestrator is
+**retained as the watchdog/recovery path** and is not the throughput clock.
+
+Promotion changed operating status and nothing else. §5.1/§5.2 are unchanged:
+the claim before every project mutation, the canonical-lowest wake and claim
+rules, the fail-closed read-only stop, the mandatory repository preflight, the
+owner gates, holdout and scoring boundaries, and GitHub's metadata-only role all
+stand exactly as written.
+
+Two assertions remain **open first-natural-occurrence observations** and are
+explicitly *not* waived, closed, or converted into passed gates by this
+promotion:
+
+- **A3 step 3** — a genuinely new attempt of a *source* workflow producing its
+  own event ID; awaiting the first natural source rerun.
+- **C2/C3** — the two-claim race on a duplicate delivery of the one canonical
+  wake comment, and the claim-write fail-closed branch; awaiting first natural
+  occurrence or a separately designed safe injection test.
+
+Neither blocked promotion and neither may ever be closed by assertion instead of
+evidence. Record each here when it occurs.
+
+**One operational consequence of F to act on.** The `Should I Play Day Run`
+schedule that produced F's evidence disabled itself naturally at its configured
+`COUNT=12`; that expiry is what makes the observation a clean coexistence proof.
+The watchdog role, however, is retained by this promotion, so a scheduled
+recovery task must remain armed. Promoting the event path is not authority to
+run without a watchdog: if no scheduled occurrence is pending, re-arm it. Only
+Tomas changes that schedule.
 
 ### Test A1 — completed CI emits exactly one wake comment
 
@@ -308,7 +378,14 @@ A2 passing is what A1 could never establish.
 
 1. Re-run the same bridge workflow attempt/event, or otherwise cause a second delivery for one `workflow_run:<run_id>:attempt:<attempt>`.
 2. Verify the exit reason is `Wake <event_id> already exists on PR #<n>; no-op.` and that the PR still carries exactly one comment for that event ID.
-3. Confirm a genuinely different attempt of the same run does produce its own wake — deduplication is per attempt, not per run.
+3. Confirm a genuinely different attempt of the **source** workflow does produce its own wake — deduplication is per source attempt, not per source run.
+
+Step 3 is a distinct assertion and steps 1–2 do not satisfy it. Rerunning the
+*bridge* replays one source event: `run_id` and `run_attempt` in the payload are
+the source run's, so a bridge rerun is by construction the same event ID and can
+only ever prove the dedupe branch. Only a new attempt of `CI` or `Claude Code
+Runner` produces `attempt:2` and therefore a second, different event ID. Satisfy
+step 3 from the first natural source rerun rather than manufacturing one.
 
 ### Test B — bot PR comment wakes Work promptly
 
@@ -320,7 +397,7 @@ triggers a Work task.
 1. With the Work task enabled, use a bridge comment from Test A1 or A2.
 2. Verify Work starts within minutes rather than waiting for the hourly checkpoint.
 3. Verify its first substantive project step is repository preflight and that it visibly reports current main/bootstrap/active item — the §5.1 preflight receipt.
-4. Verify it followed the §5.1 bootstrap into §5.2 rather than improvising from the comment: the receipt plus a claim comment are the observable evidence.
+4. Verify it followed the §5.1 bootstrap into §5.2 rather than improvising from the comment. For a read-only or no-action event, the observable evidence is the preflight receipt plus live reconstruction of the run and PR from GitHub — **a claim comment is not required and its absence is not a failure.** §5.1/§5.2 require the claim only before a project mutation, so an event correctly classified stale, duplicate, superseded, irrelevant or otherwise no-action is *supposed* to stop without one. Require the claim comment only when the run would otherwise have proceeded to a merge, correction, new issue or Claude launch; then the claim must precede that mutation.
 5. If a `github-actions[bot]` comment does **not** trigger Work, mark native bot-comment wake unsupported for this account. Do not add a PAT or public webhook workaround merely to force it. Keep the safe GitHub preparation and hourly watchdog while evaluating the next native capability.
 
 ### Test C — duplicate event and claim behaviour
@@ -328,10 +405,48 @@ triggers a Work task.
 Two layers, tested separately, because the bridge's deduplication (Test A3) and
 the Work claim protocol protect against different failures.
 
-1. Cause two Work invocations for one logical event — a second harmless PR comment carrying the same event_id marker, or a duplicate webhook delivery.
-2. Verify each awakened run posts a `should-i-play-orchestrator-claim:v1` comment for that event_id, re-reads the claims, and that only the lowest claim-comment ID proceeds.
-3. Verify the non-canonical run stops without launching a second Claude assignment, correction, issue, or merge.
-4. Verify a wake whose claim cannot be created — simulate by revoking or withholding the Work task's write action — results in read-only diagnosis and no mutation, not a best-effort proceed.
+The first version of this test conflated two different duplicate shapes and was
+therefore not satisfiable as written: it offered "a second harmless PR comment
+carrying the same event_id marker" as a way to produce two claims, when §5.2
+step 2 requires exactly the opposite. §6 states the distinction; C1 and C2 test
+the two halves separately.
+
+#### C1 — duplicate *wake comments* for one event_id
+
+1. Post a second harmless PR comment carrying the same `should-i-play-orchestrator-wake:v1` marker and event_id as an existing wake comment.
+2. Verify the run woken by the **non-canonical** (higher comment ID) wake comment stops at §5.2 step 2 — **before** creating a claim. A claim comment here would be the defect, not the proof.
+3. Verify no second Claude assignment, correction, issue or merge results.
+
+C1 cannot demonstrate a claim race, by design. A non-canonical wake comment
+never reaches step 3, so at most one claim can ever exist on this path.
+
+#### C2 — duplicate *delivery* of one canonical wake comment
+
+1. Cause two Work invocations from the **one canonical** wake comment — a genuine duplicate webhook delivery, or a separately designed safe injection test that reproduces one.
+2. Verify each awakened run reaches §5.2 step 3 legitimately, posts a `should-i-play-orchestrator-claim:v1` comment for that event_id, re-reads the claims, and that only the lowest claim-comment ID proceeds.
+3. Verify the losing run stops without launching a second Claude assignment, correction, issue, or merge.
+
+This is the only shape that can produce a real two-claim race. OpenAI does not
+document duplicate-delivery semantics and this account has no supported
+duplicate-webhook injector, so C2 is observed on the **first natural duplicate
+delivery** or through a separately designed safe injection test. The absence of
+an injector is not a reason to fake the condition, and C2 is **not** a blocking
+promotion gate — the claim protocol itself remains mandatory before every
+mutation regardless of whether its race branch has yet been observed.
+
+#### C3 — claim-write failure (resilience drill, not a prerequisite)
+
+Record, when it first occurs naturally, that a wake whose claim cannot be
+created results in read-only diagnosis and no mutation rather than a best-effort
+proceed.
+
+Do **not** revoke or weaken the account's live GitHub permissions to induce it.
+A claim-write failure is a safe availability failure: §5.1/§5.2 already require
+a read-only stop on write/claim failure, and the hourly watchdog recovers the
+work. Mutating global permissions to manufacture the condition trades a
+contained, self-recovering failure mode for a real one across every other
+authorized path. Treat C3 as a resilience drill logged on first natural
+occurrence, not as a gate that must be forced.
 
 ### Test D — GitHub never chooses work
 
@@ -341,9 +456,40 @@ Inspect the bridge workflow logs and comment. It must only resolve a PR, dedupli
 
 On a disposable branch, cause a harmless CI failure. Confirm the bridge wakes Work and Work independently inspects the failed job before deciding whether the cause is code, environment, cancellation, stale head or another class. It must not post `@claude` merely because conclusion=`failure`.
 
+**Passed on 2026-09-04.** Commit `e9b52b93b83306e6849acf94e5f8b3063244e1e9` on
+disposable PR #103 added one deliberately false Vitest assertion in
+`tests/orchestrator-wake-smoke-intentional-failure.test.ts`. Source CI run
+`33896365213` concluded `failure` with Integration job `101099834641` green and
+Quality job `101099834848` failing on that assertion alone. Bridge wake comment
+`5543676368` carried `workflow_run:33896365213:attempt:1`, the Event Wake task
+ran immediately afterward, and **no** claim, `@claude` launch, merge, issue or
+other mutation followed. §7.1 holds the recorded evidence.
+
+Note what the pass consists of. A `failure` conclusion produced no corrective
+action, which is the assertion this test makes: the bridge reports the
+conclusion as itself and the orchestrator classifies it. The bridge was never
+asked to suppress the wake for an intentional failure — that classification is
+GPT's, and putting it in the workflow would be exactly the judgment §1 forbids
+GitHub from holding.
+
 ### Test F — watchdog survives
 
 Leave the hourly autonomous checkpoint unchanged and verify its next scheduled run still performs normal repository preflight/recovery. Event-driven and hourly paths may observe the same state; duplicate-safe orchestration must make that harmless.
+
+**Passed on 2026-09-04, as operational scheduler/coexistence evidence.** The
+unchanged `Should I Play Day Run` schedule executed its final hourly occurrence
+at `2026-09-04T17:03:38.116381Z` (20:03:38 Asia/Jerusalem) under its standing
+prompt requiring normal preflight/recovery/checkpoint behaviour, then disabled
+naturally at its configured `COUNT=12`. It coexisted with the live event path
+without conflict: `main` was unchanged across it and it produced no competing
+mutation or race.
+
+State the limit of that evidence plainly rather than overclaiming it. The task
+API does not expose the private run transcript, so what was observed is that the
+scheduled watchdog still fired on its own clock alongside an active event path
+and did no harm — **not** an inspected transcript of its preflight. Record it as
+that and nothing more. The next scheduled occurrence is an opportunity to
+observe the preflight receipt directly if the transcript becomes readable.
 
 ### Test G — the comment actually posts
 
@@ -354,7 +500,39 @@ Resource not accessible by integration` now fails the job with a message naming
 `pull-requests: write`; treat that message, if it ever reappears, as a
 permissions regression in the workflow rather than a logic defect.
 
-The integration becomes the primary throughput wake path only after A1–G pass, especially Tests A2 and B.
+### Promotion rule
+
+The integration becomes the primary throughput wake path only after the
+**substantive live gates** pass: A1, A2 (including the skipped-run branch), A3's
+deduplication branch, B, D, E, F and G. All eight now have recorded live
+evidence (§7.1), and the program owner promoted the event path to the primary
+completion signal on 2026-09-04, retaining the hourly/scheduled orchestrator as
+watchdog/recovery. **The integration is primary today.**
+
+Promotion is a status change, not a licence. The rule above stays as the
+re-qualification bar: if the Work task, its prompt, the connected app's
+permissions or the bridge workflow change, these gates are re-run before the
+event path is trusted as primary again.
+
+Two assertions are deliberately outside that mandatory set because neither can
+be induced on demand without either fabricating evidence or creating a worse
+risk than the one it tests:
+
+- **A3 step 3** waits for the first natural rerun of a source workflow.
+- **C2/C3** wait for the first natural duplicate delivery and the first natural
+  claim-write failure, or a separately designed safe injection test.
+
+Excluding them from the promotion gate weakens nothing operationally. The §5.1
+and §5.2 claim protocol stays **mandatory before every project mutation**
+whether or not its race and fail-closed branches have yet been observed live;
+what is deferred is the observation, never the requirement. The absence of a
+platform-supported duplicate-webhook injector must not be converted into a
+reason to run unsafe global-permission experiments.
+
+Promotion did not close them either. Being outside the mandatory gate set is not
+the same as being satisfied, and an integration running as primary is a reason
+to watch for these two shapes more attentively, not less. Both stay open in §7.1
+until a real occurrence supplies evidence.
 
 ## 8. PR-first runner assessment
 
