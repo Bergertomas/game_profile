@@ -4,7 +4,7 @@
 
 **Owner:** Tomas
 
-**Last updated:** 3 September 2026
+**Last updated:** 4 September 2026
 
 ## 1. Purpose and authority
 
@@ -66,6 +66,33 @@ The orchestrator chooses effort per assignment:
   groundwork, oversight, or high-consequence synthesis. Do not use Max
   reflexively; it can overthink. A task may use Max for groundwork and then
   High/xhigh for bounded execution.
+
+### 2.2 Claude capacity is perishable project capacity
+
+Claude Max capacity should be used aggressively when useful work is ready. The
+objective is not to minimize model usage; it is to maximize valuable, accepted,
+dependency-safe work completed during each available usage window without
+weakening project authority or quality.
+
+- Maintain a dependency-aware ready queue rather than idling after the critical
+  path worker starts.
+- When substantial capacity remains in the current usage window, proactively
+  launch the highest-value genuinely independent ready work, normally up to two
+  concurrent Claude workers and a third only when independence is clear.
+- Do not make hourly checkpoints the throughput clock: if orchestration is
+  active and a worker finishes, review and advance the next dependency-safe
+  assignment promptly rather than waiting merely for the next scheduled poll.
+- Repeatedly reaching a mature usage window with very low consumption while
+  valuable ready work exists is an orchestration signal. Reassess concurrency,
+  task sizing, effort routing, runner headroom, and avoidable checkpoint delay.
+- As a reset approaches, pull forward useful independent work where sensible;
+  do not manufacture work, inflate effort, violate dependencies, expose
+  holdouts, create branch/file races, weaken owner gates, or lower review
+  standards merely to consume quota.
+
+`docs/operations/Claude_Code_GitHub_Runner.md` owns the detailed runner
+headroom, concurrency, quota-classification, and recovery mechanics. This
+section owns the standing cross-chat utilization principle.
 
 ## 3. Default delivery loop
 
