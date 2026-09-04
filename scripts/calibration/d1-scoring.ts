@@ -119,6 +119,14 @@ function printPlan(pair: D1ScoringPair, source: string): void {
   console.log("    research context      not supplied (preregistration §3.2)");
   console.log("    conversation linkage  none (ADR 0036 §3)");
   console.log("    holdout material      none in the scoring view (§3.1)");
+  if (pair.isolation.admitted_source_text_mentions.length === 0) {
+    console.log("    admitted-source scan  no holdout mention in any admitted D1 capture");
+  } else {
+    console.log("    admitted-source scan  REPORTED (incidental mention in admitted D1 evidence):");
+    for (const mention of pair.isolation.admitted_source_text_mentions) {
+      console.log(`      ${mention.at}: ${mention.runKey} "${mention.matched}"`);
+    }
+  }
   if (pair.isolation.controlled_byte_mentions.length === 0) {
     console.log("    controlled-byte scan  no holdout mention in the locked Item 3 bytes");
   } else {

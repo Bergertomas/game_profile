@@ -9,7 +9,7 @@ import { CONTROLLED_INPUTS, controlledText, type ControlledInput } from "./contr
  * This module is that enforcement: it holds the four locked identities so a
  * wrapper-authored payload can be checked against them before it is sent.
  *
- * Two scopes are deliberately kept apart, because they carry different
+ * Three scopes are deliberately kept apart, because they carry different
  * authority:
  *
  *  - **Wrapper-authored payload** — everything this repository composes for a
@@ -22,6 +22,17 @@ import { CONTROLLED_INPUTS, controlledText, type ControlledInput } from "./contr
  *    engineering one. Those mentions are therefore REPORTED into the run receipt
  *    rather than blocked, so the isolation boundary is disclosed exactly as it
  *    actually stands.
+ *  - **Admitted third-party source text inside a frozen corpus** — the captured
+ *    body of a source that was admitted to the development game's own evidence
+ *    corpus under the Evidence SOP's source rules. Per the orchestrator ruling
+ *    recorded on issues #87/#89: §3.1 forbids supplying holdout-specific
+ *    material or historical content ABOUT a holdout to a development scoring
+ *    context, and an incidental holdout-title comparison inside an otherwise
+ *    admissible development source is development evidence, not holdout
+ *    calibration material. Those mentions are therefore REPORTED, while every
+ *    identity-bearing and wrapper-authored part of the same packet stays
+ *    fail-closed. This is an implementation correction, not a methodology
+ *    amendment.
  */
 
 export type HoldoutRunKey = "H1" | "H2" | "H3" | "H4";
@@ -128,6 +139,87 @@ export class HoldoutIsolationError extends Error {
 export function assertNoHoldoutExposure(value: unknown, context: string): void {
   const mentions = findHoldoutMentions(value);
   if (mentions.length > 0) throw new HoldoutIsolationError(mentions, context);
+}
+
+/**
+ * The one member of the frozen scoring view that holds captured third-party
+ * source bodies, and the one field inside each of its entries that IS that body.
+ *
+ * Everything else in the packet — the evaluation scope, the coverage frames, the
+ * canonical source order, every source ID and record status, and every property
+ * name anywhere — is either wrapper-authored or an identity field, and stays
+ * fail-closed. Naming the admitted region positively rather than listing the
+ * blocked ones keeps the narrowing minimal: an unrecognised packet shape, a new
+ * member or a renamed field is held to the wrapper standard by default.
+ */
+export const ADMITTED_SOURCE_CORPUS_FIELD = "normalized_corpus";
+export const ADMITTED_SOURCE_TEXT_FIELD = "normalized";
+
+export interface ScoringViewHoldoutScan {
+  /** Mentions in wrapper-authored or identity-bearing material. Fail closed. */
+  readonly blocking: readonly HoldoutMention[];
+  /** Incidental mentions inside admitted source bodies. Reported, not blocked. */
+  readonly admittedSourceText: readonly HoldoutMention[];
+}
+
+/**
+ * Split a frozen scoring view's holdout mentions into the two treatments §3.1
+ * distinguishes: holdout material supplied to the context (blocked) and an
+ * incidental mention carried by evidence admitted for the development game
+ * (reported).
+ *
+ * A source whose ID, status or any other structural field names a holdout is NOT
+ * incidental — that is holdout-specific evidence entering the packet — so only
+ * the captured body of a corpus entry is treated as admitted source text.
+ */
+export function scanScoringViewForHoldoutMentions(
+  semanticInput: unknown,
+  at = "<semantic_input>",
+): ScoringViewHoldoutScan {
+  // Not the frozen packet shape: nothing can be shown to be admitted source
+  // text, so the whole value is held to the wrapper standard.
+  if (semanticInput === null || typeof semanticInput !== "object" || Array.isArray(semanticInput)) {
+    return { blocking: findHoldoutMentions(semanticInput, at), admittedSourceText: [] };
+  }
+
+  const blocking: HoldoutMention[] = [];
+  const admittedSourceText: HoldoutMention[] = [];
+
+  for (const [member, value] of Object.entries(semanticInput as Record<string, unknown>)) {
+    blocking.push(...scanTextForHoldoutMentions(member, `${at}.${member} (property name)`));
+    if (member !== ADMITTED_SOURCE_CORPUS_FIELD || !Array.isArray(value)) {
+      blocking.push(...findHoldoutMentions(value, `${at}.${member}`));
+      continue;
+    }
+    value.forEach((entry, index) => {
+      const entryAt = `${at}.${member}[${index}]`;
+      if (entry === null || typeof entry !== "object" || Array.isArray(entry)) {
+        blocking.push(...findHoldoutMentions(entry, entryAt));
+        return;
+      }
+      for (const [field, child] of Object.entries(entry as Record<string, unknown>)) {
+        blocking.push(...scanTextForHoldoutMentions(field, `${entryAt}.${field} (property name)`));
+        const target = field === ADMITTED_SOURCE_TEXT_FIELD ? admittedSourceText : blocking;
+        target.push(...findHoldoutMentions(child, `${entryAt}.${field}`));
+      }
+    });
+  }
+
+  return { blocking, admittedSourceText };
+}
+
+/**
+ * Fail closed on a frozen scoring view's wrapper-authored and identity-bearing
+ * material, and RETURN the incidental mentions found in admitted source bodies
+ * so the caller can disclose them in the run receipt.
+ */
+export function assertScoringViewHoldoutIsolation(
+  semanticInput: unknown,
+  context: string,
+): readonly HoldoutMention[] {
+  const scan = scanScoringViewForHoldoutMentions(semanticInput);
+  if (scan.blocking.length > 0) throw new HoldoutIsolationError(scan.blocking, context);
+  return scan.admittedSourceText;
 }
 
 export interface ControlledByteHoldoutReport {

@@ -67,10 +67,11 @@ get as far as having something to send.
 5. **Scoring-view isolation** — no research or downstream context key
    (`candidate_source_log`, `collection_reason`, `research_completion_report`,
    `query_family_audit`, another pass, adjudication, owner approval …), no
-   unmasked review grade, and no holdout identity anywhere in the packet.
-   Preregistration §3.1 forbids holdout material in a development scoring context
-   outright, so this fails closed over the whole scoring view — not only over
-   wrapper-authored bytes as in the research pass.
+   unmasked review grade, and no holdout material. Preregistration §3.1 forbids
+   holdout material in a development scoring context, so this fails closed over
+   every wrapper-authored and identity-bearing part of the packet: the evaluation
+   scope, the coverage frames, the canonical source order, every source ID and
+   record status, and every property name.
 6. **Pair proof** — both requests come from the one frozen builder with no second
    path, and `assertPairInvariants` throws on any difference ADR 0036 §5 forbids.
    A seed is the only permitted difference, and only when the endpoint exposes
@@ -81,6 +82,23 @@ receipt, never edited: the Item 3 freeze is owner-approved and immutable to this
 slice, so the receipt discloses the true isolation boundary rather than implying
 a cleanliness the frozen bytes do not have. This is the same treatment slice B
 applies.
+
+**Correction, issue #89 (orchestrator ruling on #87).** Gate 5 originally
+rejected a holdout title string anywhere in the scoring view, including inside
+the captured body of an admitted third-party source. That was overbroad:
+preregistration §3.1 forbids supplying holdout-specific material or historical
+content **about a holdout** to a development scoring context, and an incidental
+holdout-title comparison inside an otherwise admissible D1 source is D1 evidence,
+not holdout calibration material. The guard therefore now treats one region —
+the `normalized` body of a `normalized_corpus` entry — as admitted source text
+whose holdout mentions are **reported** in
+`isolation.admitted_source_text_mentions` rather than blocked, and holds
+everything else, including that entry's own `source_id`, to the unchanged
+fail-closed standard. Wrapper-authored holdout content, holdout scope/identity
+fields, holdout-specific analysis or evidence, expected holdout outcomes and
+prior holdout decisions all still refuse the run before a request exists. This is
+an implementation correction, not a methodology amendment; no prompt, rubric,
+protocol, schema, cohort, scope or DLC byte changed.
 
 ## What each call is
 
