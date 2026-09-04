@@ -31,9 +31,10 @@ import {
 } from "./scoring-pass-contract";
 import { D1_RUN_INPUT, freezeD1EvaluationScope } from "./run-input";
 import {
-  assertNoHoldoutExposure,
+  assertScoringViewHoldoutIsolation,
   reportControlledInputHoldoutMentions,
   type ControlledByteHoldoutReport,
+  type HoldoutMention,
 } from "./holdout-isolation";
 import { findReviewGradeLeaks } from "./research-pass";
 import { validatorFor } from "./package-schema";
@@ -153,6 +154,12 @@ export interface D1ScoringIsolation {
   readonly scoring_tool_access: readonly never[];
   readonly research_context_supplied: false;
   readonly conversation_linkage: false;
+  /**
+   * No holdout material was supplied to the context: no wrapper-authored holdout
+   * content, no holdout scope or identity field, no holdout-specific analysis or
+   * evidence. Guaranteed by the fail-closed gate below, which is what "material"
+   * means in §3.1 — not the absence of the string anywhere in the packet.
+   */
   readonly holdout_material_supplied: false;
   /**
    * Holdout mentions inside the byte-locked Item 3 inputs. Reported, never
@@ -161,6 +168,14 @@ export interface D1ScoringIsolation {
    * cleanliness the frozen bytes do not have.
    */
   readonly controlled_byte_mentions: readonly ControlledByteHoldoutReport[];
+  /**
+   * Incidental holdout-title mentions inside the captured bodies of sources
+   * admitted to D1's own evidence corpus. Reported for the same reason: they are
+   * D1 evidence rather than holdout calibration material (#87/#89 ruling), and
+   * editing an admitted capture would break the corpus freeze it was hashed
+   * under. Usually empty; when it is not, the receipt says exactly where.
+   */
+  readonly admitted_source_text_mentions: readonly HoldoutMention[];
 }
 
 export interface D1ScoringPair {
@@ -296,11 +311,22 @@ export function buildD1ScoringPair(options: D1ScoringPairOptions): D1ScoringPair
 
   if (problems.length > 0) throw new ScoringHandoffError(problems);
 
-  // Fails closed on the whole scoring view, not just on wrapper-authored bytes:
-  // §3.1 forbids holdout material in a development scoring context outright, and
-  // a frozen corpus that carries one is a defect for the orchestrator to handle
-  // under §9.3, not something engineering edits.
-  assertNoHoldoutExposure(handoff.semanticInput, "the D1 scoring semantic input");
+  // Fails closed over everything in the scoring view that is wrapper-authored or
+  // identity-bearing — the evaluation scope, the coverage frames, the canonical
+  // source order, every source ID and record status, every property name — which
+  // is where holdout scope/identity fields, holdout-specific analysis or evidence,
+  // expected outcomes and prior holdout decisions would appear.
+  //
+  // It does NOT reject the packet merely because an admitted third-party D1
+  // source incidentally mentions a holdout title in its captured body: per the
+  // orchestrator ruling on #87/#89, that text is D1 evidence, not holdout
+  // calibration material, and §3.1 forbids supplying material ABOUT a holdout.
+  // Such mentions are reported into the receipt instead, so the isolation
+  // boundary is disclosed rather than silently widened or silently ignored.
+  const admittedSourceTextMentions = assertScoringViewHoldoutIsolation(
+    handoff.semanticInput,
+    "the D1 scoring semantic input",
+  );
 
   // Gate 6 — the two requests, from the one frozen builder and no second path.
   const maxOutputTokens = options.maxOutputTokens ?? D1_SCORING_MAX_OUTPUT_TOKENS;
@@ -335,6 +361,7 @@ export function buildD1ScoringPair(options: D1ScoringPairOptions): D1ScoringPair
       conversation_linkage: false,
       holdout_material_supplied: false,
       controlled_byte_mentions: reportControlledInputHoldoutMentions(),
+      admitted_source_text_mentions: admittedSourceTextMentions,
     },
     evidenceCutoff,
     frozenAt: handoff.corpus.frozen_at,

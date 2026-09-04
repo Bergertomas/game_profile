@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { canonicalize, sha256Hex } from "@/lib/calibration/canonical-json";
-import { HoldoutIsolationError } from "@/lib/calibration/holdout-isolation";
+import {
+  HoldoutIsolationError,
+  assertScoringViewHoldoutIsolation,
+  scanScoringViewForHoldoutMentions,
+} from "@/lib/calibration/holdout-isolation";
 import {
   DEFERRED_VALIDATION_FAMILIES,
   ScoringHandoffError,
@@ -186,15 +190,114 @@ describe("isolation: no tools, no research context, no linkage (ADR 0036 §§3, 
 });
 
 describe("holdout exclusion (preregistration §3.1)", () => {
-  it("fails closed when a holdout identity reaches the scoring view", () => {
-    const leaked = semanticInput({
+  /**
+   * The boundary the #87/#89 orchestrator ruling draws: §3.1 forbids supplying
+   * holdout-specific material or historical content ABOUT a holdout, so holdout
+   * identity/scope fields, holdout-specific analysis and wrapper-authored holdout
+   * content fail closed, while an incidental holdout-title mention inside the
+   * captured body of an admitted D1 source is D1 evidence and passes, reported.
+   *
+   * Every "capture" below is synthetic placeholder text written for this test.
+   * None of it is research about any product, holdout or otherwise.
+   */
+  it("admits an incidental holdout-title mention inside an admitted D1 capture, and reports it", () => {
+    const incidental = semanticInput({
       normalized_corpus: [
-        { source_id: "src-ab-1", normalized: "A comparison piece discussing Kingdom Come: Deliverance II." },
+        {
+          source_id: "src-ab-1",
+          record_status: "active",
+          normalized:
+            "Placeholder capture for the development title; the writer compares its combat to Resident Evil 4 in one aside.",
+        },
+        {
+          source_id: "src-ab-2",
+          record_status: "active",
+          normalized: "Placeholder capture with no comparison in it at all.",
+        },
       ],
     });
-    expect(() => buildD1ScoringPair({ handoff: buildHandoff({ semanticInput: leaked }) })).toThrow(
+    const pair = buildD1ScoringPair({ handoff: buildHandoff({ semanticInput: incidental }) });
+    expect(pair.isolation.holdout_material_supplied).toBe(false);
+    expect(pair.isolation.admitted_source_text_mentions).toHaveLength(1);
+    const [mention] = pair.isolation.admitted_source_text_mentions;
+    expect(mention!.runKey).toBe("H1");
+    expect(mention!.at).toBe("<semantic_input>.normalized_corpus[0].normalized");
+    // Reported, never edited: the capture reaches the model exactly as frozen.
+    expect(pair.primary.input).toContain("compares its combat to Resident Evil 4");
+  });
+
+  it("still fails closed on a holdout identity or expected outcome in the evaluation scope", () => {
+    // Asserted against the guard directly: the scope lock (gate 4) already
+    // refuses any mutated scope earlier in the pipeline, so this proves the §3.1
+    // guard itself has not stopped covering wrapper-authored scope material.
+    const scoped = semanticInput({
+      evaluation_scope: {
+        ...(freezeD1EvaluationScope(EVIDENCE_CUTOFF) as unknown as Record<string, unknown>),
+        expected_outcome_reference: "Astro Bot is expected to land in the same band.",
+      },
+    });
+    expect(() => assertScoringViewHoldoutIsolation(scoped, "the D1 scoring semantic input")).toThrow(
       HoldoutIsolationError,
     );
+    expect(scanScoringViewForHoldoutMentions(scoped).admittedSourceText).toEqual([]);
+  });
+
+  it("still fails closed when a holdout enters as a source identity rather than as prose", () => {
+    const identified = semanticInput({
+      normalized_corpus: [
+        {
+          source_id: "src-immortals-of-aveum-review",
+          record_status: "active",
+          normalized: "Placeholder capture text.",
+        },
+      ],
+    });
+    expect(() => buildD1ScoringPair({ handoff: buildHandoff({ semanticInput: identified }) })).toThrow(
+      HoldoutIsolationError,
+    );
+  });
+
+  it("still fails closed on holdout-specific analysis in the frozen coverage frames", () => {
+    const framed = semanticInput({
+      coverage_frames: [
+        {
+          subcriterion_key: "story_and_world",
+          coverage_frame_id: "frame-1",
+          coverage_units: [
+            { unit_id: "unit-1", description: "Expected outcome carried over from Kingdom Come: Deliverance II." },
+          ],
+        },
+      ],
+    });
+    expect(() => buildD1ScoringPair({ handoff: buildHandoff({ semanticInput: framed }) })).toThrow(
+      HoldoutIsolationError,
+    );
+  });
+
+  it("names every blocking mention in the refusal so the packet can be checked by hand", () => {
+    const leaked = semanticInput({
+      canonical_source_order: ["src-KCD2-comparison"],
+    });
+    try {
+      buildD1ScoringPair({ handoff: buildHandoff({ semanticInput: leaked }) });
+      expect.unreachable("a holdout identity in the canonical source order must fail closed");
+    } catch (error) {
+      expect(error).toBeInstanceOf(HoldoutIsolationError);
+      const mentions = (error as HoldoutIsolationError).mentions;
+      expect(mentions).toHaveLength(1);
+      expect(mentions[0]!.runKey).toBe("H2");
+      expect(mentions[0]!.at).toBe("<semantic_input>.canonical_source_order[0]");
+    }
+  });
+
+  it("holds an unrecognised packet shape to the wrapper standard", () => {
+    // Fail-closed by default: nothing in a packet this guard cannot parse can be
+    // shown to be admitted source text.
+    const scan = scanScoringViewForHoldoutMentions({
+      normalized_corpus: { source_id: "src-1", normalized: "Astro Bot" },
+    });
+    expect(scan.admittedSourceText).toEqual([]);
+    expect(scan.blocking).toHaveLength(1);
   });
 
   it("reports — never edits — holdout mentions inside the locked Item 3 bytes", () => {
