@@ -74,6 +74,15 @@ objective is not to minimize model usage; it is to maximize valuable, accepted,
 dependency-safe work completed during each available usage window without
 weakening project authority or quality.
 
+When sufficient genuinely valuable dependency-safe work exists, the standing
+**aspiration is roughly 70–90% useful Claude utilization across a five-hour
+window**. This is an orchestration target, not a quota or SLO: never manufacture
+work, burn tokens, inflate effort, violate dependencies, weaken review, expose
+holdouts, or cross owner/production gates merely to hit the band. Conversely, a
+mature window around 20% while useful ready work existed is a strong
+underutilization signal and should trigger a review of avoidable orchestration
+delay, concurrency, task sizing, effort routing, or runner headroom.
+
 - Maintain a dependency-aware ready queue rather than idling after the critical
   path worker starts.
 - When substantial capacity remains in the current usage window, proactively
@@ -258,6 +267,28 @@ The generic runner must not contain production credentials and cannot authorize
 its own merge, production action, checklist advancement, scoring-methodology
 change, or publication. Repository preflight and task-specific authority still
 apply to every material run.
+
+### 9.1 Event-driven orchestrator wake
+
+Once the live smoke test in `docs/operations/ChatGPT_Work_GitHub_Wake.md` passes,
+repository-native orchestration should use event-driven ChatGPT Work wakeups as
+the normal completion signal and retain the hourly autonomous job as a
+watchdog/recovery checkpoint.
+
+The GitHub wake layer is strictly non-decision-making. It may emit one bounded,
+machine-readable event signal identifying a completed Claude/CI run, associated
+PR, branch/SHA, run ID/attempt, and conclusion. It must not decide that work is
+acceptable, choose or launch successor work, merge, advance the checklist,
+change scoring/methodology, inspect protected holdouts, mutate production, or
+publish editorial content. The awakened GPT-5.6 Sol orchestrator must perform a
+fresh repository preflight and independently reconstruct the actual state before
+any such decision.
+
+Duplicate/stale wake events must be harmless. The bridge owns event-level
+deduplication; the awakened Work task must claim an event before mutation and
+stop if another claim is canonical. If the native Work trigger or required
+GitHub action permissions are unavailable, fail closed and let the hourly
+watchdog recover rather than replacing GPT judgment with GitHub automation.
 
 ## 10. Maintaining this agreement
 
