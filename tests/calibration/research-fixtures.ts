@@ -33,11 +33,23 @@ export function sha256(text: string): string {
   return createHash("sha256").update(Buffer.from(text, "utf8")).digest("hex");
 }
 
-/** Eight independent active A/B clusters — the §4.1 normal AA/AAA target. */
+/**
+ * Eight independent active A/B clusters by default — the §4.1 normal AA/AAA
+ * target.
+ *
+ * `sourceCount` and `collectionStandard` move together: a test that changes one
+ * source's tier or record status changes the active A/B cluster count too, and
+ * the freeze checks that count against the declared band. Varying both lets such
+ * a test stay inside its band instead of failing for an unrelated reason.
+ */
 export function buildResearchOutput(
   captureText: (index: number) => string = CAPTURE_TEXT,
+  options: {
+    readonly sourceCount?: number;
+    readonly collectionStandard?: ModelResearchPass["collection_standard"];
+  } = {},
 ): ModelResearchPass {
-  const sources = Array.from({ length: 8 }, (_unused, index) => {
+  const sources = Array.from({ length: options.sourceCount ?? 8 }, (_unused, index) => {
     const number = index + 1;
     return {
       source_id: `src-${number}`,
@@ -62,7 +74,7 @@ export function buildResearchOutput(
   });
 
   return {
-    collection_standard: "normal_target",
+    collection_standard: options.collectionStandard ?? "normal_target",
     collection_reason: "Placeholder released scope with ordinary evidence availability.",
     query_family_audit: [
       "title_edition",
