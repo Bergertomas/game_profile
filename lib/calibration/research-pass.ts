@@ -879,6 +879,16 @@ export function freezeResearchCorpus(options: {
 
   const problems: string[] = [];
 
+  // The research pass owns the substantive sufficiency judgment. A declared
+  // blocker means the packet is unsafe to score even when its structural
+  // source-count and query-family checks pass. Preserve the response as refusal
+  // evidence, but never turn it into a scoring handoff.
+  if (output.research_completion_report.blocking_concern !== null) {
+    problems.push(
+      `research_completion_report.blocking_concern: the research pass declared the corpus unsafe to score: ${output.research_completion_report.blocking_concern}`,
+    );
+  }
+
   // Strict shape validation, then deterministic assembly: every capture names a
   // manifest source, every source has exactly one capture, no model-stated
   // wrapper digest is accepted, and the canonical digests are computed here from

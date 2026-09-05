@@ -376,6 +376,21 @@ describe("Phase 3A D1 research — the research pass never scores", () => {
     expect(() => freeze(anchored)).toThrow(/rubric anchor value/);
   });
 
+  it("refuses a research output that declares a blocking concern", () => {
+    const output = buildResearchOutput();
+    const blocked: ModelResearchPass = {
+      ...output,
+      research_completion_report: {
+        ...output.research_completion_report,
+        blocking_concern: "Saturation was not achieved after a new material claim category appeared.",
+      },
+    };
+
+    expect(() => freeze(blocked)).toThrow(
+      /research_completion_report\.blocking_concern: the research pass declared the corpus unsafe to score/,
+    );
+  });
+
   it("refuses to freeze an unmasked review grade into the scoring view", () => {
     const output = buildResearchOutput();
     const graded: ModelResearchPass = {
