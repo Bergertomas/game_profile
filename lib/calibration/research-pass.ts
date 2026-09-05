@@ -491,6 +491,57 @@ export function assertNoScoringContent(output: unknown): void {
 }
 
 /**
+ * Fail closed if the research pass declared the corpus unsafe to score.
+ *
+ * The frozen research prompt's Output section asks the pass for "any blocker
+ * that makes the corpus unsafe to score", and the transport carries that answer
+ * in exactly one canonical structured field:
+ * `research_completion_report.blocking_concern`, a nullable string. `null` is
+ * the pass's statement that there is no blocker; every other value is the pass
+ * saying the corpus must not be scored — and a corpus that must not be scored
+ * must not be frozen, handed on as a semantic input, or committed to by a
+ * receipt.
+ *
+ * The field is read as the structured commitment it is and as nothing else. The
+ * concern's prose is never parsed, weighed or graded, no other completion-report
+ * narrative is reinterpreted as a blocker, and no stated blocker is treated as
+ * minor: a wrapper that decided which declared blockers were serious enough
+ * would be substituting engineering judgment for the research pass's own, and
+ * one that refused only some of them would leave the rest to be found by an
+ * auditor after the packet had already been frozen, persisted and made eligible
+ * for scoring. An empty string is a stated value and is refused with the rest —
+ * "no blocker" has exactly one encoding here.
+ *
+ * A missing report, or a `blocking_concern` that is neither a string nor `null`,
+ * is refused for the same reason rather than defaulted: the strict output
+ * contract requires the field, so an output without it is not one this contract
+ * produced, and reading an absent declaration as "safe to score" would be the
+ * silent repair the freeze must never perform.
+ */
+export function assertNoBlockingConcern(output: unknown): void {
+  const report = (output as { research_completion_report?: unknown } | null)
+    ?.research_completion_report;
+  if (report === null || typeof report !== "object") {
+    throw new ResearchContentError([
+      "research_completion_report: absent or not an object; the freeze cannot read the research pass's own statement of whether the corpus is safe to score, and it never assumes one",
+    ]);
+  }
+
+  const concern = (report as { blocking_concern?: unknown }).blocking_concern;
+  if (concern === null) return;
+
+  if (typeof concern === "string") {
+    throw new ResearchContentError([
+      `research_completion_report.blocking_concern: the research pass declared a blocker that makes the corpus unsafe to score — ${JSON.stringify(concern)}. The corpus is refused, so no frozen corpus, scoring packet or receipt is produced from it. Record the attempt and resolve the blocker; the freeze never overrides the pass's own declaration.`,
+    ]);
+  }
+
+  throw new ResearchContentError([
+    `research_completion_report.blocking_concern: expected the declared blocker as a string, or null for none; got ${JSON.stringify(concern) ?? typeof concern}`,
+  ]);
+}
+
+/**
  * Review-grade forms Protocol §4.6 masks from the scoring view.
  *
  * Narrow on purpose. Substantive verdict prose is explicitly NOT masked, so a
@@ -799,9 +850,10 @@ export interface FrozenResearchCorpus {
  * digests from the supplied capture bytes; no field is defaulted, coerced or
  * repaired.
  *
- * Fails closed on scoring content, unmasked review grades, a model-stated
- * wrapper digest, missing or duplicated capture linkage, invalid Unicode in a
- * capture, and anything the canonical `$defs/corpus` schema rejects.
+ * Fails closed on a declared blocking concern, scoring content, unmasked review
+ * grades, a model-stated wrapper digest, missing or duplicated capture linkage,
+ * invalid Unicode in a capture, and anything the canonical `$defs/corpus` schema
+ * rejects.
  */
 export function freezeResearchCorpus(options: {
   readonly output: ModelResearchPass;
@@ -817,19 +869,15 @@ export function freezeResearchCorpus(options: {
     ]);
   }
 
+  // The research pass's own declaration is honored before the wrapper inspects
+  // anything else: a structurally perfect corpus the pass says is unsafe to
+  // score is still refused, and refusing here means no corpus, packet or receipt
+  // is ever constructed from it.
+  assertNoBlockingConcern(output);
+
   assertNoScoringContent(output);
 
   const problems: string[] = [];
-
-  // The research pass owns the substantive sufficiency judgment. A declared
-  // blocker means the packet is unsafe to score even when its structural
-  // source-count and query-family checks pass. Preserve the response as refusal
-  // evidence, but never turn it into a scoring handoff.
-  if (output.research_completion_report.blocking_concern !== null) {
-    problems.push(
-      `research_completion_report.blocking_concern: the research pass declared the corpus unsafe to score: ${output.research_completion_report.blocking_concern}`,
-    );
-  }
 
   // Strict shape validation, then deterministic assembly: every capture names a
   // manifest source, every source has exactly one capture, no model-stated

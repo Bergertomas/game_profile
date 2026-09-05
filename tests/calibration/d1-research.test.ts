@@ -1,9 +1,19 @@
 import { describe, expect, it } from "vitest";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import {
+  buildD1ResearchCapture,
   buildD1ResearchRequest,
+  d1ResearchArtifacts,
+  d1ResearchCaptureOnlyArtifacts,
   freezeD1Research,
   EVIDENCE_SOP_PATH,
 } from "@/lib/calibration/d1-research";
+import {
+  persistedArtifactNames,
+  writeVerifiedArtifacts,
+} from "@/lib/calibration/artifact-store";
 import {
   assertResearchExecutionContract,
   buildResearchPassSchema,
@@ -367,20 +377,8 @@ describe("Phase 3A D1 research — the research pass never scores", () => {
     expect(() => freeze(anchored)).toThrow(/rubric anchor value/);
   });
 
-  it("refuses a research output that declares a blocking concern", () => {
-    const output = buildResearchOutput();
-    const blocked: ModelResearchPass = {
-      ...output,
-      research_completion_report: {
-        ...output.research_completion_report,
-        blocking_concern: "Saturation was not achieved after a new material claim category appeared.",
-      },
-    };
-
-    expect(() => freeze(blocked)).toThrow(
-      /research_completion_report\.blocking_concern: the research pass declared the corpus unsafe to score/,
-    );
-  });
+  // A declared blocking concern is covered by its own describe block below,
+  // which asserts the same refusal at this function and at every layer above it.
 
   it("refuses to freeze an unmasked review grade into the scoring view", () => {
     const output = buildResearchOutput();
@@ -428,5 +426,179 @@ describe("Phase 3A D1 research — the research pass never scores", () => {
       query_family_audit: output.query_family_audit.slice(0, 6),
     };
     expect(() => freeze(partial)).toThrow(/appears 0 times/);
+  });
+});
+
+/**
+ * #131 — a research pass that declares its own corpus unsafe to score is
+ * refused before anything is frozen.
+ *
+ * The frozen research prompt asks the pass for "any blocker that makes the
+ * corpus unsafe to score", and the transport carries that answer in exactly one
+ * field. The defect this fences is narrow and was measurable: an output can
+ * satisfy every structural gate — seven query families, the declared collection
+ * standard's independent active A/B clusters, strict capture linkage, a masked
+ * scoring view, the canonical corpus schema — and still say, in
+ * `research_completion_report.blocking_concern`, that its own corpus must not be
+ * scored. The freeze used to copy that sentence into the receipt and hand the
+ * packet on regardless.
+ *
+ * Every fixture here is the shared synthetic one with a placeholder concern
+ * attached. Nothing below describes a real corpus, a real attempt or any
+ * calibration game, and no test reads an archived measured attempt.
+ */
+describe("Phase 3A D1 research — a declared blocking concern refuses the freeze", () => {
+  const scope = freezeD1EvaluationScope("2026-09-04");
+  const manifestFacts = {
+    run_id: "run-blocking-concern-test",
+    started_at: FACTS.started_at,
+    ended_at: FACTS.ended_at,
+    provider: "openai",
+    model_label: "gpt-5.6-sol",
+    model_snapshot_build_id: "gpt-5.6-sol (test)",
+    system_instructions_digest: "a".repeat(64),
+    prompt_template_digest: "b".repeat(64),
+    rubric_digest: "c".repeat(64),
+    protocol_digest: "d".repeat(64),
+    output_schema_digest: "e".repeat(64),
+    research_tool_access: ["web_search"],
+    decoding_parameters: [],
+    seed: "parameter_unavailable" as const,
+    retry_count: 0,
+    validation_failures: [],
+    human_corrections: [],
+  };
+
+  /** The shared synthetic output, with the completion report's one field set. */
+  const withConcern = (concern: unknown): ModelResearchPass => {
+    const output = buildResearchOutput();
+    return {
+      ...output,
+      research_completion_report: {
+        ...output.research_completion_report,
+        blocking_concern: concern,
+      },
+    } as unknown as ModelResearchPass;
+  };
+
+  const A_STATED_BLOCKER =
+    "Placeholder blocker: a placeholder collection step did not complete, so this placeholder corpus is not safe to score.";
+
+  const freeze = (output: ModelResearchPass) =>
+    freezeResearchCorpus({ output, evaluationScope: scope, manifestFacts, frozenAt: FROZEN_AT });
+
+  it("refuses at the shared freeze function, which builds the corpus and the packet", () => {
+    expect(() => freeze(withConcern(A_STATED_BLOCKER))).toThrow(ResearchContentError);
+    expect(() => freeze(withConcern(A_STATED_BLOCKER))).toThrow(
+      /blocking_concern: the research pass declared a blocker that makes the corpus unsafe to score/,
+    );
+    // The refusal quotes the pass's own words rather than summarizing them.
+    expect(() => freeze(withConcern(A_STATED_BLOCKER))).toThrow(/placeholder collection step did not complete/);
+  });
+
+  it("refuses every non-null value, because 'no blocker' has one encoding", () => {
+    // An empty string is a stated value. Treating it as "no concern" would be
+    // the wrapper interpreting the declaration instead of reading it.
+    expect(() => freeze(withConcern(""))).toThrow(ResearchContentError);
+    expect(() => freeze(withConcern("   "))).toThrow(ResearchContentError);
+    // Neither a string nor null: the field is not the one the contract requires,
+    // so it is refused rather than coerced.
+    expect(() => freeze(withConcern(false))).toThrow(/expected the declared blocker as a string, or null/);
+    expect(() => freeze(withConcern(undefined))).toThrow(/expected the declared blocker as a string, or null/);
+    expect(() => freeze(withConcern({ concern: "structured" }))).toThrow(
+      /expected the declared blocker as a string, or null/,
+    );
+  });
+
+  it("refuses an output carrying no completion report at all", () => {
+    const output = buildResearchOutput();
+    const { research_completion_report: _dropped, ...withoutReport } = output;
+    expect(() => freeze(withoutReport as unknown as ModelResearchPass)).toThrow(
+      /research_completion_report: absent or not an object/,
+    );
+  });
+
+  it("still freezes an output whose declared concern is null", () => {
+    // The control: the fixture differs from the refused ones in exactly one
+    // field, so the refusals above are caused by that field and by nothing else.
+    const frozen = freeze(buildResearchOutput());
+    expect(frozen.corpus.frozen_at).toBe(FROZEN_AT);
+    expect(frozen.corpus.review_grades_masked).toBe(true);
+    expect(frozen.semanticInput.normalized_corpus).toHaveLength(8);
+    expect(frozen.normalizedPacketDigest).toHaveLength(64);
+  });
+
+  it("refuses at the D1 wrapper, so no semantic input or receipt is constructed", () => {
+    const built = request();
+    expect(() =>
+      freezeD1Research({
+        request: built,
+        output: withConcern(A_STATED_BLOCKER),
+        facts: FACTS,
+        frozenAt: FROZEN_AT,
+      }),
+    ).toThrow(ResearchContentError);
+
+    // The same request and facts freeze normally once the concern is null, so
+    // the wrapper refusal is the declaration's doing and not a broken fixture.
+    const frozen = freezeD1Research({
+      request: built,
+      output: buildResearchOutput(),
+      facts: FACTS,
+      frozenAt: FROZEN_AT,
+    });
+    expect(frozen.receipt.research_completion_report.blocking_concern).toBeNull();
+  });
+
+  it("produces no frozen, scoring-eligible artifact set when the declared concern refuses the freeze", () => {
+    const built = request();
+    const dir = mkdtempSync(path.join(tmpdir(), "calib-blocking-concern-"));
+    const output = withConcern(A_STATED_BLOCKER);
+    const facts = FACTS;
+
+    // The command's own order: build the raw capture first, then freeze, then
+    // persist the frozen set. The refusal lands before the frozen set exists,
+    // so `d1ResearchArtifacts` is never reached and the run directory that
+    // would have held corpus.json, semantic-input.json and receipt.json stays
+    // empty. This asserts the absence of the frozen set, not of all output.
+    const capture = buildD1ResearchCapture({ request: built, output, facts, frozenAt: FROZEN_AT });
+    expect(() => {
+      const frozen = freezeD1Research({ request: built, output, facts, frozenAt: FROZEN_AT });
+      writeVerifiedArtifacts(dir, d1ResearchArtifacts({ frozen, capture }));
+    }).toThrow(ResearchContentError);
+    expect(persistedArtifactNames(dir)).toEqual([]);
+
+    // What the live command does keep after that refusal, and what this test
+    // must not be read as forbidding: the raw capture, written capture-only
+    // into the separate unfrozen attempt directory. A refused attempt is
+    // evidence, and re-running the call to recover it would be spend the
+    // protocol does not need. Capture-only means exactly one file — no frozen
+    // artifact rides along.
+    const unfrozen = mkdtempSync(path.join(tmpdir(), "calib-blocking-concern-unfrozen-"));
+    writeVerifiedArtifacts(unfrozen, d1ResearchCaptureOnlyArtifacts(capture));
+    expect(persistedArtifactNames(unfrozen)).toEqual(["capture.json"]);
+
+    // And the same sequence with a null concern does persist the full set, so
+    // the empty frozen directory above is the refusal and not an inert test.
+    const clean = mkdtempSync(path.join(tmpdir(), "calib-blocking-concern-clean-"));
+    const cleanOutput = buildResearchOutput();
+    writeVerifiedArtifacts(
+      clean,
+      d1ResearchArtifacts({
+        frozen: freezeD1Research({ request: built, output: cleanOutput, facts, frozenAt: FROZEN_AT }),
+        capture: buildD1ResearchCapture({
+          request: built,
+          output: cleanOutput,
+          facts,
+          frozenAt: FROZEN_AT,
+        }),
+      }),
+    );
+    expect(persistedArtifactNames(clean)).toEqual([
+      "capture.json",
+      "corpus.json",
+      "receipt.json",
+      "semantic-input.json",
+    ]);
   });
 });
