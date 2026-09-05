@@ -1,6 +1,8 @@
 # ChatGPT Work GitHub Orchestrator Wake
 
-**Status:** **Primary operating integration** — GitHub side merged on `main` (PR #83), corrected under issue #94, and merged as PR #98 at `32a1b9f`. The corrected bridge is **live on `main`** and has been proved end to end on disposable PR #103. On 2026-09-04, after the final scheduled watchdog observation, the program owner recorded the promotion decision: the event-driven ChatGPT Work path is now the **primary completion signal**, and the hourly/scheduled orchestrator is retained as the **watchdog/recovery path**. That changes operating status only — it weakens no claim, idempotency, fail-closed, owner-gate, scoring/holdout or metadata-only boundary in this document. See §7.1 for the exact per-gate evidence. Later the same day the owner also accepted that the event-triggered Work task cannot guarantee a GPT-5.6 Sol High runtime and that model pinning is not an orchestration safety precondition; §5.1.1 records that decision, the §5.1 prompt correction it required, and the Phase-3A scoring boundary it explicitly does not touch.
+**Current status (5 September 2026):** GitHub bridge operational; current Work-prompt requalification pending, and standing scheduled recovery absent as observed in §7.1. Do not rely on historical promotion as current requalification. #113 coordinates recovery.
+
+**Historical promotion (4 September 2026):** GitHub side merged on `main` (PR #83), corrected under issue #94, and merged as PR #98 at `32a1b9f`. The corrected bridge is **live on `main`** and has been proved end to end on disposable PR #103. On 2026-09-04, after the final scheduled watchdog observation, the program owner recorded the promotion decision: the event-driven ChatGPT Work path is now the **primary completion signal**, and the hourly/scheduled orchestrator is retained as the **watchdog/recovery path**. That changes operating status only — it weakens no claim, idempotency, fail-closed, owner-gate, scoring/holdout or metadata-only boundary in this document. See §7.1 for the exact per-gate evidence. Later the same day the owner also accepted that the event-triggered Work task cannot guarantee a GPT-5.6 Sol High runtime and that model pinning is not an orchestration safety precondition; §5.1.1 records that decision, the §5.1 prompt correction it required, and the Phase-3A scoring boundary it explicitly does not touch.
 
 **Repository:** `Bergertomas/game_profile`
 
@@ -18,7 +20,7 @@
 
 ## 1. Purpose and control boundary
 
-This integration shortens the delay between completed Claude/GitHub activity and the next GPT-5.6 Sol orchestration decision. It does **not** delegate project judgment to GitHub Actions.
+This integration shortens the delay between completed Claude/GitHub activity and the next ChatGPT orchestration decision. It does **not** delegate project judgment to GitHub Actions.
 
 Desired flow:
 
@@ -26,7 +28,7 @@ Desired flow:
 
 The hourly autonomous checkpoint is the watchdog/recovery path. It is no longer the normal throughput clock: this integration passed its substantive live gates on 2026-09-04 (§7.1) and the owner promoted the event path to the primary completion signal. The scheduled orchestrator is retained deliberately — an event that is never delivered, a Work task that never wakes, and a run that stops read-only on a failed claim are all recovered by it.
 
-GitHub automation may only identify an event and emit bounded metadata. It must never choose a successor, decide acceptance, merge material work, advance the master checklist, make scoring/methodology decisions, expose holdouts, mutate production, publish editorial content, or bypass an owner gate. GPT-5.6 Sol remains program owner/orchestrator.
+GitHub automation may only identify an event and emit bounded metadata. It must never choose a successor, decide acceptance, merge material work, advance the master checklist, make scoring/methodology decisions, expose holdouts, mutate production, publish editorial content, or bypass an owner gate. ChatGPT remains program owner/orchestrator under the current AI Role Allocation record; measured Phase 3A execution remains frozen to registered Sol.
 
 ## 2. Verified OpenAI capability surface
 
@@ -410,13 +412,26 @@ recovery task must remain armed. Promoting the event path is not authority to
 run without a watchdog: if no scheduled occurrence is pending, re-arm it. Only
 Tomas changes that schedule.
 
-That re-arming is **done**. The standing watchdog is now the hourly ChatGPT task
+**Historical re-arming checkpoint (4 September 2026):** re-arming was completed with the hourly ChatGPT task
 `Should I Play — Watchdog`, automation id `6a9a57402f248191857fc31c2cd46baf`,
 on an exact hourly cadence with a recovery-only prompt. It is the recovery path
 described in §3 and §6, not the throughput clock, and it carries no authority
 this document does not already grant the scheduled orchestrator. If a future
 observation shows no occurrence pending on that automation, treat it as the same
 re-arm obligation above rather than as a licence to run without a watchdog.
+
+**Current observation — 5 September 2026 (recovery #113).** A fresh Work-side
+read found automation `6a9a57402f248191857fc31c2cd46baf` named
+`Should I Play — Night Run`, disabled after its final run at
+`2026-09-05T06:01:29.982520Z`, with no next occurrence. The historical
+re-arming statement above no longer describes its current state. No standing
+hourly recovery task is armed. The re-arm obligation still applies; schedule
+changes remain Tomas's decision, being prepared in #113/#115. No schedule was
+changed by this observation. Event Wake remains enabled, but the post-#106/#107
+current-prompt requalification is still pending (§5.1.1). Do not infer
+qualification or unattended recovery from the historical promotion.
+See the [recovery execution plan](Should_I_Play_Recovery_Execution_Plan_2026-09-05.md)
+for active coordination and the concrete decision packet.
 
 ### Test A1 — completed CI emits exactly one wake comment
 

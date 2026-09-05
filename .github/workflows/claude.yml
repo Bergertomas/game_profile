@@ -30,6 +30,9 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 1
+          # Let Claude's short-lived App token authenticate subsequent git pushes.
+          # Checkout's GITHUB_TOKEN otherwise shadows it via includeIf headers.
+          persist-credentials: false
 
       - name: Run Claude Code
         uses: anthropics/claude-code-action@v1

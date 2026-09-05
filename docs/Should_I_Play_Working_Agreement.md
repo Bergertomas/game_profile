@@ -4,7 +4,7 @@
 
 **Owner:** Tomas
 
-**Last updated:** 4 September 2026
+**Last updated:** 5 September 2026
 
 ## 1. Purpose and authority
 
@@ -27,30 +27,26 @@ merge. A later explicit instruction from Tomas can still change the policy.
 
 ## 2. Roles
 
-- **Tomas:** product owner and final authority for material product/editorial
-  decisions, material scope changes, final protocol adoption, publication, and
-  production activation.
-- **ChatGPT / GPT-5.6 Sol High:** program owner/orchestrator by default. Frame
-  work, protect authority, maintain the master checklist, independently review
-  actual diffs/evidence, decide engineering acceptance, manage integration,
-  record material decisions durably in GitHub, and surface only genuine owner
-  decisions to Tomas. During Phase 3A it is also the designated editorial
-  scorer; engineering agents do not substitute for that role.
-- **Claude / Opus:** primary engineering executor by default because the project
-  has substantial Claude Max capacity. Implement bounded slices, test them,
-  report exact repository state, and correct material review findings.
-- **Codex:** selective engineering/review specialist for independent
-  verification, credentialed environments, difficult forensic work, or tasks
-  where its marginal value is materially higher than using Claude.
-- **Fable:** specialist for long-horizon visual/design work or other tasks where
-  its particular capabilities materially improve the result; it is not the
-  default implementation agent merely because it is available.
-- **Any agent:** may challenge an instruction when it creates concrete material
-  risk. The challenge must identify the evidence, likely impact, and least-cost
-  safe alternative.
+The accepted [AI Role Allocation and Runtime Policy](operations/Should_I_Play_AI_Role_Allocation_2026-09-05.md)
+owns current model/runtime routing. This agreement owns delivery/process.
 
-Roles are defaults, not exclusive capability boundaries. The assigned task and
-the current repository state determine who acts.
+- **Tomas:** final product/editorial authority and all owner-reserved decisions.
+- **ChatGPT:** program owner/orchestrator, independent acceptance and integration;
+  Astra preferred for high-consequence work. Orchestration is model-agnostic.
+  Maintain the numbered master checklist, record material decisions durably in
+  GitHub, and surface only genuine owner decisions to Tomas.
+- **Registered `gpt-5.6-sol`:** Phase 3A measured research and scoring under the
+  frozen ADR-0036/preregistration configuration, regardless of orchestrator model.
+- **Claude / Opus:** primary engineering fleet for coherent bounded tasks.
+- **Codex/Astra:** principal specialist for difficult architecture, forensics,
+  security/data-integrity work and independent high-consequence review.
+- **Fable:** visual/design specialist under accepted design authority.
+- **Any agent:** challenge concrete material risk with evidence and the least-cost
+  safe alternative; never silently rewrite governing decisions.
+
+Roles are defaults, not exclusive capability boundaries. The assignment and
+current repository state determine who acts; a separately frozen measured-model
+contract remains binding.
 
 ### 2.1 Claude / Opus effort routing
 
@@ -153,6 +149,13 @@ non-production implementation PR when:
 - the exact merge head/base are known and integration is sound; and
 - the merge itself does not activate production, publish editorial content,
   mutate authoritative data, or make another owner-reserved decision.
+
+**Downstream-effect check:** evaluate the actual merge/deploy trigger, not the
+file label or the runner's own credentials. If merging `main` invokes a
+production deployment, §4's ordinary non-production merge exception does not
+apply. Prepare and review the complete branch/PR first; establish applicable
+explicit owner authority before that effectful merge. Issue #113 tracks the
+current recovery decision; this clarification grants no production permission.
 
 Explicit Tomas authority is still required before actions with materially
 different or difficult-to-reverse consequences, including:
@@ -280,7 +283,7 @@ machine-readable event signal identifying a completed Claude/CI run, associated
 PR, branch/SHA, run ID/attempt, and conclusion. It must not decide that work is
 acceptable, choose or launch successor work, merge, advance the checklist,
 change scoring/methodology, inspect protected holdouts, mutate production, or
-publish editorial content. The awakened GPT-5.6 Sol orchestrator must perform a
+publish editorial content. The awakened ChatGPT orchestrator must perform a
 fresh repository preflight and independently reconstruct the actual state before
 any such decision.
 

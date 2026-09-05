@@ -54,9 +54,13 @@ territories around the paired radar in art-led, mixed and complete artless
 states, the deterministic interval-aware relationship field, the canonical
 Shared/left-only/right-only tag map, eight paired exact rows, and Replace and
 Copy-link controls. Its first release compares published primary profiles only
-(ADR 0033 amendment, 2 September 2026). **None of the four slices is yet
-deliberately deployed to production**: the deployed site still serves the
-earlier three-profile experience until `main` is deliberately deployed.
+(ADR 0033 amendment, 2 September 2026). **Current production artifact observed 5 September 2026:** the canonical-origin
+manifest identifies main `e7dd4aa`, production/database, build
+`1de37fcf-f2d7-401c-9eab-fc19312fca86`, and three published entries; its corpus
+digest was independently re-derived. The code includes Slices 1–4; the three
+published profiles are a separate content fact. #115/PR #117 records the
+observation and configuration-access limits. The Working Agreement requires
+explicit applicable authority for a main merge that deploys.
 
 **Remote admin and production Live proof are exercised.** The current state is:
 
@@ -72,9 +76,10 @@ The remaining gap is specifically application-originated dispatch and the first
 new-profile end-to-end cycle; it is not remote-admin activation or general
 production proof.
 
-This branch adds forward migration `0010_artwork_fair_use`. It is deliberately
-not applied to the authoritative database by repository work; apply migrations
-before building/deploying code that requires the new enum value.
+Migration `0010_artwork_fair_use` was verified applied on 3 September 2026
+(Master Plan §7.3). The separate bounded `0011_igdb_staging` integration was
+applied and verified under PR #52. Neither historical authorization permits
+another migration, asset clearance, import or publication.
 
 The remaining dispatch proof belongs to the first real catalog publication. It
 does not justify further standalone admin hardening.
@@ -86,6 +91,19 @@ previews/default deployments carry neither — see
 [Editorial tool](#editorial-tool).
 
 ---
+
+## Current execution checkpoint
+
+Phase 3A Items 1–5 and Item-5 integration are complete. Item 6 / D1 is active:
+#114 corrects deterministic capture hashing and scorer-visible provenance before
+a further measured call. PR #112 already resolved Final Draft scope and
+conditionally authorized attempt 2; #101 owns that execution and immutable
+attempt-1 evidence. #113 coordinates parallel recovery; read the
+[execution plan](docs/operations/Should_I_Play_Recovery_Execution_Plan_2026-09-05.md).
+The original numbered checklist remains Master Plan Appendix B. Main merges
+that deploy require applicable owner authority; workers may implement/review
+branches while that decision is pending. No scoring, holdout or publication
+authority follows from this checkpoint.
 
 ## Quick start
 
@@ -857,8 +875,8 @@ control that goes nowhere is worse than an honest absence. The homepage's
 curated-Compare module can now link an eligible pair into Compare, and its
 configuration is still empty. Static Search, the accepted homepage system and
 the accepted profile system are merged on `main` (Slices 1 to 3); the accepted
-full Compare system is implemented in the current codebase (Slice 4); none of
-it is yet deliberately deployed to production. No profile carries an
+full Compare system is implemented in the current codebase (Slice 4); the 5 September
+canonical-origin manifest names main `e7dd4aa` (#115/PR #117). No profile carries an
 approved practical-time record, so no profile shows total commitment or a
 useful-session window; the component renders them from a record or not at all. The authored evergreen/living
 shelves and the "Choosing between…" entries have their grammar, configuration
