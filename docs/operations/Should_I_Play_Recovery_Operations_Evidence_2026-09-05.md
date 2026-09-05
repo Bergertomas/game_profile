@@ -7,6 +7,30 @@
 - **`main` verified at:** `e7dd4aae3623d6cb70e51ea2b8a7d964b96f134d` (`e7dd4aa`), *"calibration: clarify D1 Final Draft scope (#112)"*, committed `2026-09-04T23:02:50Z`
 - **Branch head this report was produced from:** the same `e7dd4aa`, checked out on the task branch
 
+### Revision 2 — evidence correction round, 2026-09-05
+
+Requested by Tomas on PR #117 at branch head
+`cf2c4f3d8b077faf1a62b3138cc88392ebf30833`. **Accuracy corrections only.** No new
+audit, no re-run of the §2 build, no expanded hardening scope, and no live
+mutation. The baseline is unchanged: `main` at `e7dd4aa`, observation window
+`07:47:18Z`–`07:53:21Z`, and every originally observed fact, timestamp, ID and
+count is preserved exactly. The only new observation is the read-only re-fetch in
+Appendix A at `2026-09-05T08:01:08Z`, which returned the same artifact.
+
+What changed, and why — several revision-1 conclusions exceeded their evidence:
+
+| # | Revision 1 said | Revision 2 says | Where |
+|---|---|---|---|
+| 1 | the build "finished without a human step"; every merge deploys; ~5 min delivery | automatic Workers Builds causation is an **inference** consistent with the ADR/config record; no accessible dashboard/audit history, so human intervention **cannot be excluded**; `generatedAt` is a build stamp, **not** an observed activation time; `5 m 26 s` is one interval, not a guarantee | §1.2, §1.3, §1.4, §6.3 |
+| 2 | `source: database` ⇒ the authoritative DB holds exactly three; "a build with no database falls back to fixtures" | it proves **three published entries in this manifest**, not DB row counts, and not which DB/credentials; production **fails closed** — `lib/data/games.ts` throws rather than falling back. The revision-1 sentence contradicted the code and is corrected | §1.2, §1.3, §6.3 |
+| 3 | "none of the nine ships in / reaches production" | package-**directory** absence is not proof code is absent from bundled output — as the vendored `nanoid` loop shows. **No demonstrated first-party reachability**; universal non-reachability **not** proven. Tool/build exposure retained as a standalone reason for the bounded patch | §2.3, §2.5, §6.3, §6.4 R5 |
+| 4 | the ruleset "makes 'reviewed' mechanically true" | it enforces **PR + required checks**; at 0 approvals GitHub merges unreviewed PRs, so independent review stays an **orchestrator process duty**. Admin bypass restated as an explicit exception | §1.5(a), §4.2, §4.3, §6.4 R2 |
+| 5 | manifest shown abbreviated, entries elided | **Appendix A** carries the verbatim body and headers with the observation timestamp; every excerpt is labelled abbreviated | §1.2, Appendix A, E1 |
+| 6 | "complete-except-F"; §3.6 read as disclaiming the procedure | requalification is **PENDING in full** until Work behaviour is observed; complete-except-F is a possible **future** state. The §3.4 procedure **is** proposed | §3.6, §5.3 |
+
+Where revision 1's phrasing is withdrawn, the text says so at the point of
+correction rather than only here.
+
 This report records observations and options. It does **not** approve a deployment
 authority model, does not restore or change any schedule, does not change any
 dependency, workflow, branch-protection or platform setting, and does not declare
@@ -38,6 +62,11 @@ test, workflow, lockfile or configuration file was modified.
 §2.4 ran in `/tmp/depfix`, on a **copy** of `package.json` and
 `package-lock.json`, so the repository lockfile is untouched.
 
+**Revision 2 added nothing to that list.** It edited this file only. Its sole
+new action against anything outside the repository was one unauthenticated
+read-only `GET` of the public deployment manifest (Appendix A); no build was
+re-run, no dependency command was executed, and no other file was touched.
+
 **Everything reachable only through the ChatGPT Work product is unavailable to
 this runner.** Task existence, task state, automation IDs, schedules, prompts as
 actually pasted, run transcripts and last-run times cannot be read or verified
@@ -61,8 +90,10 @@ claim to its source.
 
 ### 1.2 App-origin evidence — the only kind ADR 0022 accepts
 
-Read-only `GET https://shouldiplay.gg/deployment-manifest`, `2026-09-05T07:52Z`,
-HTTP 200, `x-opennext: 1`, `server: cloudflare`:
+Read-only `GET https://shouldiplay.gg/deployment-manifest`, response observed
+`2026-09-05T07:52Z`, HTTP 200, `x-opennext: 1`, `server: cloudflare`. Abbreviated
+here; the **verbatim** body and headers, re-fetched read-only at
+`2026-09-05T08:01:08Z`, are in Appendix A:
 
 ```json
 {
@@ -75,7 +106,7 @@ HTTP 200, `x-opennext: 1`, `server: cloudflare`:
   "source": "database",
   "rubricVersion": "1.0",
   "digest": "cc08d7242cc41f100f67728bcacda77736a8ff23701581ed730df3b2a95ced1f",
-  "entries": [ /* alan-wake-2, redfall, returnal — three default-scope v1 profiles */ ]
+  "entries": [ /* ABBREVIATED — alan-wake-2, redfall, returnal; verbatim in Appendix A */ ]
 }
 ```
 
@@ -83,18 +114,56 @@ This is the evidence class ADR 0022 §1 calls the only one that answers the
 question. It is not a green Cloudflare check and not a build report; it is the
 production origin naming the commit it was built from.
 
-Three facts follow directly:
+**A note on what `generatedAt` is.** It is a value the *build* stamped into the
+artifact. It is **not** an observed time of production activation, and this
+runner observed no activation event at all — only that, at `07:52Z`, the origin
+was already serving this artifact. The activation happened at some unobserved
+moment between `generatedAt` and the first probe.
 
-1. **Production currently serves an artifact built from `e7dd4aa` — current
-   `main` HEAD.** Not an older artifact.
-2. **The build started after the merge and finished without a human step.**
-   Merge `23:02:50Z` → manifest `generatedAt 23:08:16Z`. Elapsed **5 m 26 s**.
-   Nothing in GitHub Actions did it, and README records that an
-   application-originated Cloudflare Builds POST has never been exercised.
-3. **The build read the authoritative database.** `"source": "database"` with
-   `siteEnv: "production"` and the three published evaluations. A build with no
-   database falls back to calibration fixtures and says so. So Workers Builds
-   holds a working production `DATABASE_URL`.
+What follows, at the strength the evidence supports:
+
+1. **Fact. Production currently serves an artifact built from `e7dd4aa` —
+   current `main` HEAD.** Not an older artifact. This is a direct observation of
+   the response.
+2. **Fact, then inference.** The *fact* is two timestamps: PR #112 merged
+   `2026-09-04T23:02:50Z`; the served artifact records
+   `generatedAt 2026-09-04T23:08:16.051Z`, **5 m 26 s** later. The *inference* is
+   that the merge triggered an automatic Workers Builds build and deploy. It is
+   an inference consistent with the ADR/config record — ADR 0008 records the
+   production branch as `main` with Deploy command `npm run cf:deploy`, no
+   GitHub Actions workflow deploys (E12), and README records the
+   application-originated Cloudflare Builds POST as never exercised — but it is
+   **not proven from the origin**. Specifically, and deliberately not claimed:
+   - It does **not** prove the build ran *without a human step*. Cloudflare
+     build history and the dashboard audit log are unreadable from this runner,
+     so a manual dashboard build or retry within that window **cannot be
+     excluded**. An earlier draft of this report asserted "finished without a
+     human step"; that assertion exceeded the evidence and is withdrawn.
+   - It does **not** establish what *every future* merge to `main` will do.
+     Trigger configuration is dashboard state that can change and that this
+     runner cannot read; one observation of one merge is not a rule.
+   - It is **not** a five-minute delivery guarantee. `5 m 26 s` is one measured
+     interval on one build, and it measures merge→`generatedAt`, not
+     merge→public availability. Where this report elsewhere says "about five
+     minutes", read it as *the one observed order of magnitude*, not an SLO.
+3. **Fact, narrowly.** `"source": "database"` with `siteEnv: "production"`
+   records that **this artifact's** published corpus was read from a Postgres
+   connection rather than the fixture path, and this manifest publishes
+   **three** entries (`alan-wake-2`, `redfall`, `returnal`; Appendix A).
+   It does **not** prove *which* database or which credentials were used, and it
+   does **not** prove the database contains exactly three rows or exactly three
+   evaluations — only that three entries are published in this manifest at
+   `rubricVersion 1.0`.
+   Note also that production **fails closed**: `lib/data/games.ts`
+   `databaseIsRequired()` returns true whenever `SITE_ENV === "production"`, and
+   `loadPublishedProfiles()` then throws `CorpusUnavailableError` rather than
+   reading fixtures — the comment states in as many words that "in a production
+   bundle the fallback branch below is unreachable code". So a production build
+   with no `DATABASE_URL` does **not** fall back to fixtures; it refuses. An
+   earlier draft of this report said the opposite; that sentence contradicted
+   `lib/data/games.ts` and is corrected here. The consequence is *stronger*, not
+   weaker: a successful production build proves a Postgres connection was
+   configured and answered — but still says nothing about which one.
 
 Corroborating live probes (read-only GETs, same session): `/compare` → HTTP 200,
 `<title>Compare two Game Profiles | Should I Play?</title>`; `/methodology`,
@@ -110,10 +179,12 @@ experience"*.
 
 Those two clauses are not the same claim, and only one of them holds:
 
-- **The three-profile clause is true, and it is a *data* fact.** The manifest
-  lists exactly three published evaluations because the authoritative database
-  contains exactly three. Publication is gated separately and nothing here
-  suggests otherwise.
+- **The three-profile clause is consistent with what was observed, and it is a
+  *data* matter.** The manifest publishes exactly three evaluations
+  (Appendix A). That is a statement about this artifact's published corpus, not
+  a count of database rows: this runner has no authoritative-database access and
+  does not assert what the database contains. Publication is gated separately
+  and nothing observed here suggests otherwise.
 - **The "not deployed" clause does not hold for code.** The Slice 1–4
   application code merged to `main` is what production is running: `/compare`
   answers 200 from the production origin, and the manifest names `e7dd4aa`.
@@ -137,13 +208,22 @@ the orchestrator to merge an independently reviewed **non-production**
 implementation PR, provided "the merge itself does not activate production…".
 It reserves to Tomas "activating or changing production deployments".
 
-Given §1.2, **every merge to `main` activates a production code deployment.** The
-consequence is that §4's two clauses cannot both be satisfied by any merge to
-`main` under the current platform configuration: the routine merge permission and
-the production reservation collide on the same action. That collision is the
-concrete decision #113 is holding integration for, and it is real rather than
-procedural — a merged regression reaches `shouldiplay.gg` in about five minutes
-with nobody present.
+Given §1.2, **a merge to `main` is to be treated as activating a production code
+deployment**: one merge was observed to be followed, minutes later, by a
+production artifact naming that merge's commit, and ADR 0008 records
+deploy-from-`main` as the accepted configuration. That is an inference about
+merge behaviour generally, not a proven universal — but it is the inference the
+authority question must be decided against, because planning on the weaker
+reading would mean assuming a merge is safe when the one measurement available
+says it was not.
+
+The consequence is that §4's two clauses cannot both be confidently satisfied by
+a merge to `main` under the current platform configuration: the routine merge
+permission and the production reservation collide on the same action. That
+collision is the concrete decision #113 is holding integration for, and it is
+real rather than procedural — on the one observed instance a merged regression
+would have reached `shouldiplay.gg` within minutes, whether or not anybody was
+present.
 
 Three further boundary observations, factual:
 
@@ -153,12 +233,13 @@ Three further boundary observations, factual:
 - It **can** change what the public site renders for already-published profiles,
   because the renderer is code. A profile-rendering defect merged to `main` is a
   public defect within minutes.
-- The production build reads the production database at build time
-  (`source: "database"`). A merged change to the build-time read path therefore
-  executes against production data without any GitHub-side credential being
-  involved. The runner-safety boundary in the runner guide ("must not be given
-  production database credentials") is intact — the credential is in Workers
-  Builds — but the *effect* of a merged change is not bounded by that.
+- The production build reads *a* database at build time (`source: "database"`;
+  §1.2 fact 3 — which database is not observable here). A merged change to the
+  build-time read path therefore executes against whatever data that connection
+  serves, without any GitHub-side credential being involved. The runner-safety
+  boundary in the runner guide ("must not be given production database
+  credentials") is intact — the credential is held build-side, not in GitHub
+  Actions — but the *effect* of a merged change is not bounded by that.
 
 ### 1.5 The two options, with tradeoffs. Neither is approved here.
 
@@ -178,12 +259,16 @@ collision implicit.
 - *Gain:* the operating model matches observed reality; merges stop being
   ambiguous; #113's integration hold can lift on a recorded basis rather than a
   guess.
-- *Risk accepted:* a reviewed-but-wrong merge is public in ~5 minutes. Rollback
-  exists (Cloudflare version history, per ADR 0008 Consequences) but is a
-  dashboard action, so mean-time-to-recover depends on a person being available.
-- *Sensible pairing:* Q4's required-check guard (§4 below), which makes "reviewed"
-  mechanically true rather than conventionally true. Without it, option (a)
-  authorizes deployment on a branch that currently accepts any direct push.
+- *Risk accepted:* a reviewed-but-wrong merge is public within minutes (§1.2
+  fact 2 — one observed interval, not a guarantee). Rollback exists (Cloudflare
+  version history, per ADR 0008 Consequences) but is a dashboard action, so
+  mean-time-to-recover depends on a person being available.
+- *Sensible pairing:* the required-check guard (§4 below), which makes
+  **PR-and-CI-green** mechanically true rather than conventional. It does
+  **not** make *review* mechanically true — see §4.3; independent review remains
+  an orchestrator process duty that no ruleset setting enforces. Without the
+  guard, option (a) authorizes deployment on a branch that currently accepts any
+  direct push with no check at all.
 
 **Option (b) — separate integration and release triggers.**
 
@@ -299,15 +384,32 @@ The artifact carries exactly one `node_modules` tree
 `client-only`, `detect-libc`, `next`, `react`, `react-dom`, `semver`,
 `styled-jsx`).
 
-So, stated at the strength the evidence supports:
+So, stated at the strength the evidence supports — and the limit of that
+strength matters, because the measurement above is a **package-directory**
+measurement:
 
-- **Fact.** None of the nine audited packages ships in the deployable Worker.
-  All nine are build-, tooling- or test-time only. `postcss` — the reason
-  `nanoid` is classified non-dev — runs during `next build` and is not in the
-  artifact.
+- **Fact, exactly as measured.** No **installed package directory** for any of
+  the nine audited packages is present in `.open-next/`, except the Next-vendored
+  `nanoid` copy noted in the table. The audited `node_modules/nanoid` package —
+  the node the advisory is written against — is absent.
+- **Residual unknown, stated plainly.** Absence of a package *directory* is
+  **not** proof that the package's *code* is absent from bundled output. Modern
+  bundling inlines dependency code into emitted chunks, which is precisely what
+  the vendored `nanoid` case demonstrates: the directory measurement said
+  "absent" for `node_modules/nanoid` while the advisory's `while(true)` loop was
+  in fact present in the Worker in compiled, vendored form. This report did
+  **not** scan the emitted chunks for inlined copies of `undici`, `qs`,
+  `esbuild`, `miniflare` or `postcss`, so it cannot and does not claim that none
+  of the nine reaches production. Any statement of that blanket form elsewhere
+  in earlier drafts of this report, in §6, or in the PR description is withdrawn
+  and superseded by this paragraph.
 - **Fact.** No first-party code imports any of them: `nanoid`, `qs` and `undici`
   have zero occurrences across `app/`, `lib/`, `components/`, `scripts/` and
   `tests/`.
+- **Therefore, the honest formulation:** **no first-party reachability was
+  demonstrated** for any of the nine — not *universal non-reachability proven*.
+  The distinction is the whole point. What was ruled out is a first-party call
+  path; what was not ruled out is transitive use inside bundled framework code.
 - **Inference (not proven here), and deliberately not overstated.** Next's
   vendored `nanoid` copy does contain the `customRandom` `while(true)` loop the
   advisory describes, so the *code shape* is present in the artifact. Triggering
@@ -320,9 +422,11 @@ So, stated at the strength the evidence supports:
   `drizzle-kit` uses `@esbuild-kit/esm-loader` to load the TypeScript config; it
   starts no dev server. Exposure would be to a developer machine or CI runner
   during `npm run db:generate`, not to production.
-- **Inference.** The `undici`/`qs` exposure is to `wrangler`/`miniflare` and the
-  OpenNext build's local server — a developer machine and the CI `Integration`
-  job, which does run `npm run cf:verify` under `workerd`. Not production traffic.
+- **Inference.** The `undici`/`qs` exposure that was *identified* is to
+  `wrangler`/`miniflare` and the OpenNext build's local server — a developer
+  machine and the CI `Integration` job, which does run `npm run cf:verify` under
+  `workerd`. No production-traffic path was identified; per the residual unknown
+  above, that is not the same as establishing there is none.
 
 ### 2.4 Available minimal remedy — measured, in a scratch copy
 
@@ -359,10 +463,18 @@ artifact. The non-dry run in a scratch copy is what produced the table above.)
 
 ### 2.5 Recommended fix assignment — small, justified, and not performed here
 
-Nothing here is urgent: **no audited package reaches production.** The
-justification for acting at all is signal hygiene — a permanent
-`2 high, 7 moderate` line in every CI log is the condition under which a genuinely
-new high finding goes unnoticed.
+Nothing observed here makes this urgent: **no first-party production
+reachability was demonstrated for any of the nine** (§2.3 — which is not the
+same as proving none reaches production, and the residual unknown there stands).
+Two justifications for acting remain, and both are legitimate on their own:
+
+- **Tool and build exposure.** Whatever the production picture, these packages
+  *are* executed — `undici`/`miniflare` under `wrangler` and `cf:verify`,
+  `esbuild` under `drizzle-kit`, `qs` in the OpenNext build's local server — on
+  developer machines and on the CI `Integration` runner. That is a real
+  exposure surface and is by itself a sufficient reason for the bounded patch.
+- **Signal hygiene.** A permanent `2 high, 7 moderate` line in every CI log is
+  the condition under which a genuinely new high finding goes unnoticed.
 
 Proposed bounded assignment, for the orchestrator to frame and authorize:
 
@@ -375,11 +487,12 @@ Proposed bounded assignment, for the orchestrator to frame and authorize:
   `check:containment` steps — is the acceptance evidence, not a courtesy.
 - **Expected outcome:** `2 high, 7 moderate` → `0 high, 4 moderate`.
 - **Explicitly out of scope:** the `drizzle-kit`/`esbuild` chain. Record it as a
-  known, non-reachable, no-upstream-fix residual and re-check when `drizzle-kit`
-  publishes a release that drops `@esbuild-kit`.
-- **Interaction with §1:** this is a merge to `main`, and under §1.2 that
-  deploys. It is a lockfile change that alters the build toolchain, so it should
-  land under whatever integration authority #113 settles, not ahead of it.
+  known no-upstream-fix residual with no demonstrated first-party reachability,
+  and re-check when `drizzle-kit` publishes a release that drops `@esbuild-kit`.
+- **Interaction with §1:** this is a merge to `main`, which on the §1.2 evidence
+  is to be treated as deploying. It is a lockfile change that alters the build
+  toolchain, so it should land under whatever integration authority #113
+  settles, not ahead of it.
 
 ---
 
@@ -548,7 +661,17 @@ produce steps 1–5, 7 and 8 mechanically; steps 6 and the B/E Work-side
 observations require someone with Work access to look and record.
 
 **No synthetic live wake, no comment injection and no Work-task edit was
-performed or is proposed by this report.**
+performed by this report, and none is proposed.** (Earlier wording here said
+"performed or is proposed", which read as disclaiming the §3.4 procedure as
+well. To be exact: the §3.4 disposable-PR procedure **is** proposed — that is
+what §3.4 is — and it deliberately contains no synthetic wake, no comment
+injection into a real work item, and no edit to any Work task. Its steps 2–5
+produce *genuine* bridge events on a disposable PR, exactly as #103 did.)
+
+**Requalification status as of this report: PENDING, in full.** Nothing in §3
+qualifies, re-qualifies or partially qualifies the Event Wake path. The gates
+are re-qualified only by observed Work behaviour recorded in the §3.4 evidence
+slots, and none of that has happened yet.
 
 ---
 
@@ -589,7 +712,7 @@ Target `main`. Enable exactly:
 
 | Rule | Setting | Why this and not more |
 |---|---|---|
-| Require a pull request before merging | on, **0 required approvals** | preserves the Working Agreement's orchestrator-merge path — §4 authorizes the orchestrator to merge an independently reviewed PR, and a required-approver count would add a GitHub ceremony the agreement deliberately removed. What this buys is that every change to `main` has a PR, a diff and a CI run |
+| Require a pull request before merging | on, **0 required approvals** | preserves the Working Agreement's orchestrator-merge path — §4 authorizes the orchestrator to merge an independently reviewed PR, and a required-approver count would add a GitHub ceremony the agreement deliberately removed. What this buys is that every change to `main` has a PR, a diff and a CI run. **It buys nothing about review:** at 0 approvals GitHub will merge an unreviewed PR, so independent review stays a process duty (§4.3) |
 | Require status checks to pass | on; contexts **`Quality`** and **`Integration`** | the two job names on `.github/workflows/ci.yml`, confirmed from run `33927977061`. `Integration` is the job that runs `cf:verify` under `workerd` and `check:containment` — the checks ADR 0008 says are the only ones that catch a silent production-environment defect |
 | Require branches to be up to date before merging | **off** | it forces a rebase-and-rerun on every merge behind another; the project merges frequently and the cost is real. Revisit only if a semantic conflict actually lands |
 | Bypass list | **repository admin (Tomas)** | preserves the owner's direct-push ability, which is in active use. A guard the owner cannot bypass on their own repository will be worked around or switched off |
@@ -598,9 +721,24 @@ Target `main`. Enable exactly:
 
 ### 4.3 Boundary, stated plainly
 
-- This is **not** a compliance expansion. It is one ruleset that makes "reviewed"
-  mechanically true on the branch that deploys to production. It adds no scanning
-  requirement, no approval bureaucracy, no CODEOWNERS, no new workflow.
+- This is **not** a compliance expansion. It is one ruleset that makes
+  **"arrived via a pull request, with `Quality` and `Integration` green"**
+  mechanically true on the branch that deploys to production. It adds no
+  scanning requirement, no approval bureaucracy, no CODEOWNERS, no new workflow.
+- **It does not make "reviewed" mechanically true, and this report withdraws any
+  earlier phrasing that said it did.** A pull-request rule with **0** required
+  approvals enforces the *existence* of a PR and the *passing* of the named
+  checks; it permits merging a PR nobody read. Independent review under Working
+  Agreement §4 therefore remains an **orchestrator process duty**, unenforced by
+  GitHub, and the guard must not be cited as evidence that it happened. Raising
+  the approval count is the mechanical alternative, and it is deliberately not
+  proposed here because it would break the orchestrator-merge path; that
+  tradeoff is the owner's to revisit.
+- **Admin bypass is an explicit exception, not an oversight.** With repository
+  admin on the bypass list, the owner can push to `main` without a PR and
+  without the required checks — so the guarantee above holds for everyone
+  *except* the bypassing admin. That is the deliberate design (§4.2, bypass
+  row); it is stated here so nobody reads the ruleset as covering all paths.
 - **Only Tomas can do it.** Ruleset and branch-protection writes require admin;
   this runner's token is refused read access to the protection endpoint. The
   program owner/orchestrator cannot do it either unless separately granted.
@@ -654,9 +792,14 @@ Stated conditionally, because the antecedent is unverified:
    task that never wakes, and a run that stops read-only on a failed claim.
 2. **Wake-guide gate F cannot be re-run.** F is *"leave the hourly checkpoint
    unchanged and verify its next scheduled run still performs normal
-   preflight/recovery"*. With no occurrence pending there is nothing to observe.
-   The §3.4 re-qualification is therefore complete-except-F until a watchdog is
-   armed again.
+   preflight/recovery"*. With no occurrence pending there is nothing to observe,
+   so F would remain deferred even after the §3.4 procedure is executed.
+   **This is a statement about F alone.** It must not be read as saying the
+   re-qualification is otherwise complete: as of this report **no** gate of the
+   §3.4 procedure has been re-run, so the current qualification state is
+   *pending in full*. "Complete-except-F" is a possible **future** state — the
+   one reached if and only if steps 1–8 are executed and their evidence slots
+   filled — not today's.
 3. **The automation ID in two governing documents may no longer denote what they
    say it denotes.** If `6a9a5740…` is now a Night Run rather than
    `Should I Play — Watchdog`, the bootstrap's and wake guide's identifications
@@ -693,13 +836,13 @@ and nothing was changed.** Re-arming is Tomas's, explicitly, in both documents.
 
 | Ref | Command / URL |
 |---|---|
-| E1 | `GET https://shouldiplay.gg/deployment-manifest` → 200; `commitSha e7dd4aa`, `generatedAt 2026-09-04T23:08:16.051Z`, `buildUuid 1de37fcf-f2d7-401c-9eab-fc19312fca86`, `siteEnv production`, `source database` |
+| E1 | `GET https://shouldiplay.gg/deployment-manifest` → 200; `commitSha e7dd4aa`, `generatedAt 2026-09-04T23:08:16.051Z`, `buildUuid 1de37fcf-f2d7-401c-9eab-fc19312fca86`, `siteEnv production`, `source database`, 3 entries. First observed `2026-09-05T07:52Z`; **verbatim body and headers re-fetched `2026-09-05T08:01:08Z` — Appendix A** |
 | E2 | `GET https://shouldiplay.gg/compare` → 200, `<title>Compare two Game Profiles \| Should I Play?</title>` |
 | E3 | PR #112 `mergedAt 2026-09-04T23:02:50Z` → `e7dd4aa`; CI run `33927977061` both jobs green |
 | E4 | <https://github.com/Bergertomas/game_profile/actions/runs/33927977061> — Quality job `101200525591`, log `2026-09-04T23:03:20.580Z`: `9 vulnerabilities (7 moderate, 2 high)` |
 | E5 | `npm audit --json` on `e7dd4aa`: `{moderate: 7, high: 2, critical: 0, total: 9}`; `prod 25 / dev 911 / optional 307` |
 | E6 | `npm audit fix --package-lock-only` in `/tmp/depfix` → `0 high, 4 moderate`; lockfile-only; `package.json` unchanged |
-| E7 | `npm ci` + `opennextjs-cloudflare build` → `.open-next/` (48 MB). `find .open-next -type d -name <pkg>`: `undici` 0, `qs` 0, `esbuild` 0, `miniflare` 0, `postcss` 0, `@esbuild-kit` 0; `nanoid` only `.../next/dist/compiled/nanoid` |
+| E7 | `npm ci` + `opennextjs-cloudflare build` → `.open-next/` (48 MB). **Package-directory measurement only** — `find .open-next -type d -name <pkg>`: `undici` 0, `qs` 0, `esbuild` 0, `miniflare` 0, `postcss` 0, `@esbuild-kit` 0; `nanoid` only `.../next/dist/compiled/nanoid`. Emitted chunks were **not** scanned for inlined code (§2.3 residual unknown) |
 | E8 | `git diff --stat 32a1b9f..HEAD -- .github/workflows/` → empty |
 | E9 | §5.1 prompt lengths from the guide's ```text blocks: 1,349 at `32a1b9f`, 1,899 at `e7dd4aa`; changed in `8c54185` (#107) |
 | E10 | `gh api …/branches/main` → `protected: false`; `gh api …/rulesets` → `[]`; `…/branches/main/protection` → 403 for this token |
@@ -709,24 +852,40 @@ and nothing was changed.** Re-arming is Tomas's, explicitly, in both documents.
 ### 6.3 Facts / inferences / unavailable
 
 **Facts — directly observed.** Production serves an artifact naming `e7dd4aa`,
-built 5 m 26 s after the merge, with `siteEnv: production` and a database-sourced
-corpus (E1, E3). `/compare` — Slice 4 — answers 200 from production (E2). No
+with `siteEnv: production`, `source: database` and three published entries
+(E1, E3, Appendix A). The artifact's `generatedAt` is `23:08:16.051Z`, **5 m
+26 s** after PR #112's merge at `23:02:50Z` — two timestamps, not an observed
+activation event. `/compare` — Slice 4 — answers 200 from production (E2). No
 GitHub Actions workflow deploys (E12). The audit findings are unchanged from main
-CI: 2 high, 7 moderate, the same nine (E4, E5). None of the nine ships in the
-deployable Worker (E7). A lockfile-only fix clears both highs and three moderates
-(E6). The workflows are byte-identical to the smoke's head (E8). The Work prompt
-grew 1,349 → 1,899 characters after the smoke (E9). `main` is unprotected with no
-rulesets (E10).
+CI: 2 high, 7 moderate, the same nine (E4, E5). No installed package directory
+for any of the nine is present in `.open-next/`, except Next's vendored
+compiled `nanoid` (E7). A lockfile-only fix clears both highs and three
+moderates (E6). The workflows are byte-identical to the smoke's head (E8). The
+Work prompt grew 1,349 → 1,899 characters after the smoke (E9). `main` is
+unprotected with no rulesets (E10).
 
-**Inferences — reasoned, labelled, not proven here.** That Workers Builds is the
-agent of the deploy (the manifest proves an automatic build happened and names
-its commit; that the dashboard's Deploy command is `npm run cf:deploy` is ADR
-0008's record, not an observation). That the nanoid advisory is not reachable —
-the package is absent from the artifact and no first-party code calls it, but
-Next's internal call sites were not exhaustively audited. That the esbuild
-advisory needs `esbuild serve`, which `drizzle-kit` never starts. That the
-`undici`/`qs` exposure is confined to developer machines and the CI Integration
-job.
+**Inferences — reasoned, labelled, not proven here.** That the merge triggered
+an automatic Workers Builds build and deploy: an inference consistent with the
+ADR 0008/config record and with the absence of any Actions deploy step, but not
+proven from the origin — build history and dashboard audit logs are unreadable
+here, so **human intervention in that window cannot be excluded**, no claim is
+made about what *future* merges will do, and `5 m 26 s` is one measured
+interval, not a delivery guarantee (§1.2). That the nanoid advisory is not
+reachable — the audited package is absent and no first-party code calls it, but
+the vendored compiled copy *is* in the Worker and Next's internal call sites
+were not exhaustively audited. That the esbuild advisory needs `esbuild serve`,
+which `drizzle-kit` never starts. That the identified `undici`/`qs` exposure is
+to developer machines and the CI Integration job.
+
+**Explicitly NOT claimed.** That any of the nine is proven absent from
+production: the §2.3 measurement is package-directory absence, emitted chunks
+were not scanned for inlined code, and what was established is **no
+demonstrated first-party reachability** rather than proven universal
+non-reachability. That the authoritative database contains exactly three rows
+or evaluations: the manifest proves three *published entries in this manifest*.
+Which database or credentials the build used. That any wake gate is qualified or
+partially qualified. That the §4.2 ruleset would make review mechanically true;
+it enforces PR-plus-checks, with admin bypass as an explicit exception.
 
 **Unavailable from this runner.** Cloudflare dashboard: Workers Builds trigger
 configuration, build/deploy commands, production branch, build history, the build
@@ -739,8 +898,9 @@ execution (forbidden and not attempted).
 
 ### 6.4 Ranked risks, each with its next action
 
-**R1 — The deployment-authority collision is live and unresolved.** Every merge
-to `main` deploys code to production in ~5 minutes; Working Agreement §4 reserves
+**R1 — The deployment-authority collision is live and unresolved.** A merge to
+`main` is to be treated as deploying code to production within minutes (§1.2 —
+one observed instance plus the ADR 0008 record); Working Agreement §4 reserves
 production activation to Tomas while routinely permitting the merge that causes
 it, and two governing documents describe production as running older code.
 *Impact:* high — a reviewed-but-wrong merge is public quickly, and the operating
@@ -750,7 +910,9 @@ and README line 58 to separate "code deployed" from "three profiles published".
 Until then #113's integration hold is correct and should stand.
 
 **R2 — `main` is unprotected while it is the production source.** Any push, by
-any route, reaches production without a required check or review.
+any route, reaches production without a required check or a PR. (The §4.2
+proposal closes the PR-and-checks half; review remains a process duty, and
+admin bypass remains an explicit exception — §4.3.)
 *Impact:* high, and it compounds R1. *Next action:* Tomas applies the §4.2
 ruleset. Owner-only; nobody else can.
 
@@ -768,11 +930,14 @@ bridge half is provably unchanged, so the untested surface is the Work task's
 behaviour under the new prompt. *Next action:* run §3.4 steps 1–8 on a disposable
 PR, fill the §3.4 evidence slots, defer F behind R3.
 
-**R5 — Nine standing audit findings, none reaching production.** *Impact:* low
-as security exposure; medium as signal hygiene, because a permanent
-`2 high, 7 moderate` line is how a real new high goes unnoticed.
-*Next action:* the §2.5 bounded lockfile-only assignment, sequenced after R1
-settles integration authority, with full CI as its acceptance evidence.
+**R5 — Nine standing audit findings, none with demonstrated first-party
+production reachability.** *Impact:* low-to-medium as security exposure — the
+identified exposure is tool/build-time (developer machines and the CI
+`Integration` runner), and production absence is *not* proven, only
+undemonstrated as first-party reachable (§2.3); medium as signal hygiene,
+because a permanent `2 high, 7 moderate` line is how a real new high goes
+unnoticed. *Next action:* the §2.5 bounded lockfile-only assignment, sequenced
+after R1 settles integration authority, with full CI as its acceptance evidence.
 
 **R6 — Documentation drift.** Master Plan/README deployment prose (R1);
 possibly-stale watchdog automation ID in the bootstrap and wake guide (R3); PR
@@ -791,3 +956,99 @@ credentials or publication, perform or authorize any live wake, scoring or
 research, or claim that any past deployment was unauthorized. It reports and
 proposes. Every decision above belongs to Tomas or the program
 owner/orchestrator.
+
+---
+
+## Appendix A — verbatim deployment-manifest response
+
+Re-fetched **read-only** for replayability. Command, run from the runner with no
+authentication and no state change:
+
+```
+$ date -u +%Y-%m-%dT%H:%M:%SZ
+2026-09-05T08:01:07Z
+$ curl -sS -D - https://shouldiplay.gg/deployment-manifest
+$ date -u +%Y-%m-%dT%H:%M:%SZ
+2026-09-05T08:01:08Z
+```
+
+**Response observed `2026-09-05T08:01:08Z`.** Response headers, verbatim
+(`report-to` endpoint URL truncated — it is a per-request Cloudflare NEL token
+and carries no evidentiary content; everything else is complete):
+
+```
+HTTP/2 200
+date: Sat, 05 Sep 2026 08:01:08 GMT
+content-type: application/json; charset=utf-8
+cache-control: no-store, must-revalidate
+vary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch
+x-nextjs-cache: HIT
+x-opennext: 1
+x-robots-tag: noindex
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=…"}]}
+nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+server: cloudflare
+cf-ray: a363b44899c5d3d7-SJC
+alt-svc: h3=":443"; ma=86400
+```
+
+Response body, **verbatim and complete**, 1,184 bytes as served:
+
+```json
+{
+  "schema": "should-i-play/deployment-manifest@1",
+  "generatedAt": "2026-09-04T23:08:16.051Z",
+  "siteEnv": "production",
+  "buildUuid": "1de37fcf-f2d7-401c-9eab-fc19312fca86",
+  "commitSha": "e7dd4aae3623d6cb70e51ea2b8a7d964b96f134d",
+  "branch": "main",
+  "source": "database",
+  "rubricVersion": "1.0",
+  "digest": "cc08d7242cc41f100f67728bcacda77736a8ff23701581ed730df3b2a95ced1f",
+  "entries": [
+    {
+      "evaluationId": "24f3cd1e-9dd4-4dd6-947b-bb9174df4270",
+      "gameSlug": "alan-wake-2",
+      "scopeKey": "default",
+      "versionNumber": 1,
+      "rubricVersion": "1.0",
+      "publishedAt": "2026-08-06",
+      "path": "/games/alan-wake-2"
+    },
+    {
+      "evaluationId": "3b1fd44e-73f2-4bb8-89f4-afd1a7f67041",
+      "gameSlug": "redfall",
+      "scopeKey": "default",
+      "versionNumber": 1,
+      "rubricVersion": "1.0",
+      "publishedAt": "2026-08-06",
+      "path": "/games/redfall"
+    },
+    {
+      "evaluationId": "2601fb46-620f-44a7-9413-4e478d552bb3",
+      "gameSlug": "returnal",
+      "scopeKey": "default",
+      "versionNumber": 1,
+      "rubricVersion": "1.0",
+      "publishedAt": "2026-08-06",
+      "path": "/games/returnal"
+    }
+  ]
+}
+```
+
+**What this appendix is for, and what it is not.** It exists so a reader can
+independently replay the digest and the manifest's shape against the origin
+without taking §1.2's abbreviation on trust. Every excerpt of this response
+elsewhere in the report is labelled as abbreviated and resolves here.
+
+It remains a **published manifest**, not a database read. This runner has **no
+authoritative-database access**, and nothing in this appendix speaks to what the
+database contains — only to what this artifact publishes: three entries, at
+`rubricVersion 1.0`, with the `evaluationId`s above. `generatedAt` is a
+build-stamped value, not an observed activation time (§1.2).
+
+Note that the body is byte-identical in `commitSha`, `buildUuid`, `generatedAt`
+and `digest` to the `07:52Z` observation nine minutes earlier: the same artifact
+was still being served, so no redeploy intervened during this report's
+observation window.
