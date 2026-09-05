@@ -4,7 +4,7 @@
 
 **Owner:** Tomas
 
-**Program owner / orchestrator:** ChatGPT / GPT-5.6 Sol High
+**Program owner / orchestrator:** ChatGPT, with Astra preferred for high-consequence work under [AI Role Allocation](Should_I_Play_AI_Role_Allocation_2026-09-05.md). Phase 3A measured research/scoring remain frozen to registered Sol.
 
 ## Purpose
 
