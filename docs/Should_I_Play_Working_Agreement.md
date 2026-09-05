@@ -198,6 +198,28 @@ different or difficult-to-reverse consequences, including:
 Tool or platform security prompts may still require a click; that is an
 execution constraint, not a project-management approval ceremony.
 
+### 4.3 Routine CI operation and recovery
+
+Tomas recorded on 5 September 2026 that the program owner/orchestrator **owns
+routine CI operation and recovery** using the tools it is already authorized to
+use: running, re-running and inspecting workflow runs and logs, diagnosing
+failures, and delivering ordinary workflow or runner fixes through the normal
+branch → review → acceptance path.
+
+This changes who operates CI, not what CI must prove. Applicable required checks
+must still actually succeed before acceptance under §4.1, independent review of
+the real diff is still required, and the owner-reserved decisions in §4.2 —
+including secrets, credentials, access policy and platform settings — are
+unchanged.
+
+Involve Tomas only when a concrete capability or decision is genuinely
+unavailable to the agents: an action needing Tomas's own account, a permission or
+credential the agents do not hold, or an owner-reserved decision under §4.2. A
+CI failure being unfamiliar, repetitive or tedious is not a reason to escalate.
+When escalation is genuinely required, name the blocked action and the
+specific missing capability; do not record authentication mechanics or any
+credential value in project documents.
+
 ## 5. Review threshold
 
 ### Block acceptance when a finding creates material risk
