@@ -29,8 +29,8 @@ authorizations must not be reused for another production action.
 |---|---|---|
 | M1: model must author SHA-256 of its generated captures | `lib/calibration/research-pass.ts` model-owned source manifest, derived schema and freeze digest comparison; fixtures use local `createHash` | Derive transport without model-authored hash fields; wrapper computes exact capture hashes and assembles canonical corpus. Preregistration §4.1 permits deterministic local capture/hash tooling. |
 | M2: scorer input omits required provenance | `normalizedScoringPacket`, `request-builder.ts`, `d1-scoring.ts`; validator uses source tier/independence/dates | Carry necessary frozen source metadata into both identical scoring inputs; exclude candidate/rejection log and research commentary. |
-| Merge/production authority conflict | Working Agreement §4 versus ADR 0008, README and `scripts/cf-deploy.mjs` | Establish actual trigger/effect and obtain applicable bounded owner authority before main integration. Branch work continues. |
-| Recovery state differs from current navigation | Work read on 5 September: Event Wake enabled; former Watchdog is expired Night Run, disabled after 06:01 UTC; guide retains post-prompt requalification | Prepare exact current-prompt qualification and recovery decision. Do not assert standing recovery is armed. |
+| Merge/production authority conflict | Working Agreement §4 versus ADR 0008, README and `scripts/cf-deploy.mjs` | **Resolved 5 September 2026.** Tomas approved standing orchestrator authority to accept, merge and deploy in-scope reviewed engineering work through existing main/Workers wiring; Working Agreement §4.1 owns the conditions. Owner gates for production DB work, publication, credentials/access/settings/domains/billing/spending, methodology/freeze/adoption and unresolved product direction are unchanged. |
+| Recovery state differs from current navigation | Work read on 5 September: Event Wake enabled; former Watchdog was the expired Night Run, disabled after 06:01 UTC; guide retains post-prompt requalification | **Recovery decision taken.** The existing task `6a9a57402f248191857fc31c2cd46baf` is restored as `Should I Play — Watchdog`, enabled and hourly without expiry. Current-prompt qualification is still owed; do not assert event-path requalification or infer a completed recovery run from configuration. |
 | CI dependency warnings untriaged | Baseline CI reports 9 vulnerabilities, including 2 high | #115 identifies packages, reachable exposure and minimal remedy. Severity alone is not a production exploit conclusion. |
 | Real evidence and full product journeys unproven | #101 attempt 1 refused; no frozen real corpus/pair; content registries empty despite working foundations | Obtain D1 evidence first, then measured production and real 12–15-profile journeys. Fixture completeness does not establish product validation. |
 
@@ -128,20 +128,26 @@ Do not turn cleanup into a second constitutional audit.
 
 ## 5. Integration and owner decision packet
 
-The Working Agreement allows ordinary reviewed **non-production** integration.
-Current repository deployment wiring makes it unsafe to infer that a main merge
-is non-production. The generic runner lacks production credentials; the current origin manifest
-records a database-backed production build. ADR 0008 declares main/Workers
-production deployment. The precise live dashboard settings remain uninspected. A docs-only diff can still trigger deployment.
+**Superseded 5 September 2026 by owner approval.** Working Agreement §4.1 now
+delegates acceptance, merge and code deployment of in-scope reviewed engineering
+work to the orchestrator through the existing main/Workers wiring. ADR 0008's
+main/Workers deployment effect is a fact to verify and roll back, not a per-PR
+owner gate; a docs-only diff can still trigger deployment, and that is expected
+rather than blocking. The generic runner still lacks production credentials and
+never merges or deploys its own work.
 
-Prepare the branches, CI, review findings and exact intended heads before
-asking for an integration decision. Do not change production configuration
-to avoid the decision.
+Every integration still requires exact-head review, actually successful
+applicable CI, sound current-base integration, pre/post canonical-origin
+verification and a known rollback reference. The precise live dashboard settings
+remain uninspected in this session; read-only inspection is routine when
+authorized access is available, while changing live settings remains owner-gated
+configuration work. Do not change production configuration to avoid or widen the
+delegation.
 
 | Decision | Recommended bounded treatment | Required point | What it does not authorize |
 |---|---|---|---|
-| Recovery main integration | Once #115 confirms effects, authorize the exact reviewed recovery commits to deploy through existing main/Workers wiring, or explicitly choose separated integration/release if desired. Exact commits and rollback path accompany the request. | Before effectful merge | DB writes/imports, editorial publication, secrets/settings changes, unrelated future deploys |
-| Standing recovery after Night Run expiry | Restore the existing hourly recovery-only task if unattended continuation is wanted; preserve event-primary intent only after qualification. Reuse existing task rather than duplicate it. | Before relying on unattended recovery | New production/scoring permissions or model substitution |
+| Recovery main integration | **Decided 5 September 2026:** standing delegation granted. The orchestrator merges and deploys exact reviewed in-scope commits through existing main/Workers wiring under Working Agreement §4.1, with rollback reference recorded and origin verified before and after. | No longer a per-PR owner point | DB writes/imports, editorial publication, secrets/access/settings/domain/billing changes, methodology/freeze/adoption, unresolved product direction |
+| Standing recovery after Night Run expiry | **Decided 5 September 2026:** the existing task `6a9a57402f248191857fc31c2cd46baf` is restored as `Should I Play — Watchdog`, enabled, hourly on the hour Asia/Jerusalem from 21:00 without expiry, on the #113 comment `5550624826` recovery-only prompt. Existing task reused, not duplicated. Event-primary claims still wait on current-prompt requalification. | Satisfied | New production/scoring permissions, model substitution, or any claim that the event path is requalified |
 | Minimal main guard | Adopt only specific required checks/review controls justified by #115, considering the one-owner review/runner setup | Before changing access policy | Organization-wide governance redesign |
 | Required facets / Rubric v1.1 | Decide from D1–D6 evidence under ADR 0024 §4 | Item 7, before holdout/freeze sequence | A preemptive methodology choice in this plan |
 | Immutable-package approval lifecycle | Prepare recommendation from real editorial trial; approved-only immutable content is a candidate, not an adopted choice | Before related migration/first import | Production migration itself |

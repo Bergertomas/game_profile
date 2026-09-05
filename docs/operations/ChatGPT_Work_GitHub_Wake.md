@@ -173,7 +173,7 @@ No new API key or webhook service is required.
 2. Open **Work** and create an **event-triggered** task for GitHub pull-request **comment created** activity in `Bergertomas/game_profile`.
 3. Set the task condition to run only when the comment body contains the exact marker `should-i-play-orchestrator-wake:v1`.
 4. Paste the **short bootstrap prompt in §5.1** — that one, verbatim, and nothing else. It is sized for the Work prompt field; the full §5.2 procedure is deliberately not pasted, because the awakened run reads it from the repository. If the task UI exposes model selection, select **GPT-5.6 Sol High**; if it does not, or the selection is not honoured for event-triggered runs, that is **accepted** and is not a reason to leave the Event Wake unused — see §5.1.1. Whatever runtime executes, it must not silently assume the Phase-3A scoring/editorial role.
-5. Review the connected GitHub app's action permissions. The task needs repository reads and, for unattended orchestration, the existing permitted low-risk issue/PR comments plus non-production merge actions. OpenAI documents that connected-app permissions and approval requirements carry into event-triggered tasks; any action that still requires approval will pause rather than bypass it.
+5. Review the connected GitHub app's action permissions. The task needs repository reads and, for unattended orchestration, the existing permitted low-risk issue/PR comments plus the merge actions Working Agreement §4.1 delegates. OpenAI documents that connected-app permissions and approval requirements carry into event-triggered tasks; any action that still requires approval will pause rather than bypass it.
 6. Leave the existing hourly watchdog scheduled task enabled.
 7. Run §7's harmless bot-comment smoke test before treating the event path as primary. This was completed on 2026-09-04 against disposable PR #103; §7.1 records the per-gate evidence. Re-run it if the task, its prompt, the connected app's permissions, or the bridge workflow changes.
 
@@ -298,7 +298,7 @@ INDEPENDENT REVIEW
 
 DECIDE AND ACT
 19. If material risk remains, post one bounded correction on the existing work item/PR, using the appropriate Claude trigger and effort under current runner policy. Do not start a duplicate correction if one is open, queued, or running.
-20. If the exact non-production PR is independently accepted and the Working Agreement authorizes integration, merge the exact reviewed head/base. Do not merge production/publication/protocol/owner-reserved work without the required Tomas decision.
+20. If the exact PR is independently accepted and Working Agreement §4.1 authorizes integration, merge the exact reviewed head/base. In-scope reviewed engineering work may merge and deploy code through the existing main/Workers wiring under that delegation, after exact-head review, actually successful applicable CI, sound current-base integration, pre/post canonical-origin verification and a known rollback reference. Do not merge publication/protocol/owner-reserved work, or anything that mutates the production database or changes credentials/access/settings/domains/billing, without the required Tomas decision.
 21. If a genuine Tomas decision is required, do not invent it. Record the decision request durably in GitHub with the evidence/options needed, tell Tomas clearly, and do not allow downstream work to depend on an unrecorded assumption.
 22. After every acceptance, correction, or terminal failure classification, inspect the dependency-aware ready queue from current GitHub authority. Search open issues/PRs/recent Actions immediately before launching anything so an existing successor is never duplicated.
 23. Launch the highest-value dependency-safe Claude assignment(s) that are genuinely ready. Normally use up to two independent workers; a third only when clearly independent and worthwhile. Preserve branch/file independence and all owner/methodology/holdout/production gates.
@@ -420,16 +420,36 @@ this document does not already grant the scheduled orchestrator. If a future
 observation shows no occurrence pending on that automation, treat it as the same
 re-arm obligation above rather than as a licence to run without a watchdog.
 
-**Current observation — 5 September 2026 (recovery #113).** A fresh Work-side
-read found automation `6a9a57402f248191857fc31c2cd46baf` named
+**Historical observation — 5 September 2026, before restoration (recovery #113).**
+A Work-side read found automation `6a9a57402f248191857fc31c2cd46baf` named
 `Should I Play — Night Run`, disabled after its final run at
-`2026-09-05T06:01:29.982520Z`, with no next occurrence. The historical
-re-arming statement above no longer describes its current state. No standing
-hourly recovery task is armed. The re-arm obligation still applies; schedule
-changes remain Tomas's decision, being prepared in #113/#115. No schedule was
-changed by this observation. Event Wake remains enabled, but the post-#106/#107
-current-prompt requalification is still pending (§5.1.1). Do not infer
-qualification or unattended recovery from the historical promotion.
+`2026-09-05T06:01:29.982520Z`, with no next occurrence. That gap is what the
+restoration below closes; the observation is retained as the dated record of it.
+
+**Current observation — 5 September 2026, after restoration (recovery #113).**
+On Tomas's explicit instruction to restore hourly recovery, the **existing**
+automation `6a9a57402f248191857fc31c2cd46baf` was reused rather than duplicated.
+Its currently recorded configuration is:
+
+| Field | Value |
+|---|---|
+| Task | `Should I Play — Watchdog` |
+| Automation id | `6a9a57402f248191857fc31c2cd46baf` |
+| State | enabled |
+| Cadence | hourly, on the hour |
+| Start | 2026-09-05 21:00 Asia/Jerusalem |
+| Expiry | none |
+| Prompt | the recovery-only prompt prepared in #113 comment `5550624826` |
+
+Event Wake remains enabled. The post-#106/#107 **current-prompt requalification
+remains incomplete** (§5.1.1), so the event path must not be described as
+requalified.
+
+This is a **configuration observation only**. It is not proof that a recovery
+occurrence executed, that its internal preflight was correct, or that the
+event/watchdog loop is currently reliable; the task API does not expose the run
+transcript. The re-arm obligation above continues to apply, and schedule changes
+remain Tomas's decision.
 See the [recovery execution plan](Should_I_Play_Recovery_Execution_Plan_2026-09-05.md)
 for active coordination and the concrete decision packet.
 

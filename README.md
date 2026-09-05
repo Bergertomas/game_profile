@@ -59,8 +59,9 @@ manifest identifies main `e7dd4aa`, production/database, build
 `1de37fcf-f2d7-401c-9eab-fc19312fca86`, and three published entries; its corpus
 digest was independently re-derived. The code includes Slices 1–4; the three
 published profiles are a separate content fact. #115/PR #117 records the
-observation and configuration-access limits. The Working Agreement requires
-explicit applicable authority for a main merge that deploys.
+observation and configuration-access limits. Working Agreement §4.1 delegates
+merging and deploying in-scope reviewed engineering work to the orchestrator
+under stated verification and rollback conditions.
 
 **Remote admin and production Live proof are exercised.** The current state is:
 
@@ -100,10 +101,11 @@ a further measured call. PR #112 already resolved Final Draft scope and
 conditionally authorized attempt 2; #101 owns that execution and immutable
 attempt-1 evidence. #113 coordinates parallel recovery; read the
 [execution plan](docs/operations/Should_I_Play_Recovery_Execution_Plan_2026-09-05.md).
-The original numbered checklist remains Master Plan Appendix B. Main merges
-that deploy require applicable owner authority; workers may implement/review
-branches while that decision is pending. No scoring, holdout or publication
-authority follows from this checkpoint.
+The original numbered checklist remains Master Plan Appendix B. Main merges that
+deploy in-scope reviewed engineering work are delegated to the orchestrator under
+Working Agreement §4.1; workers implement and review but never merge or deploy
+their own work. No production-data, scoring, holdout or publication authority
+follows from this checkpoint.
 
 ## Quick start
 
