@@ -50,7 +50,7 @@ import {
 import { readApiKey } from "@/lib/calibration/openai-client";
 import { PREREGISTERED_MODEL, type RunRole } from "@/lib/calibration/request-builder";
 import { appendLedgerEntry, DEFAULT_LEDGER_DIR } from "@/lib/calibration/ledger";
-import { redact, safeError } from "@/lib/calibration/redact";
+import { redact, safeError, type SafeErrorCause } from "@/lib/calibration/redact";
 
 const ARTIFACT_ROOT = path.join(DEFAULT_LEDGER_DIR, "d1-scoring");
 
@@ -270,6 +270,7 @@ function recordFailure(
   facts: D1ScoringRunFacts,
   errorClass: string | null,
   errorMessage: string | null,
+  causeChain: readonly SafeErrorCause[],
 ): void {
   // This artifact carries a provider error string rather than model output, so
   // it is one of the credential-bearing surfaces redaction still owns. It binds
@@ -287,6 +288,9 @@ function recordFailure(
             facts,
             error_class: safeClass,
             error_message: safeMessage,
+            // Class and code only; a nested cause's message can carry the host
+            // it was dialling (issue #126).
+            error_cause_chain: causeChain,
             request_semantic_digest: pair.semanticRequestDigest,
           },
         },
@@ -306,8 +310,16 @@ function recordFailure(
     outcome: "failed_api",
     error_class: safeClass,
     error_message: safeMessage,
+    error_cause_chain: causeChain,
   });
   console.error(`\n  ${role} pass failed: ${safeMessage ?? "unknown error"}`);
+  if (causeChain.length > 0) {
+    console.error(
+      `  transport cause: ${causeChain
+        .map((cause) => `${cause.error_class}${cause.code === null ? "" : ` (${cause.code})`}`)
+        .join(" ← ")}`,
+    );
+  }
 }
 
 function reportPair(
@@ -535,7 +547,15 @@ async function main(): Promise<void> {
     const result = await runD1ScoringPass({ request, apiKey, attempt });
 
     if (!result.ok || result.output === null) {
-      recordFailure(attemptDir, pair, role, result.facts, result.error_class, result.error_message);
+      recordFailure(
+        attemptDir,
+        pair,
+        role,
+        result.facts,
+        result.error_class,
+        result.error_message,
+        result.error_cause_chain,
+      );
       failures[role] = result.error_message ?? result.error_class ?? "unknown error";
       continue;
     }

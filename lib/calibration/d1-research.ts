@@ -15,6 +15,7 @@ import {
   callResponses,
   type CallResult,
 } from "./openai-client";
+import type { SafeErrorCause } from "./redact";
 import {
   PREREGISTERED_MODEL,
   PREREGISTERED_REASONING_CONTEXT,
@@ -83,6 +84,23 @@ export const EVIDENCE_SOP_PATH = "docs/Game_Profile_Editorial_Evidence_and_Data_
  * stops an unbounded spend, not a target.
  */
 export const D1_RESEARCH_MAX_OUTPUT_TOKENS = 100_000;
+
+/**
+ * The transport bound for the research call (issue #126).
+ *
+ * Deliberately larger than the 600-second default `callResponses` uses for a
+ * scoring call. This one request asks a high-reasoning model with web search for
+ * up to 100,000 output tokens and is not streamed, so no byte arrives until the
+ * whole pass is done. Attempt 2 was cut off at undici's undocumented 300-second
+ * default while the call was still in flight, and the 600-second bound the
+ * harness believed it had was never reached; nothing observed since says what
+ * the call actually needed. Thirty minutes is an explicit ceiling chosen with
+ * that unknown in mind, not an estimate of the call's duration.
+ *
+ * It bounds wall clock only. Spend stays bounded by
+ * `D1_RESEARCH_MAX_OUTPUT_TOKENS`, and nothing retries.
+ */
+export const D1_RESEARCH_REQUEST_TIMEOUT_MS = 1_800_000;
 
 export interface SuppliedInput {
   readonly path: string;
@@ -281,6 +299,11 @@ export interface D1ResearchRunResult {
   readonly output: ModelResearchPass | null;
   readonly error_class: string | null;
   readonly error_message: string | null;
+  /**
+   * Nested transport class/code when the call failed below the HTTP response.
+   * Attempt 2 recorded only `TypeError / fetch failed`, which named no fault.
+   */
+  readonly error_cause_chain: readonly SafeErrorCause[];
 }
 
 /**
@@ -297,6 +320,8 @@ export async function runD1ResearchPass(options: {
   readonly attempt?: number;
   readonly fetchImpl?: typeof fetch;
   readonly baseUrl?: string;
+  /** Overrides `D1_RESEARCH_REQUEST_TIMEOUT_MS`; tests use a small bound. */
+  readonly timeoutMs?: number;
   readonly now?: () => Date;
 }): Promise<D1ResearchRunResult> {
   const now = options.now ?? (() => new Date());
@@ -315,6 +340,7 @@ export async function runD1ResearchPass(options: {
     apiKey: options.apiKey,
     fetchImpl: options.fetchImpl,
     baseUrl: options.baseUrl,
+    timeoutMs: options.timeoutMs ?? D1_RESEARCH_REQUEST_TIMEOUT_MS,
     assertContract: assertResearchExecutionContract,
   });
   const ended_at = now().toISOString();
@@ -337,6 +363,7 @@ export async function runD1ResearchPass(options: {
       output: null,
       error_class: result.metadata.error_class ?? "EmptyResearchOutput",
       error_message: result.metadata.error_message ?? "the research call returned no structured output",
+      error_cause_chain: result.metadata.error_cause_chain,
     };
   }
 
@@ -349,6 +376,7 @@ export async function runD1ResearchPass(options: {
       output: null,
       error_class: "ExecutionContractError",
       error_message: error instanceof Error ? error.message : String(error),
+      error_cause_chain: [],
     };
   }
 
@@ -358,6 +386,7 @@ export async function runD1ResearchPass(options: {
     output: result.output as ModelResearchPass,
     error_class: null,
     error_message: null,
+    error_cause_chain: [],
   };
 }
 

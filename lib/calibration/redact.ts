@@ -59,13 +59,74 @@ export function redactDeep<T>(value: T, env: NodeJS.ProcessEnv = process.env): T
   return value;
 }
 
+/**
+ * One nested transport cause, reduced to what is safe to keep.
+ *
+ * Class and code only. A nested cause's message is not retained: a connection
+ * failure's message carries the host and port it was dialling, and the rule for
+ * this ledger is that no URL, header, body, credential or environment value
+ * reaches disk.
+ */
+export interface SafeErrorCause {
+  readonly error_class: string;
+  readonly code: string | null;
+}
+
+/** How far down a `cause` chain to walk. Deep enough to name a transport fault. */
+const MAX_CAUSE_DEPTH = 5;
+
+/**
+ * Identifier-shaped values only — `HeadersTimeoutError`, `UND_ERR_HEADERS_TIMEOUT`,
+ * `ECONNREFUSED`. Anything with a space, a slash or a quote is free text that
+ * could carry a URL or a secret, so it is masked rather than inspected.
+ */
+const DIAGNOSTIC_TOKEN = /^[A-Za-z0-9_.:-]{1,64}$/;
+
+function diagnosticToken(value: unknown, env: NodeJS.ProcessEnv): string | null {
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  if (typeof value !== "string" || value.length === 0) return null;
+  if (!DIAGNOSTIC_TOKEN.test(value)) return REDACTED;
+  // Redaction still runs: a credential is identifier-shaped too.
+  return redact(value, env);
+}
+
+/**
+ * The nested transport diagnostics of an error, class and code only.
+ *
+ * `TypeError: fetch failed` is what undici throws for every transport fault, so
+ * the outer error alone cannot distinguish a headers timeout from a refused
+ * connection. D1 research attempt 2 failed exactly that way and the specific
+ * `UND_ERR_*` code was lost, which is why the cause chain is retained here.
+ */
+export function safeErrorCauses(
+  error: unknown,
+  env: NodeJS.ProcessEnv = process.env,
+): readonly SafeErrorCause[] {
+  const chain: SafeErrorCause[] = [];
+  const seen = new Set<unknown>();
+  let current = (error as { cause?: unknown } | null)?.cause;
+  while (current !== undefined && current !== null && chain.length < MAX_CAUSE_DEPTH) {
+    if (seen.has(current)) break;
+    seen.add(current);
+    const record = current as { name?: unknown; code?: unknown; cause?: unknown };
+    chain.push({
+      error_class: diagnosticToken(record.name, env) ?? "UnknownError",
+      code: diagnosticToken(record.code, env),
+    });
+    current = record.cause;
+  }
+  return chain;
+}
+
 /** A safe error class/message pair for the ledger. Never carries a stack echo. */
 export function safeError(error: unknown, env: NodeJS.ProcessEnv = process.env): {
   readonly error_class: string;
   readonly message: string;
+  readonly cause_chain: readonly SafeErrorCause[];
 } {
+  const cause_chain = safeErrorCauses(error, env);
   if (error instanceof Error) {
-    return { error_class: error.name, message: redact(error.message, env) };
+    return { error_class: error.name, message: redact(error.message, env), cause_chain };
   }
-  return { error_class: "UnknownError", message: redact(String(error), env) };
+  return { error_class: "UnknownError", message: redact(String(error), env), cause_chain };
 }

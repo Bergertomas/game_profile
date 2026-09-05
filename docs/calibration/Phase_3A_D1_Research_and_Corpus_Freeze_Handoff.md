@@ -112,6 +112,53 @@ remedy, so an existing attempt directory is left exactly as it was recorded
 (preregistration §9.1, §9.3). An attempt the v1 freeze already refused stays
 refused. Slice C refuses a pre-v2 packet by version for the same reason.
 
+## Transport bounds and failure diagnostics (issue #126)
+
+D1 research attempt 2 ran once from `main` `2ae42c8` and ended after `300095 ms`
+as `failed_api / TypeError / fetch failed`, with returned model, response ID and
+token usage all null and no attempt directory (issue #101 comment
+`5554326255`). The cause was the harness, not the provider: `callResponses` set
+the intended bound only on an `AbortController`, and Node's global `fetch` is
+undici, whose dispatcher applies its own `headersTimeout` and `bodyTimeout`,
+**both defaulting to 300 seconds**. The 600-second bound the harness believed it
+had was never reachable.
+
+The failure was reproduced offline against a loopback server that accepts the
+POST and never sends a response header: `TypeError: fetch failed` after
+`300790 ms`, nested cause `HeadersTimeoutError` / `UND_ERR_HEADERS_TIMEOUT`, the
+abort never reached. No provider was contacted.
+
+The corrected transport (`lib/calibration/http-transport.ts`) applies one bound
+at two layers:
+
+- **Dispatcher.** Each call builds an undici `Agent` with `headersTimeout` and
+  `bodyTimeout` set to the requested bound. The `Agent` class is taken from the
+  global dispatcher Node's own bundled undici installs, so the dispatcher goes
+  back to the `fetch` that created it and no second undici copy is introduced.
+- **Abort backstop.** The `AbortController` fires `ABORT_BACKSTOP_HEADROOM_MS`
+  later. It is the only thing that stops a response trickling bytes indefinitely,
+  since inactivity bounds reset on every chunk.
+
+`D1_RESEARCH_REQUEST_TIMEOUT_MS` is **1,800,000 ms**. It is a wall-clock ceiling
+only: spend stays bounded by `D1_RESEARCH_MAX_OUTPUT_TOKENS`, the harness still
+never retries, and the request bytes are unchanged — the controlled lock set,
+transport schema and semantic request digests are byte-identical to `2ae42c8`.
+
+**Fail closed, and prove it on the runtime that spends.** If the undici `Agent`
+class cannot be resolved, `boundedDispatcher` throws rather than running under an
+unknown default. Every mode of `npm run calib:d1-research` first proves the bound
+offline against a stalled loopback server and prints the result as a plan line;
+`--live` refuses when that proof fails. The proof contacts no provider, reads no
+credential and spends nothing.
+
+**Nested diagnostics.** Every undici transport fault surfaces as
+`TypeError: fetch failed`, so the outer error alone cannot distinguish a timeout
+from a refused connection — which is why attempt 2's specific code was lost.
+Failure ledger rows and failed-attempt artifacts now carry `error_cause_chain`:
+the **class and code only** of each nested cause, identifier-shaped, redacted,
+bounded in depth. A nested cause's message is never retained, because a
+connection error's message carries the host and port it was dialling.
+
 ## Artifacts (git-ignored, `calibration-runs/d1-research/<runId>/`)
 
 `<runId>` is `d1-research-<semanticRequestDigest[0..24]>-a<attempt>`, so every

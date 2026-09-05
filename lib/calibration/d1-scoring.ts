@@ -37,6 +37,7 @@ import {
   type HoldoutMention,
 } from "./holdout-isolation";
 import { RESEARCH_TRANSPORT_VERSION, findReviewGradeLeaks } from "./research-pass";
+import type { SafeErrorCause } from "./redact";
 import { validatorFor } from "./package-schema";
 import { deriveCoverageState } from "./semantic-validator";
 import { REQUIRED_FACETS, RUBRIC_SUBCRITERION_KEYS } from "./protocol-tables";
@@ -476,6 +477,8 @@ export interface D1ScoringRunResult {
   readonly output: ModelScoringPass | null;
   readonly error_class: string | null;
   readonly error_message: string | null;
+  /** Nested transport class/code when the call failed below the HTTP response. */
+  readonly error_cause_chain: readonly SafeErrorCause[];
 }
 
 /**
@@ -536,6 +539,7 @@ export async function runD1ScoringPass(options: {
       error_class: result.metadata.error_class ?? "EmptyScoringOutput",
       error_message:
         result.metadata.error_message ?? "the scoring call returned no structured output",
+      error_cause_chain: result.metadata.error_cause_chain,
     };
   }
 
@@ -550,6 +554,7 @@ export async function runD1ScoringPass(options: {
       output: null,
       error_class: "ExecutionContractError",
       error_message: error instanceof Error ? error.message : String(error),
+      error_cause_chain: [],
     };
   }
 
@@ -559,6 +564,7 @@ export async function runD1ScoringPass(options: {
     output: result.output as ModelScoringPass,
     error_class: null,
     error_message: null,
+    error_cause_chain: [],
   };
 }
 

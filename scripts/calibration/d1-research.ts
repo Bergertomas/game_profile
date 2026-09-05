@@ -23,6 +23,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import {
   D1_RESEARCH_MAX_OUTPUT_TOKENS,
+  D1_RESEARCH_REQUEST_TIMEOUT_MS,
   assertReplayableResearchCapture,
   buildD1ResearchCapture,
   buildD1ResearchRequest,
@@ -45,6 +46,11 @@ import {
   writeVerifiedArtifacts,
   type ArtifactSpec,
 } from "@/lib/calibration/artifact-store";
+import {
+  ABORT_BACKSTOP_HEADROOM_MS,
+  proveTransportBound,
+  type TransportBoundProof,
+} from "@/lib/calibration/http-transport";
 import { readApiKey } from "@/lib/calibration/openai-client";
 import { D1_RUN_INPUT, type D1MaturityRevalidation } from "@/lib/calibration/run-input";
 import { PREREGISTERED_MODEL } from "@/lib/calibration/request-builder";
@@ -108,7 +114,37 @@ function assertMaturityIsFresh(maturity: MaturityFile, now: Date): void {
   }
 }
 
-function printPlan(request: D1ResearchRequest, maturitySource: string, attempt: number, runDir: string): void {
+/**
+ * The transport bound, and whether this runtime can actually enforce it.
+ *
+ * Attempt 2 was cut off at undici's 300-second default while the harness
+ * believed it had 600 seconds, so the bound is now printed as a plan fact and
+ * proved offline against a loopback server that never sends headers. The dry run
+ * therefore answers the question on the runtime that will spend the money, with
+ * no provider contact and nothing spent.
+ */
+function printTransportBound(proof: TransportBoundProof): void {
+  console.log(
+    `  request timeout         ${D1_RESEARCH_REQUEST_TIMEOUT_MS} ms at the undici dispatcher (headers + body), abort backstop ${D1_RESEARCH_REQUEST_TIMEOUT_MS + ABORT_BACKSTOP_HEADROOM_MS} ms`,
+  );
+  if (proof.ok) {
+    console.log(
+      `  dispatcher bound proof  PASS — a ${proof.bound_ms} ms bound ended a stalled loopback call in ${proof.elapsed_ms} ms (${String(proof.cause_code)})`,
+    );
+  } else {
+    console.log(
+      `  dispatcher bound proof  FAIL — ${proof.detail ?? "the configured bound did not govern"} (${proof.elapsed_ms} ms, ${String(proof.cause_code)})`,
+    );
+  }
+}
+
+function printPlan(
+  request: D1ResearchRequest,
+  maturitySource: string,
+  attempt: number,
+  runDir: string,
+  transport: TransportBoundProof,
+): void {
   console.log("Phase 3A D1 research collection — plan\n");
   console.log(`  run key                 ${request.runKey} (Alan Wake 2, base main campaign)`);
   console.log(`  known exclusions        ${D1_RUN_INPUT.scope.known_exclusions.join(", ")}`);
@@ -120,6 +156,7 @@ function printPlan(request: D1ResearchRequest, maturitySource: string, attempt: 
   console.log(`  store                   ${String(request.configuration.store)}`);
   console.log(`  tools                   ${request.configuration.tools.map((t) => t.type).join(", ")}`);
   console.log(`  max_output_tokens       ${request.configuration.max_output_tokens}`);
+  printTransportBound(transport);
   console.log(`  controlled lock set     ${request.lock.lock_set_digest}`);
   for (const input of request.lock.inputs) {
     console.log(`    ${input.role.padEnd(20)} ${input.sha256}  ${input.path}`);
@@ -232,7 +269,10 @@ async function main(): Promise<void> {
   const runDir = attemptRunDir(ARTIFACT_ROOT, runStem, attempt);
   const unfrozenDir = attemptRunDir(ARTIFACT_ROOT, unfrozenStem, attempt);
 
-  printPlan(request, maturitySource, attempt, runDir);
+  // Offline, loopback-only, and run in every mode so the dry run reports it.
+  const transport = await proveTransportBound();
+
+  printPlan(request, maturitySource, attempt, runDir, transport);
 
   if (freezeFrom) {
     let capture: D1ResearchCapture;
@@ -341,6 +381,21 @@ async function main(): Promise<void> {
     return;
   }
 
+  // A runtime that cannot enforce the bound would spend an attempt under
+  // undici's 300-second default, which is how attempt 2 was lost.
+  if (!transport.ok) {
+    console.error(
+      "\nRefusing to run: this runtime could not be shown to honour the configured request\n" +
+        `timeout at the HTTP dispatcher layer. A ${transport.bound_ms} ms bound against a stalled loopback\n` +
+        `server ended after ${transport.elapsed_ms} ms as ${String(transport.cause_class)} / ${String(transport.cause_code)}.\n` +
+        (transport.detail === null ? "" : `${transport.detail}\n`) +
+        "A measured call must not run under an unproven bound; D1 research attempt 2 failed\n" +
+        "at exactly that default after 300095 ms (issue #126).",
+    );
+    process.exitCode = 1;
+    return;
+  }
+
   // Preregistration §9.3 preserves old runs. This refusal is a preflight rather
   // than only a write-time check: refusing after the call would keep the prior
   // artifacts but throw away the evidence just paid for.
@@ -405,6 +460,14 @@ async function main(): Promise<void> {
 
   if (!result.ok || result.output === null) {
     console.error(`\nResearch call failed: ${redact(result.error_message ?? "unknown error")}`);
+    if (result.error_cause_chain.length > 0) {
+      // The line attempt 2 could not print. Class and code only.
+      console.error(
+        `  transport cause:      ${result.error_cause_chain
+          .map((cause) => `${cause.error_class}${cause.code === null ? "" : ` (${cause.code})`}`)
+          .join(" ← ")}`,
+      );
+    }
     appendLedgerEntry({
       ...ledgerBase,
       run_id: `d1-research-failed-${digest24}-a${result.facts.attempt}`,
@@ -414,6 +477,7 @@ async function main(): Promise<void> {
       outcome: "failed_api",
       error_class: result.error_class,
       error_message: result.error_message,
+      error_cause_chain: result.error_cause_chain,
     });
     process.exitCode = 1;
     return;

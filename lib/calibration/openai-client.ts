@@ -4,7 +4,13 @@ import {
   PREREGISTERED_REASONING_EFFORT,
   type ModelConfiguration,
 } from "./request-builder";
-import { safeError } from "./redact";
+import { safeError, type SafeErrorCause } from "./redact";
+import {
+  ABORT_BACKSTOP_HEADROOM_MS,
+  boundedDispatcher,
+  releaseDispatcher,
+  type BoundedDispatcher,
+} from "./http-transport";
 
 /**
  * The Phase 3A OpenAI execution surface: configuration guards, a thin Responses
@@ -152,13 +158,31 @@ export interface ResponseMetadata {
   readonly api_elapsed_ms: number;
   readonly error_class: string | null;
   readonly error_message: string | null;
+  /**
+   * Nested transport diagnostics, class and code only. Empty unless the call
+   * failed below the HTTP response — a headers/body timeout, a refused
+   * connection — where the outer error is always `TypeError: fetch failed`.
+   */
+  readonly error_cause_chain: readonly SafeErrorCause[];
 }
+
+/** The default total bound for a measured call. */
+export const DEFAULT_REQUEST_TIMEOUT_MS = 600_000;
 
 export interface CallOptions {
   readonly apiKey: string;
   readonly baseUrl?: string;
   /** Injectable transport. Tests pass a mock; nothing in CI touches the network. */
   readonly fetchImpl?: typeof fetch;
+  /**
+   * The request bound, in milliseconds.
+   *
+   * Applied twice, because one layer was never enough: as undici's
+   * `headersTimeout`/`bodyTimeout` on a per-call dispatcher, and as an abort
+   * backstop `ABORT_BACKSTOP_HEADROOM_MS` later that also stops a response
+   * trickling bytes indefinitely. Before this was configured the effective bound
+   * was undici's 300-second default, whatever this value said.
+   */
   readonly timeoutMs?: number;
   /**
    * The frozen contract asserted before the request is sent. Defaults to the
@@ -211,9 +235,15 @@ export async function callResponses(
 
   const fetchImpl = options.fetchImpl ?? fetch;
   const baseUrl = options.baseUrl ?? "https://api.openai.com/v1";
+  const timeoutMs = options.timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
+  // Built before anything is sent, and for every transport, injected or not, so
+  // the bound a caller asked for is the bound that governs. A runtime that
+  // cannot enforce it throws here, alongside the contract assertion: no request
+  // exists, so there is no attempt to record.
+  const dispatcher: BoundedDispatcher = boundedDispatcher(timeoutMs);
   const started = Date.now();
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? 600_000);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs + ABORT_BACKSTOP_HEADROOM_MS);
 
   try {
     const response = await fetchImpl(`${baseUrl}/responses`, {
@@ -225,7 +255,10 @@ export async function callResponses(
       },
       body: JSON.stringify(request),
       signal: controller.signal,
-    });
+      // Not in the DOM `RequestInit`, but the option undici's fetch reads. The
+      // cast is the whole reason this is one line rather than an SDK.
+      dispatcher,
+    } as RequestInit);
     const elapsed = Date.now() - started;
     const body = (await response.json()) as Record<string, unknown>;
 
@@ -243,6 +276,9 @@ export async function callResponses(
           api_elapsed_ms: elapsed,
           error_class: String(error?.type ?? `http_${response.status}`),
           error_message: safeError(String(error?.message ?? "request failed")).message,
+          // A provider error arrived over a working connection; there is no
+          // transport fault below it to name.
+          error_cause_chain: [],
         },
         output: null,
         raw: body,
@@ -274,6 +310,7 @@ export async function callResponses(
         api_elapsed_ms: elapsed,
         error_class: parseError === null ? null : "StructuredOutputParseError",
         error_message: parseError,
+        error_cause_chain: [],
       },
       output,
       raw: body,
@@ -292,12 +329,17 @@ export async function callResponses(
         api_elapsed_ms: Date.now() - started,
         error_class: safe.error_class,
         error_message: safe.message,
+        // The branch attempt 2 landed in. `TypeError: fetch failed` on its own
+        // does not say which transport fault occurred; the nested class/code
+        // does, and is the only part of the cause safe to keep.
+        error_cause_chain: safe.cause_chain,
       },
       output: null,
       raw: null,
     };
   } finally {
     clearTimeout(timeout);
+    await releaseDispatcher(dispatcher);
   }
 }
 

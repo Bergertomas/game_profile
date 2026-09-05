@@ -2,7 +2,7 @@ import { appendFileSync, mkdirSync, readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { canonicalDigest } from "./canonical-json";
-import { redactDeep } from "./redact";
+import { redactDeep, type SafeErrorCause } from "./redact";
 
 /**
  * The Phase 3A run ledger: local, append-only, never production.
@@ -58,6 +58,17 @@ export interface LedgerEntry {
   readonly outcome: "succeeded" | "failed_validation" | "failed_api" | "blocked";
   readonly error_class: string | null;
   readonly error_message: string | null;
+  /**
+   * Nested transport diagnostics, class and code only (issue #126).
+   *
+   * D1 research attempt 2 recorded `failed_api / TypeError / fetch failed` and
+   * nothing else, because every undici transport fault surfaces under that one
+   * outer error. Without the nested code the ledger cannot say whether an
+   * attempt hit a timeout, a refused connection or a reset, which is exactly the
+   * question a later attempt needs answered. Never a message, URL, header, body
+   * or environment value — those are the parts that could carry a secret.
+   */
+  readonly error_cause_chain?: readonly SafeErrorCause[];
 }
 
 export interface LedgerOptions {
