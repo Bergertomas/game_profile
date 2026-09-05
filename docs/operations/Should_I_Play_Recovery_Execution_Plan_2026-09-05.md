@@ -172,11 +172,22 @@ corpus. The owner then explicitly authorized attempt 3 on #101 (comment
 `301644adee5bacd13a3f01c5ea965b583a847bf6`: one registered call, 334398 ms,
 past the old 300-second boundary, ending `failed_api` on a provider
 tokens-per-minute rate limit with no internal retry, null returned
-model/response ID/usage, no attempt directory and no corpus. Step 5 below
-therefore now governs **attempt 4**, which is not authorized by that result or
-by PR #128 and requires a fresh explicit owner / preregistration-compliant
-ruling once the rate-limit failure has been reviewed. The sequence itself is
-unchanged.
+model/response ID/usage, no attempt directory and no corpus. The owner then
+authorized **attempt 4**, and the credentialed local Mac spent it from the same
+`301644a` under the registered `gpt-5.6-sol` contract: one registered call,
+346718 ms, a normal provider response with the returned model matching and no
+retry, persisting capture, corpus, semantic-input and receipt artifacts. **The
+independent audit verdict on that packet is REFUSE** — its own collection reason
+and completion report left a late Windows build-1.2.10 regression signal
+unverified, omitted the two required final no-new-category query families, and
+declared the corpus unsafe to score — so it is not scoring-eligible, scoring
+calls remain 0, and the private package is inaccessible here and is not
+accepted. The fail-closed validator defect that allowed persistence despite a
+non-null `research_completion_report.blocking_concern` is corrected on `main` by
+the accepted PR #133 (issue #131 closed, superseding minimal PR #132). Step 5
+below therefore now governs **attempt 5**, which is not authorized by attempt
+4's result or by #131/#132/#133 and requires a fresh explicit owner /
+preregistration-compliant ruling. The sequence itself is unchanged.
 
 When A is accepted and safely integrated:
 1. Fresh live-main preflight and #101 inspection; verify no other execution is
@@ -189,11 +200,11 @@ When A is accepted and safely integrated:
 4. Run offline/dry preflight and required holdout-identifier inspection from #95.
    Never use an audit summary as permission to skip a gate.
 5. Execute only the single currently authorized attempt — attempt 2 when this
-   plan was written, and now attempt 4, which is not yet authorized. No
+   plan was written, and now attempt 5, which is not yet authorized. No
    automatic retries. Preserve raw attempt and frozen artifacts, digests, usage,
    elapsed time, and refusal or failure details. Each further attempt needs the
-   governing retry ruling; neither an accepted engineering repair nor a spent
-   attempt's failure is that ruling.
+   governing retry ruling; neither an accepted engineering repair, a spent
+   attempt's failure, nor a refused packet is that ruling.
 6. Independently inspect the actual persisted real corpus: exact bytes and
    cross-bindings, coverage/depth, admission/provenance, maturity/scope, credible
    disagreement, grade masking, leakage and deterministic replay. Unavailable

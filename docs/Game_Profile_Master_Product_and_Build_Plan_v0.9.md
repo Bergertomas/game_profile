@@ -7,8 +7,8 @@
 **Product and project orchestration:** ChatGPT, with GPT-6 Astra preferred for high-consequence orchestration and review. Phase 3A measured research and scoring remain frozen to `gpt-5.6-sol` under ADR 0036.
 **Engineering:** Claude / Opus by default, including through the repository-native Claude Code GitHub Action; Codex/Astra as principal engineering specialist and independent reviewer; Fable for specialist visual/design work. Current allocation is governed by `docs/operations/Should_I_Play_AI_Role_Allocation_2026-09-05.md`; the Working Agreement owns execution/review/integration (§16.1).
 **Public product design:** Tomas, ChatGPT, and the reconciled Fable design work
-**Status:** Current product and roadmap constitution. Phase 3A Items 1–5 COMPLETE; Item 6 / D1 ACTIVE, with three immutable measured research attempts recorded, no frozen corpus, 0 scoring calls, and attempt 4 owner/preregistration gated. Public Slices 1–4 are implemented; Compare visual/UX acceptance remains Item 12. The last independently verified canonical-origin manifest (5 September, recorded in #113) identified main 2ae42c8 with three published entries; verify the live manifest rather than relying on this line, and owner Compare visual acceptance remains separate.
-**Current checkpoint:** Phase 2's editorial/publishing architecture is substantially complete and in support mode. Gate A A1/A2 Rev 5.1, Gate B A3–A6 and full Compare C1–C4/C-rail are accepted. ADR 0013 is superseded; ADR 0031 governs the static Search index; ADRs 0033/0034 govern Compare. The cross-surface design-system and interaction handoff is complete. Engineering Slice 1 — the canonical shared tokens/font foundation, the editorially governed static Search and its four truthful states, accessible inline/header Search, and the bounded accepted homepage opening — is merged on `main`. Engineering Slice 2 completes the accepted homepage system on top of it: the “Start somewhere interesting” poster rail, the authored-shelf grammar with objective/evergreen/living kinds, publication windows, expiry and evergreen fallback, and the bounded “Choosing between…” presentation contract whose route into full Compare is explicitly deferred. Its qualitative editorial configurations ship empty pending owner-approved membership under P0.3, and it is merged on `main`. Engineering Slice 3 implements the accepted A3–A6 profile system — decision before instrument, complete art-led/artless parity, the three-level radar with permanent exact rows, Range/Unknown/Provisional/confidence states, and the restored platform-warning, platform-note and override projection — with practical time and store destinations rendered only from approved records, which do not yet exist; it is merged on `main`. Engineering Slice 4 implements the accepted C1–C4 full Compare system in the current codebase: the order-preserving `/compare?games=<left>,<right>` state with the launcher indexable and every pair `noindex, follow`; the art-led, mixed and complete artless identity stage around the paired radar; the deterministic interval-aware relationship field; the canonical Shared/left-only/right-only tag map; eight paired exact rows; Replace and Copy-link controls. Its first release compares published primary profiles only (ADR 0033 amendment, 2 September 2026); sibling-scope Compare is a later decision. The first application-originated Cloudflare Builds dispatch and one complete new-profile Publish → dispatch → Live cycle remain unexercised and will be proved by the first real catalog publication, not by further standalone admin hardening. Phase 3A Items 1–5 and the bounded `0011_igdb_staging` integration are complete. D1 attempt 1 made one registered research request and was refused before freeze. PR #112 resolved the Final Draft scope gate, and the #114 transport corrections were integrated by PR #120. D1 attempt 2 then ran once and ended `failed_api` at the transport boundary with no provider metadata, no response body and no corpus; the blocker it raised (#126) was corrected by PR #128. The owner then explicitly authorized attempt 3 on #101, and it ran once from `301644a` for `334398 ms` — past the old 300-second boundary, confirming the corrected bound — before ending `failed_api` on a provider tokens-per-minute rate limit, again with null returned model/response ID/usage and no corpus. No scoring call has run in any attempt. Attempt 4 is not authorized by that result or by PR #128 and needs a fresh explicit owner / preregistration-compliant ruling after the rate-limit failure is reviewed; #101 owns measured execution and all three immutable attempt records, and #113 coordinates recovery. The bootstrap owns the running checkpoint. Appendix B owns the current numbered checklist; the linked execution plan owns detailed assignments and acceptance evidence.
+**Status:** Current product and roadmap constitution. Phase 3A Items 1–5 COMPLETE; Item 6 / D1 ACTIVE, with four immutable measured research attempts recorded, attempt 4's returned packet independently REFUSED and not scoring-eligible, 0 scoring calls, and attempt 5 owner/preregistration gated. Public Slices 1–4 are implemented; Compare visual/UX acceptance remains Item 12. The last independently verified canonical-origin manifest (5 September, recorded in #113) identified main 2ae42c8 with three published entries; verify the live manifest rather than relying on this line, and owner Compare visual acceptance remains separate.
+**Current checkpoint:** Phase 2's editorial/publishing architecture is substantially complete and in support mode. Gate A A1/A2 Rev 5.1, Gate B A3–A6 and full Compare C1–C4/C-rail are accepted. ADR 0013 is superseded; ADR 0031 governs the static Search index; ADRs 0033/0034 govern Compare. The cross-surface design-system and interaction handoff is complete. Engineering Slice 1 — the canonical shared tokens/font foundation, the editorially governed static Search and its four truthful states, accessible inline/header Search, and the bounded accepted homepage opening — is merged on `main`. Engineering Slice 2 completes the accepted homepage system on top of it: the “Start somewhere interesting” poster rail, the authored-shelf grammar with objective/evergreen/living kinds, publication windows, expiry and evergreen fallback, and the bounded “Choosing between…” presentation contract whose route into full Compare is explicitly deferred. Its qualitative editorial configurations ship empty pending owner-approved membership under P0.3, and it is merged on `main`. Engineering Slice 3 implements the accepted A3–A6 profile system — decision before instrument, complete art-led/artless parity, the three-level radar with permanent exact rows, Range/Unknown/Provisional/confidence states, and the restored platform-warning, platform-note and override projection — with practical time and store destinations rendered only from approved records, which do not yet exist; it is merged on `main`. Engineering Slice 4 implements the accepted C1–C4 full Compare system in the current codebase: the order-preserving `/compare?games=<left>,<right>` state with the launcher indexable and every pair `noindex, follow`; the art-led, mixed and complete artless identity stage around the paired radar; the deterministic interval-aware relationship field; the canonical Shared/left-only/right-only tag map; eight paired exact rows; Replace and Copy-link controls. Its first release compares published primary profiles only (ADR 0033 amendment, 2 September 2026); sibling-scope Compare is a later decision. The first application-originated Cloudflare Builds dispatch and one complete new-profile Publish → dispatch → Live cycle remain unexercised and will be proved by the first real catalog publication, not by further standalone admin hardening. Phase 3A Items 1–5 and the bounded `0011_igdb_staging` integration are complete. D1 attempt 1 made one registered research request and was refused before freeze. PR #112 resolved the Final Draft scope gate, and the #114 transport corrections were integrated by PR #120. D1 attempt 2 then ran once and ended `failed_api` at the transport boundary with no provider metadata, no response body and no corpus; the blocker it raised (#126) was corrected by PR #128. The owner then explicitly authorized attempt 3 on #101, and it ran once from `301644a` for `334398 ms` — past the old 300-second boundary, confirming the corrected bound — before ending `failed_api` on a provider tokens-per-minute rate limit, again with null returned model/response ID/usage and no corpus. Owner-authorized attempt 4 then executed once from `301644a` under the registered `gpt-5.6-sol` contract and returned normally after `346718 ms`, with the returned model matching and no retry, persisting capture, corpus, semantic-input and receipt artifacts; the independent audit verdict is **REFUSE**, because the packet's own completion report left a late Windows build-1.2.10 regression signal unverified, omitted the two required final no-new-category query families, and declared the corpus unsafe to score. Its private artifacts are inaccessible to this cloud orchestrator and are not independently accepted. No scoring call has run in any attempt, and no accepted corpus exists. The fail-closed validator defect that allowed persistence despite a non-null `research_completion_report.blocking_concern` is corrected on `main` by the accepted PR #133, which superseded and hardened the minimal PR #132 (#131). Attempt 5 is not authorized by attempt 4's result or by #131/#132/#133 and needs a fresh explicit owner / preregistration-compliant ruling; no D2 work is eligible. #101 owns measured execution and all four immutable attempt records, and #113 coordinates recovery. The bootstrap owns the running checkpoint. Appendix B owns the current numbered checklist; the linked execution plan owns detailed assignments and acceptance evidence.
 **Public-product state:** Slices 1–4 are implemented on `main`; implementation and CI do not establish current production content or owner visual acceptance. The 5 September recovery independently fetched the canonical-origin manifest twice: first production/database, commit e7dd4aa, build 1de37fcf-f2d7-401c-9eab-fc19312fca86, and after the recovery integrations commit 2ae42c8, build 6b82d166-35ea-4808-a47b-7c93b029f719 — both with the same three published entries and verified corpus digest cc08d7242cc41f100f67728bcacda77736a8ff23701581ed730df3b2a95ced1f (#113). `main` has advanced since that observation; re-fetch the manifest rather than assuming the artifact currently served. Current code and the three-profile published corpus are distinct facts. ADR 0008 declares main/Workers production deployment; under the 5 September owner-approved delegation the orchestrator integrates in-scope reviewed engineering work under Working Agreement §4.1's conditions. The live dashboard trigger configuration was not inspected. Discovery UI, operational accountability, real catalog content and governed analytics remain incomplete despite underlying contracts. Practical-time/store records, qualitative shelves and curated comparison pairs remain empty until approved content exists. Compare parity and the #42 freshness/accountability pass remain Item 12. The 12–15-profile corpus is private validation; quiet public release requires approximately 100 substantive profiles.
 **Date:** 2026-08-26 · **Gate A amendment:** 2026-08-28 · **Gate B/Search amendment:** 2026-08-30 · **Compare acceptance:** 2026-08-31 · **Slice 1 integration:** 2026-09-01 · **Slice 2 homepage system:** 2026-09-01 · **Slice 3 profile system:** 2026-09-01 · **Slice 4 full Compare:** 2026-09-02 · **Forward-alignment reconciliation:** 2026-09-03 · **Audit recovery reconciliation:** 2026-09-05
 
@@ -1394,26 +1394,51 @@ data contract remain in force meanwhile.
 
 **Current execution state — 5 September 2026.** Items 1–5 are complete,
 including the separately authorized Item-5 integration. Item 6 is active, and
-three measured D1 research attempts are immutable evidence: attempt 1 was
-refused before freeze; attempt 2 ended `failed_api` after 300095 ms; and the
+four measured D1 research attempts are immutable evidence: attempt 1 was
+refused before freeze; attempt 2 ended `failed_api` after 300095 ms; the
 owner-authorized attempt 3 (#101 comment `5554711009`) ran exactly once from
 `301644a` between 2026-09-05T20:53:31.018Z and 20:59:05.593Z (334398 ms),
 survived past the old 300-second transport boundary and ended `failed_api` on a
 provider tokens-per-minute rate-limit error with no internal retry. In both
 failures the returned model, response ID and token usage were null and no
 response body, capture, attempt directory or receipt was created, so provider
-processing and spend cannot be quantified. No real corpus, accepted scoring
-input or scoring pair exists, and scoring calls remain 0. PR #112
+processing and spend cannot be quantified. Owner-authorized **attempt 4** then
+executed exactly once from `301644a` under the registered `gpt-5.6-sol`
+contract and **returned normally after 346718 ms**; the returned model matched
+and there was no retry. Its non-secret receipt (#101 comment `5554849970`)
+reports persisted capture, corpus, semantic-input and receipt hashes,
+normalized-packet digest
+`8bc4f22e9b1a3d3e1e09eff20461b27d0817cf8a90cba08382cd3db76736955e`, receipt
+digest `f04b1a93d1a176cfaf872a9d92d003e088267e7afbb08408e3453a0019d8f4f5` and
+private review-package SHA-256
+`56295c184e671a73758e045008fddc2ae37b173460af9ebcc866aac3c85cd4de`; those
+private artifacts are inaccessible to this cloud orchestrator and are neither
+independently accepted nor re-described. **The independent audit verdict is
+REFUSE.** The packet met the reported structural seven-family and 11-cluster
+checks, but its own collection reason and completion report left a late Windows
+build-1.2.10 regression signal unverified, did not complete the two required
+final no-new-category query families, and expressly declared the corpus unsafe
+to score; that is a refusal, never artifact acceptance. No accepted corpus,
+scoring input or scoring pair exists, and scoring calls remain 0. PR #112
 resolved Final Draft scope; PR #120 corrected wrapper-owned capture hashing and
 scorer-visible provenance (#114); PR #128 corrected the effective transport
 timeout and safe nested diagnostics (#126), and attempt 3's 334398 ms
 connection is the measured confirmation that the corrected bound is in force.
+The fail-closed validator defect attempt 4 exposed — persistence despite a
+non-null `research_completion_report.blocking_concern` — is corrected on current
+`main`: minimal PR #132 was superseded and hardened by the accepted PR #133
+(issue #131 closed), exact accepted head
+`587df4a501e7977eb6ecc06cf23fda71b267fc46`, merged as
+`058ac0fe70382ab95f23cd00edbaeca3e95807a6`, exact-head CI `33994092198` green on
+Quality and Integration. The canonical gate now refuses before any frozen,
+scoring-eligible corpus, packet or receipt is constructed, and the live refusal
+path still preserves raw capture-only evidence.
 The older unconditional READY
 wording does not describe current execution, and the integrated repairs preserve
-historical Item-4/5 acceptance without authorizing anything. Attempt 4 requires
-a fresh explicit owner / preregistration-compliant ruling after the rate-limit
-failure is reviewed; neither attempt 3's result nor PR #128 supplies one. The
-attempt-2 and attempt-3 raw failure archives are private owner-runtime evidence
+historical Item-4/5 acceptance without authorizing anything. Attempt 5 requires
+a fresh explicit owner / preregistration-compliant ruling; neither attempt 4's
+result nor #131, PR #132 or PR #133 supplies one, and no D2 work is eligible. The
+attempt-2, attempt-3 and attempt-4 raw archives are private owner-runtime evidence
 that no cloud agent has accessed or accepted. Issue #101 owns measured
 execution; #113 and the recovery execution plan own the repair queue. No
 controlled input, cohort or scoring meaning changes here.
@@ -1708,12 +1733,16 @@ The **numbered master checklist is Appendix B**, preserving the original
 Items 1–12. This priority list is a queue, not a competing checklist.
 
 - **Now / critical path:** the D1 transport repairs (#114 → PR #120, #126 →
-  PR #128) are reviewed and integrated, and the owner-authorized attempt 3 spent
-  its single call on a provider tokens-per-minute rate limit without producing a
-  corpus. The remaining step is review of that TPM failure and a fresh owner /
-  preregistration-compliant ruling on whether D1 research attempt 4 is
-  authorized; only then does #101 resume with a fresh registered preflight and
-  maturity observation.
+  PR #128) and the freeze-gate correction (#131 → PR #133, superseding PR #132)
+  are reviewed and integrated. Owner-authorized attempt 3 spent its single call
+  on a provider tokens-per-minute rate limit, and owner-authorized attempt 4
+  returned normally but its packet was independently REFUSED as unsafe to score.
+  The remaining step is an owner / preregistration-compliant decision on whether
+  there is a D1 research attempt 5; only then — and only if authorized — does
+  #101 resume with a fresh credentialed non-CI preflight and maturity
+  observation and exactly one registered research call. Any future candidate
+  corpus still requires private raw-artifact access and independent acceptance
+  before any paired scoring.
 - **Now / independent:** #115 operations evidence and the bounded
   integration/recovery decision packet are delivered; keep current documents
   reconciled under #113.
@@ -2313,9 +2342,9 @@ Item-3-era snapshot and is not edited to maintain status.
 | 1 | Baseline and source audit | COMPLETE |
 | 2 | Cohort reconciliation | COMPLETE; preserve the locked cohort |
 | 3 | Preregistration | COMPLETE; exact-byte approval closed by final Item-4 ruling |
-| 4 | Phase 3A engineering readiness | COMPLETE historically (PR #46, 9/9 PASS); the later D1 transport defects were addressed by #114/PR #120 and #126/PR #128, without reopening that ruling. Attempt 3 held the connection 334398 ms and received an ordinary provider rate-limit response, so no further transport defect is identified |
+| 4 | Phase 3A engineering readiness | COMPLETE historically (PR #46, 9/9 PASS); the later D1 defects were addressed without reopening that ruling — transport by #114/PR #120 and #126/PR #128, and the fail-closed freeze gate by #131/PR #133 (superseding minimal PR #132) after attempt 4's REFUSE exposed it. Attempts 3 and 4 held the connection 334398 ms and 346718 ms, so no further transport defect is identified |
 | 5 | IGDB staging readiness | COMPLETE (PR #52); bounded 0011 integration applied and verified |
-| 6 | Development run games 1–6 | ACTIVE / D1: transport repairs integrated (PR #120, PR #128); attempts 1, 2 and 3 are immutable and produced no corpus, attempt 3 ending on a provider TPM rate limit → review that failure → fresh owner/preregistration ruling on attempt 4 → fresh #101 preflight and maturity observation → one authorized attempt → real corpus acceptance → registered pair → D1 acceptance → D2–D6 sequentially |
+| 6 | Development run games 1–6 | ACTIVE / D1: transport and freeze-gate repairs integrated (PR #120, PR #128, PR #133); attempts 1–4 are immutable and no accepted corpus exists — attempt 4 returned normally but its packet was independently REFUSED as unsafe to score → owner/preregistration ruling on whether there is an attempt 5 → if authorized, fresh #101 credentialed non-CI preflight and maturity observation → exactly one registered research call → private raw-artifact access and independent corpus acceptance → registered pair → D1 acceptance → D2–D6 sequentially. No D2 work is eligible |
 | 7 | Development calibration analysis + launch-window/pre-release rehearsals | PENDING after six accepted development cases; required-facet owner decision, two non-statistical rehearsals, material-defect resolution and affected reruns before freeze |
 | 8 | Candidate freeze | OWNER GATE after Item 7; record exact versions/configuration/digests |
 | 9 | Untouched holdout run games 1–4 | PENDING; no research, packets, scoring or expected results before Item 8 |

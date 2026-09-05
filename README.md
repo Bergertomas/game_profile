@@ -103,11 +103,20 @@ attempt 1 was refused before freeze, attempt 2 ended `failed_api` at the old
 transport boundary, and the owner-authorized attempt 3 ran once from `301644a`
 for `334398 ms` — past that boundary, confirming the corrected bound — before
 ending `failed_api` on a provider tokens-per-minute rate limit with null
-returned model/response ID/usage. All three are immutable, no frozen corpus
-exists, and scoring calls remain 0. A further measured call is attempt 4 and is
-not authorized by that result or by PR #128: it needs a fresh explicit owner /
-preregistration-compliant ruling after the rate-limit failure is reviewed. #101
-owns that execution and all three immutable attempt records. #113 coordinates
+returned model/response ID/usage. Owner-authorized attempt 4 then executed once
+from `301644a` under the registered `gpt-5.6-sol` contract and returned normally
+after `346718 ms` with the returned model matching and no retry, persisting
+capture, corpus, semantic-input and receipt artifacts — but the independent
+audit verdict is **REFUSE**: its own completion report declared the corpus
+unsafe to score, so it is not scoring-eligible. Its private artifacts are
+inaccessible to this cloud orchestrator and are not independently accepted.
+All four attempts are immutable, no accepted corpus exists, and scoring calls
+remain 0. The fail-closed validator defect that let a declared blocker persist
+is corrected on `main` by PR #133 (#131, superseding the minimal PR #132). A
+further measured call is attempt 5 and is not authorized by attempt 4's result
+or by #131/#132/#133: it needs a fresh explicit owner /
+preregistration-compliant ruling, and no D2 work is eligible. #101
+owns that execution and all four immutable attempt records. #113 coordinates
 parallel recovery; read the
 [execution plan](docs/operations/Should_I_Play_Recovery_Execution_Plan_2026-09-05.md).
 The original numbered checklist remains Master Plan Appendix B. Main merges that
