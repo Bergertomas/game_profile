@@ -4,13 +4,13 @@
 **Evaluation and methodology:** Game Profile
 **Canonical domain:** https://shouldiplay.gg
 **Product owner and final decision maker:** Tomas
-**Product and project orchestration:** ChatGPT / GPT-5.6 Sol High — program owner/orchestrator, and the designated Phase 3A editorial scorer
-**Engineering:** Claude / Opus by default, including through the repository-native Claude Code GitHub Action; Codex as selective specialist; Fable for specialist visual/design work. Roles, effort routing and routine Git/PR authority are governed by `docs/Should_I_Play_Working_Agreement.md` (§16.1)
+**Product and project orchestration:** ChatGPT, with GPT-6 Astra preferred for high-consequence orchestration and review. Phase 3A measured research and scoring remain frozen to `gpt-5.6-sol` under ADR 0036.
+**Engineering:** Claude / Opus by default, including through the repository-native Claude Code GitHub Action; Codex/Astra as principal engineering specialist and independent reviewer; Fable for specialist visual/design work. Current allocation is governed by `docs/operations/Should_I_Play_AI_Role_Allocation_2026-09-05.md`; the Working Agreement owns execution/review/integration (§16.1).
 **Public product design:** Tomas, ChatGPT, and the reconciled Fable design work
-**Status:** Current product and roadmap constitution — amended through accepted Gate A, Gate B and full Compare direction, the completed shared handoff, Engineering Slices 1, 2 and 3 merged on `main`, and the Slice 4 full Compare system implemented in the current codebase under the 2 September 2026 ADR 0033 amendment; none of the four is yet deliberately deployed to production; Scoring Protocol calibration remains active, with Phase 3A master-checklist Items 1–5 complete and Item 6 pending behind the authorized post-Item-5 integration gate
-**Current checkpoint:** Phase 2's editorial/publishing architecture is substantially complete and in support mode. Gate A A1/A2 Rev 5.1, Gate B A3–A6 and full Compare C1–C4/C-rail are accepted. ADR 0013 is superseded; ADR 0031 governs the static Search index; ADRs 0033/0034 govern Compare. The cross-surface design-system and interaction handoff is complete. Engineering Slice 1 — the canonical shared tokens/font foundation, the editorially governed static Search and its four truthful states, accessible inline/header Search, and the bounded accepted homepage opening — is merged on `main`. Engineering Slice 2 completes the accepted homepage system on top of it: the “Start somewhere interesting” poster rail, the authored-shelf grammar with objective/evergreen/living kinds, publication windows, expiry and evergreen fallback, and the bounded “Choosing between…” presentation contract whose route into full Compare is explicitly deferred. Its qualitative editorial configurations ship empty pending owner-approved membership under P0.3, and it is merged on `main`. Engineering Slice 3 implements the accepted A3–A6 profile system — decision before instrument, complete art-led/artless parity, the three-level radar with permanent exact rows, Range/Unknown/Provisional/confidence states, and the restored platform-warning, platform-note and override projection — with practical time and store destinations rendered only from approved records, which do not yet exist; it is merged on `main`. Engineering Slice 4 implements the accepted C1–C4 full Compare system in the current codebase: the order-preserving `/compare?games=<left>,<right>` state with the launcher indexable and every pair `noindex, follow`; the art-led, mixed and complete artless identity stage around the paired radar; the deterministic interval-aware relationship field; the canonical Shared/left-only/right-only tag map; eight paired exact rows; Replace and Copy-link controls. Its first release compares published primary profiles only (ADR 0033 amendment, 2 September 2026); sibling-scope Compare is a later decision. The first application-originated Cloudflare Builds dispatch and one complete new-profile Publish → dispatch → Live cycle remain unexercised and will be proved by the first real catalog publication, not by further standalone admin hardening. Phase 3A is reconciled to the 3 September 2026 checkpoint: master-checklist Items 1–5 — baseline/source audit, cohort reconciliation, preregistration, engineering readiness and IGDB staging readiness — are **complete**; Item 6, the measured development run D1–D6, is **pending** and blocked only by the authorized post-Item-5 integration gate; no Phase 3A calibration scoring has begun and D1 has not started. `docs/Should_I_Play_Orchestrator_Bootstrap.md` owns the running checkpoint, the gate's exact steps and the active Phase 3A read set; this Plan states the phase contract rather than duplicating that log.
-**Public-product state:** production still exposes the earlier three-profile experience. Slices 1, 2 and 3 — the shared foundation, static Search, the accepted homepage system and the accepted A3–A6 profile system — are merged on `main`, and Slice 4 implements the accepted exactly-two full Compare in the current codebase; **none of it is yet deliberately deployed to production**, and that deployment is a separate, deliberate step. Deterministic What should I play?, accountability, catalog, governed analytics and mixed-artwork product remain unbuilt; sibling-scope Compare and the profile's editor-selected "Compare with" entry point remain deferred. Practical-time records and verified storefront destinations remain absent, so the profile renders neither time/session guidance nor storefront actions until an approved record exists. The 12–15-profile corpus is a private validation milestone; quiet public release requires approximately 100 substantive profiles. Slice 4 existing is not owner acceptance of Compare's visual/UX parity with the accepted C1–C4 direction: that assessment remains outstanding and its parity/conformance debt is deferred to master-checklist Item 12.
-**Date:** 2026-08-26 · **Gate A amendment:** 2026-08-28 · **Gate B/Search amendment:** 2026-08-30 · **Compare acceptance:** 2026-08-31 · **Slice 1 integration:** 2026-09-01 · **Slice 2 homepage system:** 2026-09-01 · **Slice 3 profile system:** 2026-09-01 · **Slice 4 full Compare:** 2026-09-02 · **Forward-alignment reconciliation:** 2026-09-03
+**Status:** Current product and roadmap constitution. Phase 3A Items 1–5 COMPLETE; Item 6 / D1 ACTIVE, with transport remediation required before the next measured call. Public Slices 1–4 are implemented; Compare visual/UX acceptance remains Item 12. Current deployed artifact requires fresh origin verification.
+**Current checkpoint:** Phase 2's editorial/publishing architecture is substantially complete and in support mode. Gate A A1/A2 Rev 5.1, Gate B A3–A6 and full Compare C1–C4/C-rail are accepted. ADR 0013 is superseded; ADR 0031 governs the static Search index; ADRs 0033/0034 govern Compare. The cross-surface design-system and interaction handoff is complete. Engineering Slice 1 — the canonical shared tokens/font foundation, the editorially governed static Search and its four truthful states, accessible inline/header Search, and the bounded accepted homepage opening — is merged on `main`. Engineering Slice 2 completes the accepted homepage system on top of it: the “Start somewhere interesting” poster rail, the authored-shelf grammar with objective/evergreen/living kinds, publication windows, expiry and evergreen fallback, and the bounded “Choosing between…” presentation contract whose route into full Compare is explicitly deferred. Its qualitative editorial configurations ship empty pending owner-approved membership under P0.3, and it is merged on `main`. Engineering Slice 3 implements the accepted A3–A6 profile system — decision before instrument, complete art-led/artless parity, the three-level radar with permanent exact rows, Range/Unknown/Provisional/confidence states, and the restored platform-warning, platform-note and override projection — with practical time and store destinations rendered only from approved records, which do not yet exist; it is merged on `main`. Engineering Slice 4 implements the accepted C1–C4 full Compare system in the current codebase: the order-preserving `/compare?games=<left>,<right>` state with the launcher indexable and every pair `noindex, follow`; the art-led, mixed and complete artless identity stage around the paired radar; the deterministic interval-aware relationship field; the canonical Shared/left-only/right-only tag map; eight paired exact rows; Replace and Copy-link controls. Its first release compares published primary profiles only (ADR 0033 amendment, 2 September 2026); sibling-scope Compare is a later decision. The first application-originated Cloudflare Builds dispatch and one complete new-profile Publish → dispatch → Live cycle remain unexercised and will be proved by the first real catalog publication, not by further standalone admin hardening. Phase 3A Items 1–5 and the bounded `0011_igdb_staging` integration are complete. D1 attempt 1 made one registered research request and was refused before freeze; no scoring ran. PR #112 resolved the Final Draft scope gate and conditionally authorized attempt 2. Issue #114 now owns two blocking transport corrections; #101 owns measured execution and #113 coordinates recovery. The bootstrap owns the running checkpoint. Appendix B owns the current numbered checklist; the linked execution plan owns detailed assignments and acceptance evidence.
+**Public-product state:** Slices 1–4 are implemented on `main`; implementation and CI do not establish current production content or owner visual acceptance. Earlier records proved the three-profile artifact Live, but the 5 September audit could not observe the current canonical-origin manifest. Workers Builds reports successful builds from `main`; reconcile actual deployment behavior with the Working Agreement before merge. Discovery UI, operational accountability, real catalog content and governed analytics remain incomplete despite underlying contracts. Practical-time/store records, qualitative shelves and curated comparison pairs remain empty until approved content exists. Compare parity and the #42 freshness/accountability pass remain Item 12. The 12–15-profile corpus is private validation; quiet public release requires approximately 100 substantive profiles.
+**Date:** 2026-08-26 · **Gate A amendment:** 2026-08-28 · **Gate B/Search amendment:** 2026-08-30 · **Compare acceptance:** 2026-08-31 · **Slice 1 integration:** 2026-09-01 · **Slice 2 homepage system:** 2026-09-01 · **Slice 3 profile system:** 2026-09-01 · **Slice 4 full Compare:** 2026-09-02 · **Forward-alignment reconciliation:** 2026-09-03 · **Audit recovery reconciliation:** 2026-09-05
 
 ---
 
@@ -26,7 +26,9 @@ The immediate product objective is:
 
 > **Turn the stable methodology and substantially complete publishing machine into a deliberately art-directed public product, validate it on 12–15 real profiles, then build a launch-quality catalog of approximately 100 substantive profiles.**
 
-Public-product value now dominates engineering effort. Admin work continues only
+Public-product value remains the objective. During Phase 3A, methodology validation and concrete measured-run blockers take precedence over further public-surface implementation; this is a bounded prerequisite to producing trustworthy real content. Resume the numbered sequence in Appendix B as soon as each gate passes.
+
+Public-product value dominates discretionary engineering effort. Admin work continues only
 where a concrete issue blocks data integrity, security, truthful publication or
 proof, the ability to publish content, or the public product itself. The admin
 is a one-editor internal tool and is not to be made SaaS-grade merely because an
@@ -39,6 +41,8 @@ edge case exists.
 | **Should_I_Play_Project_Consolidation_Report_2026-08-26.md** | Reader-facing reconstructed chronology, decision/conflict register, plan audit and immediate agenda; navigation aid only, with no independent authority over the documents below |
 | **Game_Profile_Master_Product_and_Build_Plan_v0.9.md** | Product scope, positioning, public/admin IA, roadmap, current phase status, architecture direction, and cross-system product contracts |
 | **Should_I_Play_Working_Agreement.md** and **docs/operations/Claude_Code_GitHub_Runner.md** | Current cross-chat process authority: roles, effort routing, routine Git/PR authority, review thresholds, verification depth, integration and owner-reserved actions. Process authority beneath this Plan's product authority; it never decides product meaning |
+| **docs/operations/Should_I_Play_AI_Role_Allocation_2026-09-05.md** | Current owner-approved model/runtime and agent routing; does not amend the frozen Phase 3A model/configuration |
+| **docs/operations/Should_I_Play_Recovery_Execution_Plan_2026-09-05.md** | Current recovery assignments, dependencies, evidence gates and management cadence beneath this Plan and the Working Agreement; #113 owns live coordination |
 | **Should_I_Play_Orchestrator_Bootstrap.md** | Mandatory start-here index and the running phase/checkpoint state. Navigation/status aid only; it does not supersede what it points to |
 | **Should_I_Play_Public_Product_P0_Decisions_2026-08-24.md** | Governing owner decisions for the homepage, scoring-protocol direction, catalog/launch target, homepage curation, accountability, and artwork posture |
 | **Should_I_Play_Public_Product_Resolutions_2026-08-25.md** | Later governing decisions for Search, What should I play?, metadata, time/session guidance, analytics, commerce, catalog operation, release posture, personalization sequencing, and the corrected artwork basis |
@@ -821,11 +825,12 @@ ADR 0011. RAWG is a contingency.
 
 What Item 5 established is bounded: the staging/identity/provenance architecture,
 the API-versus-dump strategy and the live contracts are proven and accepted, and
-the authoritative migration `0011_igdb_staging` has Tomas's explicit
-authorization. At this checkpoint that migration is authorized but **not yet
-applied**, so the staging layer is accepted architecture rather than live
-authoritative state; the bootstrap's post-acceptance integration gate owns the
-remaining steps. Item 5 readiness is also **not** the launch-scale routine
+the authoritative migration `0011_igdb_staging` was applied and verified under
+Tomas's bounded authorization on PR #52: its journal entry, 11 staging tables,
+identity/provider uniqueness indexes and append-only trigger were verified.
+That integration gate is complete; the bootstrap links its evidence. This
+neither authorizes another migration nor means provider identities or factual
+records have been accepted or promoted. Item 5 readiness is also **not** the launch-scale routine
 metadata adapter/import: one approved routine provider adapter or a documented
 manual fallback able to sustain the release catalog remains a Phase 5
 deliverable and an open §13 P1 item.
@@ -1387,15 +1392,16 @@ the basis for Appendix B calibration. That authorizes the exercise; it does not
 make the candidate governing. Rubric v1.0, Evidence SOP v0.2 and the current
 data contract remain in force meanwhile.
 
-**Current execution state — 3 September 2026.** Master-checklist Items 1–5
-(baseline/source audit, cohort reconciliation, preregistration, engineering
-readiness, IGDB staging readiness) are complete. Item 6 — the measured
-development run D1–D6 under the preregistered contract and the Item-4 harness —
-is pending and blocked only by the authorized post-Item-5 integration gate. No
-calibration scoring has begun; D1 has not started. The locked cohort, the gate's
-exact steps, the active read set and the Phase 3A role boundary are owned by
-`docs/Should_I_Play_Orchestrator_Bootstrap.md` and the records it names. This
-Plan states the phase contract; it is not a second checkpoint log.
+**Current execution state — 5 September 2026.** Items 1–5 are complete,
+including the separately authorized Item-5 integration. Item 6 is active:
+D1 attempt 1 is immutable refused research evidence; no real corpus or scoring
+pair exists. PR #112 resolved Final Draft scope and conditionally authorized
+attempt 2. New engineering findings supersede the older unconditional READY
+wording for current execution: wrapper-owned capture hashing and complete
+scorer-visible provenance must be corrected and independently verified under
+#114 before a measured call. This preserves historical Item-4/5 acceptance.
+Issue #101 owns measured execution; #113 and the recovery execution plan own
+the repair queue. No controlled input, cohort or scoring meaning changes here.
 
 Four gates remain explicit:
 
@@ -1681,54 +1687,37 @@ the same controlled concepts.
 
 ## 13. Current prioritized backlog
 
-### P0 — current public-product design/proof work
+### P0 — active execution priorities
 
-1. Record A1/A2 Rev 5.1 as the accepted Gate A homepage direction in the Master
-   Plan, decision register and ADR 0030. **DONE when this amendment merges.**
-2. Complete the read-only score/radar audit without modifying scores,
-   normalizing the catalog, adding a dimension or deriving an aggregate.
-   **DONE in the 28 August audit**
-3. Prepare and accept the Gate B A3–A6 profile-page revision in Fable High.
-   **DONE; accepted 30 August under ADR 0032**
-4. Reconcile the governing documents, archive the Opus readiness evidence,
-   correct operational documentation and run the dependency-installed baseline
-   gates before product code. **DONE; results and remaining runner/lint gaps are
-   recorded in the audit**
-5. Review the revised full Compare visual candidate under ADR 0033:
-   exactly two games, art-led with complete artless parity, central radar,
-   striking but non-judgmental difference/alignment and shared/unique tag
-   treatment. The URL/index policy is accepted. **DONE; accepted 31 August
-   under ADR 0034**
-6. Produce the cross-surface design-system/interaction handoff. **DONE;
-   v1.0 handoff, token JSON and conformance matrix recorded 31 August**
-7. Implement the dominant static Search journey under ADR 0031 before full
-   Compare implementation. **DONE; merged on `main` in Slice 1. Deliberate
-   production deployment remains a separate step**
-8. Implement the accepted homepage/profile composition in bounded vertical
-   slices, including truthful platform projections and no fabricated practical
-   time. **HOMEPAGE DONE; merged on `main` in Slice 2. PROFILE DONE; merged
-   on `main` in Slice 3. FULL COMPARE IMPLEMENTED, NOT OWNER-ACCEPTED FOR
-   VISUAL/UX PARITY; Slice 4 implements it in the
-   current codebase, bounded to primary profiles by the 2 September 2026
-   ADR 0033 amendment, and its parity/conformance debt is deferred to
-   master-checklist Item 12. None is yet deliberately deployed to production.
-   Practical time and store destinations render only from approved records,
-   none of which exist yet; the "Evaluated" label remains withheld**
-9. Complete review of the candidate Scoring Protocol/package contract and run
-   the six-development/four-holdout program. **OPEN IN PARALLEL; precondition to
-   bulk catalog production**
-10. Create and operationally verify corrections@shouldiplay.gg plus contextual
-   profile links before About claims that route. **OPEN**
-11. Complete the seven-step lawful artwork path before clearing any artwork
-   specifically on editorial-fair-use. **PARTIAL: ADR, enum migration, types,
-   validation and tests implemented; one-time legal/policy operating gate OPEN.**
-12. Produce the first real new catalog profile through the full Publish →
-   dispatch → Live path and build the 12–15-profile validation corpus.
-   **OPEN; belongs to Phase 4**
+The **numbered master checklist is Appendix B**, preserving the original
+Items 1–12. This priority list is a queue, not a competing checklist.
 
-Admin work remains out of this sequence unless it blocks integrity, security,
-truthful publication/deployment proof, the ability to publish or the public
-product.
+- **Now / critical path:** correct and prove the D1 transport (#114), review the
+  actual diff, resolve merge/deployment authority, integrate safely, then resume
+  #101 with fresh preflight under its existing conditional authorization.
+- **Now / independent:** complete #115 operations evidence and the bounded
+  integration/recovery decision packet; reconcile current documents under #113.
+  Two Claude workers are the default; a third requires clearly independent
+  files and evidence. Follow §16 and the runner guide.
+- **Next:** accept D1 before D2, complete D1–D6 sequentially, then original
+  Items 7–11 with all registered owner decisions and untouched holdouts.
+- **At Item 12:** import the accepted canonical Design artifact and correct
+  Compare parity plus #42 freshness/accountability in one bounded conformance
+  pass. No new art direction or speculative redesign.
+- **Before affected private-validation use:** prepare and approve artwork
+  operating policy/legal clearance, practical/store factual records, corrections
+  operation and disclosure copy. Read-only preparation can run independently;
+  do not activate services, rights clearance or collection by implication.
+- **Then Phase 4:** first real editorial trial, publication preparation and
+  separately authorized Publish → dispatch → Live proof; complete and test
+  real journeys over 12–15 substantive profiles before scaling.
+- Preserve completed design gates, shared handoff and Slices 1–4 as completed
+  implementation. Empty content configurations and unaccepted Compare parity
+  remain real work; old completed design tasks are not the active queue.
+
+Admin changes require a concrete integrity, security, publication or public
+journey blocker. No second whole-project audit, generalized hardening, new
+scoring platform or holdout preparation is on the ready queue.
 
 ### P1 — before quiet public release
 
@@ -1934,44 +1923,35 @@ threshold; change architecture from evidence, not anticipation.
 
 ### 16.1 Roles
 
-`docs/Should_I_Play_Working_Agreement.md` (3 September 2026) is the current
-cross-chat operating agreement and **owns** the working model: roles, Claude
-effort routing, review thresholds, routine Git/PR authority, verification depth,
-integration and the owner-reserved actions. It is process authority beneath this
-Plan's product authority. This section states the model the rest of the Plan
-assumes; where the two describe the same subject the Working Agreement governs,
-and this section must not be maintained as a competing copy.
+The Working Agreement owns task framing, verification, review, integration and
+owner-reserved actions. The **AI Role Allocation and Runtime Policy dated
+5 September 2026** owns current model/runtime routing wherever older prose
+conflicts. The runner guide owns Claude effort, headroom and concurrency.
 
-- **Tomas:** product owner, final editorial authority, qualitative shelf/artwork
-  approval and publication approval.
-- **ChatGPT / GPT-5.6 Sol High:** program owner/orchestrator, and the designated
-  Phase 3A editorial scorer — research, claim extraction, primary scoring,
-  separate blind audit, interpretation and editorial proposals under the
-  candidate protocol. It frames bounded work, protects authority, reviews the
-  actual diff rather than the implementer's narrative, and records material
-  decisions durably in GitHub. Routine, non-production integration may be
-  performed by the orchestrator under the Working Agreement's material-risk —
-  not perfection — review threshold.
-- **Claude / Opus:** primary engineering executor by default, including through
-  the repository-native Claude Code GitHub Action governed by
-  `docs/operations/Claude_Code_GitHub_Runner.md`. Engineering, deterministic
-  validation, import, testing, documentation reconciliation and implementation
-  review. It may create a draft from an approved package but may not
-  auto-publish it, and it does not change scoring semantics or substitute its
-  judgment for the designated scorer.
-- **Codex:** selective engineering/review specialist for independent
-  verification, credentialed environments, difficult forensic work, or tasks
-  where its marginal value is materially higher.
-- **Fable / design tools:** specialist for long-horizon visual/design work; they
-  reconcile and specify the approved public product, and do not rediscover the
-  product or supersede owner decisions silently.
+- **Tomas:** final product/editorial owner; production, publication, candidate
+  freeze, final adoption, material methodology and other reserved decisions.
+- **ChatGPT:** program owner/orchestrator, model-agnostic; Astra preferred for
+  high-consequence planning, synthesis and review. Owns acceptance and the
+  dependency-aware queue, based on actual evidence.
+- **Registered `gpt-5.6-sol`:** Phase 3A measured research and primary/audit
+  scoring only under the frozen ADR-0036/preregistration contract. General
+  orchestration upgrades never substitute a model in that experiment.
+- **Claude / Opus:** default engineering fleet; High for routine work, xhigh
+  for complex coherent changes, Max only when demanding groundwork warrants it.
+  Implement, test, push and open PRs; never self-merge or declare acceptance.
+- **Codex/Astra:** principal specialist for difficult architecture, security,
+  data integrity, forensics and independent important-PR review.
+- **Fable:** accepted visual/design specialist; import the canonical artifact
+  before visual-conformance work, preserving semantics/accessibility authority.
 
-Roles are defaults, not exclusive capability boundaries. Autonomous engineering
-execution is **not** autonomous editorial, scoring, product or publication
-authority: production activation, authoritative database mutation, publication,
-candidate freeze, final protocol adoption and choices between materially
-different product directions stay with Tomas however autonomously the
-engineering is routed.
+Autonomous engineering does not grant autonomous editorial or production
+authority. In particular, ordinary non-production merge authority applies to
+**the actual downstream effect**. A `main` merge wired to Workers deployment is
+a production action even when the changed files are documentation. During the
+#113 recovery wave, prepare/review branches immediately; hold main integration
+until actual trigger behavior and explicit applicable production authority are
+established. The recovery plan presents a bounded decision, not a new approval
+requirement for routine branch work.
 
 ### 16.2 Material decision protocol
 
@@ -2107,6 +2087,12 @@ For each material decision:
 - exact durable discovery-results route.
 
 ### 17.3 Open P0 implementation/design decisions
+
+- actual merge-to-production policy and bounded recovery integration authority,
+  before a merge that deploys; #115 owns evidence, #113 coordination;
+- restore or replace the expired recovery schedule if unattended continuation is
+  intended; current Event Wake requalification remains an explicit operations
+  task, not an assumed completed smoke test;
 
 - public meaning/data source of the **Evaluated** date label;
 - exact initial 12–15 and approximately-100 title lineups;
@@ -2293,36 +2279,52 @@ they are Item-3-era records their own document owns.
 
 ---
 
-## Appendix B — immediate execution sequence
+## Appendix B — current master checklist and execution sequence
 
-1. Preserve the accepted A1/A2 Rev 5.1 homepage direction; do not revise or
-   rediscover it.
-2. Preserve accepted Gate B A3–A6; do not publish specimen time or private
-   artwork as facts.
-3. Complete the pre-code governance/readiness baseline: ADR supersession,
-   static Search decision, README/current-state reconciliation, Opus evidence
-   archive and all installed repository gates.
-4. Preserve the accepted ADR 0034 exactly-two,
-   art-led-with-artless-parity full Compare direction and ADR 0033 URL/index
-   policy; do not reopen them.
-5. Preserve the completed design-system and interaction handoff across A1–A6
-   and C1–C4, including its A7 reconciliation and modest homepage hero-height
-   refinement.
-6. Preserve the integrated static Search index and its four truthful states;
-   complete the remaining accepted homepage, then profile, then Compare slices.
-7. Run visual-conformance and accessibility review against the accepted system
-   after each relevant implementation slice.
-8. In parallel, finish candidate-protocol review and the registered
-   development/holdout calibration. The immediate thread is Phase 3A Item 6
-   (D1–D6) behind the authorized post-Item-5 integration gate, then the §12
-   registered post-D1–D6 sequence: development-only analysis, Tomas's
-   required-facet decision, the launch-window and pre-release rehearsals, and
-   candidate freeze before any holdout exposure.
-9. Run the first real editorial trial before session/facet/eleven-axis schema
-   expansion; build and test the public product against the 12–15-profile
-   validation corpus, including the first new-profile dispatch and Live
-   observation.
-10. Approve the sustainable metadata/runtime/store inputs and analytics/privacy
-   operations needed for release.
-11. Incorporate measured learning, scale toward approximately 100 substantive
-    profiles and complete quiet public-release validation under §18.
+This is the current-state mapping of the **original Items 1–12**, not a new
+numbering scheme. The frozen preregistration §14 remains its historical
+Item-3-era snapshot and is not edited to maintain status.
+
+| Item | Original work | Current state / next gate |
+|---|---|---|
+| 1 | Baseline and source audit | COMPLETE |
+| 2 | Cohort reconciliation | COMPLETE; preserve the locked cohort |
+| 3 | Preregistration | COMPLETE; exact-byte approval closed by final Item-4 ruling |
+| 4 | Phase 3A engineering readiness | COMPLETE historically (PR #46, 9/9 PASS); #114 addresses newly discovered D1 transport defects, without reopening that ruling |
+| 5 | IGDB staging readiness | COMPLETE (PR #52); bounded 0011 integration applied and verified |
+| 6 | Development run games 1–6 | ACTIVE / D1: #114 repair → independent acceptance and authorized integration → fresh #101 preflight → existing authorized attempt 2 → real corpus acceptance → registered pair → D1 acceptance → D2–D6 sequentially |
+| 7 | Development calibration analysis + launch-window/pre-release rehearsals | PENDING after six accepted development cases; required-facet owner decision, two non-statistical rehearsals, material-defect resolution and affected reruns before freeze |
+| 8 | Candidate freeze | OWNER GATE after Item 7; record exact versions/configuration/digests |
+| 9 | Untouched holdout run games 1–4 | PENDING; no research, packets, scoring or expected results before Item 8 |
+| 10 | Acceptance report | PENDING; report every registered gate, limitations and measured effort; owner adoption/record-depth decision |
+| 11 | Publication preparation | PENDING; decide immutable-package approval lifecycle before related migration/import; publication and production separately authorized |
+| 12 | Deferred product follow-up / Compare parity | PENDING; accepted artifact import, bounded Compare + #42 conformance and owner visual acceptance |
+
+**Execution now:** follow
+[Recovery Management and Execution Plan](operations/Should_I_Play_Recovery_Execution_Plan_2026-09-05.md)
+and #113. The plan defines work ownership, parallel lanes, acceptance evidence,
+owner decisions, failure recovery and the exact return to Item 6. It does not
+amend any experimental gate or authorize production.
+
+**After the checklist:** Phase 4 proves complete real journeys and the editorial
+production loop at 12–15 substantive profiles. Run the first real editorial
+trial before session/facet/eleven-axis schema expansion; use its measured gaps
+to scope implementation. Approved practical/store records, recognized-title
+states, discovery UI, curation, corrections/About, mixed lawful art/artless
+states and accessibility must work with actual content, not only fixtures.
+First real publication proves the remaining application-origin dispatch/Live
+cycle under separate owner authorization.
+
+Phase 5 scales only after that private-validation evidence: a sustainable
+provider adapter or documented manual fallback, content/update throughput and
+unit economics, curated coverage toward approximately 100 substantive profiles.
+Phase 6 completes §18 release checks, rights/provider/privacy decisions and
+explicit release authorization. Revenue figures in §2.6 remain objectives, not
+delivery dates or forecasts.
+
+**Management measure:** accepted outcomes and time to the next justified
+decision. Track run/CI/review wait, correction loops, research and editorial
+minutes, direct call cost, refusal/Unknown reasons, publication-to-Live time and
+capacity limits as observed. Keep experiment acceptance metrics exactly as
+preregistered. Do not replace quality gates with a utilization quota, profile
+count, model agreement or invented launch percentage.
