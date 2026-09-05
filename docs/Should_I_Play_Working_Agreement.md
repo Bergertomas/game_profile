@@ -217,8 +217,8 @@ unavailable to the agents: an action needing Tomas's own account, a permission o
 credential the agents do not hold, or an owner-reserved decision under §4.2. A
 CI failure being unfamiliar, repetitive or tedious is not a reason to escalate.
 When escalation is genuinely required, name the blocked action and the
-specific missing capability; do not record authentication mechanics or any
-credential value in project documents.
+specific missing capability; do not record credential values in project
+documents.
 
 ## 5. Review threshold
 
