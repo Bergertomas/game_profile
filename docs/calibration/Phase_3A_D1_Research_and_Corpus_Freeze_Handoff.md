@@ -43,8 +43,11 @@ supplies Undici's 300-second per-request defaults, which match D1 attempt 2's
 observed 300095 ms failure ahead of the harness's abort timer (issue #126).
 That attempt did not retain its nested cause, so the default is the strong
 transport diagnosis rather than a proven cause, and it establishes nothing about
-the provider's processing state. The dispatcher changes the bound
-only: it adds no retry or fallback. A transport failure retains the safe nested
+the provider's processing state. D1 attempt 3 then held one request open for
+334398 ms and terminated on a provider tokens-per-minute rate-limit response
+rather than a socket timeout, which confirms the corrected bound is in force; it
+still proves nothing about provider processing or spend for either attempt. The
+dispatcher changes the bound only: it adds no retry or fallback. A transport failure retains the safe nested
 error class/code when one exists, so the ledger can distinguish an Undici
 timeout from the outer `TypeError: fetch failed` without storing headers or
 credentials.

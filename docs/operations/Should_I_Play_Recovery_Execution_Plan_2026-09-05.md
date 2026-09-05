@@ -164,13 +164,19 @@ authorized plan restructuring and engineering work.
 
 **Current-state note, 5 September 2026 (later than this plan's baseline).**
 Lane A is accepted and integrated by PR #120, and the subsequent transport
-timeout blocker #126 is corrected by PR #128, merged as
-`3cda870849e648727dc793f6d448563cf4b8e5bb`. The conditionally authorized
+timeout blocker #126 is corrected by PR #128. The conditionally authorized
 attempt 2 was then spent: it ran once, ended `failed_api` after 300095 ms with
 null returned model/response ID/usage and no attempt directory, and produced no
-corpus. Step 5 below therefore now governs **attempt 3**, which is not
-authorized and requires an explicit owner / preregistration-compliant ruling.
-The sequence itself is unchanged.
+corpus. The owner then explicitly authorized attempt 3 on #101 (comment
+`5554711009`), and the credentialed local Mac spent it from `main`
+`301644adee5bacd13a3f01c5ea965b583a847bf6`: one registered call, 334398 ms,
+past the old 300-second boundary, ending `failed_api` on a provider
+tokens-per-minute rate limit with no internal retry, null returned
+model/response ID/usage, no attempt directory and no corpus. Step 5 below
+therefore now governs **attempt 4**, which is not authorized by that result or
+by PR #128 and requires a fresh explicit owner / preregistration-compliant
+ruling once the rate-limit failure has been reviewed. The sequence itself is
+unchanged.
 
 When A is accepted and safely integrated:
 1. Fresh live-main preflight and #101 inspection; verify no other execution is
@@ -183,10 +189,11 @@ When A is accepted and safely integrated:
 4. Run offline/dry preflight and required holdout-identifier inspection from #95.
    Never use an audit summary as permission to skip a gate.
 5. Execute only the single currently authorized attempt — attempt 2 when this
-   plan was written, and now attempt 3, which is not yet authorized. No
+   plan was written, and now attempt 4, which is not yet authorized. No
    automatic retries. Preserve raw attempt and frozen artifacts, digests, usage,
    elapsed time, and refusal or failure details. Each further attempt needs the
-   governing retry ruling; an accepted engineering repair is not that ruling.
+   governing retry ruling; neither an accepted engineering repair nor a spent
+   attempt's failure is that ruling.
 6. Independently inspect the actual persisted real corpus: exact bytes and
    cross-bindings, coverage/depth, admission/provenance, maturity/scope, credible
    disagreement, grade masking, leakage and deterministic replay. Unavailable
