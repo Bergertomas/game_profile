@@ -33,6 +33,8 @@ owns current model/runtime routing. This agreement owns delivery/process.
 - **Tomas:** final product/editorial authority and all owner-reserved decisions.
 - **ChatGPT:** program owner/orchestrator, independent acceptance and integration;
   Astra preferred for high-consequence work. Orchestration is model-agnostic.
+  Maintain the numbered master checklist, record material decisions durably in
+  GitHub, and surface only genuine owner decisions to Tomas.
 - **Registered `gpt-5.6-sol`:** Phase 3A measured research and scoring under the
   frozen ADR-0036/preregistration configuration, regardless of orchestrator model.
 - **Claude / Opus:** primary engineering fleet for coherent bounded tasks.
@@ -41,6 +43,10 @@ owns current model/runtime routing. This agreement owns delivery/process.
 - **Fable:** visual/design specialist under accepted design authority.
 - **Any agent:** challenge concrete material risk with evidence and the least-cost
   safe alternative; never silently rewrite governing decisions.
+
+Roles are defaults, not exclusive capability boundaries. The assignment and
+current repository state determine who acts; a separately frozen measured-model
+contract remains binding.
 
 ### 2.1 Claude / Opus effort routing
 
