@@ -54,11 +54,13 @@ territories around the paired radar in art-led, mixed and complete artless
 states, the deterministic interval-aware relationship field, the canonical
 Shared/left-only/right-only tag map, eight paired exact rows, and Replace and
 Copy-link controls. Its first release compares published primary profiles only
-(ADR 0033 amendment, 2 September 2026). **Current deployed-artifact verification is outstanding at the 5 September
-checkpoint.** Earlier records proved the three-profile artifact Live; successful
-main/Workers builds do not by themselves identify current canonical-origin
-content. #115 traces deployment behavior and missing evidence. The Working
-Agreement requires explicit applicable authority for a main merge that deploys.
+(ADR 0033 amendment, 2 September 2026). **Current production artifact observed 5 September 2026:** the canonical-origin
+manifest identifies main `e7dd4aa`, production/database, build
+`1de37fcf-f2d7-401c-9eab-fc19312fca86`, and three published entries; its corpus
+digest was independently re-derived. The code includes Slices 1–4; the three
+published profiles are a separate content fact. #115/PR #117 records the
+observation and configuration-access limits. The Working Agreement requires
+explicit applicable authority for a main merge that deploys.
 
 **Remote admin and production Live proof are exercised.** The current state is:
 
@@ -873,8 +875,8 @@ control that goes nowhere is worse than an honest absence. The homepage's
 curated-Compare module can now link an eligible pair into Compare, and its
 configuration is still empty. Static Search, the accepted homepage system and
 the accepted profile system are merged on `main` (Slices 1 to 3); the accepted
-full Compare system is implemented in the current codebase (Slice 4); current
-canonical-origin deployment state requires fresh verification (#115). No profile carries an
+full Compare system is implemented in the current codebase (Slice 4); the 5 September
+canonical-origin manifest names main `e7dd4aa` (#115/PR #117). No profile carries an
 approved practical-time record, so no profile shows total commitment or a
 useful-session window; the component renders them from a record or not at all. The authored evergreen/living
 shelves and the "Choosing between…" entries have their grammar, configuration
