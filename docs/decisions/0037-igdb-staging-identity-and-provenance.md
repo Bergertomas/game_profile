@@ -1,6 +1,6 @@
 # ADR 0037 — IGDB staging: provider identity, provenance and the editorial boundary
 
-- **Status:** **Proposed** — candidate Item 5 engineering decision, pending the ChatGPT/Tomas readiness acceptance of the exact final record. It becomes Accepted only when Tomas/the orchestrator approves it. It does not approve IGDB as a dependency, does not clear artwork, and does not authorize D1.
+- **Status:** **Accepted** — final Item-5 ruling on PR #52, review `5106252929`, against exact head `a292e9b19dda9a371c5c8701d579db30f3439996`. Header reconciled 5 September 2026; the decision body is unchanged. The separately authorized bounded 0011 integration was applied and verified. This does not approve a public/commercial provider agreement, clear artwork or authorize further data mutation.
 - **Date:** 2026-09-02
 - **Owner / final authority:** Tomas (product, editorial, legal posture); ChatGPT/GPT-5.6 Sol High performs the Item 5 readiness audit
 - **Related:** Master Plan v0.9 §7.4, §10.1–10.2; Public Product Resolutions 2026-08-25 §7; ADR 0011 (artwork), ADR 0014/0016 (profile scopes), ADR 0026 (provider-first metadata ownership); issue #48
