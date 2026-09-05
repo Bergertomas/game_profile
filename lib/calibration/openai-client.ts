@@ -1,3 +1,5 @@
+import { Agent, Dispatcher } from "undici";
+
 import {
   PREREGISTERED_MODEL,
   PREREGISTERED_REASONING_CONTEXT,
@@ -16,10 +18,10 @@ import { safeError } from "./redact";
  * those substitutions is a thrown error here rather than a warning, and the
  * checks run BEFORE the request is sent as well as against what comes back.
  *
- * There is deliberately no SDK dependency. The Responses call is one `fetch` of
- * a documented JSON shape; adding a client library would buy little and would
- * put retry, model-fallback and conversation-state behaviour we must control
- * inside someone else's defaults.
+ * There is deliberately no OpenAI SDK dependency. The Responses call is one
+ * `fetch` of a documented JSON shape. A directly owned Undici dispatcher makes
+ * the HTTP header/body timeout match the harness abort bound; it adds no retry,
+ * model-fallback or conversation-state behaviour.
  */
 
 export class ExecutionContractError extends Error {
@@ -160,6 +162,11 @@ export interface CallOptions {
   /** Injectable transport. Tests pass a mock; nothing in CI touches the network. */
   readonly fetchImpl?: typeof fetch;
   readonly timeoutMs?: number;
+  /** Injectable only so offline tests can inspect the exact dispatcher bounds. */
+  readonly dispatcherFactory?: (options: {
+    readonly headersTimeout: number;
+    readonly bodyTimeout: number;
+  }) => Dispatcher;
   /**
    * The frozen contract asserted before the request is sent. Defaults to the
    * scoring contract, which forbids tools outright (ADR 0036 §6). The research
@@ -170,6 +177,71 @@ export interface CallOptions {
    * boolean.
    */
   readonly assertContract?: (request: RequestShape) => void;
+}
+
+export const DEFAULT_TRANSPORT_TIMEOUT_MS = 600_000;
+
+/**
+ * Fetch supplies Undici's 300-second defaults on each dispatch, which override
+ * values placed only on an Agent. This wrapper owns the final dispatch boundary
+ * and replaces those per-request values with the harness's explicit bound.
+ */
+export class MeasuredTimeoutDispatcher extends Dispatcher {
+  constructor(
+    private readonly timeoutMs: number,
+    private readonly delegate: Dispatcher = new Agent(),
+  ) {
+    super();
+  }
+
+  override dispatch(
+    options: Dispatcher.DispatchOptions,
+    handler: Dispatcher.DispatchHandler,
+  ): boolean {
+    return this.delegate.dispatch(
+      {
+        ...options,
+        headersTimeout: this.timeoutMs,
+        bodyTimeout: this.timeoutMs,
+      },
+      handler,
+    );
+  }
+
+  override close(): Promise<void> {
+    return this.delegate.close();
+  }
+
+  override destroy(error: Error | null, callback: () => void): void;
+  override destroy(callback: () => void): void;
+  override destroy(error: Error | null): Promise<void>;
+  override destroy(): Promise<void>;
+  override destroy(
+    errorOrCallback?: Error | null | (() => void),
+    callback?: () => void,
+  ): void | Promise<void> {
+    if (typeof errorOrCallback === "function") return this.delegate.destroy(errorOrCallback);
+    if (callback !== undefined) return this.delegate.destroy(errorOrCallback ?? null, callback);
+    return errorOrCallback === undefined
+      ? this.delegate.destroy()
+      : this.delegate.destroy(errorOrCallback);
+  }
+}
+
+function safeTransportError(error: unknown): {
+  readonly error_class: string;
+  readonly message: string;
+} {
+  const outer = safeError(error);
+  if (!(error instanceof Error) || !(error.cause instanceof Error)) return outer;
+
+  const cause = safeError(error.cause);
+  const code = (error.cause as Error & { readonly code?: unknown }).code;
+  const safeCode = typeof code === "string" ? safeError(code).message : null;
+  return {
+    error_class: [outer.error_class, cause.error_class, safeCode].filter(Boolean).join("/"),
+    message: outer.message,
+  };
 }
 
 export interface CallResult {
@@ -212,8 +284,19 @@ export async function callResponses(
   const fetchImpl = options.fetchImpl ?? fetch;
   const baseUrl = options.baseUrl ?? "https://api.openai.com/v1";
   const started = Date.now();
+  const timeoutMs = options.timeoutMs ?? DEFAULT_TRANSPORT_TIMEOUT_MS;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? 600_000);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const dispatcherFactory =
+    options.dispatcherFactory ??
+    (options.fetchImpl === undefined
+      ? (bounds: { readonly headersTimeout: number; readonly bodyTimeout: number }) =>
+          new MeasuredTimeoutDispatcher(bounds.headersTimeout)
+      : null);
+  const dispatcher = dispatcherFactory?.({
+    headersTimeout: timeoutMs,
+    bodyTimeout: timeoutMs,
+  });
 
   try {
     const response = await fetchImpl(`${baseUrl}/responses`, {
@@ -225,6 +308,7 @@ export async function callResponses(
       },
       body: JSON.stringify(request),
       signal: controller.signal,
+      ...(dispatcher === undefined ? {} : { dispatcher }),
     });
     const elapsed = Date.now() - started;
     const body = (await response.json()) as Record<string, unknown>;
@@ -279,7 +363,7 @@ export async function callResponses(
       raw: body,
     };
   } catch (error) {
-    const safe = safeError(error);
+    const safe = safeTransportError(error);
     return {
       metadata: {
         ok: false,
@@ -298,6 +382,7 @@ export async function callResponses(
     };
   } finally {
     clearTimeout(timeout);
+    await dispatcher?.close().catch(() => undefined);
   }
 }
 
