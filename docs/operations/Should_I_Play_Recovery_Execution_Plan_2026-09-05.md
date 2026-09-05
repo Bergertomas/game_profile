@@ -44,9 +44,10 @@ No audit observation substitutes for inspection of the actual retained artifacts
 |---|---|---|---|---|
 | A — #114 D1 transport | Claude xhigh | Relevant calibration transport/types/tests/scripts and the B/C handoffs only | Current authorities; no dependency on B | ChatGPT/Astra inspects actual diff and offline proof |
 | B — #115 operations | Claude High | New recovery operations evidence report only | Independent read-only repo/CI/platform evidence | ChatGPT/Astra validates evidence and owner packet |
-| C — management | ChatGPT/Astra | Master Plan, bootstrap, Working Agreement, README, ADR-0037 status, this plan | Current-main evidence and owner instruction | Independent Claude review informs ChatGPT acceptance |
+| C — management | ChatGPT/Astra | Master Plan, bootstrap, Working Agreement, README, ADR-0037 status, this plan; narrow wake/runner current-state reconciliation | Current-main evidence and owner instruction | Independent Claude review informs ChatGPT acceptance |
 | D — management review | Claude High, after C PR exists | Review comments only; no overlapping edits | Exact management PR head | ChatGPT fixes material findings |
-| E — concrete follow-ups | Claude High/xhigh by risk | Only files named in a subsequently bounded issue | Accepted A/B evidence and any applicable owner decision | Independent review before integration |
+| E — #118 dependency remediation | Claude High | Compatible package-lock update and its evidence note only | #115's reproduced audit; independent of calibration code | ChatGPT reviews diff, audit and full runtime CI |
+| F — concrete follow-ups | Claude High/xhigh by risk | Only files named in a subsequently bounded issue | Accepted A/B evidence and any applicable owner decision | Independent review before integration |
 
 Two concurrent Claude workers are the normal target. A third qualifies only
 when the management PR is ready for read-only independent review: no file,
@@ -129,8 +130,9 @@ Do not turn cleanup into a second constitutional audit.
 
 The Working Agreement allows ordinary reviewed **non-production** integration.
 Current repository deployment wiring makes it unsafe to infer that a main merge
-is non-production. Workers lack production credentials, but downstream builds
-may possess their own. A docs-only diff can still trigger deployment.
+is non-production. The generic runner lacks production credentials; the current origin manifest
+records a database-backed production build. ADR 0008 declares main/Workers
+production deployment. The precise live dashboard settings remain uninspected. A docs-only diff can still trigger deployment.
 
 Prepare the branches, CI, review findings and exact intended heads before
 asking for an integration decision. Do not change production configuration
@@ -272,7 +274,38 @@ do independent review/planning and resume the highest-value task after reset.
 Do not repeatedly retry against the same exhausted capacity or insufficient
 turn envelope. An auth failure is different from quota or an implementation bug.
 
-## 10. Completion boundary for recovery
+## 10. Review and observation checkpoint
+
+Independent Claude review of management PR #116 at `3f27909` verified the original
+checklist, controlled-file exclusion and preserved owner gates. Its one blocking
+finding was the wake guide's contradictory “armed” statement; lane C added the
+dated current observation there. Narrow follow-ups also restored explicit
+orchestrator duties, role flexibility and per-slice visual/accessibility review,
+and reconciled the runner masthead.
+
+#115 delivered PR #117. Its source report was sent through one bounded accuracy
+correction round: deployment timing is not proof of no human intervention;
+manifest entries are not total database contents; bundle-directory absence
+cannot establish universal vulnerability non-reachability; PR+checks with zero
+approvals does not enforce independent review. Accept the corrected evidence,
+not the original overstatements.
+
+The originating orchestrator independently fetched the public origin manifest
+on 5 September and re-derived its entry digest:
+`cc08d7242cc41f100f67728bcacda77736a8ff23701581ed730df3b2a95ced1f`.
+It identifies production/database, main `e7dd4aa`, build
+`1de37fcf-f2d7-401c-9eab-fc19312fca86` and three published entries.
+This resolves the earlier audit's inaccessible-origin limitation. It does not
+prove dashboard trigger settings, future deployment timing or any new editorial
+publication. A subsequent second-client HTTP request was denied; the successful
+curl observation and matching manifest digest are the stated evidence.
+
+#118 is the bounded compatible dependency-remediation assignment arising from
+the audit. Its files are independent of calibration and management; no merge or
+production authority is implied. Historical trackers #35/#47/#59/#61 were
+closed with explicit existing-main completion evidence; #42/#50 remain valid.
+
+## 11. Completion boundary for recovery
 
 Recovery completes when:
 - the management docs agree and the original checklist remains intact;
