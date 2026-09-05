@@ -139,7 +139,8 @@ never merges or deploys its own work.
 Every integration still requires exact-head review, actually successful
 applicable CI, sound current-base integration, pre/post canonical-origin
 verification and a known rollback reference. The precise live dashboard settings
-remain uninspected; inspecting or changing them is separate owner-gated
+remain uninspected in this session; read-only inspection is routine when
+authorized access is available, while changing live settings remains owner-gated
 configuration work. Do not change production configuration to avoid or widen the
 delegation.
 
