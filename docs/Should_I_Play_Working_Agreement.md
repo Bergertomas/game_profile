@@ -122,7 +122,7 @@ section owns the standing cross-chat utilization principle.
    orchestrator has independently accepted an in-scope reviewed engineering PR
    under the approved plan, it may merge without a separate ceremonial owner
    approval, and may complete the resulting code deployment through the existing
-   `main` → Workers wiring under §4. The implementing agent never accepts or
+   `main` → Workers wiring under §4.1. The implementing agent never accepts or
    merges its own work.
 
 Ordinarily, one complete review/correction pass should be enough. Further
