@@ -133,6 +133,12 @@ the silent repair the protocol forbids. The primary and audit calls are two
 separate requests executed one after the other; the audit call is built from the
 same frozen packet and never sees what primary returned.
 
+The shared OpenAI client applies the harness's explicit 600-second bound at both
+the AbortController and Undici header/body dispatch layers (issue #126). This
+replaces Node Fetch's shorter per-request transport default without adding a
+retry. A nested Undici error class/code is retained safely in a failed attempt's
+ledger record when available.
+
 The run role is not a parameter of the builder or of the execution function. It
 exists for the first time in `buildD1ScoringManifest`, which takes the model
 output as an argument precisely so it cannot be called before there is one —

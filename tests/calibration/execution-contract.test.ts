@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
+import type { Dispatcher } from "undici";
 import {
+  DEFAULT_TRANSPORT_TIMEOUT_MS,
   ExecutionContractError,
+  MeasuredTimeoutDispatcher,
   assertExecutionContract,
   assertReturnedModel,
   callResponses,
@@ -218,6 +221,75 @@ describe("the mocked scoring call (§5(17), §5(21))", () => {
     );
     await callResponses(request(), { apiKey: "sk-test-key-value", fetchImpl });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("sets the HTTP header/body timeout to the same explicit bound as the abort", async () => {
+    const fetchImpl = mockFetch({ id: "r", model: PREREGISTERED_MODEL, output_text: "{}" });
+    const close = vi.fn(async () => undefined);
+    const dispatcher = { close } as unknown as Dispatcher;
+    const dispatcherFactory = vi.fn(() => dispatcher);
+
+    await callResponses(request(), {
+      apiKey: "sk-test-key-value",
+      fetchImpl,
+      dispatcherFactory,
+    });
+
+    expect(dispatcherFactory).toHaveBeenCalledWith({
+      headersTimeout: DEFAULT_TRANSPORT_TIMEOUT_MS,
+      bodyTimeout: DEFAULT_TRANSPORT_TIMEOUT_MS,
+    });
+    const [, init] = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0]!;
+    expect((init as RequestInit & { dispatcher?: Dispatcher }).dispatcher).toBe(dispatcher);
+    expect(close).toHaveBeenCalledOnce();
+  });
+
+  it("overrides Fetch's per-request 300-second timeout at the final dispatch boundary", () => {
+    const dispatch = vi.fn(
+      (_options: Dispatcher.DispatchOptions, _handler: Dispatcher.DispatchHandler) => true,
+    );
+    const delegate = {
+      dispatch,
+      close: vi.fn(async () => undefined),
+      destroy: vi.fn(async () => undefined),
+    } as unknown as Dispatcher;
+    const dispatcher = new MeasuredTimeoutDispatcher(DEFAULT_TRANSPORT_TIMEOUT_MS, delegate);
+    const options = {
+      path: "/responses",
+      method: "POST",
+      headersTimeout: 300_000,
+      bodyTimeout: 300_000,
+    } as Dispatcher.DispatchOptions;
+    const handler = {} as Dispatcher.DispatchHandler;
+
+    expect(dispatcher.dispatch(options, handler)).toBe(true);
+    expect(dispatch).toHaveBeenCalledOnce();
+    expect(dispatch.mock.calls[0]![0]).toMatchObject({
+      headersTimeout: DEFAULT_TRANSPORT_TIMEOUT_MS,
+      bodyTimeout: DEFAULT_TRANSPORT_TIMEOUT_MS,
+    });
+    expect(dispatch.mock.calls[0]![1]).toBe(handler);
+  });
+
+  it("retains a safe nested transport class/code and still calls fetch only once", async () => {
+    const cause = Object.assign(new Error("Headers Timeout Error"), {
+      name: "HeadersTimeoutError",
+      code: "UND_ERR_HEADERS_TIMEOUT",
+    });
+    const error = Object.assign(new TypeError("fetch failed"), { cause });
+    const fetchImpl = vi.fn(async () => {
+      throw error;
+    }) as unknown as typeof fetch;
+
+    const result = await callResponses(request(), { apiKey: "sk-test-key-value", fetchImpl });
+
+    expect(fetchImpl).toHaveBeenCalledOnce();
+    expect(result.metadata.error_class).toBe(
+      "TypeError/HeadersTimeoutError/UND_ERR_HEADERS_TIMEOUT",
+    );
+    expect(result.metadata.error_message).toBe("fetch failed");
+    expect(result.output).toBeNull();
+    expect(result.raw).toBeNull();
   });
 });
 
