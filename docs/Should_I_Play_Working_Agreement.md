@@ -119,8 +119,11 @@ section owns the standing cross-chat utilization principle.
    broader risk profile.
 7. **Accept and integrate.** The normal path is branch → review → correction if
    needed → acceptance → merge. Direct work on `main` is atypical. Once the
-   orchestrator has independently accepted an in-scope, non-production PR under
-   this agreement, it may merge without a separate ceremonial owner approval.
+   orchestrator has independently accepted an in-scope reviewed engineering PR
+   under the approved plan, it may merge without a separate ceremonial owner
+   approval, and may complete the resulting code deployment through the existing
+   `main` → Workers wiring under §4. The implementing agent never accepts or
+   merges its own work.
 
 Ordinarily, one complete review/correction pass should be enough. Further
 iterations should be driven by remaining material risk, not by the existence of
@@ -140,34 +143,55 @@ recoverable actions without asking Tomas each time:
 - fetch and inspect remote repository state; and
 - make review-requested corrections within the accepted scope.
 
-The program owner/orchestrator may also merge an independently reviewed,
-non-production implementation PR when:
+### 4.1 Standing code-deployment delegation
 
-- the delivered result follows current governing authority;
-- material review findings are resolved;
-- verification is proportionate and credible;
-- the exact merge head/base are known and integration is sound; and
-- the merge itself does not activate production, publish editorial content,
-  mutate authoritative data, or make another owner-reserved decision.
+Tomas approved this delegation on 5 September 2026 in
+[#113](https://github.com/Bergertomas/game_profile/issues/113#issuecomment-5553535483).
+It supersedes the earlier blanket "non-production only" merge exclusion within
+the bounded scope stated here.
 
-**Downstream-effect check:** evaluate the actual merge/deploy trigger, not the
-file label or the runner's own credentials. If merging `main` invokes a
-production deployment, §4's ordinary non-production merge exception does not
-apply. Prepare and review the complete branch/PR first; establish applicable
-explicit owner authority before that effectful merge. Issue #113 tracks the
-current recovery decision; this clarification grants no production permission.
+The program owner/orchestrator may independently accept, merge and deploy
+**in-scope reviewed engineering work under the approved plan**, through the
+existing `main` → Workers wiring, when all of the following hold:
+
+- the delivered result follows current governing authority and material review
+  findings are resolved;
+- the review was performed against the **exact head** being merged, on the
+  actual diff and behavior rather than the implementer's narrative;
+- proportionate applicable CI has **actually succeeded**; a required check may
+  not be waived, bypassed or assumed;
+- integration against the current base is sound — exact head/base, conflicts and
+  relationship to current `main` are known;
+- the canonical origin is verified **before and after** the resulting deployment;
+  and
+- a known rollback reference to the previous good artifact is recorded before the
+  merge.
+
+That a `main` merge deploys code is therefore **no longer, by itself, a per-PR
+owner gate**. Downstream-effect awareness is retained as a factual duty, not as a
+blocking gate: know what the merge actually triggers, verify the effect, and be
+able to roll it back. Do not impose a new ceremonial approval step in front of
+this delegation, and do not change production configuration to avoid or widen it.
+
+The delegation covers **code deployment of reviewed in-scope work only**. It
+grants no data, content, configuration, methodology or product-direction
+authority, and the owner gates below are unchanged. The implementing agent —
+Claude or any other worker — remains implementer only: it does not accept, merge
+or deploy its own work, and self-acceptance is never authorized.
+
+### 4.2 Owner-reserved decisions
 
 Explicit Tomas authority is still required before actions with materially
 different or difficult-to-reverse consequences, including:
 
-- activating or changing production deployments;
 - production database migrations, writes, imports, or destructive data work;
-- changing secrets, credentials, access policy, domains, DNS, billing, or live
-  Cloudflare/Neon configuration;
+- changing secrets, credentials, access policy, platform settings, domains, DNS,
+  billing or spending commitments, or live Cloudflare/Neon configuration;
 - deleting or rewriting material history or user work;
 - publishing editorial/scoring content or making external communications when
   that was not already explicitly authorized;
-- final candidate freeze or Protocol v1.0 adoption; or
+- material methodology changes, final candidate freeze, or Protocol v1.0
+  adoption; or
 - choosing among materially different product directions when current authority
   does not resolve the choice.
 
@@ -263,8 +287,8 @@ The canonical runner guide is
 The official Claude Code GitHub Action is the preferred default implementation
 transport once its smoke test has passed. The program owner may create/update a
 bounded issue, invoke Claude at the appropriate effort level, review the result,
-post one bounded correction round, and merge the accepted non-production PR
-without Tomas manually opening Claude or relaying messages.
+post one bounded correction round, and merge the accepted PR under §4.1 without
+Tomas manually opening Claude or relaying messages.
 
 The generic runner must not contain production credentials and cannot authorize
 its own merge, production action, checklist advancement, scoring-methodology
@@ -292,6 +316,13 @@ deduplication; the awakened Work task must claim an event before mutation and
 stop if another claim is canonical. If the native Work trigger or required
 GitHub action permissions are unavailable, fail closed and let the hourly
 watchdog recover rather than replacing GPT judgment with GitHub automation.
+
+**Watchdog state, 5 September 2026:** the existing hourly recovery task was
+restored on Tomas's explicit instruction. `docs/operations/ChatGPT_Work_GitHub_Wake.md`
+owns the exact configuration record. Event Wake remains enabled and
+current-prompt requalification remains incomplete, so do not describe the event
+path as requalified. A schedule configuration reading is not proof of an
+executed recovery run or of event-path reliability.
 
 ## 10. Maintaining this agreement
 

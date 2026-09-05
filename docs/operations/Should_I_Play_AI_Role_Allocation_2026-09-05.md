@@ -42,7 +42,8 @@ ChatGPT remains the program owner/orchestrator. It is responsible for:
 - framing bounded assignments;
 - independently reviewing actual implementation/evidence rather than agent summaries;
 - accepting/rejecting engineering work under the Working Agreement;
-- managing integration and ordinary non-production merges when authorized;
+- managing integration and merging/deploying in-scope reviewed engineering work
+  under Working Agreement §4.1;
 - routing work among Claude, Codex, Fable and OpenAI runtimes;
 - preserving owner, scoring, holdout, production and publication gates;
 - recording material owner decisions durably in GitHub; and
@@ -164,6 +165,11 @@ Its normal job is to discover that the event path is healthy and do nothing, or 
 
 Use Astra for watchdog/recovery only when the recovered state is itself high-consequence or unusually complex enough to justify it. Do not spend scarce Astra allowance on repetitive no-op polling.
 
+The existing hourly task `6a9a57402f248191857fc31c2cd46baf` was restored on
+5 September 2026 as `Should I Play — Watchdog`. `docs/operations/ChatGPT_Work_GitHub_Wake.md`
+owns the exact configuration record; that record is a configuration observation,
+not proof of an executed recovery run. This runtime preference is unchanged.
+
 ## 4. Routing rule
 
 For each task, the orchestrator should choose the lowest-cost / highest-throughput execution surface that preserves quality for the task's consequence and ambiguity.
@@ -202,6 +208,14 @@ This role allocation does not:
 - weaken the Claude runner's safety boundaries;
 - alter the event-wake claim/idempotency contract; or
 - make an AI model the final product/editorial owner.
+
+**Later owner decision, same day.** Tomas subsequently approved a bounded
+standing delegation for **code deployment** of in-scope reviewed engineering work
+through the existing main/Workers wiring; Working Agreement §4.1 owns it. That
+decision is separate from this record and does not widen anything above: it
+grants no production **data** mutation, publication, configuration, credential,
+methodology or scoring authority, and it does not touch the frozen Phase 3A
+model contract.
 
 ## 6. Documentation conflict rule
 
