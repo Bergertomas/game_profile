@@ -410,13 +410,26 @@ recovery task must remain armed. Promoting the event path is not authority to
 run without a watchdog: if no scheduled occurrence is pending, re-arm it. Only
 Tomas changes that schedule.
 
-That re-arming is **done**. The standing watchdog is now the hourly ChatGPT task
+**Historical re-arming checkpoint (4 September 2026):** re-arming was completed with the hourly ChatGPT task
 `Should I Play — Watchdog`, automation id `6a9a57402f248191857fc31c2cd46baf`,
 on an exact hourly cadence with a recovery-only prompt. It is the recovery path
 described in §3 and §6, not the throughput clock, and it carries no authority
 this document does not already grant the scheduled orchestrator. If a future
 observation shows no occurrence pending on that automation, treat it as the same
 re-arm obligation above rather than as a licence to run without a watchdog.
+
+**Current observation — 5 September 2026 (recovery #113).** A fresh Work-side
+read found automation `6a9a57402f248191857fc31c2cd46baf` named
+`Should I Play — Night Run`, disabled after its final run at
+`2026-09-05T06:01:29.982520Z`, with no next occurrence. The historical
+re-arming statement above no longer describes its current state. No standing
+hourly recovery task is armed. The re-arm obligation still applies; schedule
+changes remain Tomas's decision, being prepared in #113/#115. No schedule was
+changed by this observation. Event Wake remains enabled, but the post-#106/#107
+current-prompt requalification is still pending (§5.1.1). Do not infer
+qualification or unattended recovery from the historical promotion.
+See the [recovery execution plan](Should_I_Play_Recovery_Execution_Plan_2026-09-05.md)
+for active coordination and the concrete decision packet.
 
 ### Test A1 — completed CI emits exactly one wake comment
 
