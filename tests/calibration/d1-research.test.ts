@@ -6,6 +6,7 @@ import {
   buildD1ResearchCapture,
   buildD1ResearchRequest,
   d1ResearchArtifacts,
+  d1ResearchCaptureOnlyArtifacts,
   freezeD1Research,
   EVIDENCE_SOP_PATH,
 } from "@/lib/calibration/d1-research";
@@ -549,28 +550,36 @@ describe("Phase 3A D1 research — a declared blocking concern refuses the freez
     expect(frozen.receipt.research_completion_report.blocking_concern).toBeNull();
   });
 
-  it("writes no output artifact when the declared concern refuses the freeze", () => {
+  it("produces no frozen, scoring-eligible artifact set when the declared concern refuses the freeze", () => {
     const built = request();
     const dir = mkdtempSync(path.join(tmpdir(), "calib-blocking-concern-"));
     const output = withConcern(A_STATED_BLOCKER);
     const facts = FACTS;
 
-    // The wrapper's own live sequence: freeze, then persist what it produced.
-    // The refusal lands before there is anything to persist.
+    // The command's own order: build the raw capture first, then freeze, then
+    // persist the frozen set. The refusal lands before the frozen set exists,
+    // so `d1ResearchArtifacts` is never reached and the run directory that
+    // would have held corpus.json, semantic-input.json and receipt.json stays
+    // empty. This asserts the absence of the frozen set, not of all output.
+    const capture = buildD1ResearchCapture({ request: built, output, facts, frozenAt: FROZEN_AT });
     expect(() => {
       const frozen = freezeD1Research({ request: built, output, facts, frozenAt: FROZEN_AT });
-      writeVerifiedArtifacts(
-        dir,
-        d1ResearchArtifacts({
-          frozen,
-          capture: buildD1ResearchCapture({ request: built, output, facts, frozenAt: FROZEN_AT }),
-        }),
-      );
+      writeVerifiedArtifacts(dir, d1ResearchArtifacts({ frozen, capture }));
     }).toThrow(ResearchContentError);
     expect(persistedArtifactNames(dir)).toEqual([]);
 
+    // What the live command does keep after that refusal, and what this test
+    // must not be read as forbidding: the raw capture, written capture-only
+    // into the separate unfrozen attempt directory. A refused attempt is
+    // evidence, and re-running the call to recover it would be spend the
+    // protocol does not need. Capture-only means exactly one file — no frozen
+    // artifact rides along.
+    const unfrozen = mkdtempSync(path.join(tmpdir(), "calib-blocking-concern-unfrozen-"));
+    writeVerifiedArtifacts(unfrozen, d1ResearchCaptureOnlyArtifacts(capture));
+    expect(persistedArtifactNames(unfrozen)).toEqual(["capture.json"]);
+
     // And the same sequence with a null concern does persist the full set, so
-    // the empty directory above is the refusal and not an inert test.
+    // the empty frozen directory above is the refusal and not an inert test.
     const clean = mkdtempSync(path.join(tmpdir(), "calib-blocking-concern-clean-"));
     const cleanOutput = buildResearchOutput();
     writeVerifiedArtifacts(
