@@ -95,11 +95,16 @@ previews/default deployments carry neither — see
 
 ## Current execution checkpoint
 
-Phase 3A Items 1–5 and Item-5 integration are complete. Item 6 / D1 is active:
-#114 corrects deterministic capture hashing and scorer-visible provenance before
-a further measured call. PR #112 already resolved Final Draft scope and
-conditionally authorized attempt 2; #101 owns that execution and immutable
-attempt-1 evidence. #113 coordinates parallel recovery; read the
+Phase 3A Items 1–5 and Item-5 integration are complete. Item 6 / D1 is active.
+PR #112 resolved Final Draft scope, PR #120 corrected deterministic capture
+hashing and scorer-visible provenance (#114), and PR #128 corrected the
+effective transport timeout and safe nested diagnostics (#126). D1 research
+attempt 1 was refused before freeze and attempt 2 ended `failed_api` at the
+transport boundary; both are immutable, no frozen corpus exists, and scoring
+calls remain 0. A further measured call is attempt 3 and is not authorized: it
+needs an explicit owner / preregistration-compliant ruling. #101 owns that
+execution and both immutable attempt records. #113 coordinates parallel
+recovery; read the
 [execution plan](docs/operations/Should_I_Play_Recovery_Execution_Plan_2026-09-05.md).
 The original numbered checklist remains Master Plan Appendix B. Main merges that
 deploy in-scope reviewed engineering work are delegated to the orchestrator under

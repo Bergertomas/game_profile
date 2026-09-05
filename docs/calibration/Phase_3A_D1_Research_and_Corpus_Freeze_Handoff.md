@@ -39,8 +39,11 @@ npm run calib:d1-research -- --live --maturity <observation.json> --attempt 2
 
 The shared OpenAI transport applies one explicit 600-second bound at both the
 AbortController and Undici header/body dispatch layers. Node Fetch otherwise
-supplies Undici's 300-second per-request defaults, which ended D1 attempt 2
-before the harness's abort timer (issue #126). The dispatcher changes the bound
+supplies Undici's 300-second per-request defaults, which match D1 attempt 2's
+observed 300095 ms failure ahead of the harness's abort timer (issue #126).
+That attempt did not retain its nested cause, so the default is the strong
+transport diagnosis rather than a proven cause, and it establishes nothing about
+the provider's processing state. The dispatcher changes the bound
 only: it adds no retry or fallback. A transport failure retains the safe nested
 error class/code when one exists, so the ledger can distinguish an Undici
 timeout from the outer `TypeError: fetch failed` without storing headers or
