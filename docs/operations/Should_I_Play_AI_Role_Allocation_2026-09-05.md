@@ -129,6 +129,21 @@ Fable remains specialist capacity for art direction, long-horizon visual explora
 
 Fable is not the default engineering implementation agent and never owns scoring semantics, data truth, accessibility truth, artwork rights, publication, or production authority.
 
+### 2.8 Owner-facing model-selection rule
+
+Tomas should not have to act as the project's model router.
+
+For ordinary owner interaction, use this simple default:
+
+- **Product thinking / product strategy / roadmap discussion / feature judgment / Master Plan shaping:** start with **ChatGPT on GPT-5.6 Sol High**. This is the default conversational product-partner surface.
+- **High-consequence audit / whole-project orchestration / phase-boundary review / cross-system architecture or forensic judgment:** use **ChatGPT on GPT-6 Astra** when available.
+- **Visual direction / art direction / canonical public-surface design work:** use **Fable** under the current design authority.
+- **Engineering execution:** Tomas should normally describe the desired outcome to ChatGPT and let the program orchestrator route the work to Claude High/xhigh/Max or Codex+Astra according to this policy. Tomas does not need to choose the engineering model per task.
+
+For a material product decision developed conversationally with Sol, an Astra audit is appropriate before the decision becomes expensive or difficult to reverse when the consequence or cross-system impact warrants it. This is a review/escalation pattern, not a requirement to double-review every product discussion.
+
+For autonomous orchestration runs whose purpose is to manage and advance the project for an extended period (for example an overnight Work run), **Astra is the preferred runtime when the Work surface exposes a model selector and Astra is available**. The job prompt must remain repository-authoritative and safe under current owner/methodology/production gates. If the platform cannot expose or preserve the selected model, the orchestration role remains ChatGPT and the run must obey the same repository controls; model identity is not the safety boundary.
+
 ## 3. Event Wake and watchdog allocation
 
 ### 3.1 Event Wake
