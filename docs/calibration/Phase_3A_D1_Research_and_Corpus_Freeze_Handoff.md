@@ -39,9 +39,17 @@ npm run calib:d1-research -- --live --maturity <observation.json> --attempt 2
 
 The shared OpenAI transport applies one explicit 600-second bound at both the
 AbortController and Undici header/body dispatch layers. Node Fetch otherwise
-supplies Undici's 300-second per-request defaults, which ended D1 attempt 2
-before the harness's abort timer (issue #126). The dispatcher changes the bound
-only: it adds no retry or fallback. A transport failure retains the safe nested
+supplies Undici's 300-second per-request defaults, which match D1 attempt 2's
+observed 300095 ms failure ahead of the harness's abort timer (issue #126).
+That attempt did not retain its nested cause, so the default is the strong
+transport diagnosis rather than a proven cause, and it establishes nothing about
+the provider's processing state. D1 attempt 3 then held one request open for
+334398 ms and terminated on a provider tokens-per-minute rate-limit response
+rather than a socket timeout, and attempt 4 held one open for 346718 ms and
+returned normally, which together confirm the corrected bound is in force; that
+still proves nothing about provider processing or spend for either failed
+attempt. The
+dispatcher changes the bound only: it adds no retry or fallback. A transport failure retains the safe nested
 error class/code when one exists, so the ledger can distinguish an Undici
 timeout from the outer `TypeError: fetch failed` without storing headers or
 credentials.
@@ -74,7 +82,26 @@ mismatch is reported as request drift and the freeze is refused.
    changelog names `KCD2` in a historical calibration list, and the Item 3 freeze
    is owner-approved and immutable to this slice, so the receipt discloses the
    mention rather than the wrapper editing a locked input.
-4. **At freeze** — no scoring content, no unmasked review grade in the scoring
+4. **Declared blocker (issue #131, PR #133)** — `assertNoBlockingConcern()` runs
+   first inside `freezeResearchCorpus()`, so it is the freeze's first substantive
+   check. A non-null `output.research_completion_report.blocking_concern` throws
+   `ResearchContentError` **before** any frozen corpus, scoring packet or receipt
+   is constructed, and therefore before any of them can be persisted. `null` is
+   the only encoding of "no blocker": an empty string, a non-string value, and a
+   missing or non-object completion report are all refused rather than coerced.
+   The gate reads exactly that one canonical structured field — it never parses
+   or grades the concern's prose, reinterprets another narrative field as a
+   blocker, or classifies a stated blocker as minor. Because `freezeD1Research()`
+   calls the shared freeze first, the live `--live` path and the `--freeze`
+   replay path fail closed through this single check. **Capture-only rule:** a
+   refused live attempt still preserves its raw evidence — the wrapper persists
+   `d1ResearchCaptureOnlyArtifacts()`, i.e. `capture.json` alone, with no corpus,
+   semantic input or receipt. That refused capture is immutable attempt evidence;
+   it is never repaired, re-frozen or fed back as model context. The defect this
+   closes is what made D1 attempt 4's structurally valid but self-declared-unsafe
+   packet persist as if it were scoring-eligible; the independent audit REFUSED
+   it, and no persisted digest converts a refused packet into an accepted corpus.
+5. **At freeze** — no scoring content, no unmasked review grade in the scoring
    view, strict capture/manifest linkage followed by wrapper-computed content
    digests (below), all seven query families present exactly once, the declared
    collection standard reproduced by the manifest's independent active A/B
