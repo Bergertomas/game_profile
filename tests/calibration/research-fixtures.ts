@@ -10,6 +10,13 @@ import type { ModelResearchPass } from "@/lib/calibration/research-pass";
  * grade, badge or ranking label anywhere. It exists to exercise the freeze and
  * the persistence mechanics, and nothing in it is evidence about a calibration
  * game.
+ *
+ * The fixture states NO content digest anywhere in the model output. That is the
+ * point of the transport correction and the reason the earlier fixture hid the
+ * defect: it computed `normalized_content_digest` with a local `createHash`,
+ * which is exactly the capability a research pass with `web_search` and no
+ * hashing tool does not have. `sha256` survives only for tests that assert what
+ * the WRAPPER should have derived.
  */
 
 /**
@@ -21,6 +28,7 @@ import type { ModelResearchPass } from "@/lib/calibration/research-pass";
 export const CAPTURE_TEXT = (index: number) =>
   `Placeholder normalized capture number ${index}. It records a concrete observation with no grade, badge or ranking label.`;
 
+/** The expected wrapper-side digest. Never used to build a model output. */
 export function sha256(text: string): string {
   return createHash("sha256").update(Buffer.from(text, "utf8")).digest("hex");
 }
@@ -50,8 +58,6 @@ export function buildResearchOutput(
       dependency_note: "original reporting",
       limitations: [],
       player_signal_sampling: null,
-      raw_content_digest: null,
-      normalized_content_digest: sha256(captureText(number)),
     };
   });
 
@@ -108,9 +114,10 @@ export function buildResearchOutput(
           index === 3 ? ("materially_limiting" as const) : ("bounding" as const),
       })),
     })),
-    normalized_captures: sources.map((source, index) => ({
+    source_captures: sources.map((source, index) => ({
       source_id: source.source_id,
       normalized_content: captureText(index + 1),
+      raw_content: null,
     })),
     research_completion_report: {
       material_scope_platform_current_state_limitations: "Placeholder limitation note.",

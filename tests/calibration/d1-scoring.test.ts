@@ -24,6 +24,7 @@ import {
   EVIDENCE_CUTOFF,
   FACTS,
   FIXTURE_CORPUS,
+  boundHandoff,
   buildHandoff,
   modelOutput,
   semanticInput,
@@ -145,6 +146,7 @@ describe("isolation: no tools, no research context, no linkage (ADR 0036 §§3, 
       "coverage_frames",
       "evaluation_scope",
       "normalized_corpus",
+      "packet_version",
     ]);
     for (const forbidden of ["candidate_source_log", "collection_reason", "research_completion_report", "query_family_audit"]) {
       expect(payload).not.toContain(forbidden);
@@ -201,22 +203,19 @@ describe("holdout exclusion (preregistration §3.1)", () => {
    * None of it is research about any product, holdout or otherwise.
    */
   it("admits an incidental holdout-title mention inside an admitted D1 capture, and reports it", () => {
-    const incidental = semanticInput({
-      normalized_corpus: [
+    const pair = buildD1ScoringPair({
+      handoff: boundHandoff([
         {
-          source_id: "src-ab-1",
-          record_status: "active",
+          source: { source_id: "src-ab-1", record_status: "active" },
           normalized:
             "Placeholder capture for the development title; the writer compares its combat to Resident Evil 4 in one aside.",
         },
         {
-          source_id: "src-ab-2",
-          record_status: "active",
+          source: { source_id: "src-ab-2", record_status: "active" },
           normalized: "Placeholder capture with no comparison in it at all.",
         },
-      ],
+      ]),
     });
-    const pair = buildD1ScoringPair({ handoff: buildHandoff({ semanticInput: incidental }) });
     expect(pair.isolation.holdout_material_supplied).toBe(false);
     expect(pair.isolation.admitted_source_text_mentions).toHaveLength(1);
     const [mention] = pair.isolation.admitted_source_text_mentions;
@@ -243,18 +242,16 @@ describe("holdout exclusion (preregistration §3.1)", () => {
   });
 
   it("still fails closed when a holdout enters as a source identity rather than as prose", () => {
-    const identified = semanticInput({
-      normalized_corpus: [
-        {
-          source_id: "src-immortals-of-aveum-review",
-          record_status: "active",
-          normalized: "Placeholder capture text.",
-        },
-      ],
-    });
-    expect(() => buildD1ScoringPair({ handoff: buildHandoff({ semanticInput: identified }) })).toThrow(
-      HoldoutIsolationError,
-    );
+    // Bound end to end, so the packet reaches the §3.1 guard on its merits: the
+    // identity is refused because it is an identity, not because the packet was
+    // also internally inconsistent.
+    const identified = boundHandoff([
+      {
+        source: { source_id: "src-immortals-of-aveum-review", record_status: "active" },
+        normalized: "Placeholder capture text.",
+      },
+    ]);
+    expect(() => buildD1ScoringPair({ handoff: identified })).toThrow(HoldoutIsolationError);
   });
 
   it("still fails closed on holdout-specific analysis in the frozen coverage frames", () => {
@@ -275,18 +272,25 @@ describe("holdout exclusion (preregistration §3.1)", () => {
   });
 
   it("names every blocking mention in the refusal so the packet can be checked by hand", () => {
-    const leaked = semanticInput({
-      canonical_source_order: ["src-KCD2-comparison"],
-    });
+    const leaked = boundHandoff([
+      {
+        source: { source_id: "src-KCD2-comparison", record_status: "active" },
+        normalized: "Placeholder capture text.",
+      },
+    ]);
     try {
-      buildD1ScoringPair({ handoff: buildHandoff({ semanticInput: leaked }) });
+      buildD1ScoringPair({ handoff: leaked });
       expect.unreachable("a holdout identity in the canonical source order must fail closed");
     } catch (error) {
       expect(error).toBeInstanceOf(HoldoutIsolationError);
       const mentions = (error as HoldoutIsolationError).mentions;
-      expect(mentions).toHaveLength(1);
-      expect(mentions[0]!.runKey).toBe("H2");
-      expect(mentions[0]!.at).toBe("<semantic_input>.canonical_source_order[0]");
+      // Every identity-bearing place the id reaches is named, not just the first:
+      // a hand check needs the whole list.
+      expect(mentions.map((mention) => mention.at)).toEqual([
+        "<semantic_input>.normalized_corpus[0].source_id",
+        "<semantic_input>.canonical_source_order[0]",
+      ]);
+      expect(new Set(mentions.map((mention) => mention.runKey))).toEqual(new Set(["H2"]));
     }
   });
 

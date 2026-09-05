@@ -9,6 +9,7 @@ import {
   type SemanticInput,
 } from "@/lib/calibration/request-builder";
 import { verifyControlledInputs } from "@/lib/calibration/controlled-inputs";
+import { RESEARCH_TRANSPORT_VERSION } from "@/lib/calibration/research-pass";
 import {
   buildScoringPassSchema,
   scoringPassSchemaDigest,
@@ -20,9 +21,10 @@ import {
  */
 
 const SEMANTIC_INPUT: SemanticInput = {
+  packet_version: RESEARCH_TRANSPORT_VERSION,
   evaluation_scope: { scope_key: "placeholder-title", edition: "Standard" },
   coverage_frames: [{ coverage_frame_id: "frame-1", subcriterion_key: "story_hook" }],
-  normalized_corpus: [{ source_id: "src-1", normalized: "placeholder text" }],
+  normalized_corpus: [{ source_id: "src-1", source_tier: "A", normalized: "placeholder text" }],
   canonical_source_order: ["src-1"],
 };
 
@@ -107,9 +109,10 @@ describe("the paired requests are identical by construction (§5(13))", () => {
   it("serialises the semantic payload canonically, so member order cannot drift", () => {
     const reordered: SemanticInput = {
       canonical_source_order: ["src-1"],
-      normalized_corpus: [{ normalized: "placeholder text", source_id: "src-1" }],
+      normalized_corpus: [{ normalized: "placeholder text", source_tier: "A", source_id: "src-1" }],
       coverage_frames: [{ subcriterion_key: "story_hook", coverage_frame_id: "frame-1" }],
       evaluation_scope: { edition: "Standard", scope_key: "placeholder-title" },
+      packet_version: RESEARCH_TRANSPORT_VERSION,
     };
     const a = build();
     const b = build({ semanticInput: reordered });

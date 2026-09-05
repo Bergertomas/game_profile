@@ -36,7 +36,7 @@ import {
   type ControlledByteHoldoutReport,
   type HoldoutMention,
 } from "./holdout-isolation";
-import { findReviewGradeLeaks } from "./research-pass";
+import { RESEARCH_TRANSPORT_VERSION, findReviewGradeLeaks } from "./research-pass";
 import { validatorFor } from "./package-schema";
 import { deriveCoverageState } from "./semantic-validator";
 import { REQUIRED_FACETS, RUBRIC_SUBCRITERION_KEYS } from "./protocol-tables";
@@ -218,6 +218,76 @@ function deepKeys(value: unknown, at: string, found: { key: string; at: string }
 }
 
 /**
+ * Prove the scoring view against the frozen corpus it claims to describe.
+ *
+ * Two things are checked, and both are properties slice C can establish without
+ * trusting slice B: the text each scorer will read still hashes to the
+ * `normalized_content_digest` the frozen manifest committed to, and the source
+ * facts travelling beside that text are the frozen manifest's own record rather
+ * than a second, editable copy of it. Together they mean a scorer's admissibility
+ * inputs — tier, independence cluster, dates, locator, disclosure — cannot have
+ * been altered between the freeze and the call without this refusing.
+ */
+function checkFrozenCaptureBinding(handoff: D1ResearchHandoff): readonly string[] {
+  const problems: string[] = [];
+  const entries = handoff.semanticInput.normalized_corpus;
+  if (!Array.isArray(entries)) {
+    return ["the scoring view's normalized_corpus is not an array of frozen source records"];
+  }
+
+  const manifest = handoff.corpus.source_manifest;
+  if (!Array.isArray(manifest)) {
+    return ["the frozen corpus records no source_manifest, so the scoring view cannot be bound to it"];
+  }
+  const byId = new Map(manifest.map((source) => [source.source_id, source]));
+
+  const order = handoff.corpus.canonical_source_order;
+  const seen = entries.map((entry) => (entry as { source_id?: unknown } | null)?.source_id);
+  if (Array.isArray(order) && canonicalize(seen as never) !== canonicalize(order as never)) {
+    problems.push(
+      "the scoring view's normalized_corpus does not list exactly the canonical source order; a packet must carry every frozen source once, in order",
+    );
+  }
+
+  for (const [index, entry] of entries.entries()) {
+    const at = `<semantic_input>.normalized_corpus[${index}]`;
+    if (entry === null || typeof entry !== "object" || Array.isArray(entry)) {
+      problems.push(`${at}: expected a frozen source record with its normalized capture`);
+      continue;
+    }
+    const { normalized, ...facts } = entry as Record<string, unknown>;
+    const sourceId = facts.source_id;
+    if (typeof sourceId !== "string") {
+      problems.push(`${at}: carries no source_id, so it cannot be bound to the frozen manifest`);
+      continue;
+    }
+    if (typeof normalized !== "string") {
+      problems.push(`${at} (${sourceId}): carries no normalized capture text`);
+      continue;
+    }
+
+    const source = byId.get(sourceId);
+    if (source === undefined) {
+      problems.push(`${at}: source "${sourceId}" is not in the frozen corpus manifest`);
+      continue;
+    }
+    if (canonicalize(facts as never) !== canonicalize(source as never)) {
+      problems.push(
+        `${at} (${sourceId}): the source facts in the scoring view are not the frozen manifest record; tier, independence cluster, dates, locator or disclosure fields have drifted since the freeze`,
+      );
+    }
+    const recomputed = sha256Hex(Buffer.from(normalized, "utf8"));
+    if (recomputed !== source.normalized_content_digest) {
+      problems.push(
+        `${at} (${sourceId}): the capture text does not hash to the frozen normalized_content_digest — recomputed ${recomputed}, manifest records ${String(source.normalized_content_digest)}`,
+      );
+    }
+  }
+
+  return problems;
+}
+
+/**
  * Build the D1 primary/audit scoring pair, or refuse.
  *
  * The gate order is deliberate and each gate is fail-closed: controlled bytes,
@@ -279,6 +349,24 @@ export function buildD1ScoringPair(options: D1ScoringPairOptions): D1ScoringPair
   if (handoff.corpus.review_grades_masked !== true) {
     problems.push("the frozen corpus does not record review_grades_masked; a scoring view must be masked");
   }
+
+  // Gate 3b — transport compatibility and capture binding.
+  //
+  // The packet digest above proves the file is intact; it does not prove the
+  // packet is a packet this harness can score. A version-1 packet carries only
+  // `source_id`, `record_status` and the normalized text, so its digest is
+  // perfectly self-consistent while the tier, independence cluster and dates
+  // Protocol §4.4 / §4.1 / §15.1(6) decide on are simply absent. Refuse it by
+  // version rather than let a scorer be asked for rules it cannot evaluate.
+  if (handoff.semanticInput.packet_version !== RESEARCH_TRANSPORT_VERSION) {
+    problems.push(
+      `the frozen packet declares transport version ${JSON.stringify(handoff.semanticInput.packet_version)} but this harness scores v${RESEARCH_TRANSPORT_VERSION}. ` +
+        "A pre-v2 packet hides source tier, independence cluster, publication/access dates and locators from both scorers, " +
+        "so §4.4 Tier-D admissibility, §4.1 independence banding and §15.1(6) elapsed-time rules could not be satisfied from the packet. " +
+        "Re-freeze the research attempt with the current harness rather than scoring the old packet.",
+    );
+  }
+  problems.push(...checkFrozenCaptureBinding(handoff));
 
   // Gate 4 — scope lock. The scope in the scoring view is re-derived from the
   // immutable slice-A run input plus the freeze date and must match byte for
