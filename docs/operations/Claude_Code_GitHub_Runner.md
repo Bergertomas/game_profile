@@ -37,11 +37,11 @@ The repository runner deliberately gives higher-effort work more breathing room:
 
 | Trigger | Effort | Default turn ceiling | Intended posture |
 |---|---|---:|---|
-| `@claude` | `high` | 50 | ordinary bounded implementation with enough room for mandatory preflight and handoff |
-| `/claude-extra` | `xhigh` | 100 | complex/cross-cutting work that benefits from materially deeper exploration and verification |
-| `/claude-max` | `max` | 150 | unusually demanding groundwork, architecture, planning, oversight, or high-consequence synthesis |
+| `@claude` | `high` | 75 | ordinary bounded implementation with enough room for mandatory preflight and handoff |
+| `/claude-extra` | `xhigh` | 150 | complex/cross-cutting work that benefits from materially deeper exploration and verification |
+| `/claude-max` | `max` | 225 | unusually demanding groundwork, architecture, planning, oversight, or high-consequence synthesis |
 
-These are the live values in `.github/workflows/claude.yml`. The xhigh and Max ceilings were raised from 75/100 in PR #78 after two consecutive naturally coherent xhigh assignments reached 78 and 76 turns against the previous 75-turn envelope — one completing just past the ceiling, one losing its local work at it. High stays at its owner-approved 50. That adjustment applied this section's own rule: correct the envelope rather than atomize coherent work.
+These are the live values in `.github/workflows/claude.yml`. The xhigh and Max ceilings were raised from 75/100 in PR #78 after two consecutive naturally coherent xhigh assignments reached 78 and 76 turns against the previous 75-turn envelope — one completing just past the ceiling, one losing its local work at it. On 5 September 2026 the owner raised every lane by 50%, from 50/100/150 to 75/150/225, after the coherent xhigh #126 transport assignment reached its 100-turn ceiling before publishing. These adjustments apply this section's own rule: correct the envelope rather than atomize coherent work.
 
 These ceilings are defaults, not work quotas. Claude should stop as soon as the accepted assignment is complete. The orchestrator should periodically inspect run behavior and historical ceiling usage; if a lane routinely finishes with large unused headroom, leave it alone unless the extra envelope causes a concrete problem. If a lane routinely hits the ceiling on otherwise well-sized coherent assignments, adjust the runner policy rather than mechanically slicing work smaller and smaller.
 
@@ -137,7 +137,7 @@ Repository `CLAUDE.md` imports `AGENTS.md`, so every material runner task inheri
 
 The workflow listens only to newly created issue/PR conversation comments and inline PR review comments containing one of the three effort triggers. A run is serialized per issue/PR so two Claude executions do not race on the same work item.
 
-The runner uses Opus 5 with effort-sensitive turn headroom: High 50, xhigh 100, Max 150. The GitHub Actions job timeout is 240 minutes. These are safety envelopes; Claude should stop once the bounded assignment and required handoff are complete. The runner may read GitHub Actions results. Full raw Claude output is not enabled by the workflow.
+The runner uses Opus 5 with effort-sensitive turn headroom: High 75, xhigh 150, Max 225. The GitHub Actions job timeout is 240 minutes. These are safety envelopes; Claude should stop once the bounded assignment and required handoff are complete. The runner may read GitHub Actions results. Full raw Claude output is not enabled by the workflow.
 
 Claude runs carry a machine-addressable `run-name` of `claude-work-item-<issue-or-pr-number>-comment-<comment-id>`. That name is transport metadata only. It lets the separate wake bridge associate a completed/failed runner invocation with its durable work item without reading model output or making project judgments. Because `run-name` also overwrites `workflow_run.name`, anything consuming these runs must identify the workflow by its definition path rather than its name; `docs/operations/ChatGPT_Work_GitHub_Wake.md` §3 owns that contract.
 

@@ -47,5 +47,5 @@ jobs:
           claude_args: >-
             --model opus
             --effort ${{ contains(github.event.comment.body, '/claude-max') && 'max' || contains(github.event.comment.body, '/claude-extra') && 'xhigh' || 'high' }}
-            --max-turns ${{ contains(github.event.comment.body, '/claude-max') && '150' || contains(github.event.comment.body, '/claude-extra') && '100' || '50' }}
+            --max-turns ${{ contains(github.event.comment.body, '/claude-max') && '225' || contains(github.event.comment.body, '/claude-extra') && '150' || '75' }}
             --allowedTools Bash,Edit,Read,Write,Glob,Grep
