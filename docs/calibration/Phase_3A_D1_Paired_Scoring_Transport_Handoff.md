@@ -63,6 +63,17 @@ get as far as having something to send.
    reproduce `corpus.normalized_packet_digest` and the research receipt's copy of
    it, and its canonical source order must equal the frozen order. The corpus must
    record `review_grades_masked`.
+   - **3b. Transport compatibility and capture binding** — the packet must declare
+      the current `packet_version` (research transport v2). A pre-v2 packet is
+      refused by version rather than scored: its digest is perfectly
+      self-consistent while the source tier, independence cluster, dates and
+      locator that Protocol §4.4, §4.1 and §15.1(6) decide on are simply absent,
+      so a scorer would be asked to satisfy rules from facts it was never given.
+      Then every entry is bound to the frozen manifest: its source facts must be
+      the manifest's own record byte for byte, and its capture text must still
+      hash to that record's `normalized_content_digest`. A tier promoted or a
+      capture substituted between the freeze and the call refuses here, naming
+      the source.
 4. **Scope lock** — the scoring view's `evaluation_scope` is re-derived from
    slice A's immutable `D1_RUN_INPUT` plus the freeze date and must match byte for
    byte, so a mutated scope key, edition, platform list or The Final Draft / New
@@ -74,7 +85,10 @@ get as far as having something to send.
    holdout material in a development scoring context, so this fails closed over
    every wrapper-authored and identity-bearing part of the packet: the evaluation
    scope, the coverage frames, the canonical source order, every source ID and
-   record status, and every property name.
+   record status, every other frozen source field including the title and
+   locator, and every property name. Only a corpus entry's `normalized` body is
+   admitted source text; a new or renamed member is held to the wrapper standard
+   by default.
 6. **Pair proof** — both requests come from the one frozen builder with no second
    path, and `assertPairInvariants` throws on any difference ADR 0036 §5 forbids.
    A seed is the only permitted difference, and only when the endpoint exposes

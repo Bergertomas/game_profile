@@ -29,11 +29,26 @@ export const PREREGISTERED_REASONING_CONTEXT = "current_turn";
 export type RunRole = "primary" | "audit";
 
 export interface SemanticInput {
+  /**
+   * The research transport version this packet was frozen under
+   * (`RESEARCH_TRANSPORT_VERSION`).
+   *
+   * Carried inside the packet rather than beside it so a scoring pass can refuse
+   * an incompatible packet on the packet's own bytes. Version 1 projected only
+   * `source_id`, `record_status` and the normalized text, which hides the tier,
+   * independence cluster and dates the protocol's own admissibility rules decide
+   * on; version 2 carries the whole frozen source record.
+   */
+  readonly packet_version: number;
   /** The frozen evaluation scope, exactly as it will appear in the package. */
   readonly evaluation_scope: unknown;
   /** The frozen criterion coverage frames. */
   readonly coverage_frames: unknown;
-  /** The normalized captured corpus, review grades masked. */
+  /**
+   * The normalized captured corpus, review grades masked. One entry per source
+   * in canonical order, each the frozen canonical source record plus its
+   * `normalized` capture text.
+   */
   readonly normalized_corpus: unknown;
   /** Canonical source order. */
   readonly canonical_source_order: readonly string[];

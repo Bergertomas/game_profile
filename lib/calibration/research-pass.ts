@@ -34,10 +34,15 @@ import type {
  *  - its output schema is derived from the canonical package schema's `corpus`
  *    properties, so the model can produce a candidate log, a source manifest and
  *    coverage frames, and cannot produce a claim ledger, a decision, an anchor
- *    or a score — those fields are not in the contract at all;
+ *    or a score — those fields are not in the contract at all. The one thing the
+ *    derivation REMOVES is the pair of content digests: a model with web search
+ *    and no hashing tool cannot compute a SHA-256, so asking for one produces a
+ *    fabrication rather than a commitment (see `RESEARCH_TRANSPORT_VERSION`);
  *  - the freeze is a copy plus digests. Nothing is reordered, defaulted or
  *    repaired, because any of those would be the harness authoring research
- *    content.
+ *    content. The digests are the wrapper's own SHA-256 over the exact UTF-8
+ *    bytes of the captures the model returned — deterministic local hash tooling
+ *    outside the model, which preregistration §4.1 permits by name.
  */
 
 /** Preregistration §4.1 — the only tool access a research pass may have. */
@@ -157,17 +162,120 @@ export function toResearchRequestBody(
 }
 
 /**
+ * The research transport version.
+ *
+ * Version 1 projected the canonical `$defs/source` unchanged and therefore asked
+ * the model for `normalized_content_digest` and `raw_content_digest` — two
+ * lowercase SHA-256 values — while giving it `web_search` and nothing else. A
+ * language model cannot compute SHA-256 over its own output, so the contract was
+ * unexecutable; it only looked executable because the test fixtures computed the
+ * digests locally with `createHash`, which is precisely the capability the live
+ * model lacks.
+ *
+ * Version 2 moves both digests to the wrapper, which preregistration §4.1
+ * explicitly permits: "deterministic local capture/hash tooling may run outside
+ * the model". The model states the source record and the exact capture text; the
+ * wrapper hashes the capture's UTF-8 bytes and assembles the canonical record.
+ *
+ * The version is carried on the capture artifact and inside the frozen packet so
+ * a version-1 artifact is REFUSED with an actionable diagnostic rather than
+ * silently reinterpreted under the new rules. Preregistration §9.1/§9.3 preserve
+ * measured attempts, so an old attempt stays exactly as it was recorded.
+ */
+export const RESEARCH_TRANSPORT_VERSION = 2;
+
+/**
+ * The `$defs/source` members the WRAPPER computes, and therefore the members the
+ * model-facing contract must not ask for.
+ *
+ * Both are digests of capture bytes the wrapper holds. Asking a model for a hash
+ * of its own output invites a fabricated one — and a fabricated hash is worse
+ * than no hash, because the manifest would then commit to a value that describes
+ * nothing.
+ */
+export const WRAPPER_ASSEMBLED_SOURCE_FIELDS: readonly string[] = [
+  "raw_content_digest",
+  "normalized_content_digest",
+];
+
+/**
+ * The transport `$defs` name for the model-facing source record.
+ *
+ * A separate name rather than a redefinition of `source`: the canonical
+ * definition is a controlled input and stays untouched, and the equivalence
+ * record then names the projection instead of appearing to have two `source`
+ * definitions that disagree.
+ */
+export const MODEL_FACING_SOURCE_DEF = "capturedSource";
+
+/** Raised when the canonical schema and this transport projection disagree. */
+export class ResearchTransportError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ResearchTransportError";
+  }
+}
+
+/**
+ * Project the canonical source record into the record the MODEL states.
+ *
+ * Derived from the controlled bytes by removal only, so it cannot drift: a
+ * canonical source field the model owns appears here automatically, one that is
+ * removed disappears here too, and the two wrapper digests are the only
+ * difference. If the canonical schema stops declaring one of them the projection
+ * fails loudly rather than quietly projecting a field that no longer exists.
+ */
+function projectModelFacingSource(canonicalDefs: Record<string, unknown>): Record<string, unknown> {
+  const canonical = canonicalDefs.source as Record<string, unknown> | undefined;
+  if (!canonical || typeof canonical !== "object") {
+    throw new ResearchTransportError(
+      "the canonical package schema defines no $defs/source; the research transport cannot project a model-facing source record.",
+    );
+  }
+  const canonicalProperties = (canonical.properties ?? {}) as Record<string, unknown>;
+  const missing = WRAPPER_ASSEMBLED_SOURCE_FIELDS.filter((field) => !(field in canonicalProperties));
+  if (missing.length > 0) {
+    throw new ResearchTransportError(
+      `$defs/source no longer declares ${missing.join(", ")}; the wrapper-assembled digest set has drifted from the canonical schema and must be reconciled deliberately.`,
+    );
+  }
+
+  const properties: Record<string, unknown> = {};
+  for (const [name, node] of Object.entries(canonicalProperties)) {
+    if (!WRAPPER_ASSEMBLED_SOURCE_FIELDS.includes(name)) properties[name] = node;
+  }
+  const required = Array.isArray(canonical.required)
+    ? (canonical.required as string[]).filter((name) => !WRAPPER_ASSEMBLED_SOURCE_FIELDS.includes(name))
+    : [];
+
+  return { ...canonical, properties, required };
+}
+
+/** Point `corpus.source_manifest` at the projected record instead of `$defs/source`. */
+function projectModelFacingSourceManifest(node: unknown): Record<string, unknown> {
+  const array = node as Record<string, unknown> | undefined;
+  const items = array?.items as Record<string, unknown> | undefined;
+  if (!array || items?.$ref !== "#/$defs/source") {
+    throw new ResearchTransportError(
+      "the canonical corpus.source_manifest no longer references #/$defs/source; the research transport projection must be reconciled with the schema before a measured run.",
+    );
+  }
+  return { ...array, items: { $ref: `#/$defs/${MODEL_FACING_SOURCE_DEF}` } };
+}
+
+/**
  * Transport-only subschemas, i.e. the two research records the canonical package
  * schema does not itself define.
  *
  * Both exist because the package stores DIGESTS of content that lives outside
  * it. Neither adds methodology:
  *
- *  - `normalized_captures` carries the normalized per-source text whose SHA-256
- *    the canonical `source.normalized_content_digest` already commits to, and
- *    which Protocol §4.6's "normalized scoring packet receives its own digest"
- *    presupposes exists. The freeze re-derives every digest from this text and
- *    refuses a mismatch, so it is checked, not trusted.
+ *  - `source_captures` carries the exact per-source text the wrapper hashes into
+ *    the canonical `source.normalized_content_digest` and `raw_content_digest`,
+ *    and which Protocol §4.6's "normalized scoring packet receives its own
+ *    digest" presupposes exists. `raw_content` is nullable exactly as
+ *    `raw_content_digest` is: a source whose raw bytes were not retained records
+ *    a null digest rather than a fabricated one.
  *  - `research_completion_report` carries the four narrative items the frozen
  *    research prompt's Output section asks for that the wrapper cannot derive.
  *    The report's other items — scope identifier, evidence cutoff, collection
@@ -176,15 +284,18 @@ export function toResearchRequestBody(
  *    to state a freeze timestamp it cannot know.
  */
 const TRANSPORT_ONLY_PROPERTIES: Record<string, unknown> = {
-  normalized_captures: {
+  source_captures: {
     type: "array",
     items: {
       type: "object",
       additionalProperties: false,
-      required: ["source_id", "normalized_content"],
+      required: ["source_id", "normalized_content", "raw_content"],
       properties: {
         source_id: { $ref: "#/$defs/id" },
         normalized_content: { $ref: "#/$defs/nonEmptyString" },
+        raw_content: {
+          oneOf: [{ $ref: "#/$defs/nonEmptyString" }, { type: "null" }],
+        },
       },
     },
   },
@@ -236,15 +347,26 @@ export function buildResearchPassSchema(
   const corpus = canonicalDefs.corpus as Record<string, unknown>;
   const corpusProperties = corpus.properties as Record<string, unknown>;
 
+  // The canonical definitions are read-only controlled bytes. The projection is
+  // an ADDITION to the definition set the transport derivation resolves against,
+  // so `$defs/source` itself is never rewritten.
+  const transportDefs: Record<string, unknown> = {
+    ...canonicalDefs,
+    [MODEL_FACING_SOURCE_DEF]: projectModelFacingSource(canonicalDefs),
+  };
+
   const properties: Record<string, unknown> = {};
   for (const field of MODEL_OWNED_CORPUS_FIELDS) {
-    properties[field] = corpusProperties[field];
+    properties[field] =
+      field === "source_manifest"
+        ? projectModelFacingSourceManifest(corpusProperties[field])
+        : corpusProperties[field];
   }
   for (const [name, node] of Object.entries(TRANSPORT_ONLY_PROPERTIES)) {
     properties[name] = node;
   }
 
-  const derived = deriveStructuredOutputsSchema(properties, canonicalDefs);
+  const derived = deriveStructuredOutputsSchema(properties, transportDefs);
   return { name: "phase3a_research_pass", strict: true, ...derived };
 }
 
@@ -253,9 +375,36 @@ export function researchPassSchemaDigest(schema: ResearchPassSchema): string {
   return canonicalDigest(schema.schema as never);
 }
 
-export interface NormalizedCapture {
+/**
+ * One source's exact capture bytes, as the model returns them.
+ *
+ * `normalized_content` is the masked scoring text; `raw_content` is the retained
+ * pre-normalization body, or `null` when none was retained. The wrapper hashes
+ * whichever is present and never asks the model for the hash.
+ */
+export interface SourceCapture {
   readonly source_id: string;
   readonly normalized_content: string;
+  readonly raw_content: string | null;
+}
+
+/**
+ * The canonical source record minus the digests the wrapper assembles.
+ *
+ * Written out rather than derived with `Omit`, for the same reason `Source`
+ * itself names a subset: both carry an index signature for the canonical fields
+ * the validator owns, and `Omit` over an index signature erases every named
+ * member instead of the two intended ones.
+ */
+export interface ModelSource {
+  readonly source_id: string;
+  readonly record_status: "active" | "superseded";
+  readonly source_class: string;
+  readonly source_tier: "A" | "B" | "C" | "D";
+  readonly independence_cluster_id: string;
+  readonly publication_date: string | null;
+  readonly accessed_at: string;
+  readonly [key: string]: unknown;
 }
 
 export interface ResearchCompletionNarrative {
@@ -270,9 +419,9 @@ export interface ModelResearchPass {
   readonly collection_reason: string;
   readonly query_family_audit: readonly QueryFamilyAudit[];
   readonly candidate_source_log: readonly CandidateSource[];
-  readonly source_manifest: readonly Source[];
+  readonly source_manifest: readonly ModelSource[];
   readonly coverage_frames: readonly CoverageFrame[];
-  readonly normalized_captures: readonly NormalizedCapture[];
+  readonly source_captures: readonly SourceCapture[];
   readonly research_completion_report: ResearchCompletionNarrative;
 }
 
@@ -382,6 +531,161 @@ export function findReviewGradeLeaks(value: unknown, at = "<normalized_packet>")
 }
 
 /**
+ * A lone surrogate: a UTF-16 code unit with no UTF-8 encoding at all.
+ *
+ * `Buffer.from(text, "utf8")` silently substitutes U+FFFD for one, so a digest
+ * taken over such a string would commit to bytes that are not the capture. The
+ * capture is refused instead, for the same reason `canonical-json.ts` fails on
+ * invalid Unicode rather than emitting it.
+ */
+const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+
+/** SHA-256 over the exact UTF-8 bytes of one capture. */
+function captureDigest(text: string): string {
+  return sha256Hex(Buffer.from(text, "utf8"));
+}
+
+export interface AssembledSourceManifest {
+  /** The canonical source records, digests assembled from the capture bytes. */
+  readonly sources: readonly Source[];
+  /** Normalized capture text by source ID, in the model's own order. */
+  readonly captureText: ReadonlyMap<string, string>;
+  /** Every reason the manifest could not be assembled. Empty on success. */
+  readonly problems: readonly string[];
+}
+
+/**
+ * Strictly validate the model's captures against its manifest, then
+ * deterministically assemble the canonical source records.
+ *
+ * Deterministic in the strict sense: the only thing added is a SHA-256 over the
+ * exact UTF-8 bytes of a capture the model supplied. No text is trimmed,
+ * re-encoded, normalized, defaulted or repaired, because any of those would be
+ * the harness quietly authoring the evidence it then commits to.
+ *
+ * Fails closed on: a model-stated wrapper digest, a missing or duplicated
+ * capture, a capture for an unknown source, a capture that is not a non-empty
+ * string, and a capture carrying invalid Unicode. Every one of those would
+ * otherwise produce a manifest whose digests describe something other than the
+ * bytes the scorer reads.
+ */
+export function assembleSourceManifest(output: {
+  readonly source_manifest: readonly ModelSource[];
+  readonly source_captures: readonly SourceCapture[];
+}): AssembledSourceManifest {
+  const problems: string[] = [];
+  const manifest = Array.isArray(output.source_manifest) ? output.source_manifest : [];
+  const captures = Array.isArray(output.source_captures) ? output.source_captures : [];
+
+  if (!Array.isArray(output.source_manifest)) {
+    problems.push("source_manifest: expected an array of source records");
+  }
+  if (!Array.isArray(output.source_captures)) {
+    problems.push("source_captures: expected an array of per-source captures");
+  }
+
+  const byId = new Map<string, SourceCapture>();
+  for (const [index, capture] of captures.entries()) {
+    const at = `source_captures[${index}]`;
+    const sourceId = (capture as { source_id?: unknown } | null)?.source_id;
+    if (typeof sourceId !== "string" || sourceId.length === 0) {
+      problems.push(`${at}: source_id must be a non-empty string naming a manifest source`);
+      continue;
+    }
+    if (byId.has(sourceId)) {
+      problems.push(
+        `${at}: duplicate capture for source "${sourceId}"; each source is captured exactly once, so the wrapper cannot know which bytes the manifest commits to`,
+      );
+      continue;
+    }
+    byId.set(sourceId, capture);
+  }
+
+  const manifestIds = new Set<string>();
+  for (const [index, source] of manifest.entries()) {
+    const sourceId = (source as { source_id?: unknown } | null)?.source_id;
+    if (typeof sourceId !== "string" || sourceId.length === 0) {
+      problems.push(`source_manifest[${index}]: source_id must be a non-empty string`);
+      continue;
+    }
+    if (manifestIds.has(sourceId)) {
+      problems.push(`source_manifest[${index}]: duplicate source_id "${sourceId}"`);
+      continue;
+    }
+    manifestIds.add(sourceId);
+  }
+  for (const sourceId of byId.keys()) {
+    if (!manifestIds.has(sourceId)) {
+      problems.push(
+        `source_captures: capture for unknown source "${sourceId}"; a capture that no manifest record claims cannot be hashed into one`,
+      );
+    }
+  }
+
+  const sources: Source[] = [];
+  const captureText = new Map<string, string>();
+
+  for (const source of manifest) {
+    const sourceId = (source as { source_id?: unknown } | null)?.source_id;
+    if (typeof sourceId !== "string" || sourceId.length === 0) continue;
+    const at = `source_manifest[${sourceId}]`;
+
+    // The model must not state a digest the wrapper owns. A stated one is
+    // refused rather than ignored: it is either fabricated or it disagrees with
+    // the bytes, and both are drift the freeze must surface.
+    const stated = WRAPPER_ASSEMBLED_SOURCE_FIELDS.filter((field) =>
+      Object.prototype.hasOwnProperty.call(source, field),
+    );
+    if (stated.length > 0) {
+      problems.push(
+        `${at}: states ${stated.join(", ")}, which the wrapper computes from the capture bytes (preregistration §4.1); a model-supplied content hash is never accepted`,
+      );
+    }
+
+    const capture = byId.get(sourceId);
+    if (capture === undefined) {
+      problems.push(`${at}: no capture accompanies this source, so its content digest cannot be assembled`);
+      continue;
+    }
+
+    const normalized = capture.normalized_content;
+    if (typeof normalized !== "string" || normalized.length === 0) {
+      problems.push(`source_captures[${sourceId}].normalized_content: expected a non-empty string`);
+      continue;
+    }
+    if (LONE_SURROGATE.test(normalized)) {
+      problems.push(
+        `source_captures[${sourceId}].normalized_content: carries an unpaired surrogate and has no UTF-8 encoding; the digest would commit to substituted bytes`,
+      );
+      continue;
+    }
+
+    const raw = capture.raw_content;
+    if (raw !== null && (typeof raw !== "string" || raw.length === 0)) {
+      problems.push(
+        `source_captures[${sourceId}].raw_content: expected a non-empty string or null; a source whose raw bytes were not retained records null, never a placeholder`,
+      );
+      continue;
+    }
+    if (raw !== null && LONE_SURROGATE.test(raw)) {
+      problems.push(
+        `source_captures[${sourceId}].raw_content: carries an unpaired surrogate and has no UTF-8 encoding; the digest would commit to substituted bytes`,
+      );
+      continue;
+    }
+
+    captureText.set(sourceId, normalized);
+    sources.push({
+      ...source,
+      raw_content_digest: raw === null ? null : captureDigest(raw),
+      normalized_content_digest: captureDigest(normalized),
+    });
+  }
+
+  return { sources, captureText, problems };
+}
+
+/**
  * The canonical source order: active sources first, then superseded, each group
  * in UTF-16 code-unit order of source ID.
  *
@@ -392,8 +696,11 @@ export function findReviewGradeLeaks(value: unknown, at = "<normalized_packet>")
  * leads because §14 supersession is the one thing that legitimately changes a
  * source's standing between packets.
  */
-export function canonicalSourceOrder(sources: readonly Source[]): readonly string[] {
-  const rank = (source: Source) => (source.record_status === "active" ? 0 : 1);
+export function canonicalSourceOrder(
+  sources: readonly { readonly source_id: string; readonly record_status: string }[],
+): readonly string[] {
+  const rank = (source: { readonly record_status: string }) =>
+    source.record_status === "active" ? 0 : 1;
   return [...sources]
     .sort((a, b) => rank(a) - rank(b) || (a.source_id < b.source_id ? -1 : a.source_id > b.source_id ? 1 : 0))
     .map((source) => source.source_id);
@@ -402,31 +709,52 @@ export function canonicalSourceOrder(sources: readonly Source[]): readonly strin
 /**
  * The normalized scoring packet: exactly what a later scoring pass may see.
  *
- * The candidate/rejection log, the collection reason and the completion report
- * are deliberately absent — preregistration §3.2 keeps the candidate log and
- * research commentary out of both scoring contexts.
+ * Each corpus entry carries the WHOLE frozen canonical source record beside its
+ * normalized text. That is not extra generosity, it is admissibility: Protocol
+ * §4.4 forbids an active Tier-D claim from supporting a number, §4.1 bands the
+ * collection standard by independent active A/B clusters, and §15.1(6) decides
+ * retrospective elapsed time from publication dates — all three are enforced by
+ * the semantic validator after the fact, so a scorer that cannot see
+ * `source_tier`, `independence_cluster_id`, `publication_date`, `accessed_at`,
+ * the locator or the disclosure/dependency fields is being asked to satisfy
+ * rules from facts it was never given. Projecting the canonical record whole
+ * also means a later canonical field reaches both scorers automatically instead
+ * of waiting for someone to notice a hand-maintained list.
+ *
+ * What stays out is exactly what preregistration §3.2 names: the
+ * candidate/rejection log, the collection standard and reason, the query-family
+ * audit, the research run manifest and the completion report — the research
+ * commentary, not the evidence provenance.
  */
 export function normalizedScoringPacket(options: {
   readonly evaluationScope: EvaluationScope;
   readonly coverageFrames: readonly CoverageFrame[];
+  /** The ASSEMBLED manifest: canonical records whose digests describe the captures. */
   readonly sourceManifest: readonly Source[];
-  readonly normalizedCaptures: readonly NormalizedCapture[];
+  readonly captureText: ReadonlyMap<string, string>;
   readonly canonicalSourceOrder: readonly string[];
 }): SemanticInput {
-  const captures = new Map(
-    options.normalizedCaptures.map((capture) => [capture.source_id, capture.normalized_content]),
-  );
   // Ordered by the canonical source order so the packet's bytes are a function
   // of the frozen corpus rather than of the model's array order.
   const sources = new Map(options.sourceManifest.map((source) => [source.source_id, source]));
   return {
+    packet_version: RESEARCH_TRANSPORT_VERSION,
     evaluation_scope: options.evaluationScope,
     coverage_frames: options.coverageFrames,
-    normalized_corpus: options.canonicalSourceOrder.map((sourceId) => ({
-      source_id: sourceId,
-      record_status: sources.get(sourceId)?.record_status ?? null,
-      normalized: captures.get(sourceId) ?? null,
-    })),
+    normalized_corpus: options.canonicalSourceOrder.map((sourceId) => {
+      const source = sources.get(sourceId);
+      const normalized = options.captureText.get(sourceId);
+      if (source === undefined || normalized === undefined) {
+        // Unreachable after `assembleSourceManifest`, which refuses an
+        // incomplete pairing. Kept because a packet with a null source record or
+        // null text is the exact defect this correction removes, and it must
+        // never be constructible by a later caller either.
+        throw new ResearchContentError([
+          `normalized_corpus: no frozen source/capture pair for "${sourceId}"; the packet cannot describe a source it does not carry`,
+        ]);
+      }
+      return { ...source, normalized };
+    }),
     canonical_source_order: options.canonicalSourceOrder,
   };
 }
@@ -468,10 +796,12 @@ export interface FrozenResearchCorpus {
  * Deterministic in the strict sense: given the same output, the same scope and
  * the same `frozenAt`, every byte and every digest is identical. The only
  * transformations are ordering by the canonical source order and computing
- * digests; no field is defaulted, coerced or repaired.
+ * digests from the supplied capture bytes; no field is defaulted, coerced or
+ * repaired.
  *
- * Fails closed on scoring content, unmasked review grades, capture/digest
- * disagreement, and anything the canonical `$defs/corpus` schema rejects.
+ * Fails closed on scoring content, unmasked review grades, a model-stated
+ * wrapper digest, missing or duplicated capture linkage, invalid Unicode in a
+ * capture, and anything the canonical `$defs/corpus` schema rejects.
  */
 export function freezeResearchCorpus(options: {
   readonly output: ModelResearchPass;
@@ -491,36 +821,12 @@ export function freezeResearchCorpus(options: {
 
   const problems: string[] = [];
 
-  // Every capture names a manifest source, every source has a capture, and the
-  // capture's SHA-256 is the digest the manifest already committed to. A corpus
-  // whose digests do not describe its own content is not frozen in any useful
-  // sense, so this is checked rather than assumed.
-  const captureBySource = new Map<string, string>();
-  for (const capture of output.normalized_captures) {
-    if (captureBySource.has(capture.source_id)) {
-      problems.push(`normalized_captures: duplicate capture for source "${capture.source_id}"`);
-    }
-    captureBySource.set(capture.source_id, capture.normalized_content);
-  }
-  const manifestIds = new Set(output.source_manifest.map((source) => source.source_id));
-  for (const sourceId of captureBySource.keys()) {
-    if (!manifestIds.has(sourceId)) {
-      problems.push(`normalized_captures: capture for unknown source "${sourceId}"`);
-    }
-  }
-  for (const source of output.source_manifest) {
-    const content = captureBySource.get(source.source_id);
-    if (content === undefined) {
-      problems.push(`source_manifest[${source.source_id}]: no normalized capture accompanies this source`);
-      continue;
-    }
-    const digest = sha256Hex(Buffer.from(content, "utf8"));
-    if (digest !== source.normalized_content_digest) {
-      problems.push(
-        `source_manifest[${source.source_id}]: normalized_content_digest does not describe the supplied capture`,
-      );
-    }
-  }
+  // Strict shape validation, then deterministic assembly: every capture names a
+  // manifest source, every source has exactly one capture, no model-stated
+  // wrapper digest is accepted, and the canonical digests are computed here from
+  // the exact UTF-8 capture bytes (preregistration §4.1).
+  const assembly = assembleSourceManifest(output);
+  problems.push(...assembly.problems);
 
   // §4.1 / §8 — every family accounted for exactly once, and the declared
   // collection standard reproduced by the manifest's independent ACTIVE A/B
@@ -550,12 +856,16 @@ export function freezeResearchCorpus(options: {
     );
   }
 
-  const order = canonicalSourceOrder(output.source_manifest);
+  // The packet is built from the ASSEMBLED manifest, so refusing here rather
+  // than later keeps a half-assembled corpus from ever existing.
+  if (problems.length > 0) throw new ResearchContentError(problems);
+
+  const order = canonicalSourceOrder(assembly.sources);
   const semanticInput = normalizedScoringPacket({
     evaluationScope,
     coverageFrames: output.coverage_frames,
-    sourceManifest: output.source_manifest,
-    normalizedCaptures: output.normalized_captures,
+    sourceManifest: assembly.sources,
+    captureText: assembly.captureText,
     canonicalSourceOrder: order,
   });
 
@@ -568,6 +878,10 @@ export function freezeResearchCorpus(options: {
 
   if (problems.length > 0) throw new ResearchContentError(problems);
 
+  // The RAW packet digest is over the model's own output, unaltered: the
+  // assembled manifest is a wrapper derivation and is committed to separately by
+  // the corpus. A refused or replayed attempt is therefore still checkable
+  // against exactly what came back.
   const rawPacketDigest = canonicalDigest(output as never);
   const normalizedPacketDigest = sha256Hex(canonicalize(semanticInput as never));
 
@@ -604,7 +918,7 @@ export function freezeResearchCorpus(options: {
     collection_reason: output.collection_reason,
     query_family_audit: output.query_family_audit,
     candidate_source_log: output.candidate_source_log,
-    source_manifest: output.source_manifest,
+    source_manifest: assembly.sources,
     coverage_frames: output.coverage_frames,
     raw_packet_digest: rawPacketDigest,
     normalized_packet_digest: normalizedPacketDigest,

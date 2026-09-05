@@ -37,6 +37,7 @@ import {
 } from "@/lib/calibration/holdout-isolation";
 import { D1_RUN_INPUT, freezeD1EvaluationScope } from "@/lib/calibration/run-input";
 import {
+  CAPTURE_TEXT,
   ELIGIBLE,
   FACTS,
   FROZEN_AT,
@@ -257,7 +258,7 @@ describe("Phase 3A D1 research — deterministic corpus freeze", () => {
     const shuffled: ModelResearchPass = {
       ...output,
       source_manifest: [...output.source_manifest].reverse(),
-      normalized_captures: [...output.normalized_captures].reverse(),
+      source_captures: [...output.source_captures].reverse(),
     };
 
     const ordered = freezeD1Research({ request: built, output, facts: FACTS, frozenAt: FROZEN_AT });
@@ -338,7 +339,7 @@ describe("Phase 3A D1 research — the research pass never scores", () => {
     const properties = Object.keys(schema.schema.properties as Record<string, unknown>);
     expect(properties).toEqual([
       ...MODEL_OWNED_CORPUS_FIELDS,
-      "normalized_captures",
+      "source_captures",
       "research_completion_report",
     ]);
     expect(properties).not.toContain("decisions");
@@ -370,29 +371,29 @@ describe("Phase 3A D1 research — the research pass never scores", () => {
     const output = buildResearchOutput();
     const graded: ModelResearchPass = {
       ...output,
-      normalized_captures: output.normalized_captures.map((capture, index) =>
+      source_captures: output.source_captures.map((capture, index) =>
         index === 0
           ? { ...capture, normalized_content: "The outlet awarded it 9/10 overall." }
           : capture,
-      ),
-      source_manifest: output.source_manifest.map((source, index) =>
-        index === 0
-          ? { ...source, normalized_content_digest: sha256("The outlet awarded it 9/10 overall.") }
-          : source,
       ),
     };
     expect(() => freeze(graded)).toThrow(/unmasked review grade/);
   });
 
-  it("refuses a corpus whose digests do not describe its own captures", () => {
+  it("refuses a model output that states a digest the wrapper computes", () => {
     const output = buildResearchOutput();
-    const tampered: ModelResearchPass = {
+    const stated: ModelResearchPass = {
       ...output,
-      normalized_captures: output.normalized_captures.map((capture, index) =>
-        index === 0 ? { ...capture, normalized_content: "Silently edited capture." } : capture,
+      source_manifest: output.source_manifest.map((source, index) =>
+        index === 0
+          ? { ...source, normalized_content_digest: sha256(CAPTURE_TEXT(1)) }
+          : source,
       ),
     };
-    expect(() => freeze(tampered)).toThrow(/does not describe the supplied capture/);
+    // Refused even though the stated value happens to be correct: a model
+    // cannot compute SHA-256, so any digest it states is a fabrication that
+    // occasionally coincides with the truth.
+    expect(() => freeze(stated)).toThrow(/a model-supplied content hash is never accepted/);
   });
 
   it("refuses a corpus that could not satisfy the collection standard it declares", () => {
@@ -400,7 +401,7 @@ describe("Phase 3A D1 research — the research pass never scores", () => {
     const thin: ModelResearchPass = {
       ...output,
       source_manifest: output.source_manifest.slice(0, 3),
-      normalized_captures: output.normalized_captures.slice(0, 3),
+      source_captures: output.source_captures.slice(0, 3),
     };
     expect(() => freeze(thin)).toThrow(/independent active A\/B clusters/);
   });

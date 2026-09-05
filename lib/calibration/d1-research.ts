@@ -35,6 +35,7 @@ import {
 import {
   PREREGISTERED_RESEARCH_TOOL_ACCESS,
   RESEARCH_TOOLS,
+  RESEARCH_TRANSPORT_VERSION,
   assertResearchExecutionContract,
   buildResearchPassSchema,
   freezeResearchCorpus,
@@ -362,6 +363,8 @@ export async function runD1ResearchPass(options: {
 
 export interface D1ResearchReceipt {
   readonly receipt_version: "1.0";
+  /** The research transport contract this corpus was frozen under. */
+  readonly transport_version: number;
   readonly run_key: "D1";
   readonly role: "research";
   readonly run_id: string;
@@ -483,6 +486,7 @@ export function freezeD1Research(options: {
 
   const body = {
     receipt_version: "1.0" as const,
+    transport_version: RESEARCH_TRANSPORT_VERSION,
     run_key: "D1" as const,
     role: "research" as const,
     run_id: runId,
@@ -547,8 +551,14 @@ export function freezeD1Research(options: {
  * `raw_packet_digest`, carried on the capture itself so the file is
  * self-verifying: a capture edited after it was written no longer re-derives its
  * own digest and is refused when it is read back.
+ *
+ * `transport_version` names the research transport contract the output was
+ * produced under. It exists so a capture from a superseded contract is refused
+ * with a diagnostic instead of being reinterpreted under rules it was never
+ * produced against.
  */
 export interface D1ResearchCapture {
+  readonly transport_version: number;
   readonly facts: D1ResearchRunFacts;
   readonly output: ModelResearchPass;
   readonly frozen_at: string;
@@ -563,12 +573,97 @@ export function buildD1ResearchCapture(options: {
   readonly frozenAt: string;
 }): D1ResearchCapture {
   return {
+    transport_version: RESEARCH_TRANSPORT_VERSION,
     facts: options.facts,
     output: options.output,
     frozen_at: options.frozenAt,
     request_semantic_digest: options.request.digests.semantic_request_digest,
     output_digest: canonicalDigest(options.output as never),
   };
+}
+
+/** Raised when a persisted capture belongs to a transport this harness cannot read. */
+export class ResearchCaptureVersionError extends Error {
+  constructor(
+    readonly file: string,
+    readonly recordedVersion: number | null,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ResearchCaptureVersionError";
+  }
+}
+
+/**
+ * Refuse a capture this harness must not re-freeze.
+ *
+ * Preregistration §9.1/§9.3 preserve measured attempts, so a version-1 capture
+ * stays exactly as it was recorded — including one the freeze already refused,
+ * which stays refused. What this function prevents is the other outcome: reading
+ * a version-1 output under version-2 rules, where the model-stated
+ * `normalized_content_digest` would be rejected as a wrapper field and the
+ * absent `source_captures` as a missing one, producing a confusing shape error
+ * instead of the real answer, or — worse, had the rules been more forgiving —
+ * silently rewriting an old attempt's artifacts in the new format.
+ *
+ * Called BEFORE anything is written, so a refusal leaves the attempt directory
+ * untouched.
+ */
+export function assertReplayableResearchCapture(
+  capture: unknown,
+  file: string,
+): asserts capture is D1ResearchCapture {
+  const record = (capture ?? {}) as Record<string, unknown>;
+  const recorded = record.transport_version;
+
+  if (recorded === RESEARCH_TRANSPORT_VERSION) return;
+
+  if (recorded === undefined) {
+    throw new ResearchCaptureVersionError(
+      file,
+      null,
+      `${file}: the capture records no transport_version, so it predates research transport v${RESEARCH_TRANSPORT_VERSION}.\n` +
+        "  A v1 capture was produced under the superseded contract in which the MODEL stated\n" +
+        "  source.normalized_content_digest and source.raw_content_digest. That contract was not\n" +
+        "  executable — the research pass has web search and no hashing tool — and its packets omit\n" +
+        "  the source tier, independence cluster and dates the protocol's admissibility rules need.\n" +
+        "  This command will not reinterpret it as v" +
+        `${RESEARCH_TRANSPORT_VERSION}: preregistration §9.1/§9.3 preserve the attempt as recorded.\n` +
+        "  Record a new measured attempt under the current transport instead (--attempt <n>).",
+    );
+  }
+
+  const version = typeof recorded === "number" ? recorded : null;
+  throw new ResearchCaptureVersionError(
+    file,
+    version,
+    `${file}: the capture records transport_version ${JSON.stringify(recorded)}, but this harness reads ` +
+      `v${RESEARCH_TRANSPORT_VERSION}.\n` +
+      "  An artifact from a transport this build does not implement is refused rather than guessed at.\n" +
+      "  Re-freeze it with the harness revision that produced it, or record a new measured attempt.",
+  );
+}
+
+/**
+ * Per-source normalized-content digests, re-derived from a packet's own bytes.
+ *
+ * Used on both sides of a binding: over the frozen corpus it states what the
+ * manifest committed to, and over the packet read back off disk it states what
+ * the scorer would actually read. Equality is the property an edit breaks.
+ */
+function normalizedCaptureDigests(semanticInput: unknown): Record<string, string> {
+  const corpus = (semanticInput as { normalized_corpus?: unknown } | null)?.normalized_corpus;
+  if (!Array.isArray(corpus)) return { "<normalized_corpus>": "absent or not an array" };
+  const digests: Record<string, string> = {};
+  for (const [index, entry] of corpus.entries()) {
+    const record = entry as { source_id?: unknown; normalized?: unknown } | null;
+    const key = typeof record?.source_id === "string" ? record.source_id : `<entry ${index}>`;
+    digests[key] =
+      typeof record?.normalized === "string"
+        ? sha256Hex(Buffer.from(record.normalized, "utf8"))
+        : "absent or not a string";
+  }
+  return digests;
 }
 
 /**
@@ -578,7 +673,10 @@ export function buildD1ResearchCapture(options: {
  * The bindings are deliberately cross-artifact: `semantic-input.json` is the
  * file slice C consumes, and what makes it trustworthy is that its own persisted
  * bytes still hash to the `normalized_packet_digest` the corpus and the receipt
- * committed to. That is the exact property a post-digest edit would break.
+ * committed to, AND that each entry's capture text still hashes to the
+ * `normalized_content_digest` the frozen manifest records for that source. The
+ * second binding names the source an edit touched instead of only reporting that
+ * the packet as a whole no longer matches.
  */
 export function d1ResearchArtifacts(options: {
   readonly frozen: D1FrozenResearch;
@@ -610,6 +708,18 @@ export function d1ResearchArtifacts(options: {
         label: "corpus.normalized_packet_digest",
         expected: frozen.corpus.normalized_packet_digest,
         derive: (readBack) => canonicalDigest(readBack as never),
+      },
+      {
+        label: "corpus.source_manifest[*].normalized_content_digest",
+        expected: canonicalDigest(
+          Object.fromEntries(
+            frozen.corpus.source_manifest.map((source) => [
+              source.source_id,
+              source.normalized_content_digest,
+            ]),
+          ) as never,
+        ),
+        derive: (readBack) => canonicalDigest(normalizedCaptureDigests(readBack) as never),
       },
     ],
   });

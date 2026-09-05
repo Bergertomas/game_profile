@@ -23,6 +23,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import {
   D1_RESEARCH_MAX_OUTPUT_TOKENS,
+  assertReplayableResearchCapture,
   buildD1ResearchCapture,
   buildD1ResearchRequest,
   d1ResearchArtifacts,
@@ -245,6 +246,11 @@ async function main(): Promise<void> {
           `${freezeFrom}: the capture records no output_digest, so its persisted model output cannot be verified. Re-produce it with this command rather than hand-assembling one.`,
         );
       }
+      // Before anything is derived or written: a capture from a superseded
+      // transport is refused, never reinterpreted. The refusal leaves the
+      // attempt directory exactly as the earlier run recorded it
+      // (preregistration §9.1, §9.3).
+      assertReplayableResearchCapture(capture, freezeFrom);
     } catch (error) {
       console.error(
         `\nRefusing to freeze: ${redact(error instanceof Error ? error.message : String(error))}`,

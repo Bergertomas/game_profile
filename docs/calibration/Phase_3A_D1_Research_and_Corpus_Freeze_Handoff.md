@@ -66,10 +66,51 @@ mismatch is reported as request drift and the freeze is refused.
    is owner-approved and immutable to this slice, so the receipt discloses the
    mention rather than the wrapper editing a locked input.
 4. **At freeze** — no scoring content, no unmasked review grade in the scoring
-   view, every capture's SHA-256 equal to the manifest digest that commits to it,
-   all seven query families present exactly once, the declared collection
-   standard reproduced by the manifest's independent active A/B clusters, and the
-   canonical `$defs/corpus` schema satisfied.
+   view, strict capture/manifest linkage followed by wrapper-computed content
+   digests (below), all seven query families present exactly once, the declared
+   collection standard reproduced by the manifest's independent active A/B
+   clusters, and the canonical `$defs/corpus` schema satisfied.
+
+## The research transport contract (v2, issue #114)
+
+Transport v1 projected the canonical `$defs/source` unchanged into the
+model-facing schema, so it demanded `normalized_content_digest` — a required
+lowercase SHA-256 — and `raw_content_digest` from a pass whose only tool is web
+search, and the freeze then compared that model-stated value to its own hash of
+the same text. **The contract was not executable.** It looked executable only
+because the test fixtures computed the digests locally with `createHash`, which
+is exactly the capability the live model does not have.
+
+Preregistration §4.1 settles it directly: web search only as configured, and
+"deterministic local capture/hash tooling may run outside the model". So:
+
+- the model-facing `$defs` carries a derived `capturedSource` — the canonical
+  source record **minus** the two wrapper digests. It is derived from the
+  controlled bytes by removal only, so a canonical field the model owns appears
+  automatically and one that disappears disappears here too; the canonical
+  `$defs/source` itself is read, never rewritten, and a canonical schema that
+  stopped declaring either digest fails the projection loudly;
+- the transport-only record is `source_captures`: one entry per source with
+  `normalized_content` and a nullable `raw_content`. `raw_content` is nullable
+  exactly as `raw_content_digest` is — a source whose raw bytes were not retained
+  records a null digest, never a fabricated one;
+- the wrapper validates the linkage strictly and then computes both digests over
+  the exact UTF-8 bytes of the captures. It refuses a model-stated wrapper digest
+  (even a correct one: a model cannot compute SHA-256, so a stated value is a
+  fabrication that occasionally coincides), a missing or duplicated capture, a
+  capture for an unknown source, a capture that is not a non-empty string, and a
+  capture carrying an unpaired surrogate — which has no UTF-8 encoding, so its
+  digest would commit to substituted bytes;
+- the raw model output is preserved separately and unrepaired in `capture.json`,
+  and `raw_packet_digest` is still taken over it. The assembled manifest is
+  visibly a wrapper derivation.
+
+**Versioning.** The capture, the receipt and the frozen packet each carry the
+transport version. A v1 capture is refused on `--freeze` **before** anything is
+derived or written, with a diagnostic naming the superseded contract and the
+remedy, so an existing attempt directory is left exactly as it was recorded
+(preregistration §9.1, §9.3). An attempt the v1 freeze already refused stays
+refused. Slice C refuses a pre-v2 packet by version for the same reason.
 
 ## Artifacts (git-ignored, `calibration-runs/d1-research/<runId>/`)
 
@@ -78,7 +119,7 @@ attempt has its own directory.
 
 | File | Contents |
 | --- | --- |
-| `capture.json` | The raw model output, run facts, `frozen_at`, the semantic request digest and `output_digest` over the model output. Written even when the freeze refuses the output, so a failed attempt stays evidence; a refused attempt lands in `d1-research-unfrozen-<digest>-a<attempt>/`. |
+| `capture.json` | The raw model output, `transport_version`, run facts, `frozen_at`, the semantic request digest and `output_digest` over the model output. Written even when the freeze refuses the output, so a failed attempt stays evidence; a refused attempt lands in `d1-research-unfrozen-<digest>-a<attempt>/`. |
 | `corpus.json` | The canonical `corpus` object: research run manifest, candidate log, source manifest, coverage frames, both packet digests, canonical source order, `review_grades_masked`, `frozen_at`. |
 | `semantic-input.json` | **The slice-C input.** |
 | `receipt.json` | Controlled-byte hashes, supplied-input hashes, model/configuration/tool access, returned identity, timings, every digest, the maturity record, the isolation boundary, the research completion report, and `receipt_digest` over all of it. |
@@ -102,10 +143,14 @@ apply to all of them (issue #88, the #87 defects 1 and 2):
    must reproduce what was written, re-derive the same RFC 8785 canonical digest,
    satisfy the digests the artifact records about itself (`receipt_digest`,
    `output_digest`) and satisfy the declared cross-artifact bindings —
-   `semantic-input.json` must still hash to `corpus.normalized_packet_digest` and
-   the capture's output to `corpus.raw_packet_digest`. Any failure throws; there
-   is no repair path and no warning tier. The same verification runs on the way
-   in, so a corrupted artifact is refused where it would be consumed.
+   `semantic-input.json` must still hash to `corpus.normalized_packet_digest`,
+   each of its entries' capture text must still hash to that source's
+   `corpus.source_manifest[*].normalized_content_digest`, and the capture's
+   output to `corpus.raw_packet_digest`. The per-source binding exists so an edit
+   names the source it touched instead of only reporting that the packet as a
+   whole no longer matches. Any failure throws; there is no repair path and no
+   warning tier. The same verification runs on the way in, so a corrupted
+   artifact is refused where it would be consumed.
 3. **Immutable.** A write that would replace an existing artifact with different
    bytes is refused (preregistration §9.1, §9.3). A byte-identical rewrite is
    permitted, which is what keeps the `--freeze` determinism check meaningful. A
@@ -128,19 +173,38 @@ refusal names the next free attempt number.
 buildScoringRequest({ semanticInput, maxOutputTokens /*, seed */ })
 ```
 
-Its four members are `evaluation_scope` (with `evidence_cutoff` materialized from
-the freeze's UTC calendar date through slice A's `freezeD1EvaluationScope`),
-`coverage_frames`, `normalized_corpus` and `canonical_source_order`. The
-normalized corpus is ordered by the canonical source order, so its bytes are a
-function of the frozen corpus rather than of the model's array order, and
-`buildScoringRequest`'s `normalized_packet_digest` reproduces
-`corpus.normalized_packet_digest` exactly. Slice C should assert that equality
-before spending a paired call.
+Its members are `packet_version`, `evaluation_scope` (with `evidence_cutoff`
+materialized from the freeze's UTC calendar date through slice A's
+`freezeD1EvaluationScope`), `coverage_frames`, `normalized_corpus` and
+`canonical_source_order`. The normalized corpus is ordered by the canonical
+source order, so its bytes are a function of the frozen corpus rather than of the
+model's array order, and `buildScoringRequest`'s `normalized_packet_digest`
+reproduces `corpus.normalized_packet_digest` exactly. Slice C should assert that
+equality before spending a paired call.
+
+Each `normalized_corpus` entry is the **whole frozen canonical source record**
+plus its `normalized` capture text. That is admissibility rather than generosity:
+Protocol §4.4 forbids an active Tier-D claim from supporting a number, §4.1 bands
+the collection standard by independent active A/B clusters, and §15.1(6) decides
+retrospective elapsed time from publication dates — and the semantic validator
+enforces all three after the run. A packet that hid `source_tier`,
+`independence_cluster_id`, `publication_date`, `accessed_at`, the locator and the
+disclosure/dependency fields was asking both scorers to satisfy rules from facts
+they were never given (issue #114, finding M2). Because the whole canonical
+record is projected, a later canonical source field reaches both scorers
+automatically rather than waiting for a hand-maintained list to be updated.
 
 Deliberately absent from the scoring view, per preregistration §3.2: the
-candidate/rejection log, the collection reason, the research completion report
-and any research commentary. Slice C must not reintroduce them, must expose no
-tools (ADR 0036 §6), and must not consult the research context.
+candidate/rejection log, the collection standard and reason, the query-family
+audit, the research run manifest, the research completion report and any research
+commentary. Slice C must not reintroduce them, must expose no tools (ADR 0036
+§6), and must not consult the research context.
+
+One consequence worth stating plainly: the §4.6 review-grade mask now runs over
+the source titles and locators too, because they are part of the scoring view.
+A locator whose path reads as a grade (`…/9/10/…`) will refuse the freeze. That
+is the mask working as written rather than a new rule, and narrowing it would be
+a methodology decision rather than an engineering one.
 
 ## Boundaries slice B did not cross
 
@@ -157,12 +221,20 @@ are read and hashed, never written.
   from repository bytes and recorded in the receipt as a supplied input with its
   own SHA-256. If it should be byte-locked, that is a preregistration amendment
   and an owner decision.
-- `normalized_captures` and `research_completion_report` are transport-only
-  records: the package schema stores digests of content that lives outside it,
-  and the frozen prompt asks for a completion report the schema does not define.
-  Neither adds methodology — every capture is re-hashed against the manifest
-  digest at freeze, and the report's derivable items are computed from the frozen
-  corpus rather than requested from the model.
+- `source_captures` and `research_completion_report` are transport-only records:
+  the package schema stores digests of content that lives outside it, and the
+  frozen prompt asks for a completion report the schema does not define. Neither
+  adds methodology — the manifest's content digests are computed by the wrapper
+  from the capture bytes at freeze, and the report's derivable items are computed
+  from the frozen corpus rather than requested from the model.
+- The frozen research prompt's step 12 asks the model to "freeze … timestamps,
+  and digests". The wrapper already owned the freeze timestamp, both packet
+  digests, the canonical source order and the masking assertion, because the
+  model cannot know them; the per-source content digests are the same kind of
+  fact and are now owned the same way. No controlled input was changed, and none
+  needed to be. If the orchestrator reads step 12 as reserving the per-source
+  digests to the model, that is a preregistration question rather than an
+  engineering one — but the contract cannot be executed that way.
 - The canonical source order is active sources first, then superseded, each group
   in UTF-16 code-unit order of source ID. Protocol §4.7 requires the order to be
   frozen and hashed but does not define it; this is a mechanical determinism rule
